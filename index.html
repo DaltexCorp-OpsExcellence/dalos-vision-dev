@@ -3067,17 +3067,19 @@ function AdminCenter(props){
       .then(function(r){if(r.error){console.error('[DalOS] addVariety error:',r.error.message);flashErr(r.error.message);}else{console.log('[DalOS] Variety saved:',newVal.trim());flashSaved();}});
     setNewVal('');
   }
-  function removeVariety(idx){
-    var varItem=(config.varietiesFull&&config.varietiesFull[selProd]||[])[idx];
-    var varName=varItem?(varItem.name||varItem):((config.varieties[selProd]||[])[idx]);
-    var varId=varItem&&varItem.id;
-    var n=Object.assign({},config);
-    n.varieties=Object.assign({},n.varieties);
-    n.varieties[selProd]=(n.varieties[selProd]||[]).filter(function(_,i){return i!==idx;});
-    if(n.varietiesFull){n.varietiesFull=Object.assign({},n.varietiesFull);n.varietiesFull[selProd]=(n.varietiesFull[selProd]||[]).filter(function(_,i){return i!==idx;});}
-    setConfig(n);
-    var q=varId?supabase.from('varieties').update({active:false}).eq('id',varId):supabase.from('varieties').update({active:false}).eq('name',varName).eq('product_id',selProd);
-    q.then(function(r){if(r.error)console.error('[DalOS] removeVariety error:',r.error.message);else flashSaved();});
+  function removeVarietyById(vid,pid){
+    setConfig(function(prev){
+      var vf=Object.assign({},prev.varietiesFull||{});
+      vf[pid]=(vf[pid]||[]).filter(function(v){return v.id!==vid;});
+      var vs=Object.assign({},prev.varieties||{});
+      vs[pid]=(vs[pid]||[]).filter(function(n){
+        var found=(vf[pid]||[]).find(function(v){return v.name===n;});
+        return found!==undefined||!(vf[pid]||[]).every(function(v){return v.id!==vid;});
+      });
+      return Object.assign({},prev,{varietiesFull:vf,varieties:vs});
+    });
+    supabase.from('varieties').update({active:false}).eq('id',vid)
+      .then(function(r){if(r.error)console.error('[DalOS] removeVariety error:',r.error.message);else flashSaved();});
   }
   function addPackhouse(){
     if(!newVal.trim()||!newVal2Arr||!newVal2Arr.length) return;
@@ -3650,7 +3652,7 @@ function AdminCenter(props){
                           ce('option',{value:''},'— no cat —'),
                           (cats).map(function(cat){return ce('option',{key:cat.id,value:cat.id},cat.name);})
                         ),
-                        ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:13,lineHeight:1,padding:'0 0 0 4px'},onClick:function(idx){return function(){removeVariety(idx);};}(i)},'×')
+                        ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:13,lineHeight:1,padding:'0 0 0 4px'},onClick:function(vid,pid){return function(){removeVarietyById(vid,pid);};}(v.id,prod.id)},'×')
                       );
                     })
                   )
@@ -3679,7 +3681,7 @@ function AdminCenter(props){
                     ce('option',{value:''},'— no cat —'),
                     cats.map(function(cat){return ce('option',{key:cat.id,value:cat.id},cat.name);})
                   ),
-                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:13,lineHeight:1,padding:'0 0 0 4px'},onClick:function(idx){return function(){removeVariety(idx);};}(i)},'×')
+                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:13,lineHeight:1,padding:'0 0 0 4px'},onClick:function(vid,pid){return function(){removeVarietyById(vid,prod.id);};}(v.id,prod.id)},'×')
                 );
               })
             )
