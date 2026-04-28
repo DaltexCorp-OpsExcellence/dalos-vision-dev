@@ -619,6 +619,8 @@ function InspectionForm(props){
   },[]);
   /* ── Dirty tracking + draft — must be first so setIsDirty is in scope ── */
   var sIsDirty=useState(false); var isDirty=sIsDirty[0]; var setIsDirty=sIsDirty[1];
+  /* Track when this form was first opened — used for draft_started_at + completion_minutes audit fields */
+  var formOpenedAtRef=React.useRef(new Date());
   var draftKey='dalos_draft_'+(packhouse.id||'')+'_'+cropId+(isEdit&&batch?'_'+batch.id:'_new');
   function safeClose(){
     if(isDirty&&!window.confirm('You have unsaved changes. Leave without saving?')) return;
@@ -885,6 +887,8 @@ function InspectionForm(props){
       notes:allRows.map(function(r){return r.notes;}).filter(Boolean).join('; '),
       hasClientReport:0,clientTotal:null,clientDecision:'',claimedValue:0,gap:null,
       clearance:clearance,
+      /* Audit timing — for draft_started_at + completion_minutes (only used on new inserts) */
+      formOpenedAt:formOpenedAtRef.current,
       /* DB-ready structure: pallets with their sample rows */
       pallets:pallets.map(function(p){return {palletId:p.palletId,palletNo:p.palletNo,palletLabel:p.palletLabel||'',palletContainer:p.palletContainer||'',palletTraceCodes:p.palletTraceCodes||[],actualTraceCode:p.actualTraceCode||'',rows:p.rows.slice()};}),
       /* flat samples for backward compat (client QC matching) */
@@ -8714,12 +8718,26 @@ function App(){
     if(newBatch.plot!==undefined) inspectionRow.plot=newBatch.plot||null;
     if(newBatch.farm2) inspectionRow.farm2_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm2])||null;
     if(newBatch.plot2!==undefined) inspectionRow.plot2=newBatch.plot2||null;
+    /* ── Audit timestamps ── */
+    if(!isEditMode){
+      /* New inspection: record when the form was opened, and how long it took */
+      if(newBatch.formOpenedAt instanceof Date){
+        inspectionRow.draft_started_at=newBatch.formOpenedAt.toISOString();
+        var elapsedMs=Date.now()-newBatch.formOpenedAt.getTime();
+        inspectionRow.completion_minutes=Math.max(0,Math.round(elapsedMs/60000));
+      }
+    } else {
+      /* Edit: track who/when, but do NOT overwrite original submitted_at */
+      inspectionRow.last_edited_by=ctx.userId||null;
+      inspectionRow.last_edited_at=new Date().toISOString();
+    }
     console.log('[DalOS] Inserting inspection row:',JSON.stringify(inspectionRow));
     var dbOp=!isEditMode
       ?supabase.from('inspections').insert([inspectionRow]).select()
       :(function(){
         var updateRow=Object.assign({},inspectionRow);
         delete updateRow.id; delete updateRow.created_by; delete updateRow.season_id;
+        delete updateRow.submitted_at; /* never re-stamp submitted_at on edit */
         return supabase.from('inspections').update(updateRow).eq('id',realId).select();
       })();
     dbOp
