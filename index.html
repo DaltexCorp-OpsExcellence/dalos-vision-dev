@@ -701,31 +701,32 @@ function InspectionForm(props){
     if(!isDirty) return;
     var timer=setInterval(function(){
       try{
-        var snap={lot:lot,date:date,variety:variety,client:client,country:country,farm:farm,container:container,ts:Date.now()};
+        var snap={lot:lot,date:date,variety:variety,category:category,varietyType:varietyType,variety2:variety2,category2:category2,client:client,country:country,farm:farm,farm2:farm2,plot:plot,plot2:plot2,container:container,cls:cls,wax:wax,packing:packing,labelling:labelling,cartonCompany:cartonCompany,cartonColor:cartonColor,pallets:pallets,decision:decision,ts:Date.now()};
         localStorage.setItem(draftKey,JSON.stringify(snap));
       }catch(e){}
     },30000);
     return function(){clearInterval(timer);};
-  },[isDirty,lot,date,variety,client,country,farm,container]);
-  var sf=useState(batch?batch.date:new Date().toISOString().slice(0,10)); var date=sf[0]; var setDateRaw=sf[1];
+  },[isDirty,lot,date,variety,client,country,farm,container,pallets,decision]);
+  var _d=restoredDraft||{};
+  var sf=useState(batch?batch.date:(_d.date||new Date().toISOString().slice(0,10))); var date=sf[0]; var setDateRaw=sf[1];
   function setDate(v){setDateRaw(v);setIsDirty(true);}
-  var sCat=useState(batch?batch.category||'':''); var category=sCat[0]; var setCategory=sCat[1];  var sv=useState(batch?batch.variety:''); var variety=sv[0]; var setVariety=sv[1];
-  var sVT=useState(batch?batch.varietyType||'single':'single'); var varietyType=sVT[0]; var setVarietyType=sVT[1];
-  var sCat2=useState(batch?batch.category2||'':''); var category2=sCat2[0]; var setCategory2=sCat2[1];
-  var sV2=useState(batch?batch.variety2||'':''); var variety2=sV2[0]; var setVariety2=sV2[1];
-  var sc=useState(batch?batch.container:''); var container=sc[0]; var setContainer=sc[1];
-  var sl=useState(batch?batch.lot:''); var lot=sl[0]; var setLotRaw=sl[1];
+  var sCat=useState(batch?batch.category||'':(_d.category||'')); var category=sCat[0]; var setCategory=sCat[1];  var sv=useState(batch?batch.variety:(_d.variety||'')); var variety=sv[0]; var setVariety=sv[1];
+  var sVT=useState(batch?batch.varietyType||'single':(_d.varietyType||'single')); var varietyType=sVT[0]; var setVarietyType=sVT[1];
+  var sCat2=useState(batch?batch.category2||'':(_d.category2||'')); var category2=sCat2[0]; var setCategory2=sCat2[1];
+  var sV2=useState(batch?batch.variety2||'':(_d.variety2||'')); var variety2=sV2[0]; var setVariety2=sV2[1];
+  var sc=useState(batch?batch.container:(_d.container||'')); var container=sc[0]; var setContainer=sc[1];
+  var sl=useState(batch?batch.lot:(_d.lot||'')); var lot=sl[0]; var setLotRaw=sl[1];
   function setLot(v){setLotRaw(v);setIsDirty(true);}
-  var scls=useState(batch?batch.cls:''); var cls=scls[0]; var setCls=scls[1];
-  var scli=useState(batch?batch.client:''); var client=scli[0]; var setClient=scli[1];
-  var sco=useState(batch?batch.country:''); var country=sco[0]; var setCountry=sco[1];
-  var sfm=useState(batch?batch.farm:''); var farm=sfm[0]; var setFarm=sfm[1];
-  var sPlot=useState(batch?batch.plot||'':''); var plot=sPlot[0]; var setPlot=sPlot[1];
-  var sFarm2=useState(batch?batch.farm2||'':''); var farm2=sFarm2[0]; var setFarm2=sFarm2[1];
-  var sPlot2=useState(batch?batch.plot2||'':''); var plot2=sPlot2[0]; var setPlot2=sPlot2[1];
-  var spk=useState(batch?batch.packing:''); var packing=spk[0]; var setPacking=spk[1];
-  var slb=useState(batch?batch.labelling:''); var labelling=slb[0]; var setLabelling=slb[1];
-  var swx=useState(batch?batch.wax:''); var wax=swx[0]; var setWax=swx[1];
+  var scls=useState(batch?batch.cls:(_d.cls||'')); var cls=scls[0]; var setCls=scls[1];
+  var scli=useState(batch?batch.client:(_d.client||'')); var client=scli[0]; var setClient=scli[1];
+  var sco=useState(batch?batch.country:(_d.country||'')); var country=sco[0]; var setCountry=sco[1];
+  var sfm=useState(batch?batch.farm:(_d.farm||'')); var farm=sfm[0]; var setFarm=sfm[1];
+  var sPlot=useState(batch?batch.plot||'':(_d.plot||'')); var plot=sPlot[0]; var setPlot=sPlot[1];
+  var sFarm2=useState(batch?batch.farm2||'':(_d.farm2||'')); var farm2=sFarm2[0]; var setFarm2=sFarm2[1];
+  var sPlot2=useState(batch?batch.plot2||'':(_d.plot2||'')); var plot2=sPlot2[0]; var setPlot2=sPlot2[1];
+  var spk=useState(batch?batch.packing:(_d.packing||'')); var packing=spk[0]; var setPacking=spk[1];
+  var slb=useState(batch?batch.labelling:(_d.labelling||'')); var labelling=slb[0]; var setLabelling=slb[1];
+  var swx=useState(batch?batch.wax:(_d.wax||'')); var wax=swx[0]; var setWax=swx[1];
   var strace=useState((function(){var r=normTC(batch&&batch.traceCodes?batch.traceCodes:(batch&&batch.traceCode?[batch.traceCode]:[]));return r.length?r:[{code:'',variety:null}];})()); var traceCodes=strace[0]; var setTraceCodes=strace[1];
   var sdec=useState(batch?batch.decision:''); var decision=sdec[0]; var setDecision=sdec[1];
   var sHL=useState(isEdit); var hdrLocked=sHL[0]; var setHdrLocked=sHL[1];
@@ -827,12 +828,23 @@ function InspectionForm(props){
   function newPallet(num,lbl,cont){return {palletId:Date.now()+Math.random(),palletNo:num,palletLabel:lbl||'',palletContainer:cont||'',palletTraceCodes:[],actualTraceCode:'',showActualTrace:false,rows:[newRow(num)]};}
 
   /* pallets: [{palletId, palletNo, rows:[{id,palletNo,time,size,cartonWt,brix,defects,notes}]}] */
+  /* ── Draft restore — recover unsaved data after crash or failed save ── */
+  var restoredDraft=(function(){
+    if(isEdit) return null; /* edit mode: DB is source of truth, never restore drafts */
+    try{
+      var raw=localStorage.getItem(draftKey);
+      if(!raw) return null;
+      var d=JSON.parse(raw);
+      if(!d.ts||Date.now()-d.ts>86400000){localStorage.removeItem(draftKey);return null;}
+      return d;
+    }catch(e){return null;}
+  })();
   var initPallets=batch
     ?[{palletId:1,palletNo:1,rows:batch.samples&&batch.samples.length
         ?batch.samples.map(function(s,i){return Object.assign({},s,{id:s.id||i+1,palletNo:s.palletNo||1});})
         :[{id:1,palletNo:1,time:batch.time||nowTime(),size:batch.size||'48',cartonWt:String(batch.cartonWt||''),brix:String(batch.brix||''),defects:batch.defects||emptyDefects(),notes:batch.notes||''}]
       }]
-    :[newPallet(1)];
+    :(restoredDraft&&restoredDraft.pallets&&restoredDraft.pallets.length>0?restoredDraft.pallets:[newPallet(1)]);
   var sPallets=useState(initPallets); var pallets=sPallets[0]; var setPallets=sPallets[1];
   var sActivePallet=useState(0); var activePalletIdx=sActivePallet[0]; var setActivePalletIdx=sActivePallet[1];
   var sExp=useState(null); var expandedRow=sExp[0]; var setExpandedRow=sExp[1];
@@ -1939,6 +1951,12 @@ function InspectionForm(props){
       )
     ),
     ce('div',{className:'inspection-page',style:{padding:'18px 24px',maxWidth:1200,margin:'0 auto'}},
+      /* Draft recovery banner */
+      restoredDraft&&ce('div',{style:{marginBottom:10,padding:'10px 14px',background:'#FFF8E1',border:'1px solid #F9A825',borderRadius:8,display:'flex',alignItems:'center',gap:10,fontSize:12,color:'#6D4C00'}},
+        ce('span',{style:{fontSize:16,flexShrink:0}},'⚠️'),
+        ce('span',null,ce('strong',null,'Draft recovered. '),'Your previous unsaved data has been restored. Review and save when ready.'),
+        ce('button',{onClick:function(){try{localStorage.removeItem(draftKey);}catch(e){}setPallets([newPallet(1)]);},style:{marginLeft:'auto',padding:'3px 10px',fontSize:11,border:'1px solid #F9A825',borderRadius:4,background:'transparent',color:'#6D4C00',cursor:'pointer',flexShrink:0}},'Discard draft')
+      ),
       /* GRAPES session banner */
       cropId==='grapes'&&ce('div',{style:{marginBottom:10,padding:'10px 14px',background:'#f5eeff',border:'1px solid #d8b8f0',borderRadius:8,display:'flex',alignItems:'flex-start',gap:10,fontSize:12,color:'#5a2a8a',lineHeight:1.5}},
         ce('span',{style:{fontSize:16,flexShrink:0}},'🍇'),
