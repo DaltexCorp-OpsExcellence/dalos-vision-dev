@@ -1101,6 +1101,12 @@ function InspectionForm(props){
       setSavedAtTime(String(ts.getHours()).padStart(2,'0')+':'+String(ts.getMinutes()).padStart(2,'0'));
       setSaveStatus('saved');
       setIsSaving(false);
+      /* Update loadedVersionRef so if form is reopened immediately the timestamp is fresh */
+      if(isEdit&&realId){
+        supabase.from('inspections').select('updated_at').eq('id',realId).single().then(function(r){
+          if(r.data&&r.data.updated_at) loadedVersionRef.current=r.data.updated_at;
+        });
+      }
       /* Edit mode: brief Saved confirmation, then auto-close */
       if(isEdit){
         setTimeout(function(){setSaveStatus('idle');onClose();},1800);
@@ -10286,9 +10292,28 @@ function App(){
               });
             });
             if(inserts.length===0) return;
-            supabase.from('sample_rows').insert(inserts).then(function(r){
-              if(r.error) console.error('[DalOS] new sample rows insert error:',r.error.message);
-              else console.log('[DalOS] New sample rows inserted:',inserts.length);
+            var editNewDefects=newSampleRows.map(function(item){return item.row.defects||{};});
+            supabase.from('sample_rows').insert(inserts).select().then(function(r){
+              if(r.error){console.error('[DalOS] new sample rows insert error:',r.error.message);return;}
+              console.log('[DalOS] New sample rows inserted:',inserts.length);
+              supabase.from('defects').select('id,key').then(function(defRes){
+                if(defRes.error||!defRes.data) return;
+                var defMap={};
+                defRes.data.forEach(function(d){defMap[d.key]=d.id;});
+                var readings=[];
+                r.data.forEach(function(savedRow,i){
+                  var defects=editNewDefects[i]||{};
+                  Object.keys(defects).forEach(function(key){
+                    var val=parseFloat(defects[key])||0;
+                    if(val>0&&defMap[key]) readings.push({sample_row_id:savedRow.id,defect_id:defMap[key],value:val});
+                  });
+                });
+                if(readings.length===0) return;
+                supabase.from('sample_defect_readings').insert(readings).then(function(dr){
+                  if(dr.error){console.error('[DalOS] edit new defect readings error:',dr.error.message);logError('defect_readings_insert_edit_new',dr.error,{inspection_id:realId,count:readings.length});}
+                  else console.log('[DalOS] Edit new defect readings saved:',readings.length);
+                });
+              });
             });
           });
           }); /* end insertNewPalletsPromise.then */
