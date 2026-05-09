@@ -10136,14 +10136,9 @@ function App(){
         return;
       }
       console.log('[DalOS] Saved to DB successfully:',res.data);
-      /* ── Close form immediately after inspection saved ── */
-      if(onDone) { onDone(null, realId); onDone=null; }
-      /* Re-pull live aggregates so the listing reflects DB truth, not the form's
-         partial-state totalDefect/hasCrit. Necessary because during edit the form
-         may hold only a subset of pallets (e.g. "Add more pallets" flow).
-         Delayed 1.5s to let parallel pallet/sample async writes land first. */
+      /* ── Re-pull live aggregates ── */
       try { setTimeout(function(){refreshBatchesById([realId]);}, 1500); } catch(e){}
-      /* ── Save pallets and sample rows (async, form already closed) ── */
+      /* ── Save pallets and sample rows — onDone fires only after full chain ── */
       var palletsData=newBatch.pallets||[];
       if(isEditMode){
         /* ── Grapes: update pallet_number + container_number for each pallet ── */
@@ -10364,9 +10359,13 @@ function App(){
           });
           }); /* end insertNewPalletsPromise.then */
         }
+        /* Wait for all edit operations then close form */
+        Promise.all(palletUpdatePromises||[]).then(function(){
+          if(onDone){onDone(null,realId);onDone=null;}
+        });
         return;
       }
-      if(palletsData.length===0) return;
+      if(palletsData.length===0){if(onDone){onDone(null,realId);onDone=null;}return;}
       var isCropGrapes=(newBatch.crop||'').toLowerCase()==='grapes';
       var palletRows=palletsData.map(function(p){
         var palletPrefix=(newBatch.palletPrefix)||'';
@@ -10379,6 +10378,7 @@ function App(){
     }).then(function(palletRes){
       if(!palletRes||palletRes.error){
         if(palletRes&&palletRes.error) console.error('[DalOS] Pallets insert error:',palletRes.error.message);
+        if(onDone){onDone('Pallets save failed');onDone=null;}
         return;
       }
       console.log('[DalOS] Pallets saved:',palletRes.data.length);
@@ -10426,7 +10426,7 @@ function App(){
           _rowDefects.push(row.defects||{});
         });
       });
-      if(sampleRows.length===0) return;
+      if(sampleRows.length===0){if(onDone){onDone(null,realId);onDone=null;}return;}
       return supabase.from('sample_rows').insert(sampleRows).select();
     }).then(function(sampleRes){
       if(!sampleRes) return;
@@ -10458,10 +10458,14 @@ function App(){
             }
           });
         });
-        if(readings.length===0) return;
+        if(readings.length===0){
+          if(onDone){onDone(null,realId);onDone=null;}
+          return;
+        }
         supabase.from('sample_defect_readings').insert(readings).then(function(r){
           if(r.error) console.error('[DalOS] Defect readings error:',r.error.message);
           else console.log('[DalOS] Defect readings saved:',readings.length);
+          if(onDone){onDone(null,realId);onDone=null;}
         });
       });
     }).catch(function(e){console.error('[DalOS] Save failed:',e.message);});
