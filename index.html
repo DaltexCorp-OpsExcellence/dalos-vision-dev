@@ -4403,7 +4403,7 @@ function FGView(props){
                         ce('div',{style:{fontSize:11,color:'var(--text3)'}},b.country)
                       ),
                       ce('td',{style:{fontSize:12,color:'var(--text2)'}},b.date),
-                      ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:12}},b.brix+'\u00b0Bx'),
+                      ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:12}},b.brix?(parseFloat(b.brix).toFixed(1)+'\u00b0Bx'):'—'),
                       ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600,color:b.totalDefect>10?'var(--red)':b.totalDefect>5?'var(--amber)':'var(--green)'}},b.totalDefect.toFixed(1)+'%')),
                       ce('td',null,decisionBadge(b.decision)),
                       ce('td',null,ce(StatusBadge,{s:b.status})),
@@ -4495,7 +4495,7 @@ function FGView(props){
           ),
           /* Info grid */
           ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:12}},
-            [['Client',selB.client],['Country',selB.country],['Farm',selB.farm],['Date',selB.date],['Class',selB.cls],['Carton type',selB.cartonType||'—'],['Brix',selB.brix+'°Bx'],['Trace code',(selB.traceCodes&&selB.traceCodes.length?selB.traceCodes.map(function(tc){return typeof tc==='string'?tc:(tc&&tc.code)||'';}).filter(Boolean).join(', '):selB.traceCode||'—')]].map(function(item){
+            [['Client',selB.client],['Country',selB.country],['Farm',selB.farm],['Date',selB.date],['Class',selB.cls],['Carton type',selB.cartonType||'—'],['Brix',selB.brix?parseFloat(selB.brix).toFixed(1)+'°Bx':'—'],['Trace code',(selB.traceCodes&&selB.traceCodes.length?selB.traceCodes.map(function(tc){return typeof tc==='string'?tc:(tc&&tc.code)||'';}).filter(Boolean).join(', '):selB.traceCode||'—')]].map(function(item){
               return ce('div',{key:item[0],style:{background:'var(--bg2)',borderRadius:5,padding:'6px 8px'}},
                 ce('div',{style:{fontSize:10,color:'var(--text3)',marginBottom:2}},item[0]),
                 ce('div',{style:{fontSize:12,fontWeight:500,color:'var(--text)',fontFamily:item[0]==='Trace code'?'var(--font-mono)':'inherit'}},item[1]||'—')
@@ -4679,7 +4679,7 @@ function FGView(props){
             ce('button',{className:'btn btn-sm',style:{fontSize:11,background:getContainer(selB)?'var(--card)':'var(--amber)',color:getContainer(selB)?'var(--text2)':'#fff',border:'1px solid '+(getContainer(selB)?'var(--border2)':'var(--amber)'),fontWeight:500},onClick:function(){setShowContEdit(true);}},getContainer(selB)?'Edit':'+ Add container')
           ),
           ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:12}},
-            [['Client',selB.client],['Country',selB.country],['Farm',selB.farm],['Date',selB.date],['Class',selB.cls],['Carton type',selB.cartonType||'—'],['Brix',selB.brix+'°Bx'],['Trace code',(selB.traceCodes&&selB.traceCodes.length?selB.traceCodes.map(function(tc){return typeof tc==='string'?tc:(tc&&tc.code)||'';}).filter(Boolean).join(', '):selB.traceCode||'—')]].map(function(item){
+            [['Client',selB.client],['Country',selB.country],['Farm',selB.farm],['Date',selB.date],['Class',selB.cls],['Carton type',selB.cartonType||'—'],['Brix',selB.brix?parseFloat(selB.brix).toFixed(1)+'°Bx':'—'],['Trace code',(selB.traceCodes&&selB.traceCodes.length?selB.traceCodes.map(function(tc){return typeof tc==='string'?tc:(tc&&tc.code)||'';}).filter(Boolean).join(', '):selB.traceCode||'—')]].map(function(item){
               return ce('div',{key:item[0],style:{background:'var(--bg2)',borderRadius:5,padding:'6px 8px'}},
                 ce('div',{style:{fontSize:10,color:'var(--text3)',marginBottom:2}},item[0]),
                 ce('div',{style:{fontSize:12,fontWeight:500,color:'var(--text)',fontFamily:item[0]==='Trace code'?'var(--font-mono)':'inherit'}},item[1]||'—')
@@ -5449,7 +5449,7 @@ function ExportView(props){
                       ce('td',null,r.decision==='A'?ce('span',{className:'badge badge-pass'},'A'):ce('span',{className:'badge badge-fail'},'R')),
                       ce('td',null,ce('span',{className:'badge badge-'+(r.status==='Accepted'?'pass':r.status==='Rejected'?'fail':r.status==='Escalated'?'escalated':'neutral')},r.status)),
                       ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)'}},r.totalDefect.toFixed(1)+'%')),
-                      ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:12}},r.brix),
+                      ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:12}},r.brix?parseFloat(r.brix).toFixed(1)+'°Bx':'—'),
                       ce('td',null,r.thrips>0?ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:'var(--red)'}},r.thrips.toFixed(1)+'%'):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')),
                       ce('td',null,r.hasClientReport?ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,color:r.clientTotal>8?'var(--red)':r.clientTotal>5?'var(--amber)':'var(--green)',fontWeight:600}},r.clientTotal.toFixed(1)+'%'):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')),
                       ce('td',null,r.clientDecision?ce('span',{className:'badge badge-'+(r.clientDecision==='A'?'pass':'fail')},r.clientDecision):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')),
@@ -9136,7 +9136,7 @@ function EscalationReview(props){
                 ce('div',{style:{marginBottom:16}},
                   ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8}},'Defect summary'),
                   ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}},
-                    [['Total defect',selB.totalDefect.toFixed(1)+'%'],['Variety',selB.variety],['Brix',selB.brix+'°Bx'],['Farm',selB.farm],['Client',selB.client],['Date',selB.date]].map(function(item){
+                    [['Total defect',selB.totalDefect.toFixed(1)+'%'],['Variety',selB.variety],['Brix',selB.brix?parseFloat(selB.brix).toFixed(1)+'°Bx':'—'],['Farm',selB.farm],['Client',selB.client],['Date',selB.date]].map(function(item){
                       return ce('div',{key:item[0],style:{background:'var(--bg2)',borderRadius:6,padding:'6px 9px'}},
                         ce('div',{style:{fontSize:9,color:'var(--text3)',textTransform:'uppercase',marginBottom:1}},item[0]),
                         ce('div',{style:{fontSize:12,fontWeight:500}},item[1])
