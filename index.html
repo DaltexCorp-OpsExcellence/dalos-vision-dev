@@ -2782,7 +2782,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         if(isMixed&&!ef2.grape_size_v2) missing.push('Grape Size V2');
                         if(!ef2.temp_log) missing.push('Temp \u00b0C');
                         if(!ef2.worker_id) missing.push('Worker ID');
-                        if(!ef2.pkg_mtl_wt) missing.push('Pkg Wt (g)');
+                        if(!ef2.pkg_mtl_wt) missing.push('Pkg Material Wt (g)');
                         var hasIssues=missing.length>0;
                         var showError=tried&&hasIssues;
                         var tip=showError?('Fill required fields first:\n\u2022 '+missing.join('\n\u2022 ')):undefined;
@@ -2828,7 +2828,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         {label:'Grape Size avg',key:'grape_size',opts:null},
                         {label:'Temp °C',key:'temp_log',opts:null},
                         {label:'Worker ID',key:'worker_id',opts:null},
-                        {label:'Pkg Wt (g)',key:'pkg_mtl_wt',opts:null}
+                        {label:'Pkg Material Wt (g)',key:'pkg_mtl_wt',opts:null}
                       ].map(function(spec){
                         var ef=row.extraFields||{};
                         /* For mixed variety, render Grape Size as split V1 / V2 */
@@ -3326,7 +3326,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                               : mSpec('Grape Size avg','grape_size',null),
                             mSpec('Temp °C','temp_log',null),
                             mSpec('Worker ID','worker_id',null),
-                            mSpec('Pkg Wt (g)','pkg_mtl_wt',null)
+                            mSpec('Pkg Material Wt (g)','pkg_mtl_wt',null)
                           ];
                         })()
                       )
@@ -3427,7 +3427,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       if(!ef2m.grape_size) missingM.push('Grape Size');
                       if(!ef2m.temp_log) missingM.push('Temp °C');
                       if(!ef2m.worker_id) missingM.push('Worker ID');
-                      if(!ef2m.pkg_mtl_wt) missingM.push('Pkg Wt');
+                      if(!ef2m.pkg_mtl_wt) missingM.push('Pkg Material Wt');
                       var hasIssuesM=missingM.length>0;
                       var showErrM=triedM&&hasIssuesM;
                       var tipM=showErrM?('Fill required:\n• '+missingM.join('\n• ')):undefined;
