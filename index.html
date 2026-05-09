@@ -1121,7 +1121,6 @@ function InspectionForm(props){
       var ts=new Date();
       setSavedAtTime(String(ts.getHours()).padStart(2,'0')+':'+String(ts.getMinutes()).padStart(2,'0'));
       setSaveStatus('saved');
-      setIsSaving(false);
       /* Broadcast to other tabs so their listing refreshes automatically */
       try{
         var bc=new BroadcastChannel('dalos_saves');
@@ -1134,9 +1133,11 @@ function InspectionForm(props){
           if(r.data&&r.data.updated_at) loadedVersionRef.current=r.data.updated_at;
         });
       }
-      /* Edit mode: brief Saved confirmation, then auto-close */
+      /* Edit mode: keep isSaving=true during 1.8s so user can't double-save */
       if(isEdit){
-        setTimeout(function(){setSaveStatus('idle');onClose();},1800);
+        setTimeout(function(){setIsSaving(false);setSaveStatus('idle');onClose();},1800);
+      } else {
+        setIsSaving(false);
       }
     };
     if(props.onAddBatch) props.onAddBatch(newBatch, saveCallback);
@@ -10376,8 +10377,9 @@ function App(){
       });
       return supabase.from('pallets').insert(palletRows).select();
     }).then(function(palletRes){
-      if(!palletRes||palletRes.error){
-        if(palletRes&&palletRes.error) console.error('[DalOS] Pallets insert error:',palletRes.error.message);
+      if(!palletRes) return; /* edit mode already handled onDone via Promise.all */
+      if(palletRes.error){
+        if(palletRes.error) console.error('[DalOS] Pallets insert error:',palletRes.error.message);
         if(onDone){onDone('Pallets save failed');onDone=null;}
         return;
       }
