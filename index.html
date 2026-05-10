@@ -7869,8 +7869,8 @@ function ClientQCMgmt(props){
                 ce('span',{style:{fontSize:11,color:'var(--text3)',marginLeft:4}},'(locked)')
               )
             ),
-            fi('Category',fCat,function(v){setFCat(v);setVar('');},((config.categories||{})[selCqcProd]||[]).map(function(c){return c.name;}),true),
-            fi('Variety',fVar,function(selectedName){
+            selCqcProd!=='grapes'&&fi('Category',fCat,function(v){setFCat(v);setVar('');},((config.categories||{})[selCqcProd]||[]).map(function(c){return c.name;}),true),
+            selCqcProd!=='grapes'&&fi('Variety',fVar,function(selectedName){
               setVar(selectedName);
               var allVars=(config.varietiesFull||{})[selCqcProd]||[];
               var found=allVars.find(function(v){return v.name===selectedName;});
