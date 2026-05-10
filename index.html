@@ -7845,7 +7845,7 @@ function ClientQCMgmt(props){
               ce('input',{className:'form-input',value:fContainer,onChange:function(e){setContainer(e.target.value.toUpperCase());},placeholder:'e.g. MNBU 3564353',style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600}})
             ),
             fi('QC Report Number',fQCRef,setQCRef),
-            fi('Lot #',fLot,setLot)
+            selCqcProd!=='grapes'&&fi('Lot #',fLot,setLot)
           ),
           matchedBatch&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:8,padding:'10px 14px',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}},
             [['Batch',matchedBatch.id],['Variety',matchedBatch.variety],['Date',matchedBatch.date],['Internal defect',matchedBatch.totalDefect.toFixed(1)+'%'],['Client',matchedBatch.client],['Farm',matchedBatch.farm],['Decision',matchedBatch.decision==='A'?'Accept':'Reject'],['Status',matchedBatch.status]].map(function(item){
