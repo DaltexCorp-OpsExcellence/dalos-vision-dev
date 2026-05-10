@@ -7065,6 +7065,22 @@ function ClientQCMgmt(props){
   var sCqcCat=useState(''); var fCat=sCqcCat[0]; var setFCat=sCqcCat[1];
   var sFarm1=useState(''); var fFarm1=sFarm1[0]; var setFarm1=sFarm1[1];
   var sFarm2=useState(''); var fFarm2=sFarm2[0]; var setFarm2=sFarm2[1];
+  var sFarmsExtra=useState([]); var fFarmsExtra=sFarmsExtra[0]; var setFarmsExtra=sFarmsExtra[1];
+  var sPHExtra=useState([]); var fPHExtra=sPHExtra[0]; var setPHExtra=sPHExtra[1];
+  var sPhCoverExtra=useState([]); var fPhCoverExtra=sPhCoverExtra[0]; var setPhCoverExtra=sPhCoverExtra[1];
+  var sVarsExtra=useState([]); var fVarsExtra=sVarsExtra[0]; var setVarsExtra=sVarsExtra[1];
+  function addFarmExtra(){setFarmsExtra(function(p){return p.concat(['']);});}
+  function updateFarmExtra(i,v){setFarmsExtra(function(p){return p.map(function(x,j){return j===i?v:x;});});}
+  function removeFarmExtra(i){setFarmsExtra(function(p){return p.filter(function(_,j){return j!==i;});});}
+  function addPHExtra(){setPHExtra(function(p){return p.concat(['']);});}
+  function updatePHExtra(i,v){setPHExtra(function(p){return p.map(function(x,j){return j===i?v:x;});});}
+  function removePHExtra(i){setPHExtra(function(p){return p.filter(function(_,j){return j!==i;});});}
+  function addPhCoverExtra(){setPhCoverExtra(function(p){return p.concat(['']);});}
+  function updatePhCoverExtra(i,v){setPhCoverExtra(function(p){return p.map(function(x,j){return j===i?v:x;});});}
+  function removePhCoverExtra(i){setPhCoverExtra(function(p){return p.filter(function(_,j){return j!==i;});});}
+  function addVarExtra(){setVarsExtra(function(p){return p.concat({cat:'',var:''});});}
+  function updateVarExtra(i,field,v){setVarsExtra(function(p){return p.map(function(x,j){if(j!==i)return x;var n=Object.assign({},x);n[field]=v;if(field==='cat')n['var']='';return n;});});}
+  function removeVarExtra(i){setVarsExtra(function(p){return p.filter(function(_,j){return j!==i;});});}
   var sLoadDate=useState(''); var fLoadDate=sLoadDate[0]; var setLoadDate=sLoadDate[1];
   var sPackDate=useState(''); var fPackDate=sPackDate[0]; var setPackDate=sPackDate[1];
   var sHarvDate=useState(''); var fHarvDate=sHarvDate[0]; var setHarvDate=sHarvDate[1];
@@ -7359,7 +7375,7 @@ function ClientQCMgmt(props){
 
   function clearForm(){
     setContainer('');setSticker('No');setTrace('');setPH('');setPhCover('');setCrop('');setVar('');setFCat('');setVarType('single');setFCat2('');setVar2('');
-    setFarm1('');setFarm2('');setLoadDate('');setPackDate('');setHarvDate('');setCartonType('');
+    setFarm1('');setFarm2('');setFarmsExtra([]);setPHExtra([]);setPhCoverExtra([]);setVarsExtra([]);setLoadDate('');setPackDate('');setHarvDate('');setCartonType('');
     setQCRef('');setRegion('');setClient('');setSubClient('');setLot('');setDaltexCls('');
     setClientCls('');setWax('');setScore('');setBrix('');setBrixIssue('No');setCartonIssue('No');
     setSizeIssue('No');setTotalDef('');setMajorRot('');setStorageMld('');setForeign('');
@@ -7385,7 +7401,7 @@ function ClientQCMgmt(props){
         if(catName) setFCat(catName);
       }
     })();
-    setFarm1(r.farm||r.farm1||'');setFarm2(r.farm2||'');setLoadDate(r.loadDate||'');setPackDate(r.packDate||'');
+    setFarm1(r.farm||r.farm1||'');setFarm2(r.farm2||'');var _cef=r.cqcExtraFields||{};setFarmsExtra(_cef.extra_farms||[]);setPHExtra(_cef.extra_ph_actual||[]);setPhCoverExtra(_cef.extra_ph_cover||[]);setVarsExtra(_cef.extra_varieties||[]);setLoadDate(r.loadDate||'');setPackDate(r.packDate||'');
     setHarvDate(r.harvestDate||'');setCartonType(r.cartonType||'');setQCRef(r.qcReportNumber||'');
     setRegion(r.region||'');setClient(r.client||'');setSubClient(r.subClient||'');setLot(r.lot||'');
     setDaltexCls(r.daltexClass||'');setClientCls(r.clientClass||'');setWax(r.wax||'');
@@ -7537,7 +7553,13 @@ function ClientQCMgmt(props){
       ph_cover:fPhCover||null,
       farm_1:fFarm1||null,
       farm_2:fFarm2||null,
-      client_class:fClientCls||null
+      client_class:fClientCls||null,
+      cqc_extra_fields:(selCqcProd==='grapes'&&(fFarmsExtra.length||fPHExtra.length||fPhCoverExtra.length||fVarsExtra.length))?{
+        extra_farms:fFarmsExtra.filter(Boolean),
+        extra_ph_actual:fPHExtra.filter(Boolean),
+        extra_ph_cover:fPhCoverExtra.filter(Boolean),
+        extra_varieties:fVarsExtra.filter(function(v){return v.var;})
+      }:null
     };
     supabase.auth.getUser().then(function(ur){
       if(ur.data&&ur.data.user) dbRow.created_by=ur.data.user.id;
@@ -7583,7 +7605,7 @@ function ClientQCMgmt(props){
               variety2:(config.varietiesIdToName&&r2.variety2_id&&config.varietiesIdToName[r2.variety2_id])||'',
               varietyType:r2.variety_type||'single',category2:(function(){if(!r2.variety2_id)return '';var found=((config.varietiesFull||{})['grapes']||[]).find(function(v){return v.id===r2.variety2_id;});return found&&found.categoryId?(config.categoriesIdToName||{})[found.categoryId]||'':'';})(),
               loadDate:r2.load_date||'', packDate:r2.pack_date||'', harvestDate:r2.harvest_date||'',
-              phCover:r2.ph_cover||'', farm1:r2.farm_1||'', farm2:r2.farm_2||'',
+              phCover:r2.ph_cover||'', farm1:r2.farm_1||'', farm2:r2.farm_2||'', cqcExtraFields:r2.cqc_extra_fields||{},
               cartonType:(config.cartonTypesIdToName&&r2.carton_type_id&&config.cartonTypesIdToName[r2.carton_type_id])||r2.carton_type_id||'',
               qcReportNumber:r2.qc_report_number||'',
               region:(config.countriesIdToName&&r2.country_id&&config.countriesIdToName[r2.country_id])||r2.country_id||'',
@@ -7878,38 +7900,116 @@ function ClientQCMgmt(props){
                 },t==='single'?'Single variety':'Mixed varieties');
               })
             ),
-            fVarType==='mixed'&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
-              ce('div',{className:'form-field',style:{marginBottom:0}},
-                ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2 — Category'),
-                ce('select',{className:'form-select',value:fCat2,onChange:function(e){setFCat2(e.target.value);setVar2('');}},
-                  ce('option',{value:''},'— All —'),
-                  ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
+            fVarType==='mixed'&&ce('div',null,
+              ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:6}},
+                ce('div',{className:'form-field',style:{marginBottom:0}},
+                  ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2 — Category'),
+                  ce('select',{className:'form-select',value:fCat2,onChange:function(e){setFCat2(e.target.value);setVar2('');}},
+                    ce('option',{value:''},'— All —'),
+                    ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
+                  )
+                ),
+                ce('div',{className:'form-field',style:{marginBottom:0}},
+                  ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2'),
+                  ce('select',{className:'form-select',value:fVar2,onChange:function(e){
+                    var name=e.target.value; setVar2(name);
+                    var allVars=(config.varietiesFull||{})[selCqcProd]||[];
+                    var found=allVars.find(function(v){return v.name===name;});
+                    if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat2(cn);}
+                  }},
+                    ce('option',{value:''},'— Select —'),
+                    (function(){
+                      var allVars=(config.varietiesFull||{})[selCqcProd]||[];
+                      var catId=fCat2?(config.categoriesIdMap||{})[fCat2]:null;
+                      var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
+                      return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});
+                    })()
+                  )
                 )
               ),
-              ce('div',{className:'form-field',style:{marginBottom:0}},
-                ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2'),
-                ce('select',{className:'form-select',value:fVar2,onChange:function(e){
-                  var name=e.target.value; setVar2(name);
-                  var allVars=(config.varietiesFull||{})[selCqcProd]||[];
-                  var found=allVars.find(function(v){return v.name===name;});
-                  if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat2(cn);}
-                }},
-                  ce('option',{value:''},'— Select —'),
-                  (function(){
-                    var allVars=(config.varietiesFull||{})[selCqcProd]||[];
-                    var catId=fCat2?(config.categoriesIdMap||{})[fCat2]:null;
-                    var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
-                    return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});
-                  })()
-                )
+              /* Extra varieties (3+) — grapes only */
+              fVarsExtra.map(function(ve,i){
+                var allVars=(config.varietiesFull||{})[selCqcProd]||[];
+                var catId=ve.cat?(config.categoriesIdMap||{})[ve.cat]:null;
+                var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
+                return ce('div',{key:'ve'+i,style:{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:6,marginBottom:6,alignItems:'end'}},
+                  ce('div',{className:'form-field',style:{marginBottom:0}},
+                    ce('label',{className:'form-label',style:{fontSize:10}},'Variety '+(i+3)+' — Category'),
+                    ce('select',{className:'form-select',value:ve.cat,onChange:function(idx){return function(e){updateVarExtra(idx,'cat',e.target.value);};}(i)},
+                      ce('option',{value:''},'— All —'),
+                      ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
+                    )
+                  ),
+                  ce('div',{className:'form-field',style:{marginBottom:0}},
+                    ce('label',{className:'form-label',style:{fontSize:10}},'Variety '+(i+3)),
+                    ce('select',{className:'form-select',value:ve.var,onChange:function(idx){return function(e){updateVarExtra(idx,'var',e.target.value);};}(i)},
+                      ce('option',{value:''},'— Select —'),
+                      filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
+                    )
+                  ),
+                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removeVarExtra(idx);};}(i)},'×')
+                );
+              }),
+              ce('div',{style:{marginTop:4}},
+                ce('button',{className:'btn btn-secondary btn-sm',onClick:addVarExtra},'+ Add variety')
               )
             )
           ),
-          ce('div',{className:'grid4',style:{marginBottom:10}},
-            fi('Packhouse (actual)',fPH,setPH,(config.packhouses||[]).map(function(p){return p.name;}),true),
-            fi('Packhouse (cover)',fPhCover,setPhCover,(config.packhouses||[]).map(function(p){return p.name;}),true),
-            fi('Farm / Raw source 1',fFarm1,setFarm1,(config.farms||[]),true),
-            fi('Farm / Raw source 2',fFarm2,setFarm2,(config.farms||[]),true)
+          /* Packhouses + Farms */
+          ce('div',{style:{marginBottom:10}},
+            ce('div',{className:'grid4',style:{marginBottom:6}},
+              fi('Packhouse (actual)',fPH,setPH,(config.packhouses||[]).map(function(p){return p.name;}),true),
+              fi('Packhouse (cover)',fPhCover,setPhCover,(config.packhouses||[]).map(function(p){return p.name;}),true),
+              fi('Farm / Raw source 1',fFarm1,setFarm1,(config.farms||[]),true),
+              fi('Farm / Raw source 2',fFarm2,setFarm2,(config.farms||[]),true)
+            ),
+            /* Grapes: extra packhouses and farms */
+            selCqcProd==='grapes'&&ce('div',null,
+              /* Extra actual packhouses */
+              fPHExtra.map(function(v,i){
+                return ce('div',{key:'pha'+i,style:{display:'grid',gridTemplateColumns:'1fr auto',gap:6,marginBottom:6,alignItems:'end'}},
+                  ce('div',{className:'form-field',style:{marginBottom:0}},
+                    ce('label',{className:'form-label'},'Packhouse actual '+(i+2)),
+                    ce('select',{className:'form-select',value:v,onChange:function(idx){return function(e){updatePHExtra(idx,e.target.value);};}(i)},
+                      ce('option',{value:''},'— Select —'),
+                      (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
+                    )
+                  ),
+                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removePHExtra(idx);};}(i)},'×')
+                );
+              }),
+              /* Extra cover packhouses */
+              fPhCoverExtra.map(function(v,i){
+                return ce('div',{key:'phc'+i,style:{display:'grid',gridTemplateColumns:'1fr auto',gap:6,marginBottom:6,alignItems:'end'}},
+                  ce('div',{className:'form-field',style:{marginBottom:0}},
+                    ce('label',{className:'form-label'},'Packhouse cover '+(i+2)),
+                    ce('select',{className:'form-select',value:v,onChange:function(idx){return function(e){updatePhCoverExtra(idx,e.target.value);};}(i)},
+                      ce('option',{value:''},'— Select —'),
+                      (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
+                    )
+                  ),
+                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removePhCoverExtra(idx);};}(i)},'×')
+                );
+              }),
+              /* Extra farms */
+              fFarmsExtra.map(function(v,i){
+                return ce('div',{key:'frm'+i,style:{display:'grid',gridTemplateColumns:'1fr auto',gap:6,marginBottom:6,alignItems:'end'}},
+                  ce('div',{className:'form-field',style:{marginBottom:0}},
+                    ce('label',{className:'form-label'},'Farm / Raw source '+(i+3)),
+                    ce('select',{className:'form-select',value:v,onChange:function(idx){return function(e){updateFarmExtra(idx,e.target.value);};}(i)},
+                      ce('option',{value:''},'— Select —'),
+                      (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
+                    )
+                  ),
+                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removeFarmExtra(idx);};}(i)},'×')
+                );
+              }),
+              ce('div',{style:{display:'flex',gap:8,marginTop:4}},
+                ce('button',{className:'btn btn-secondary btn-sm',onClick:addPHExtra},'+ Packhouse actual'),
+                ce('button',{className:'btn btn-secondary btn-sm',onClick:addPhCoverExtra},'+ Packhouse cover'),
+                ce('button',{className:'btn btn-secondary btn-sm',onClick:addFarmExtra},'+ Farm')
+              )
+            )
           ),
           ce('div',{className:'grid4',style:{marginBottom:10}},
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Client'),
@@ -7923,7 +8023,7 @@ function ClientQCMgmt(props){
               })()
             ),
             fi('Region / Destination',fRegion,setRegion,(config.countries||[]),true),
-            fi('Wax type',fWax,setWax,WAX_CODES.map(function(w){return w.code;}))
+            selCqcProd!=='grapes'&&fi('Wax type',fWax,setWax,WAX_CODES.map(function(w){return w.code;}))
           ),
           ce('div',{className:'grid4',style:{marginBottom:10}},
             fi('Loading date',fLoadDate,setLoadDate,null,false,'date'),
