@@ -7150,6 +7150,10 @@ function ClientQCMgmt(props){
   var sFiles=useState([]); var uploadedFiles=sFiles[0]; var setUploadedFiles=sFiles[1];
   var sOCR=useState('idle'); var ocrStatus=sOCR[0]; var setOcrStatus=sOCR[1];
   var sOCRLog=useState([]); var ocrLog=sOCRLog[0]; var setOcrLog=sOCRLog[1];
+  var sPasteText=useState(''); var cqcPasteText=sPasteText[0]; var setCqcPasteText=sPasteText[1];
+  var sPasteStatus=useState('idle'); var cqcPasteStatus=sPasteStatus[0]; var setCqcPasteStatus=sPasteStatus[1];
+  var sPasteFields=useState(null); var cqcPasteFields=sPasteFields[0]; var setCqcPasteFields=sPasteFields[1];
+  var sPasteErr=useState(''); var cqcPasteErr=sPasteErr[0]; var setCqcPasteErr=sPasteErr[1];
 
   /* container match */
   function findMatch(cont){
@@ -7216,6 +7220,46 @@ function ClientQCMgmt(props){
     if(parsed.decision&&!fScore) setScore(parsed.decision==='A'?'GREEN':parsed.decision==='R'?'RED':'');
     if(parsed.temperature&&!fTempLogger) setTempLogger(parsed.temperature);
     if(parsed.notes&&!fGeneral) setGeneral(parsed.notes);
+  }
+
+  /* Apply fields extracted from pasted text via Edge Function */
+  function applyPasteFields(fields){
+    if(!fields) return;
+    if(fields.container_number) setContainer(fields.container_number.toUpperCase());
+    if(fields.qc_report_number) setQCRef(fields.qc_report_number);
+    if(fields.lot_number) setLot(String(fields.lot_number));
+    if(fields.trace_code) setTrace(fields.trace_code);
+    if(fields.pack_date) setPackDate(fields.pack_date);
+    if(fields.load_date) setLoadDate(fields.load_date);
+    if(fields.harvest_date) setHarvDate(fields.harvest_date);
+    if(fields.brix!=null) setBrix(String(fields.brix));
+    if(fields.total_defect!=null) setTotalDef(String(fields.total_defect));
+    if(fields.score) setScore(fields.score);
+    if(fields.max_temp!=null) setMaxTemp(String(fields.max_temp));
+    if(fields.temp_logger) setTempLogger(fields.temp_logger);
+    if(fields.daltex_class) setDaltexCls(fields.daltex_class);
+    if(fields.client_class) setClientCls(fields.client_class);
+    if(fields.wax) setWax(fields.wax);
+    if(fields.client) setClient(fields.client);
+    if(fields.variety) setVar(fields.variety);
+    setCqcPasteStatus('applied');
+  }
+
+  /* Call Edge Function to extract fields from pasted text */
+  function runPasteExtract(){
+    if(!cqcPasteText.trim()) return;
+    setCqcPasteStatus('loading');
+    setCqcPasteFields(null);
+    setCqcPasteErr('');
+    supabase.functions.invoke('extract-cqc-header',{body:{text:cqcPasteText}})
+      .then(function(res){
+        if(res.error){setCqcPasteStatus('error');setCqcPasteErr(res.error.message||'Unknown error');return;}
+        var fields=(res.data&&res.data.fields)||null;
+        if(!fields){setCqcPasteStatus('error');setCqcPasteErr('No fields returned');return;}
+        setCqcPasteFields(fields);
+        setCqcPasteStatus('done');
+      })
+      .catch(function(e){setCqcPasteStatus('error');setCqcPasteErr(e.message||'Request failed');});
   }
 
   function runOCRAll(files){
@@ -7684,6 +7728,46 @@ function ClientQCMgmt(props){
                 ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:14},onClick:function(){removeFile(i);}},'\u00d7')
               );
             })
+          ),
+
+          /* ── PASTE TEXT ALTERNATIVE ── */
+          ce('div',{style:{marginTop:10,borderTop:'1px solid var(--border)',paddingTop:10}},
+            ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.05em'}},'Or paste report text'),
+            ce('textarea',{
+              style:{width:'100%',minHeight:72,padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:12,fontFamily:'var(--font-mono)',color:'var(--text)',background:'var(--bg2)',resize:'vertical',lineHeight:1.5},
+              placeholder:'Paste the text content from the client QC report here (copy from PDF)...',
+              value:cqcPasteText,
+              onChange:function(e){setCqcPasteText(e.target.value);setCqcPasteStatus('idle');setCqcPasteFields(null);}
+            }),
+            ce('div',{style:{display:'flex',alignItems:'center',gap:8,marginTop:6}},
+              ce('button',{
+                className:'btn btn-primary btn-sm',
+                disabled:!cqcPasteText.trim()||cqcPasteStatus==='loading',
+                onClick:runPasteExtract
+              },cqcPasteStatus==='loading'?'\u23f3 Extracting...':'\u2728 Extract fields'),
+              cqcPasteStatus==='done'&&ce('span',{style:{fontSize:12,color:'var(--green)',fontWeight:500}},'\u2713 Fields extracted \u2014 review below'),
+              cqcPasteStatus==='applied'&&ce('span',{style:{fontSize:12,color:'var(--green)',fontWeight:500}},'\u2713 Applied to form'),
+              cqcPasteStatus==='error'&&ce('span',{style:{fontSize:12,color:'var(--red)'}},'Error: '+cqcPasteErr)
+            ),
+
+            /* Preview panel */
+            cqcPasteStatus==='done'&&cqcPasteFields&&ce('div',{style:{marginTop:10,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 14px'}},
+              ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:6,marginBottom:10}},
+                (function(){
+                  var LABELS={container_number:'Container',qc_report_number:'QC ref',lot_number:'Lot #',trace_code:'Trace code',pack_date:'Pack date',load_date:'Load date',harvest_date:'Harvest date',client:'Client',variety:'Variety',brix:'Brix',total_defect:'Total defect',score:'Score',max_temp:'Max temp',temp_logger:'Temp logger',daltex_class:'Daltex class',client_class:'Client class',wax:'Wax'};
+                  return Object.keys(LABELS).map(function(key){
+                    var val=cqcPasteFields[key];
+                    var found=val!=null&&val!=='';
+                    return ce('div',{key:key,style:{background:'var(--card)',borderRadius:5,padding:'5px 8px',border:'1px solid '+(found?'var(--green-border)':'var(--border)')}},
+                      ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1,textTransform:'uppercase',letterSpacing:'.04em'}},LABELS[key]),
+                      ce('div',{style:{fontSize:11,fontWeight:found?600:400,color:found?'var(--green)':'var(--text3)',fontFamily:found?'var(--font-mono)':'inherit'}},
+                        found?String(val):'not found')
+                    );
+                  });
+                })()
+              ),
+              ce('button',{className:'btn btn-primary btn-sm',onClick:function(){applyPasteFields(cqcPasteFields);}},'\u2713 Apply to form')
+            )
           )
         ),
 
