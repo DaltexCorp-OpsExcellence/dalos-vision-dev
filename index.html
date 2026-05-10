@@ -7251,15 +7251,25 @@ function ClientQCMgmt(props){
     setCqcPasteStatus('loading');
     setCqcPasteFields(null);
     setCqcPasteErr('');
-    supabase.functions.invoke('extract-cqc-header',{body:{text:cqcPasteText}})
-      .then(function(res){
-        if(res.error){setCqcPasteStatus('error');setCqcPasteErr(res.error.message||'Unknown error');return;}
-        var fields=(res.data&&res.data.fields)||null;
+    supabase.auth.getSession().then(function(s){
+      var token=(s.data&&s.data.session&&s.data.session.access_token)||'';
+      fetch('https://sfyjvgjwvtwkrnqrvqyc.supabase.co/functions/v1/extract-cqc-header',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({text:cqcPasteText})
+      })
+      .then(function(r){
+        if(!r.ok) return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.slice(0,200));});
+        return r.json();
+      })
+      .then(function(data){
+        var fields=data&&data.fields||null;
         if(!fields){setCqcPasteStatus('error');setCqcPasteErr('No fields returned');return;}
         setCqcPasteFields(fields);
         setCqcPasteStatus('done');
       })
       .catch(function(e){setCqcPasteStatus('error');setCqcPasteErr(e.message||'Request failed');});
+    });
   }
 
   function runOCRAll(files){
