@@ -7223,8 +7223,9 @@ function ClientQCMgmt(props){
   }
 
   /* Apply fields extracted from pasted text via Edge Function */
-  function applyPasteFields(fields){
-    if(!fields) return;
+  function applyPasteFields(extracted){
+    var fields=extracted&&extracted.fields||extracted||{};
+    var samples=extracted&&extracted.samples||[];
     if(fields.container_number) setContainer(fields.container_number.toUpperCase());
     if(fields.qc_report_number) setQCRef(fields.qc_report_number);
     if(fields.lot_number) setLot(String(fields.lot_number));
@@ -7242,6 +7243,23 @@ function ClientQCMgmt(props){
     if(fields.wax) setWax(fields.wax);
     if(fields.client) setClient(fields.client);
     if(fields.variety) setVar(fields.variety);
+    /* Apply sample rows to grid if present */
+    if(samples.length>0){
+      var pid=selCqcProd||'citrus';
+      var secs=(config.cqcDefectSections||{})[pid]||[];
+      var emptyDefs={};
+      secs.forEach(function(sec){(sec.items||[]).forEach(function(d){emptyDefs[d.key]='0';});});
+      var mapped=samples.map(function(s,idx){
+        var defects=Object.assign({},emptyDefs);
+        Object.keys(s.defects||{}).forEach(function(k){if(defects.hasOwnProperty(k)) defects[k]=String(s.defects[k]);});
+        /* Build notes: include pallet ref + any unmatched defects */
+        var notesParts=[];
+        if(s.pallet_ref) notesParts.push('Pallet: '+s.pallet_ref);
+        if(s.notes) notesParts.push(s.notes);
+        return {id:'new-'+Date.now()+Math.random(),sampleNumber:idx+1,sampleType:'sample_readings',defects:defects,notes:notesParts.join(' | '),score:'',brixIssue:false,avgSize:'',sizeIssue:false,sampleVariety:'',collapsed:false,isNew:true};
+      });
+      setCqcSamples(mapped);
+    }
     setCqcPasteStatus('applied');
   }
 
@@ -7251,12 +7269,16 @@ function ClientQCMgmt(props){
     setCqcPasteStatus('loading');
     setCqcPasteFields(null);
     setCqcPasteErr('');
+    /* Build defect key list from config for AI matching */
+    var pid=selCqcProd||'citrus';
+    var secs=(config.cqcDefectSections||{})[pid]||[];
+    var defectsList=secs.reduce(function(arr,sec){return arr.concat((sec.items||[]).map(function(d){return {key:d.key,name:d.en};}));},[]); 
     supabase.auth.getSession().then(function(s){
       var token=(s.data&&s.data.session&&s.data.session.access_token)||'';
       fetch('https://sfyjvgjwvtwkrnqrvqyc.supabase.co/functions/v1/extract-cqc-header',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-        body:JSON.stringify({text:cqcPasteText})
+        body:JSON.stringify({text:cqcPasteText,defects:defectsList})
       })
       .then(function(r){
         if(!r.ok) return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.slice(0,200));});
@@ -7265,7 +7287,7 @@ function ClientQCMgmt(props){
       .then(function(data){
         var fields=data&&data.fields||null;
         if(!fields){setCqcPasteStatus('error');setCqcPasteErr('No fields returned');return;}
-        setCqcPasteFields(fields);
+        setCqcPasteFields({fields:fields,samples:data.samples||[]});
         setCqcPasteStatus('done');
       })
       .catch(function(e){setCqcPasteStatus('error');setCqcPasteErr(e.message||'Request failed');});
@@ -7764,9 +7786,10 @@ function ClientQCMgmt(props){
             cqcPasteStatus==='done'&&cqcPasteFields&&ce('div',{style:{marginTop:10,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 14px'}},
               ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:6,marginBottom:10}},
                 (function(){
+                  var f=cqcPasteFields.fields||cqcPasteFields;
                   var LABELS={container_number:'Container',qc_report_number:'QC ref',lot_number:'Lot #',trace_code:'Trace code',pack_date:'Pack date',load_date:'Load date',harvest_date:'Harvest date',client:'Client',variety:'Variety',brix:'Brix',total_defect:'Total defect',score:'Score',max_temp:'Max temp',temp_logger:'Temp logger',daltex_class:'Daltex class',client_class:'Client class',wax:'Wax'};
                   return Object.keys(LABELS).map(function(key){
-                    var val=cqcPasteFields[key];
+                    var val=f[key];
                     var found=val!=null&&val!=='';
                     return ce('div',{key:key,style:{background:'var(--card)',borderRadius:5,padding:'5px 8px',border:'1px solid '+(found?'var(--green-border)':'var(--border)')}},
                       ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1,textTransform:'uppercase',letterSpacing:'.04em'}},LABELS[key]),
@@ -7775,6 +7798,16 @@ function ClientQCMgmt(props){
                     );
                   });
                 })()
+              ),
+              /* Sample rows summary */
+              (cqcPasteFields.samples||[]).length>0&&ce('div',{style:{borderTop:'1px solid var(--border)',paddingTop:8,marginBottom:10}},
+                ce('div',{style:{fontSize:12,color:'var(--text2)',fontWeight:500,marginBottom:4}},
+                  '\u2713 '+cqcPasteFields.samples.length+' sample rows extracted'
+                ),
+                (cqcPasteFields.samples||[]).filter(function(s){return (s.low_confidence||[]).length>0;}).length>0&&
+                  ce('div',{style:{fontSize:11,color:'var(--amber)'}},
+                    '\u26a0 Low confidence matches in some rows \u2014 check notes after applying'
+                  )
               ),
               ce('button',{className:'btn btn-primary btn-sm',onClick:function(){applyPasteFields(cqcPasteFields);}},'\u2713 Apply to form')
             )
