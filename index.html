@@ -7089,6 +7089,9 @@ function ClientQCMgmt(props){
 
   /* ── CQC Samples state ── */
   var sSamples=useState([newCqcSample(1)]); var cqcSamples=sSamples[0]; var setCqcSamples=sSamples[1];
+  var sCqcViewMode=useState('grid'); var cqcViewMode=sCqcViewMode[0]; var setCqcViewMode=sCqcViewMode[1];
+  var sCqcExpandedRows=useState({}); var cqcExpandedRows=sCqcExpandedRows[0]; var setCqcExpandedRows=sCqcExpandedRows[1];
+  function toggleCqcGridExpand(id){setCqcExpandedRows(function(prev){var n=Object.assign({},prev);n[id]=!n[id];return n;});}
   function newCqcSample(num){
     var defects={};
     var pid=selCqcProd||'citrus';
@@ -7839,15 +7842,198 @@ function ClientQCMgmt(props){
               ce('div',{className:'section-title-bar',style:{background:'#3a7a4a'}}),
               'Client sample readings'
             ),
-            ce('div',{style:{display:'flex',alignItems:'center',gap:12}},
+            ce('div',{style:{display:'flex',alignItems:'center',gap:10}},
               cqcSamples.length>0&&ce('span',{style:{fontSize:13,color:cqcSamplesReportTotal>10?'var(--red)':cqcSamplesReportTotal>5?'var(--amber)':'var(--green)',fontFamily:'var(--font-mono)',fontWeight:700}},
                 'Total defect: '+cqcSamplesReportTotal.toFixed(2)+'%'
+              ),
+              /* View toggle */
+              ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
+                ['grid','card'].map(function(mode){
+                  var active=cqcViewMode===mode;
+                  return ce('button',{key:mode,
+                    style:{padding:'4px 12px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
+                      background:active?'var(--accent)':'var(--bg2)',
+                      color:active?'#fff':'var(--text3)'},
+                    onClick:function(){setCqcViewMode(mode);}
+                  },mode==='grid'?'\u22ee Grid':'Card');
+                })
               ),
               ce('button',{className:'btn btn-primary btn-sm',onClick:addCqcSample},'+ Add sample')
             )
           ),
           cqcSamples.length===0
             ?ce('div',{style:{padding:'24px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No samples added yet. Click + Add sample to record client sample readings.')
+
+          /* ══ GRID VIEW ══ */
+          :cqcViewMode==='grid'
+          ?(function(){
+            var pid=selCqcProd||'citrus';
+            var secs=(config.cqcDefectSections||{})[pid]||[];
+            var allDefs=secs.reduce(function(arr,sec){return arr.concat((sec.items||[]).map(function(d){return {def:d,sec:sec};}));},[]); 
+            if(allDefs.length===0) return ce('div',{style:{padding:'20px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No CQC defect sections configured for this product.');
+            return ce('div',{style:{overflowX:'auto'}},
+              ce('table',{className:'cqc-grid',style:{borderCollapse:'collapse',width:'100%',fontSize:12,tableLayout:'auto'}},
+                ce('thead',null,
+                  /* Row 1 — section spans */
+                  ce('tr',null,
+                    ce('th',{style:{padding:'5px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap',textAlign:'left',minWidth:52}},'#'),
+                    secs.map(function(sec){
+                      var cnt=(sec.items||[]).length;
+                      if(!cnt) return null;
+                      return ce('th',{key:sec.section,colSpan:cnt,
+                        style:{padding:'4px 8px',border:'1px solid var(--border)',textAlign:'center',fontSize:10,fontWeight:700,
+                          letterSpacing:'.05em',textTransform:'uppercase',
+                          background:secBgFor(sec),color:secTextFor(sec),whiteSpace:'nowrap'}},
+                        sec.section);
+                    }),
+                    ce('th',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',textAlign:'center',whiteSpace:'nowrap'}},'Total'),
+                    ce('th',{style:{padding:'5px 4px',background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
+                  ),
+                  /* Row 2 — defect names */
+                  ce('tr',null,
+                    ce('th',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'left'}},'Sample'),
+                    allDefs.map(function(item){
+                      var def=item.def; var sec=item.sec;
+                      return ce('th',{key:def.key,
+                        style:{padding:'4px 6px',border:'1px solid var(--border)',textAlign:'center',fontSize:10,
+                          fontWeight:500,color:secTextFor(sec),background:secBgFor(sec),
+                          whiteSpace:'nowrap',maxWidth:80,overflow:'hidden',textOverflow:'ellipsis'},
+                        title:def.en},
+                        def.en.length>10?def.en.slice(0,9)+'\u2026':def.en);
+                    }),
+                    ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center'}},'%'),
+                    ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
+                  )
+                ),
+                ce('tbody',null,
+                  cqcSamples.map(function(sample,si){
+                    var sTotal=cqcSampleTotal(sample);
+                    var totalColor=sTotal>10?'var(--red)':sTotal>5?'var(--amber)':'var(--green)';
+                    var isExp=!!cqcExpandedRows[sample.id];
+                    /* count total columns for colspan */
+                    var totalCols=allDefs.length+3;
+                    return [
+                      ce('tr',{key:sample.id,style:{background:si%2===0?'var(--card)':'var(--bg2)'}},
+                        /* Sample number + expand toggle */
+                        ce('td',{style:{padding:'3px 6px',border:'1px solid var(--border)',whiteSpace:'nowrap',textAlign:'center'}},
+                          ce('div',{style:{display:'flex',alignItems:'center',gap:4,justifyContent:'center'}},
+                            ce('button',{
+                              title:'Sample details (score, notes, sizes)',
+                              style:{background:'none',border:'none',cursor:'pointer',fontSize:10,color:'var(--text3)',padding:'0 2px',lineHeight:1},
+                              onClick:function(id){return function(){toggleCqcGridExpand(id);};}(sample.id)
+                            },isExp?'\u25bc':'\u25b6'),
+                            ce('span',{style:{fontSize:12,fontWeight:600,color:'var(--text)',minWidth:18,textAlign:'center'}},sample.sampleNumber)
+                          )
+                        ),
+                        /* Defect cells */
+                        allDefs.map(function(item){
+                          var def=item.def;
+                          var v=(sample.defects||{})[def.key]||'0';
+                          var vNum=parseFloat(v)||0;
+                          var isCrit=def.sev==='Critical';
+                          var over=isCrit?vNum>0:vNum>3;
+                          return ce('td',{key:def.key,style:{padding:0,border:'1px solid var(--border)'}},
+                            ce('input',{
+                              type:'number',step:'0.1',min:'0',
+                              value:v,
+                              style:{width:52,border:'none',background:over?'var(--red-bg)':'transparent',
+                                color:over?'var(--red)':'var(--text)',textAlign:'right',
+                                fontFamily:'var(--font-mono)',fontSize:12,padding:'4px 5px',
+                                display:'block',outline:'none'},
+                              onChange:function(idx,key){return function(e){updateCqcSampleDefect(idx,key,e.target.value);};}(si,def.key),
+                              onFocus:function(e){e.target.select();},
+                              onKeyDown:function(e){
+                                if(e.key==='Enter'||e.key==='Tab'){
+                                  e.preventDefault();
+                                  var inputs=document.querySelectorAll('table.cqc-grid input[type=number]');
+                                  var arr=Array.from(inputs);
+                                  var idx=arr.indexOf(e.target);
+                                  var next=arr[idx+1];
+                                  if(next) next.focus();
+                                }
+                              }
+                            })
+                          );
+                        }),
+                        /* Row total */
+                        ce('td',{style:{padding:'4px 8px',border:'1px solid var(--border)',textAlign:'center',fontFamily:'var(--font-mono)',fontWeight:700,fontSize:12,color:totalColor,whiteSpace:'nowrap'}},
+                          sTotal>0?sTotal.toFixed(2)+'%':'—'
+                        ),
+                        /* Remove */
+                        ce('td',{style:{padding:'2px 4px',border:'1px solid var(--border)',textAlign:'center'}},
+                          ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:14,lineHeight:1,padding:'0 2px'},
+                            onClick:function(idx){return function(){removeCqcSample(idx);};}(si)},'\u00d7')
+                        )
+                      ),
+                      /* Expand row — score, notes, brix issue, avg size, size issue */
+                      isExp&&ce('tr',{key:sample.id+'-exp',style:{background:'var(--bg2)'}},
+                        ce('td',{colSpan:totalCols,style:{padding:'8px 12px',border:'1px solid var(--border)',borderTop:'none'}},
+                          ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:8}},
+                            selCqcProd==='grapes'&&fVarType==='mixed'&&fVar&&fVar2&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                              ce('label',{className:'form-label'},'Variety (this sample)'),
+                              ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                                ce('option',{value:''},'— Pick —'),
+                                ce('option',{value:fVar},fVar),
+                                ce('option',{value:fVar2},fVar2)
+                              )
+                            ),
+                            ce('div',{className:'form-field',style:{marginBottom:0}},
+                              ce('label',{className:'form-label'},'Client score'),
+                              ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
+                                ce('option',{value:''},'— Select —'),
+                                ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                              )
+                            ),
+                            ce('div',{className:'form-field',style:{marginBottom:0}},
+                              ce('label',{className:'form-label'},'Brix issue?'),
+                              ce('select',{className:'form-select',value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
+                                ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                              )
+                            ),
+                            ce('div',{className:'form-field',style:{marginBottom:0}},
+                              ce('label',{className:'form-label'},'Avg size (mm)'),
+                              ce('input',{className:'form-input',type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'mm',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
+                            ),
+                            ce('div',{className:'form-field',style:{marginBottom:0}},
+                              ce('label',{className:'form-label'},'Size issue?'),
+                              ce('select',{className:'form-select',value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
+                                ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                              )
+                            ),
+                            ce('div',{className:'form-field',style:{marginBottom:0,gridColumn:'span 2'}},
+                              ce('label',{className:'form-label'},'Notes'),
+                              ce('input',{className:'form-input',value:sample.notes||'',placeholder:'Sample observations...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
+                            )
+                          )
+                        )
+                      )
+                    ];
+                  })
+                ),
+                /* Footer — column averages */
+                ce('tfoot',null,
+                  ce('tr',{style:{background:'var(--bg2)'}},
+                    ce('td',{style:{padding:'5px 10px',border:'1px solid var(--border)',fontSize:11,fontWeight:600,color:'var(--text3)',textAlign:'left'}},'Avg'),
+                    allDefs.map(function(item){
+                      var def=item.def;
+                      var avg=cqcSamples.length>0?
+                        Math.round(cqcSamples.reduce(function(sum,s){return sum+(parseFloat((s.defects||{})[def.key])||0);},0)/cqcSamples.length*100)/100:0;
+                      return ce('td',{key:def.key,style:{padding:'4px 6px',border:'1px solid var(--border)',textAlign:'right',fontFamily:'var(--font-mono)',fontSize:11,color:avg>0?'var(--text2)':'var(--text3)'}},
+                        avg>0?avg.toFixed(1):'—'
+                      );
+                    }),
+                    ce('td',{style:{padding:'5px 8px',border:'1px solid var(--border)',textAlign:'center',fontFamily:'var(--font-mono)',fontWeight:700,fontSize:12,
+                      color:(cqcSamplesReportTotal/Math.max(cqcSamples.length,1))>10?'var(--red)':(cqcSamplesReportTotal/Math.max(cqcSamples.length,1))>5?'var(--amber)':'var(--green)'}},
+                      cqcSamples.length>0?(cqcSamplesReportTotal/cqcSamples.length).toFixed(2)+'%':'—'
+                    ),
+                    ce('td',{style:{border:'1px solid var(--border)'}})
+                  )
+                )
+              )
+            );
+          })()
+
+          /* ══ CARD VIEW (unchanged) ══ */
             :ce('div',{style:{padding:'12px 16px',display:'flex',flexDirection:'column',gap:12}},
               cqcSamples.map(function(sample,si){
                 var pid=selCqcProd||'citrus';
