@@ -7835,6 +7835,17 @@ function ClientQCMgmt(props){
             })
           ),
 
+          /* ── QC REPORT LINK ── */
+          ce('div',{style:{marginTop:10,borderTop:'1px solid var(--border)',paddingTop:10}},
+            ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.05em'}},'Or add report link'),
+            ce('div',{style:{display:'flex',gap:8,alignItems:'center'}},
+              ce('input',{className:'form-input',value:fQCLink,onChange:function(e){setQCLink(e.target.value);},placeholder:'https://drive.google.com/... (Google Drive, OneDrive, Dropbox…)',style:{flex:1}}),
+              fQCLink&&ce('a',{href:fQCLink,target:'_blank',style:{flexShrink:0,fontSize:12,color:'var(--accent)',textDecoration:'none',display:'inline-flex',alignItems:'center',gap:4,padding:'6px 10px',border:'1px solid var(--accent)',borderRadius:6}},
+                '↗ Open'
+              )
+            )
+          ),
+
           /* ── PASTE TEXT ALTERNATIVE ── */
           ce('div',{style:{marginTop:10,borderTop:'1px solid var(--border)',paddingTop:10}},
             ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.05em'}},'Or paste report text'),
@@ -8770,7 +8781,6 @@ function ClientQCMgmt(props){
           ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}},
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Possible cause of problem / response'),ce('textarea',{className:'form-input',rows:2,value:fCause,onChange:function(e){setCause(e.target.value);},style:{resize:'vertical'}})),
             ce('div',null,
-              ce('div',{className:'form-field'},ce('label',{className:'form-label'},'QC report link (Google Drive)'),ce('input',{className:'form-input',value:fQCLink,onChange:function(e){setQCLink(e.target.value);},placeholder:'https://drive.google.com/...'})),
               ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Photo / data logger link'),ce('input',{className:'form-input',value:fPhotoLink,onChange:function(e){setPhotoLink(e.target.value);},placeholder:'https://drive.google.com/...'})),
               ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Foreign bodies present?'),
                 ce('div',{style:{display:'flex',gap:8,marginTop:4}},
