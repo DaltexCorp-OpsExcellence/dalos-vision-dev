@@ -8372,9 +8372,9 @@ function ClientQCMgmt(props){
                           ce('span',{style:{fontWeight:600,fontSize:12,minWidth:14,textAlign:'center'}},sample.sampleNumber),
                           ce('button',{
                             title:'Duplicate this row',
-                            style:{background:'none',border:'0.5px solid var(--border2)',borderRadius:4,cursor:'pointer',color:'var(--text3)',fontSize:10,lineHeight:1,padding:'1px 4px',flexShrink:0},
+                            style:{background:'none',border:'0.5px solid var(--border2)',borderRadius:4,cursor:'pointer',color:'var(--text3)',fontSize:11,lineHeight:1,padding:'2px 4px',flexShrink:0,display:'flex',alignItems:'center'},
                             onClick:function(idx){return function(){duplicateCqcSample(idx);};}(si)
-                          },'⧉')
+                          },ce('i',{className:'ti ti-copy',style:{fontSize:12}}))
                         )
                       ),
                       /* Defect cells */
