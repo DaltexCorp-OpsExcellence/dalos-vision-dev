@@ -375,6 +375,7 @@ input,select,textarea{font-size:16px!important}
 .dalos-field-error-wrap{border-radius:8px;padding:4px;margin:-4px;animation:dalos-flash 1.4s ease-in-out 2;background:rgba(176,48,48,.06)}
 .grape-dots::after{content:'';animation:gpdots 1.2s steps(1) infinite}
 /* ── Tooltip handled via JS fixed overlay ── */
+.cqc-grid thead{box-shadow:0 2px 3px rgba(0,0,0,.08);}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
 </style>
 </head>
@@ -5438,7 +5439,7 @@ function ExportView(props){
             )
           : ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',overflowX:'auto'}},
               ce('table',{style:{minWidth:900}},
-                ce('thead',null,ce('tr',null,
+                ce('thead',{style:{position:'sticky',top:0,zIndex:4}},ce('tr',null,
                   ce('th',null,'Batch ID'),
                   ce('th',null,'Date'),
                   ce('th',null,'Packhouse'),
@@ -8283,7 +8284,7 @@ function ClientQCMgmt(props){
                 ce('thead',null,
                   /* Row 1 — section spans + metadata group */
                   ce('tr',null,
-                    ce('th',{style:{padding:'5px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap',textAlign:'left',minWidth:52,position:'sticky',top:0,zIndex:3,boxShadow:'0 1px 0 var(--border)'}},'#'),
+                    ce('th',{style:{padding:'5px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap',textAlign:'left',minWidth:52}},'#'),
                     secs.map(function(sec){
                       var cnt=(sec.items||[]).length;
                       if(!cnt) return null;
@@ -8301,7 +8302,7 @@ function ClientQCMgmt(props){
                           position:'sticky',top:0,zIndex:3,boxShadow:'0 1px 0 var(--border)'}},
                         ce('span',{onMouseEnter:function(e){showTip(sec.section,e);},onMouseLeave:hideTip,style:{cursor:'default'}},sec.section));
                     }),
-                    ce('th',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',whiteSpace:'nowrap',fontWeight:600,position:'sticky',top:0,zIndex:3,boxShadow:'0 1px 0 var(--border)'}},'Total %'),
+                    ce('th',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',whiteSpace:'nowrap',fontWeight:600}},'Total %'),
                     /* Metadata group header */
                     (function(){
                       var varOpts2=[];if(fVar)varOpts2.push(1);if(fVarType==='mixed'&&fVar2)varOpts2.push(1);fVarsExtra.forEach(function(ve){if(ve.var)varOpts2.push(1);});
@@ -8309,14 +8310,14 @@ function ClientQCMgmt(props){
                       var phOpts2=[];if(fPH)phOpts2.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts2.push(1);});
                       var traceOpts2b=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
                       var metaCols=(varOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(phOpts2.length>0?1:0)+(traceOpts2b.length>0?1:0)+7+1;
-                      return ce('th',{colSpan:metaCols,style:{padding:'4px 8px',background:'#e8f0f5',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',textAlign:'center',fontWeight:700,letterSpacing:'.05em',textTransform:'uppercase',borderBottom:'2px solid #3a5a7a',position:'sticky',top:0,zIndex:3,boxShadow:'0 1px 0 var(--border)'}},
+                      return ce('th',{colSpan:metaCols,style:{padding:'4px 8px',background:'#e8f0f5',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',textAlign:'center',fontWeight:700,letterSpacing:'.05em',textTransform:'uppercase',borderBottom:'2px solid #3a5a7a'}},
                         '✓ Sample details');
                     })(),
-                    ce('th',{style:{padding:'5px 4px',background:'var(--bg2)',border:'1px solid var(--border)',width:24,position:'sticky',top:0,zIndex:3}})
+                    ce('th',{style:{padding:'5px 4px',background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
                   ),
                   /* Row 2 — defect names + metadata field names */
                   ce('tr',null,
-                    ce('th',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'left',position:'sticky',top:29,zIndex:3,boxShadow:'0 2px 0 var(--border)'}},'Sample'),
+                    ce('th',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'left'}},'Sample'),
                     allDefs.map(function(item){
                       var def=item.def; var sec=item.sec;
                       var sName2=(sec.section||'').toLowerCase();
@@ -8333,7 +8334,7 @@ function ClientQCMgmt(props){
                         ce('span',{onMouseEnter:function(en){return function(e){showTip(en,e);};}(def.en),onMouseLeave:hideTip,style:{display:'inline-block',cursor:'default'}},
                           def.en.length>8?def.en.slice(0,7)+'…':def.en));
                     }),
-                    ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600,position:'sticky',top:29,zIndex:3,boxShadow:'0 2px 0 var(--border)'}},'%'),
+                    ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600}},'%'),
                     /* Metadata column headers */
                     (function(){
                       var varOpts=[];if(fVar)varOpts.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
@@ -8348,9 +8349,9 @@ function ClientQCMgmt(props){
                       if(traceOpts2.length>0) hdrs.push('Trace');
                       hdrs.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes','Dispute');
                       var metaWidths={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':180,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
-                      return hdrs.map(function(h){var isDisp=h==='Dispute';return ce('th',{key:h,style:{padding:'4px 6px',background:isDisp?'#faeeda':'#f0f5f9',border:'1px solid var(--border)',borderBottom:isDisp?'2px solid #BA7517':'',fontSize:10,color:isDisp?'#633806':'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60,position:'sticky',top:29,zIndex:3,boxShadow:'0 2px 0 var(--border)'}},h);});
+                      return hdrs.map(function(h){var isDisp=h==='Dispute';return ce('th',{key:h,style:{padding:'4px 6px',background:isDisp?'#faeeda':'#f0f5f9',border:'1px solid var(--border)',borderBottom:isDisp?'2px solid #BA7517':'',fontSize:10,color:isDisp?'#633806':'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h);});
                     })(),
-                    ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24,position:'sticky',top:29,zIndex:3}})
+                    ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
                   )
                 ),
                 ce('tbody',null,
