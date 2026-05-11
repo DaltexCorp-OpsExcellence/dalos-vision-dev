@@ -375,6 +375,7 @@ input,select,textarea{font-size:16px!important}
 .dalos-field-error-wrap{border-radius:8px;padding:4px;margin:-4px;animation:dalos-flash 1.4s ease-in-out 2;background:rgba(176,48,48,.06)}
 .grape-dots::after{content:'';animation:gpdots 1.2s steps(1) infinite}
 /* ── Tooltip handled via JS fixed overlay ── */
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
 </style>
 </head>
 <body>
@@ -5040,7 +5041,19 @@ function Landing(props){
     ),
 
     /* ── BRANDED HERO ── */
-    ce('div',{style:{textAlign:'center',padding:'24px 24px 28px',borderBottom:'1px solid var(--border)',marginBottom:32}},
+    ce('div',{style:{textAlign:'center',padding:'24px 24px 28px',borderBottom:'1px solid var(--border)',marginBottom:32,position:'relative'}},
+      (window.location.href.indexOf('dalos-vision-dev')>-1||window.location.href.indexOf('localhost')>-1)&&ce('div',{style:{
+        position:'absolute',top:18,right:20,
+        display:'inline-flex',alignItems:'center',gap:7,
+        background:'linear-gradient(135deg,#ff6b35 0%,#f7c948 100%)',
+        color:'#fff',padding:'5px 16px 5px 11px',borderRadius:20,
+        boxShadow:'0 3px 14px rgba(255,107,53,0.45)',
+        fontSize:10,fontFamily:"'Courier New',monospace",fontWeight:700,
+        letterSpacing:'.2em',textTransform:'uppercase',userSelect:'none',cursor:'default'
+      }},
+        ce('span',{style:{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.9)',display:'inline-block',flexShrink:0,animation:'pulse 1.4s ease-in-out infinite'}}),
+        'Staging'
+      ),
       ce('div',{style:{marginBottom:16}},
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:42,color:'var(--text)'}},'Dal'),
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:42,color:'var(--accent)'}},'OS'),
