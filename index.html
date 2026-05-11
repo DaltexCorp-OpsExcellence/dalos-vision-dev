@@ -8376,15 +8376,29 @@ function ClientQCMgmt(props){
                               color:over?'var(--red)':'var(--text)',textAlign:'right',
                               fontFamily:'var(--font-mono)',fontSize:12,padding:'4px 5px',display:'block',outline:'none'},
                             onChange:function(idx,key){return function(e){updateCqcSampleDefect(idx,key,e.target.value);};}(si,def.key),
+                            'data-row':si,'data-col':allDefs.indexOf(item),
                             onFocus:function(e){e.target.select();},
                             onKeyDown:function(e){
-                              if(e.key==='Enter'||e.key==='Tab'){
+                              if(e.key==='Tab'||e.key==='Enter'){
                                 e.preventDefault();
-                                var inputs=document.querySelectorAll('table.cqc-grid input[type=number]');
-                                var arr=Array.from(inputs);
-                                var idx=arr.indexOf(e.target);
-                                var next=arr[idx+1];
-                                if(next) next.focus();
+                                var row=parseInt(e.target.getAttribute('data-row'));
+                                var col=parseInt(e.target.getAttribute('data-col'));
+                                var numCols=allDefs.length;
+                                var target;
+                                if(e.key==='Tab'){
+                                  /* move right — next col, or first col of next row */
+                                  if(col<numCols-1){
+                                    target=document.querySelector('table.cqc-grid input[data-row="'+row+'"][data-col="'+(col+1)+'"]');
+                                  } else {
+                                    target=document.querySelector('table.cqc-grid input[data-row="'+(row+1)+'"][data-col="0"]');
+                                  }
+                                } else {
+                                  /* Enter — move down same col */
+                                  target=document.querySelector('table.cqc-grid input[data-row="'+(row+1)+'"][data-col="'+col+'"]');
+                                  /* if no row below, wrap to first row same col */
+                                  if(!target) target=document.querySelector('table.cqc-grid input[data-row="0"][data-col="'+col+'"]');
+                                }
+                                if(target) target.focus();
                               }
                             }
                           })
