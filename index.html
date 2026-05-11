@@ -7140,6 +7140,12 @@ function ClientQCMgmt(props){
     return collapsed.concat([newCqcSample(prev.length+1)]);
   });}
   function removeCqcSample(idx){setCqcSamples(function(prev){return prev.filter(function(_,i){return i!==idx;}).map(function(s,i){return Object.assign({},s,{sampleNumber:i+1});});});}
+  function duplicateCqcSample(idx){setCqcSamples(function(prev){
+    var src=prev[idx];
+    var dupe=Object.assign({},src,{id:'new-'+Date.now()+Math.random(),disputed:false,disputeNote:'',isNew:true});
+    var next=prev.slice(0,idx+1).concat([dupe]).concat(prev.slice(idx+1));
+    return next.map(function(s,i){return Object.assign({},s,{sampleNumber:i+1});});
+  });} 
   function updateCqcSampleType(idx,type){setCqcSamples(function(prev){return prev.map(function(s,i){return i===idx?Object.assign({},s,{sampleType:type}):s;});});}
   function updateCqcSampleField(idx,field,val){setCqcSamples(function(prev){return prev.map(function(s,i){return i===idx?Object.assign({},s,function(){var o={};o[field]=val;return o;}()):s;});});}
   function toggleCqcSampleCollapse(idx){setCqcSamples(function(prev){return prev.map(function(s,i){return i===idx?Object.assign({},s,{collapsed:!s.collapsed}):s;});});}
@@ -8360,8 +8366,17 @@ function ClientQCMgmt(props){
                     var selSt={width:'100%',border:'none',background:'transparent',fontSize:11,padding:'3px 4px',fontFamily:'var(--font-sans)',color:'var(--text)'};
                     var inSt={width:'100%',border:'none',background:'transparent',fontSize:11,padding:'3px 4px',fontFamily:'var(--font-sans)',color:'var(--text)',outline:'none'};
                     return ce('tr',{key:sample.id,style:{background:si%2===0?'var(--card)':'var(--bg2)'}},
-                      /* # */
-                      ce('td',{style:{padding:'3px 6px',border:'1px solid var(--border)',whiteSpace:'nowrap',textAlign:'center',fontWeight:600,fontSize:12}},sample.sampleNumber),
+                      /* # + duplicate */
+                      ce('td',{style:{padding:'2px 4px',border:'1px solid var(--border)',whiteSpace:'nowrap',textAlign:'center'}},
+                        ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:3}},
+                          ce('span',{style:{fontWeight:600,fontSize:12,minWidth:14,textAlign:'center'}},sample.sampleNumber),
+                          ce('button',{
+                            title:'Duplicate this row',
+                            style:{background:'none',border:'0.5px solid var(--border2)',borderRadius:4,cursor:'pointer',color:'var(--text3)',fontSize:10,lineHeight:1,padding:'1px 4px',flexShrink:0},
+                            onClick:function(idx){return function(){duplicateCqcSample(idx);};}(si)
+                          },'⧉')
+                        )
+                      ),
                       /* Defect cells */
                       allDefs.map(function(item){
                         var def=item.def;
