@@ -376,12 +376,13 @@ input,select,textarea{font-size:16px!important}
 .grape-dots::after{content:'';animation:gpdots 1.2s steps(1) infinite}
 /* ── Tooltip handled via JS fixed overlay ── */
 .cqc-grid{border-collapse:separate!important;border-spacing:0;}
-.cqc-grid-wrap{overflow:auto;max-height:62vh;}
-.cqc-grid thead tr:nth-child(1) th{position:sticky;top:0;z-index:3;}
-.cqc-grid thead tr:nth-child(2) th{position:sticky;top:31px;z-index:3;box-shadow:0 2px 3px rgba(0,0,0,.07);}
+.cqc-grid-wrap{overflow-x:auto;}
+.cqc-grid thead tr:nth-child(1) th{position:sticky;top:50px;z-index:3;}
+.cqc-grid thead tr:nth-child(2) th{position:sticky;top:81px;z-index:3;box-shadow:0 2px 3px rgba(0,0,0,.07);}
 .cqc-grid th,.cqc-grid td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
 .cqc-grid th:first-child,.cqc-grid td:first-child{border-left:1px solid var(--border);}
 .cqc-grid thead tr:first-child th{border-top:1px solid var(--border);}
+.cqc-grid thead th{isolation:isolate;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
 </style>
 </head>
@@ -8261,7 +8262,7 @@ function ClientQCMgmt(props){
           }})
         ),
         /* ── CQC SAMPLE READINGS ── */
-        ce('div',{className:'card',style:{marginBottom:12,padding:0,overflow:'visible'}},
+        ce('div',{className:'card',style:{marginBottom:12,padding:0,overflow:'hidden'}},
           ce('div',{style:{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--bg2)'}},
             ce('div',{className:'section-title',style:{marginBottom:0}},
               ce('div',{className:'section-title-bar',style:{background:'#3a7a4a'}}),
