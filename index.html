@@ -7674,9 +7674,8 @@ function ClientQCMgmt(props){
         var sampleRows=cqcSamplesSnapshot.map(function(s,idx){
           /* compute effective values — auto-fill when only 1 option in header */
           var _varOpts2=[];
-          if(fVar) _varOpts2.push(fVar);
-          if(fVarType==='mixed'&&fVar2) _varOpts2.push(fVar2);
-          fVarsExtra.forEach(function(ve){if(ve.var)_varOpts2.push(ve.var);if(ve.type==='mixed'&&ve.var2)_varOpts2.push(ve.var2);});
+          if(fVar)_varOpts2.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);
+          fVarsExtra.forEach(function(ve){if(ve.var)_varOpts2.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
           var _farmOpts2=[];
           if(fFarm1) _farmOpts2.push({farm:fFarm1,plot:fPlot1});
           if(fFarm2) _farmOpts2.push({farm:fFarm2,plot:fPlot2});
@@ -8316,7 +8315,7 @@ function ClientQCMgmt(props){
                     ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600}},'%'),
                     /* Metadata column headers */
                     (function(){
-                      var varOpts=[];if(fVar)varOpts.push(fVar);if(fVarType==='mixed'&&fVar2)varOpts.push(fVar2);fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.var);if(ve.type==='mixed'&&ve.var2)varOpts.push(ve.var2);});
+                      var varOpts=[];if(fVar)varOpts.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
                       var farmOpts=[];if(fFarm1)farmOpts.push({farm:fFarm1,plot:fPlot1});if(fFarm2)farmOpts.push({farm:fFarm2,plot:fPlot2});fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts.push({farm:fe.farm,plot:fe.plot||''});});
                       var phOpts=[];if(fPH)phOpts.push(fPH);fPHExtra.forEach(function(pe){if(pe.actual)phOpts.push(pe.actual);});
                       var hdrs=[];
@@ -8338,7 +8337,7 @@ function ClientQCMgmt(props){
                     var sTotal=cqcSampleTotal(sample);
                     var totalColor=sTotal>10?'var(--red)':sTotal>5?'var(--amber)':'var(--green)';
                     /* Build options */
-                    var varOpts=[];if(fVar)varOpts.push(fVar);if(fVarType==='mixed'&&fVar2)varOpts.push(fVar2);fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.var);if(ve.type==='mixed'&&ve.var2)varOpts.push(ve.var2);});
+                    var varOpts=[];if(fVar)varOpts.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
                     var farmOpts=[];if(fFarm1)farmOpts.push({farm:fFarm1,plot:fPlot1});if(fFarm2)farmOpts.push({farm:fFarm2,plot:fPlot2});fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts.push({farm:fe.farm,plot:fe.plot||''});});
                     var phOpts=[];if(fPH)phOpts.push(fPH);fPHExtra.forEach(function(pe){if(pe.actual)phOpts.push(pe.actual);});
                     var selFarmName=farmOpts.length===1?farmOpts[0].farm:sample.sampleFarm;
@@ -8595,9 +8594,8 @@ function ClientQCMgmt(props){
                     ),
                     (function(){
                       var varOpts=[];
-                      if(fVar) varOpts.push(fVar);
-                      if(fVarType==='mixed'&&fVar2) varOpts.push(fVar2);
-                      fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.var);if(ve.type==='mixed'&&ve.var2)varOpts.push(ve.var2);});
+                      if(fVar)varOpts.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);
+                      fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
                       var farmOpts=[];
                       if(fFarm1) farmOpts.push({farm:fFarm1,plot:fPlot1});
                       if(fFarm2) farmOpts.push({farm:fFarm2,plot:fPlot2});
