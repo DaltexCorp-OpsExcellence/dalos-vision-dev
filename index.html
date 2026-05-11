@@ -376,13 +376,12 @@ input,select,textarea{font-size:16px!important}
 .grape-dots::after{content:'';animation:gpdots 1.2s steps(1) infinite}
 /* ── Tooltip handled via JS fixed overlay ── */
 .cqc-grid{border-collapse:separate!important;border-spacing:0;}
-.cqc-grid-wrap{overflow:auto;max-height:62vh;border-radius:0 0 8px 8px;}
-.cqc-grid thead{position:sticky;top:0;z-index:5;background:var(--bg2);}
-.cqc-grid thead th{background:inherit;}
+.cqc-grid-wrap{overflow:auto;max-height:62vh;}
+.cqc-grid thead tr:nth-child(1) th{position:sticky;top:0;z-index:3;}
+.cqc-grid thead tr:nth-child(2) th{position:sticky;top:31px;z-index:3;box-shadow:0 2px 3px rgba(0,0,0,.07);}
 .cqc-grid th,.cqc-grid td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
 .cqc-grid th:first-child,.cqc-grid td:first-child{border-left:1px solid var(--border);}
 .cqc-grid thead tr:first-child th{border-top:1px solid var(--border);}
-.cqc-grid thead tr:last-child th{box-shadow:0 2px 4px rgba(0,0,0,.08);}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
 </style>
 </head>
