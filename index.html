@@ -8254,7 +8254,7 @@ function ClientQCMgmt(props){
                           background:secBgFor(sec),color:secTextFor(sec),whiteSpace:'nowrap'}},
                         sec.section);
                     }),
-                    ce('th',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',textAlign:'center',whiteSpace:'nowrap'}},'Total'),
+                    ce('th',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',whiteSpace:'nowrap',fontWeight:600}},'Total %'),
                     /* Metadata group header */
                     (function(){
                       var varOpts2=[];if(fVar)varOpts2.push(1);if(fVarType==='mixed'&&fVar2)varOpts2.push(1);fVarsExtra.forEach(function(ve){if(ve.var)varOpts2.push(1);});
@@ -8262,8 +8262,8 @@ function ClientQCMgmt(props){
                       var phOpts2=[];if(fPH)phOpts2.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts2.push(1);});
                       var traceOpts2b=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
                       var metaCols=(varOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(phOpts2.length>0?1:0)+(traceOpts2b.length>0?1:0)+4+1;
-                      return ce('th',{colSpan:metaCols,style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600,letterSpacing:'.04em',textTransform:'uppercase'}},
-                        'Sample details');
+                      return ce('th',{colSpan:metaCols,style:{padding:'4px 8px',background:'#e8f0f5',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',textAlign:'center',fontWeight:700,letterSpacing:'.05em',textTransform:'uppercase',borderBottom:'2px solid #3a5a7a'}},
+                        '✓ Sample details');
                     })(),
                     ce('th',{style:{padding:'5px 4px',background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
                   ),
@@ -8279,7 +8279,7 @@ function ClientQCMgmt(props){
                         title:def.en},
                         def.en.length>10?def.en.slice(0,9)+'…':def.en);
                     }),
-                    ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center'}},'%'),
+                    ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600}},'%'),
                     /* Metadata column headers */
                     (function(){
                       var varOpts=[];if(fVar)varOpts.push(fVar);if(fVarType==='mixed'&&fVar2)varOpts.push(fVar2);fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.var);if(ve.type==='mixed'&&ve.var2)varOpts.push(ve.var2);});
@@ -8293,7 +8293,8 @@ function ClientQCMgmt(props){
                       var traceOpts2=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
                       if(traceOpts2.length>0) hdrs.push('Trace');
                       hdrs.push('Score','Brix?','Size mm','Size?','Notes');
-                      return hdrs.map(function(h){return ce('th',{key:h,style:{padding:'4px 6px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',whiteSpace:'nowrap',textAlign:'left',minWidth:h==='Notes'?140:h==='Score'?72:60}},h);});
+                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':90,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150};
+                      return hdrs.map(function(h){return ce('th',{key:h,style:{padding:'4px 6px',background:'#f0f5f9',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h);});
                     })(),
                     ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
                   )
