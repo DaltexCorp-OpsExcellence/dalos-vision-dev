@@ -8340,20 +8340,16 @@ function ClientQCMgmt(props){
                                     farmOpts.map(function(f){return ce('option',{key:f.farm,value:f.farm},f.farm);})
                                   )
                               ),
-                              /* Plot — auto-filled or manual override */
-                              farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
-                                ce('label',{className:'form-label'},'Plot'),
-                                (function(){
-                                  var selFarm=farmOpts.find(function(f){return f.farm===sample.sampleFarm;});
-                                  var plotOpts=selFarm&&selFarm.plot?[selFarm.plot]:[];
-                                  return plotOpts.length>0
-                                    ?ce('select',{className:'form-select',value:sample.samplePlot||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)},
-                                        ce('option',{value:''},'— Pick —'),
-                                        plotOpts.map(function(p){return ce('option',{key:p,value:p},p);})
-                                      )
-                                    :ce('input',{className:'form-input',value:sample.samplePlot||'',placeholder:'Plot',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)});
-                                })()
-                              ),
+                              /* Plot — derived from effective farm */
+                              farmOpts.length>0&&(function(){
+                                var effFarm=farmOpts.length===1?farmOpts[0]:(farmOpts.find(function(f){return f.farm===sample.sampleFarm;})||null);
+                                var effPlot=effFarm?effFarm.plot||'':'';
+                                if(!effPlot) return null;
+                                return ce('div',{className:'form-field',style:{marginBottom:0}},
+                                  ce('label',{className:'form-label'},'Plot'),
+                                  ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},effPlot)
+                                );
+                              })(),
                               /* Packhouse actual */
                               phOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                                 ce('label',{className:'form-label'},'Packhouse (this sample)'),
