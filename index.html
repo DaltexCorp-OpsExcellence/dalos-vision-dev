@@ -7111,7 +7111,7 @@ function ClientQCMgmt(props){
     var pid=selCqcProd||'citrus';
     var secs=(config.cqcDefectSections||{})[pid]||[];
     secs.forEach(function(sec){(sec.items||[]).forEach(function(d){defects[d.key]='0';});});
-    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brixIssue:false,avgSize:'',sizeIssue:false,sampleVariety:'',collapsed:false,isNew:true};
+    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brixIssue:false,avgSize:'',sizeIssue:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',collapsed:false,isNew:true};
   }
   function addCqcSample(){setCqcSamples(function(prev){
     var collapsed=prev.map(function(s){return Object.assign({},s,{collapsed:true});});
@@ -7270,7 +7270,7 @@ function ClientQCMgmt(props){
         var notesParts=[];
         if(s.pallet_ref) notesParts.push('Pallet: '+s.pallet_ref);
         if(s.notes) notesParts.push(s.notes);
-        return {id:'new-'+Date.now()+Math.random(),sampleNumber:idx+1,sampleType:'sample_readings',defects:defects,notes:notesParts.join(' | '),score:'',brixIssue:false,avgSize:'',sizeIssue:false,sampleVariety:'',collapsed:false,isNew:true};
+        return {id:'new-'+Date.now()+Math.random(),sampleNumber:idx+1,sampleType:'sample_readings',defects:defects,notes:notesParts.join(' | '),score:'',brixIssue:false,avgSize:'',sizeIssue:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',collapsed:false,isNew:true};
       });
       setCqcSamples(mapped);
     }
@@ -8278,46 +8278,103 @@ function ClientQCMgmt(props){
                             onClick:function(idx){return function(){removeCqcSample(idx);};}(si)},'\u00d7')
                         )
                       ),
-                      /* Expand row — score, notes, brix issue, avg size, size issue */
+                      /* Expand row — variety, farm/plot, packhouse, score, notes, etc. */
                       isExp&&ce('tr',{key:sample.id+'-exp',style:{background:'var(--bg2)'}},
                         ce('td',{colSpan:totalCols,style:{padding:'8px 12px',border:'1px solid var(--border)',borderTop:'none'}},
-                          ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:8}},
-                            selCqcProd==='grapes'&&fVarType==='mixed'&&fVar&&fVar2&&ce('div',{className:'form-field',style:{marginBottom:0}},
-                              ce('label',{className:'form-label'},'Variety (this sample)'),
-                              ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
-                                ce('option',{value:''},'— Pick —'),
-                                ce('option',{value:fVar},fVar),
-                                ce('option',{value:fVar2},fVar2)
+                          (function(){
+                            /* Build variety options from header */
+                            var varOpts=[];
+                            if(fVar) varOpts.push(fVar);
+                            if(fVarType==='mixed'&&fVar2) varOpts.push(fVar2);
+                            fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.var);if(ve.type==='mixed'&&ve.var2)varOpts.push(ve.var2);});
+                            /* Build farm options with auto-plot lookup */
+                            var farmOpts=[];
+                            if(fFarm1) farmOpts.push({farm:fFarm1,plot:fPlot1});
+                            if(fFarm2) farmOpts.push({farm:fFarm2,plot:fPlot2});
+                            fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts.push({farm:fe.farm,plot:fe.plot||''});});
+                            /* Build packhouse actual options */
+                            var phOpts=[];
+                            if(fPH) phOpts.push(fPH);
+                            fPHExtra.forEach(function(pe){if(pe.actual)phOpts.push(pe.actual);});
+                            return ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:8}},
+                              /* Variety */
+                              varOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                                ce('label',{className:'form-label'},'Variety (this sample)'),
+                                ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                                  ce('option',{value:''},'— Pick —'),
+                                  varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
+                                )
+                              ),
+                              /* Farm */
+                              farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                                ce('label',{className:'form-label'},'Farm (this sample)'),
+                                ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
+                                  var sel=e.target.value;
+                                  updateCqcSampleField(idx,'sampleFarm',sel);
+                                  var found=fo.find(function(f){return f.farm===sel;});
+                                  if(found&&found.plot) updateCqcSampleField(idx,'samplePlot',found.plot);
+                                  else updateCqcSampleField(idx,'samplePlot','');
+                                };}(si,farmOpts)},
+                                  ce('option',{value:''},'— Pick —'),
+                                  farmOpts.map(function(f){return ce('option',{key:f.farm,value:f.farm},f.farm);})
+                                )
+                              ),
+                              /* Plot — auto-filled or manual override */
+                              farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                                ce('label',{className:'form-label'},'Plot'),
+                                (function(){
+                                  var selFarm=farmOpts.find(function(f){return f.farm===sample.sampleFarm;});
+                                  var plotOpts=selFarm&&selFarm.plot?[selFarm.plot]:[];
+                                  return plotOpts.length>0
+                                    ?ce('select',{className:'form-select',value:sample.samplePlot||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)},
+                                        ce('option',{value:''},'— Pick —'),
+                                        plotOpts.map(function(p){return ce('option',{key:p,value:p},p);})
+                                      )
+                                    :ce('input',{className:'form-input',value:sample.samplePlot||'',placeholder:'Plot',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)});
+                                })()
+                              ),
+                              /* Packhouse actual */
+                              phOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                                ce('label',{className:'form-label'},'Packhouse (this sample)'),
+                                ce('select',{className:'form-select',value:sample.samplePH||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePH',e.target.value);};}(si)},
+                                  ce('option',{value:''},'— Pick —'),
+                                  phOpts.map(function(p){return ce('option',{key:p,value:p},p);})
+                                )
+                              ),
+                              /* Score */
+                              ce('div',{className:'form-field',style:{marginBottom:0}},
+                                ce('label',{className:'form-label'},'Client score'),
+                                ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
+                                  ce('option',{value:''},'— Select —'),
+                                  ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                                )
+                              ),
+                              /* Brix issue */
+                              ce('div',{className:'form-field',style:{marginBottom:0}},
+                                ce('label',{className:'form-label'},'Brix issue?'),
+                                ce('select',{className:'form-select',value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
+                                  ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                                )
+                              ),
+                              /* Avg size */
+                              ce('div',{className:'form-field',style:{marginBottom:0}},
+                                ce('label',{className:'form-label'},'Avg size (mm)'),
+                                ce('input',{className:'form-input',type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'mm',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
+                              ),
+                              /* Size issue */
+                              ce('div',{className:'form-field',style:{marginBottom:0}},
+                                ce('label',{className:'form-label'},'Size issue?'),
+                                ce('select',{className:'form-select',value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
+                                  ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                                )
+                              ),
+                              /* Notes */
+                              ce('div',{className:'form-field',style:{marginBottom:0,gridColumn:'span 2'}},
+                                ce('label',{className:'form-label'},'Notes'),
+                                ce('input',{className:'form-input',value:sample.notes||'',placeholder:'Sample observations...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
                               )
-                            ),
-                            ce('div',{className:'form-field',style:{marginBottom:0}},
-                              ce('label',{className:'form-label'},'Client score'),
-                              ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
-                                ce('option',{value:''},'— Select —'),
-                                ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
-                              )
-                            ),
-                            ce('div',{className:'form-field',style:{marginBottom:0}},
-                              ce('label',{className:'form-label'},'Brix issue?'),
-                              ce('select',{className:'form-select',value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
-                                ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                              )
-                            ),
-                            ce('div',{className:'form-field',style:{marginBottom:0}},
-                              ce('label',{className:'form-label'},'Avg size (mm)'),
-                              ce('input',{className:'form-input',type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'mm',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
-                            ),
-                            ce('div',{className:'form-field',style:{marginBottom:0}},
-                              ce('label',{className:'form-label'},'Size issue?'),
-                              ce('select',{className:'form-select',value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
-                                ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                              )
-                            ),
-                            ce('div',{className:'form-field',style:{marginBottom:0,gridColumn:'span 2'}},
-                              ce('label',{className:'form-label'},'Notes'),
-                              ce('input',{className:'form-input',value:sample.notes||'',placeholder:'Sample observations...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
-                            )
-                          )
+                            );
+                          })()
                         )
                       )
                     ];
@@ -8447,44 +8504,88 @@ function ClientQCMgmt(props){
                         ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:700,color:sTotal>10?'var(--red)':sTotal>5?'var(--amber)':'var(--green)'}},sTotal.toFixed(2)+'%')
                       )
                     ),
-                    ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10}},
-                      /* Variety — grapes mixed only */
-                      selCqcProd==='grapes'&&fVarType==='mixed'&&fVar&&fVar2&&ce('div',{className:'form-field',style:{marginBottom:0}},
-                        ce('label',{className:'form-label'},'Variety (this sample)'),
-                        ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
-                          ce('option',{value:''},'— Pick —'),
-                          ce('option',{value:fVar},fVar),
-                          ce('option',{value:fVar2},fVar2)
+                    (function(){
+                      var varOpts=[];
+                      if(fVar) varOpts.push(fVar);
+                      if(fVarType==='mixed'&&fVar2) varOpts.push(fVar2);
+                      fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.var);if(ve.type==='mixed'&&ve.var2)varOpts.push(ve.var2);});
+                      var farmOpts=[];
+                      if(fFarm1) farmOpts.push({farm:fFarm1,plot:fPlot1});
+                      if(fFarm2) farmOpts.push({farm:fFarm2,plot:fPlot2});
+                      fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts.push({farm:fe.farm,plot:fe.plot||''});});
+                      var phOpts=[];
+                      if(fPH) phOpts.push(fPH);
+                      fPHExtra.forEach(function(pe){if(pe.actual)phOpts.push(pe.actual);});
+                      return ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10}},
+                        varOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label'},'Variety'),
+                          ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                            ce('option',{value:''},'— Pick —'),
+                            varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
+                          )
+                        ),
+                        farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label'},'Farm'),
+                          ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
+                            var sel=e.target.value;
+                            updateCqcSampleField(idx,'sampleFarm',sel);
+                            var found=fo.find(function(f){return f.farm===sel;});
+                            if(found&&found.plot) updateCqcSampleField(idx,'samplePlot',found.plot);
+                            else updateCqcSampleField(idx,'samplePlot','');
+                          };}(si,farmOpts)},
+                            ce('option',{value:''},'— Pick —'),
+                            farmOpts.map(function(f){return ce('option',{key:f.farm,value:f.farm},f.farm);})
+                          )
+                        ),
+                        farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label'},'Plot'),
+                          (function(){
+                            var selFarm=farmOpts.find(function(f){return f.farm===sample.sampleFarm;});
+                            var plotOpts=selFarm&&selFarm.plot?[selFarm.plot]:[];
+                            return plotOpts.length>0
+                              ?ce('select',{className:'form-select',value:sample.samplePlot||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)},
+                                  ce('option',{value:''},'— Pick —'),
+                                  plotOpts.map(function(p){return ce('option',{key:p,value:p},p);})
+                                )
+                              :ce('input',{className:'form-input',value:sample.samplePlot||'',placeholder:'Plot',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)});
+                          })()
+                        ),
+                        phOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label'},'Packhouse'),
+                          ce('select',{className:'form-select',value:sample.samplePH||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePH',e.target.value);};}(si)},
+                            ce('option',{value:''},'— Pick —'),
+                            phOpts.map(function(p){return ce('option',{key:p,value:p},p);})
+                          )
+                        ),
+                        ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label'},'Brix issue?'),
+                          ce('select',{className:'form-select',value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
+                            ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                          )
+                        ),
+                        ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label'},'Avg size (mm)'),
+                          ce('input',{className:'form-input',type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'mm',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
+                        ),
+                        ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label'},'Size issue?'),
+                          ce('select',{className:'form-select',value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
+                            ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                          )
+                        ),
+                        ce('div',{className:'form-field',style:{marginBottom:0,gridColumn:'span 2'}},
+                          ce('label',{className:'form-label'},'Notes'),
+                          ce('input',{className:'form-input',value:sample.notes||'',placeholder:'Sample observations...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
+                        ),
+                        ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label'},'Client score'),
+                          ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
+                            ce('option',{value:''},'— Select —'),
+                            ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                          )
                         )
-                      ),
-                      ce('div',{className:'form-field',style:{marginBottom:0}},
-                        ce('label',{className:'form-label'},'Brix issue?'),
-                        ce('select',{className:'form-select',value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
-                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                        )
-                      ),
-                      ce('div',{className:'form-field',style:{marginBottom:0}},
-                        ce('label',{className:'form-label'},'Avg size (mm)'),
-                        ce('input',{className:'form-input',type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'mm',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
-                      ),
-                      ce('div',{className:'form-field',style:{marginBottom:0}},
-                        ce('label',{className:'form-label'},'Size issue?'),
-                        ce('select',{className:'form-select',value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
-                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                        )
-                      ),
-                      ce('div',{className:'form-field',style:{marginBottom:0,gridColumn:'span 2'}},
-                        ce('label',{className:'form-label'},'Notes'),
-                        ce('input',{className:'form-input',value:sample.notes||'',placeholder:'Sample observations...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
-                      ),
-                      ce('div',{className:'form-field',style:{marginBottom:0}},
-                        ce('label',{className:'form-label'},'Client score'),
-                        ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
-                          ce('option',{value:''},'— Select —'),
-                          ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
-                        )
-                      )
-                    )
+                      );
+                    })()
                   )
                 );
               })
