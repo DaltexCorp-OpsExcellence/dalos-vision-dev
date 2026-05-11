@@ -8324,30 +8324,26 @@ function ClientQCMgmt(props){
                                     varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
                                   )
                               ),
-                              /* Farm */
+                              /* Farm — always dropdown */
                               farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                                 ce('label',{className:'form-label'},'Farm (this sample)'),
-                                farmOpts.length===1
-                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},farmOpts[0].farm)
-                                  :ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
-                                    var sel=e.target.value;
-                                    updateCqcSampleField(idx,'sampleFarm',sel);
-                                    var found=fo.find(function(f){return f.farm===sel;});
-                                    if(found&&found.plot) updateCqcSampleField(idx,'samplePlot',found.plot);
-                                    else updateCqcSampleField(idx,'samplePlot','');
-                                  };}(si,farmOpts)},
-                                    ce('option',{value:''},'— Pick —'),
-                                    farmOpts.map(function(f){return ce('option',{key:f.farm,value:f.farm},f.farm);})
-                                  )
+                                ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleFarm',e.target.value);};}(si)},
+                                  ce('option',{value:''},'— Pick —'),
+                                  farmOpts.map(function(f,fi){return ce('option',{key:f.farm+fi,value:f.farm},f.farm);})
+                                )
                               ),
-                              /* Plot — derived from effective farm */
-                              farmOpts.length>0&&(function(){
-                                var effFarm=farmOpts.length===1?farmOpts[0]:(farmOpts.find(function(f){return f.farm===sample.sampleFarm;})||null);
-                                var effPlot=effFarm?effFarm.plot||'':'';
-                                if(!effPlot) return null;
+                              /* Plot — all plots as dropdown, independent of farm */
+                              (function(){
+                                var allPlots=farmOpts.map(function(f){return f.plot||'';}).filter(Boolean);
+                                if(!allPlots.length) return null;
                                 return ce('div',{className:'form-field',style:{marginBottom:0}},
                                   ce('label',{className:'form-label'},'Plot'),
-                                  ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},effPlot)
+                                  allPlots.length===1
+                                    ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},allPlots[0])
+                                    :ce('select',{className:'form-select',value:sample.samplePlot||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)},
+                                      ce('option',{value:''},'— Pick —'),
+                                      allPlots.map(function(p){return ce('option',{key:p,value:p},p);})
+                                    )
                                 );
                               })(),
                               /* Packhouse actual */
@@ -8547,26 +8543,22 @@ function ClientQCMgmt(props){
                         ),
                         farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                           ce('label',{className:'form-label'},'Farm'),
-                          farmOpts.length===1
-                            ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},farmOpts[0].farm)
-                            :ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
-                              var sel=e.target.value;
-                              updateCqcSampleField(idx,'sampleFarm',sel);
-                              var found=fo.find(function(f){return f.farm===sel;});
-                              if(found&&found.plot) updateCqcSampleField(idx,'samplePlot',found.plot);
-                              else updateCqcSampleField(idx,'samplePlot','');
-                            };}(si,farmOpts)},
-                              ce('option',{value:''},'— Pick —'),
-                              farmOpts.map(function(f){return ce('option',{key:f.farm,value:f.farm},f.farm);})
-                            )
+                          ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleFarm',e.target.value);};}(si)},
+                            ce('option',{value:''},'— Pick —'),
+                            farmOpts.map(function(f,fi){return ce('option',{key:f.farm+fi,value:f.farm},f.farm);})
+                          )
                         ),
-                        farmOpts.length>0&&(function(){
-                          var effFarm=farmOpts.length===1?farmOpts[0]:farmOpts.find(function(f){return f.farm===sample.sampleFarm;})||null;
-                          var effPlot=effFarm?effFarm.plot||'':'';
-                          if(!effPlot) return null;
+                        (function(){
+                          var allPlots=farmOpts.map(function(f){return f.plot||'';}).filter(Boolean);
+                          if(!allPlots.length) return null;
                           return ce('div',{className:'form-field',style:{marginBottom:0}},
                             ce('label',{className:'form-label'},'Plot'),
-                            ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},effPlot)
+                            allPlots.length===1
+                              ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},allPlots[0])
+                              :ce('select',{className:'form-select',value:sample.samplePlot||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)},
+                                ce('option',{value:''},'— Pick —'),
+                                allPlots.map(function(p){return ce('option',{key:p,value:p},p);})
+                              )
                           );
                         })(),
                         phOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
