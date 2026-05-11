@@ -5439,7 +5439,7 @@ function ExportView(props){
             )
           : ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',overflowX:'auto'}},
               ce('table',{style:{minWidth:900}},
-                ce('thead',{style:{position:'sticky',top:0,zIndex:4}},ce('tr',null,
+                ce('thead',{style:{position:'sticky',top:50,zIndex:4}},ce('tr',null,
                   ce('th',null,'Batch ID'),
                   ce('th',null,'Date'),
                   ce('th',null,'Packhouse'),
@@ -8244,7 +8244,7 @@ function ClientQCMgmt(props){
           }})
         ),
         /* ── CQC SAMPLE READINGS ── */
-        ce('div',{className:'card',style:{marginBottom:12,padding:0,overflow:'hidden'}},
+        ce('div',{className:'card',style:{marginBottom:12,padding:0,overflow:'visible'}},
           ce('div',{style:{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--bg2)'}},
             ce('div',{className:'section-title',style:{marginBottom:0}},
               ce('div',{className:'section-title-bar',style:{background:'#3a7a4a'}}),
@@ -8279,7 +8279,7 @@ function ClientQCMgmt(props){
             var secs=(config.cqcDefectSections||{})[pid]||[];
             var allDefs=secs.reduce(function(arr,sec){return arr.concat((sec.items||[]).map(function(d){return {def:d,sec:sec};}));},[]); 
             if(allDefs.length===0) return ce('div',{style:{padding:'20px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No CQC defect sections configured for this product.');
-            return ce('div',{style:{overflowX:'auto',overflowY:'auto',maxHeight:'60vh'}},
+            return ce('div',{style:{overflowX:'auto'}},
               ce('table',{className:'cqc-grid',style:{borderCollapse:'collapse',width:'100%',fontSize:12,tableLayout:'auto'}},
                 ce('thead',null,
                   /* Row 1 — section spans + metadata group */
