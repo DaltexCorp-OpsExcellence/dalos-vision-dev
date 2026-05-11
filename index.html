@@ -8292,7 +8292,7 @@ function ClientQCMgmt(props){
             if(allDefs.length===0) return ce('div',{style:{padding:'20px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No CQC defect sections configured for this product.');
             return ce('div',{style:{overflowX:'auto'}},
               ce('table',{className:'cqc-grid',style:{borderCollapse:'collapse',width:'100%',fontSize:12,tableLayout:'auto'}},
-                ce('thead',null,
+                ce('thead',{style:{position:'sticky',top:50,zIndex:4}},
                   /* Row 1 — section spans + metadata group */
                   ce('tr',null,
                     ce('th',{style:{padding:'5px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap',textAlign:'left',minWidth:52}},'#'),
@@ -8339,9 +8339,10 @@ function ClientQCMgmt(props){
                       return ce('th',{key:def.key,
                         style:{padding:'4px 5px',border:'1px solid var(--border)',textAlign:'center',fontSize:9,
                           fontWeight:500,color:dText,background:dBg,
-                          whiteSpace:'normal',maxWidth:68,lineHeight:1.35,
-                          verticalAlign:'bottom',wordBreak:'break-word'}},
-                        ce('span',{onMouseEnter:function(en){return function(e){showTip(en,e);};}(def.en),onMouseLeave:hideTip,style:{display:'inline-block',cursor:'default'}},
+                          whiteSpace:'normal',width:64,lineHeight:1.3,
+                          verticalAlign:'bottom'}},
+                        ce('span',{onMouseEnter:function(en){return function(e){showTip(en,e);};}(def.en),onMouseLeave:hideTip,
+                          style:{display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',cursor:'default',wordBreak:'break-word'}},
                           def.en));
                     }),
                     ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600}},'%'),
