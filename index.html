@@ -8278,12 +8278,12 @@ function ClientQCMgmt(props){
             var secs=(config.cqcDefectSections||{})[pid]||[];
             var allDefs=secs.reduce(function(arr,sec){return arr.concat((sec.items||[]).map(function(d){return {def:d,sec:sec};}));},[]); 
             if(allDefs.length===0) return ce('div',{style:{padding:'20px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No CQC defect sections configured for this product.');
-            return ce('div',{style:{overflowX:'auto'}},
+            return ce('div',{style:{overflowX:'auto',overflowY:'auto',maxHeight:'60vh'}},
               ce('table',{className:'cqc-grid',style:{borderCollapse:'collapse',width:'100%',fontSize:12,tableLayout:'auto'}},
                 ce('thead',null,
                   /* Row 1 — section spans + metadata group */
                   ce('tr',null,
-                    ce('th',{style:{padding:'5px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap',textAlign:'left',minWidth:52}},'#'),
+                    ce('th',{style:{padding:'5px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap',textAlign:'left',minWidth:52,position:'sticky',top:0,zIndex:3,boxShadow:'0 1px 0 var(--border)'}},'#'),
                     secs.map(function(sec){
                       var cnt=(sec.items||[]).length;
                       if(!cnt) return null;
@@ -8297,10 +8297,11 @@ function ClientQCMgmt(props){
                         style:{padding:'5px 8px',border:'1px solid var(--border)',borderBottom:'2px solid '+hBorder,
                           textAlign:'center',fontSize:10,fontWeight:700,
                           letterSpacing:'.05em',textTransform:'uppercase',
-                          background:hBg,color:hText,whiteSpace:'nowrap'}},
+                          background:hBg,color:hText,whiteSpace:'nowrap',
+                          position:'sticky',top:0,zIndex:3,boxShadow:'0 1px 0 var(--border)'}},
                         ce('span',{onMouseEnter:function(e){showTip(sec.section,e);},onMouseLeave:hideTip,style:{cursor:'default'}},sec.section));
                     }),
-                    ce('th',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',whiteSpace:'nowrap',fontWeight:600}},'Total %'),
+                    ce('th',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',whiteSpace:'nowrap',fontWeight:600,position:'sticky',top:0,zIndex:3,boxShadow:'0 1px 0 var(--border)'}},'Total %'),
                     /* Metadata group header */
                     (function(){
                       var varOpts2=[];if(fVar)varOpts2.push(1);if(fVarType==='mixed'&&fVar2)varOpts2.push(1);fVarsExtra.forEach(function(ve){if(ve.var)varOpts2.push(1);});
@@ -8308,14 +8309,14 @@ function ClientQCMgmt(props){
                       var phOpts2=[];if(fPH)phOpts2.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts2.push(1);});
                       var traceOpts2b=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
                       var metaCols=(varOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(phOpts2.length>0?1:0)+(traceOpts2b.length>0?1:0)+7+1;
-                      return ce('th',{colSpan:metaCols,style:{padding:'4px 8px',background:'#e8f0f5',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',textAlign:'center',fontWeight:700,letterSpacing:'.05em',textTransform:'uppercase',borderBottom:'2px solid #3a5a7a'}},
+                      return ce('th',{colSpan:metaCols,style:{padding:'4px 8px',background:'#e8f0f5',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',textAlign:'center',fontWeight:700,letterSpacing:'.05em',textTransform:'uppercase',borderBottom:'2px solid #3a5a7a',position:'sticky',top:0,zIndex:3,boxShadow:'0 1px 0 var(--border)'}},
                         '✓ Sample details');
                     })(),
-                    ce('th',{style:{padding:'5px 4px',background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
+                    ce('th',{style:{padding:'5px 4px',background:'var(--bg2)',border:'1px solid var(--border)',width:24,position:'sticky',top:0,zIndex:3}})
                   ),
                   /* Row 2 — defect names + metadata field names */
                   ce('tr',null,
-                    ce('th',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'left'}},'Sample'),
+                    ce('th',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'left',position:'sticky',top:29,zIndex:3,boxShadow:'0 2px 0 var(--border)'}},'Sample'),
                     allDefs.map(function(item){
                       var def=item.def; var sec=item.sec;
                       var sName2=(sec.section||'').toLowerCase();
@@ -8326,12 +8327,13 @@ function ClientQCMgmt(props){
                       return ce('th',{key:def.key,
                         style:{padding:'4px 6px',border:'1px solid var(--border)',textAlign:'center',fontSize:10,
                           fontWeight:500,color:dText,background:dBg,
-                          whiteSpace:'nowrap',maxWidth:80,overflow:'hidden',textOverflow:'ellipsis'},
+                          whiteSpace:'nowrap',maxWidth:80,overflow:'hidden',textOverflow:'ellipsis',
+                          position:'sticky',top:29,zIndex:3,boxShadow:'0 2px 0 var(--border)'},
                         },
                         ce('span',{onMouseEnter:function(en){return function(e){showTip(en,e);};}(def.en),onMouseLeave:hideTip,style:{display:'inline-block',cursor:'default'}},
                           def.en.length>8?def.en.slice(0,7)+'…':def.en));
                     }),
-                    ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600}},'%'),
+                    ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600,position:'sticky',top:29,zIndex:3,boxShadow:'0 2px 0 var(--border)'}},'%'),
                     /* Metadata column headers */
                     (function(){
                       var varOpts=[];if(fVar)varOpts.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
@@ -8346,9 +8348,9 @@ function ClientQCMgmt(props){
                       if(traceOpts2.length>0) hdrs.push('Trace');
                       hdrs.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes','Dispute');
                       var metaWidths={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':180,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
-                      return hdrs.map(function(h){var isDisp=h==='Dispute';return ce('th',{key:h,style:{padding:'4px 6px',background:isDisp?'#faeeda':'#f0f5f9',border:'1px solid var(--border)',borderBottom:isDisp?'2px solid #BA7517':'',fontSize:10,color:isDisp?'#633806':'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h);});
+                      return hdrs.map(function(h){var isDisp=h==='Dispute';return ce('th',{key:h,style:{padding:'4px 6px',background:isDisp?'#faeeda':'#f0f5f9',border:'1px solid var(--border)',borderBottom:isDisp?'2px solid #BA7517':'',fontSize:10,color:isDisp?'#633806':'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60,position:'sticky',top:29,zIndex:3,boxShadow:'0 2px 0 var(--border)'}},h);});
                     })(),
-                    ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
+                    ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24,position:'sticky',top:29,zIndex:3}})
                   )
                 ),
                 ce('tbody',null,
