@@ -8313,22 +8313,22 @@ function ClientQCMgmt(props){
                             var phOpts=[];
                             if(fPH) phOpts.push(fPH);
                             fPHExtra.forEach(function(pe){if(pe.actual)phOpts.push(pe.actual);});
-                            return ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:8}},
+                            return ce('div',{style:{display:'flex',flexWrap:'nowrap',gap:6,alignItems:'flex-end',overflowX:'auto',paddingBottom:2}},
                               /* Variety */
-                              varOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
-                                ce('label',{className:'form-label'},'Variety (this sample)'),
+                              varOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0,minWidth:120,flexShrink:0}},
+                                ce('label',{className:'form-label'},'Variety'),
                                 varOpts.length===1
-                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},varOpts[0])
+                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)',whiteSpace:'nowrap'}},varOpts[0])
                                   :ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
                                     ce('option',{value:''},'— Pick —'),
                                     varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
                                   )
                               ),
-                              /* Farm — static if 1, dropdown if multiple */
-                              farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
-                                ce('label',{className:'form-label'},'Farm (this sample)'),
+                              /* Farm */
+                              farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0,minWidth:120,flexShrink:0}},
+                                ce('label',{className:'form-label'},'Farm'),
                                 farmOpts.length===1
-                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},farmOpts[0].farm)
+                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)',whiteSpace:'nowrap'}},farmOpts[0].farm)
                                   :ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
                                     var sel=e.target.value;
                                     updateCqcSampleField(idx,'sampleFarm',sel);
@@ -8340,63 +8340,63 @@ function ClientQCMgmt(props){
                                     farmOpts.map(function(f,fi){return ce('option',{key:f.farm+fi,value:f.farm},f.farm);})
                                   )
                               ),
-                              /* Plot — static if 1 farm, derived from selection if multiple */
+                              /* Plot */
                               (function(){
                                 var selFarmName=farmOpts.length===1?farmOpts[0].farm:sample.sampleFarm;
                                 var matches=selFarmName?farmOpts.filter(function(f){return f.farm===selFarmName;}):[];
                                 var plots=matches.map(function(f){return f.plot||'';}).filter(Boolean);
                                 if(!plots.length) return null;
-                                return ce('div',{className:'form-field',style:{marginBottom:0}},
+                                return ce('div',{className:'form-field',style:{marginBottom:0,minWidth:80,flexShrink:0}},
                                   ce('label',{className:'form-label'},'Plot'),
                                   plots.length===1
-                                    ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},plots[0])
+                                    ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)',whiteSpace:'nowrap'}},plots[0])
                                     :ce('select',{className:'form-select',value:sample.samplePlot||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)},
                                       ce('option',{value:''},'— Pick —'),
                                       plots.map(function(p){return ce('option',{key:p,value:p},p);})
                                     )
                                 );
                               })(),
-                              /* Packhouse actual */
-                              phOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
-                                ce('label',{className:'form-label'},'Packhouse (this sample)'),
+                              /* Packhouse */
+                              phOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0,minWidth:120,flexShrink:0}},
+                                ce('label',{className:'form-label'},'Packhouse'),
                                 phOpts.length===1
-                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},phOpts[0])
+                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)',whiteSpace:'nowrap'}},phOpts[0])
                                   :ce('select',{className:'form-select',value:sample.samplePH||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePH',e.target.value);};}(si)},
                                     ce('option',{value:''},'— Pick —'),
                                     phOpts.map(function(p){return ce('option',{key:p,value:p},p);})
                                   )
                               ),
                               /* Score */
-                              ce('div',{className:'form-field',style:{marginBottom:0}},
-                                ce('label',{className:'form-label'},'Client score'),
+                              ce('div',{className:'form-field',style:{marginBottom:0,minWidth:100,flexShrink:0}},
+                                ce('label',{className:'form-label'},'Score'),
                                 ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
-                                  ce('option',{value:''},'— Select —'),
+                                  ce('option',{value:''},'—'),
                                   ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
                                 )
                               ),
                               /* Brix issue */
-                              ce('div',{className:'form-field',style:{marginBottom:0}},
-                                ce('label',{className:'form-label'},'Brix issue?'),
+                              ce('div',{className:'form-field',style:{marginBottom:0,minWidth:72,flexShrink:0}},
+                                ce('label',{className:'form-label'},'Brix?'),
                                 ce('select',{className:'form-select',value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
                                   ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
                                 )
                               ),
                               /* Avg size */
-                              ce('div',{className:'form-field',style:{marginBottom:0}},
-                                ce('label',{className:'form-label'},'Avg size (mm)'),
+                              ce('div',{className:'form-field',style:{marginBottom:0,minWidth:72,flexShrink:0}},
+                                ce('label',{className:'form-label'},'Size (mm)'),
                                 ce('input',{className:'form-input',type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'mm',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
                               ),
                               /* Size issue */
-                              ce('div',{className:'form-field',style:{marginBottom:0}},
-                                ce('label',{className:'form-label'},'Size issue?'),
+                              ce('div',{className:'form-field',style:{marginBottom:0,minWidth:72,flexShrink:0}},
+                                ce('label',{className:'form-label'},'Size?'),
                                 ce('select',{className:'form-select',value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
                                   ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
                                 )
                               ),
                               /* Notes */
-                              ce('div',{className:'form-field',style:{marginBottom:0,gridColumn:'span 2'}},
+                              ce('div',{className:'form-field',style:{marginBottom:0,minWidth:180,flex:1,flexShrink:0}},
                                 ce('label',{className:'form-label'},'Notes'),
-                                ce('input',{className:'form-input',value:sample.notes||'',placeholder:'Sample observations...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
+                                ce('input',{className:'form-input',value:sample.notes||'',placeholder:'Observations...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
                               )
                             );
                           })()
