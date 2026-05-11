@@ -8326,7 +8326,7 @@ function ClientQCMgmt(props){
                       var traceOpts2=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
                       if(traceOpts2.length>0) hdrs.push('Trace');
                       hdrs.push('Score','Brix?','Size mm','Size?','Notes');
-                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':90,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150};
+                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':180,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150};
                       return hdrs.map(function(h){return ce('th',{key:h,style:{padding:'4px 6px',background:'#f0f5f9',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h);});
                     })(),
                     ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
@@ -8426,7 +8426,7 @@ function ClientQCMgmt(props){
                         if(!traceOpts.length) return null;
                         return ce('td',{style:tdMeta},
                           traceOpts.length===1
-                            ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap',fontFamily:'var(--font-mono)'}},traceOpts[0].length>12?'…'+traceOpts[0].slice(-8):traceOpts[0])
+                            ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap',fontFamily:'var(--font-mono)'}},traceOpts[0])
                             :ce('select',{style:selSt,value:sample.sampleTraceCode||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleTraceCode',e.target.value);};}(si)},
                               ce('option',{value:''},'—'),
                               traceOpts.map(function(t){return ce('option',{key:t,value:t,title:t},t.length>14?'…'+t.slice(-10):t);})
