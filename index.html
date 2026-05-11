@@ -7453,7 +7453,7 @@ function ClientQCMgmt(props){
                   if(d.dbId===x.cqc_defect_id) defects[d.key]=String(x.value||0);
                 });});
               });
-              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',defects:defects,isNew:false};
+              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',samplePH:row.sample_ph||'',defects:defects,isNew:false};
             });
             setCqcSamples(mapped);
           });
@@ -7658,7 +7658,24 @@ function ClientQCMgmt(props){
         var pid=selCqcProd||'citrus';
         var secs=(config.cqcDefectSections||{})[pid]||[];
         var sampleRows=cqcSamplesSnapshot.map(function(s,idx){
-          return {client_qc_report_id:reportId,sample_number:idx+1,sample_type:s.sampleType||'sample_readings',notes:s.notes||null,score:s.score||null,brix_issue:s.brixIssue||false,avg_size:s.avgSize?parseFloat(s.avgSize):null,size_issue:s.sizeIssue||false,sample_variety_id:(config.varietiesIdMap&&s.sampleVariety&&config.varietiesIdMap[s.sampleVariety])||null};
+          /* compute effective values — auto-fill when only 1 option in header */
+          var _varOpts2=[];
+          if(fVar) _varOpts2.push(fVar);
+          if(fVarType==='mixed'&&fVar2) _varOpts2.push(fVar2);
+          fVarsExtra.forEach(function(ve){if(ve.var)_varOpts2.push(ve.var);if(ve.type==='mixed'&&ve.var2)_varOpts2.push(ve.var2);});
+          var _farmOpts2=[];
+          if(fFarm1) _farmOpts2.push({farm:fFarm1,plot:fPlot1});
+          if(fFarm2) _farmOpts2.push({farm:fFarm2,plot:fPlot2});
+          fFarmsExtra.forEach(function(fe){if(fe.farm)_farmOpts2.push({farm:fe.farm,plot:fe.plot||''});});
+          var _phOpts2=[];
+          if(fPH) _phOpts2.push(fPH);
+          fPHExtra.forEach(function(pe){if(pe.actual)_phOpts2.push(pe.actual);});
+          var _effVar=s.sampleVariety||(_varOpts2.length===1?_varOpts2[0]:'');
+          var _effFarmObj=(_farmOpts2.find(function(f){return f.farm===s.sampleFarm;})||(_farmOpts2.length===1?_farmOpts2[0]:null));
+          var _effFarm=s.sampleFarm||(_farmOpts2.length===1?_farmOpts2[0].farm:'');
+          var _effPlot=s.samplePlot||(_effFarmObj?_effFarmObj.plot:'');
+          var _effPH=s.samplePH||(_phOpts2.length===1?_phOpts2[0]:'');
+          return {client_qc_report_id:reportId,sample_number:idx+1,sample_type:s.sampleType||'sample_readings',notes:s.notes||null,score:s.score||null,brix_issue:s.brixIssue||false,avg_size:s.avgSize?parseFloat(s.avgSize):null,size_issue:s.sizeIssue||false,sample_variety_id:(config.varietiesIdMap&&_effVar&&config.varietiesIdMap[_effVar])||null,sample_farm:_effFarm||null,sample_plot:_effPlot||null,sample_ph:_effPH||null};
         });
         supabase.from('cqc_sample_rows').insert(sampleRows).select().then(function(sr){
           if(sr.error||!sr.data){console.error('[DalOS] CQC sample rows error:',sr.error&&sr.error.message);return;}
@@ -8300,24 +8317,28 @@ function ClientQCMgmt(props){
                               /* Variety */
                               varOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                                 ce('label',{className:'form-label'},'Variety (this sample)'),
-                                ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
-                                  ce('option',{value:''},'— Pick —'),
-                                  varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
-                                )
+                                varOpts.length===1
+                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},varOpts[0])
+                                  :ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                                    ce('option',{value:''},'— Pick —'),
+                                    varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
+                                  )
                               ),
                               /* Farm */
                               farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                                 ce('label',{className:'form-label'},'Farm (this sample)'),
-                                ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
-                                  var sel=e.target.value;
-                                  updateCqcSampleField(idx,'sampleFarm',sel);
-                                  var found=fo.find(function(f){return f.farm===sel;});
-                                  if(found&&found.plot) updateCqcSampleField(idx,'samplePlot',found.plot);
-                                  else updateCqcSampleField(idx,'samplePlot','');
-                                };}(si,farmOpts)},
-                                  ce('option',{value:''},'— Pick —'),
-                                  farmOpts.map(function(f){return ce('option',{key:f.farm,value:f.farm},f.farm);})
-                                )
+                                farmOpts.length===1
+                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},farmOpts[0].farm)
+                                  :ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
+                                    var sel=e.target.value;
+                                    updateCqcSampleField(idx,'sampleFarm',sel);
+                                    var found=fo.find(function(f){return f.farm===sel;});
+                                    if(found&&found.plot) updateCqcSampleField(idx,'samplePlot',found.plot);
+                                    else updateCqcSampleField(idx,'samplePlot','');
+                                  };}(si,farmOpts)},
+                                    ce('option',{value:''},'— Pick —'),
+                                    farmOpts.map(function(f){return ce('option',{key:f.farm,value:f.farm},f.farm);})
+                                  )
                               ),
                               /* Plot — auto-filled or manual override */
                               farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
@@ -8336,10 +8357,12 @@ function ClientQCMgmt(props){
                               /* Packhouse actual */
                               phOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                                 ce('label',{className:'form-label'},'Packhouse (this sample)'),
-                                ce('select',{className:'form-select',value:sample.samplePH||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePH',e.target.value);};}(si)},
-                                  ce('option',{value:''},'— Pick —'),
-                                  phOpts.map(function(p){return ce('option',{key:p,value:p},p);})
-                                )
+                                phOpts.length===1
+                                  ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},phOpts[0])
+                                  :ce('select',{className:'form-select',value:sample.samplePH||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePH',e.target.value);};}(si)},
+                                    ce('option',{value:''},'— Pick —'),
+                                    phOpts.map(function(p){return ce('option',{key:p,value:p},p);})
+                                  )
                               ),
                               /* Score */
                               ce('div',{className:'form-field',style:{marginBottom:0}},
@@ -8519,23 +8542,27 @@ function ClientQCMgmt(props){
                       return ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10}},
                         varOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                           ce('label',{className:'form-label'},'Variety'),
-                          ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
-                            ce('option',{value:''},'— Pick —'),
-                            varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
-                          )
+                          varOpts.length===1
+                            ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},varOpts[0])
+                            :ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                              ce('option',{value:''},'— Pick —'),
+                              varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
+                            )
                         ),
                         farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                           ce('label',{className:'form-label'},'Farm'),
-                          ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
-                            var sel=e.target.value;
-                            updateCqcSampleField(idx,'sampleFarm',sel);
-                            var found=fo.find(function(f){return f.farm===sel;});
-                            if(found&&found.plot) updateCqcSampleField(idx,'samplePlot',found.plot);
-                            else updateCqcSampleField(idx,'samplePlot','');
-                          };}(si,farmOpts)},
-                            ce('option',{value:''},'— Pick —'),
-                            farmOpts.map(function(f){return ce('option',{key:f.farm,value:f.farm},f.farm);})
-                          )
+                          farmOpts.length===1
+                            ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},farmOpts[0].farm)
+                            :ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
+                              var sel=e.target.value;
+                              updateCqcSampleField(idx,'sampleFarm',sel);
+                              var found=fo.find(function(f){return f.farm===sel;});
+                              if(found&&found.plot) updateCqcSampleField(idx,'samplePlot',found.plot);
+                              else updateCqcSampleField(idx,'samplePlot','');
+                            };}(si,farmOpts)},
+                              ce('option',{value:''},'— Pick —'),
+                              farmOpts.map(function(f){return ce('option',{key:f.farm,value:f.farm},f.farm);})
+                            )
                         ),
                         farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                           ce('label',{className:'form-label'},'Plot'),
@@ -8552,10 +8579,12 @@ function ClientQCMgmt(props){
                         ),
                         phOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
                           ce('label',{className:'form-label'},'Packhouse'),
-                          ce('select',{className:'form-select',value:sample.samplePH||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePH',e.target.value);};}(si)},
-                            ce('option',{value:''},'— Pick —'),
-                            phOpts.map(function(p){return ce('option',{key:p,value:p},p);})
-                          )
+                          phOpts.length===1
+                            ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},phOpts[0])
+                            :ce('select',{className:'form-select',value:sample.samplePH||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePH',e.target.value);};}(si)},
+                              ce('option',{value:''},'— Pick —'),
+                              phOpts.map(function(p){return ce('option',{key:p,value:p},p);})
+                            )
                         ),
                         ce('div',{className:'form-field',style:{marginBottom:0}},
                           ce('label',{className:'form-label'},'Brix issue?'),
