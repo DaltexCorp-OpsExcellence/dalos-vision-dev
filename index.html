@@ -8325,7 +8325,7 @@ function ClientQCMgmt(props){
                       if(phOpts.length>0) hdrs.push('PH');
                       var traceOpts2=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
                       if(traceOpts2.length>0) hdrs.push('Trace');
-                      hdrs.push('Brix','Carton?','Score','Brix?','Size mm','Size?','Notes');
+                      hdrs.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes');
                       var metaWidths={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':180,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150};
                       return hdrs.map(function(h){return ce('th',{key:h,style:{padding:'4px 6px',background:'#f0f5f9',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h);});
                     })(),
@@ -8437,19 +8437,6 @@ function ClientQCMgmt(props){
                       ce('td',{style:tdMeta},
                         ce('input',{style:Object.assign({},inSt,{width:58,textAlign:'right',fontFamily:'var(--font-mono)'}),type:'number',step:'0.1',min:'0',value:sample.brix||'',placeholder:'—',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brix',e.target.value);};}(si)})
                       ),
-                      /* Carton issue */
-                      ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.cartonIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'cartonIssue',e.target.value==='Yes');};}(si)},
-                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                        )
-                      ),
-                      /* Score */
-                      ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
-                          ce('option',{value:''},'—'),
-                          ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
-                        )
-                      ),
                       /* Brix issue */
                       ce('td',{style:tdMeta},
                         ce('select',{style:selSt,value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
@@ -8464,6 +8451,19 @@ function ClientQCMgmt(props){
                       ce('td',{style:tdMeta},
                         ce('select',{style:selSt,value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
                           ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                        )
+                      ),
+                      /* Carton issue */
+                      ce('td',{style:tdMeta},
+                        ce('select',{style:selSt,value:sample.cartonIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'cartonIssue',e.target.value==='Yes');};}(si)},
+                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                        )
+                      ),
+                      /* Score */
+                      ce('td',{style:tdMeta},
+                        ce('select',{style:selSt,value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
+                          ce('option',{value:''},'—'),
+                          ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
                         )
                       ),
                       /* Notes */
