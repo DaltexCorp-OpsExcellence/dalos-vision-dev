@@ -8254,11 +8254,11 @@ function ClientQCMgmt(props){
                       var hBg=isMajor?'#fde8e8':isMinor?'#fef9e0':secBgFor(sec);
                       var hBorder=isMajor?'#d94f4f':isMinor?'#c49a00':secTextFor(sec);
                       var hText=isMajor?'#b52828':isMinor?'#7a5a00':secTextFor(sec);
-                      return ce('th',{key:sec.section,colSpan:cnt,
+                      return ce('th',{key:sec.section,colSpan:cnt,title:sec.section,
                         style:{padding:'5px 8px',border:'1px solid var(--border)',borderBottom:'2px solid '+hBorder,
                           textAlign:'center',fontSize:10,fontWeight:700,
                           letterSpacing:'.05em',textTransform:'uppercase',
-                          background:hBg,color:hText,whiteSpace:'nowrap'}},
+                          background:hBg,color:hText,whiteSpace:'nowrap',cursor:'default'}},
                         sec.section);
                     }),
                     ce('th',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',whiteSpace:'nowrap',fontWeight:600}},'Total %'),
@@ -8288,8 +8288,8 @@ function ClientQCMgmt(props){
                         style:{padding:'4px 6px',border:'1px solid var(--border)',textAlign:'center',fontSize:10,
                           fontWeight:500,color:dText,background:dBg,
                           whiteSpace:'nowrap',maxWidth:80,overflow:'hidden',textOverflow:'ellipsis'},
-                        title:def.en},
-                        def.en.length>10?def.en.slice(0,9)+'…':def.en);
+                        title:def.name_en||def.en},
+                        (def.name_en||def.en).length>8?(def.name_en||def.en).slice(0,7)+'…':(def.name_en||def.en));
                     }),
                     ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600}},'%'),
                     /* Metadata column headers */
