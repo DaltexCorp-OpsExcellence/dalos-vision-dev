@@ -7120,7 +7120,7 @@ function ClientQCMgmt(props){
     var pid=selCqcProd||'citrus';
     var secs=(config.cqcDefectSections||{})[pid]||[];
     secs.forEach(function(sec){(sec.items||[]).forEach(function(d){defects[d.key]='0';});});
-    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brixIssue:false,avgSize:'',sizeIssue:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
+    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
   }
   function addCqcSample(){setCqcSamples(function(prev){
     var collapsed=prev.map(function(s){return Object.assign({},s,{collapsed:true});});
@@ -7282,7 +7282,7 @@ function ClientQCMgmt(props){
         var notesParts=[];
         if(s.pallet_ref) notesParts.push('Pallet: '+s.pallet_ref);
         if(s.notes) notesParts.push(s.notes);
-        return {id:'new-'+Date.now()+Math.random(),sampleNumber:idx+1,sampleType:'sample_readings',defects:defects,notes:notesParts.join(' | '),score:'',brixIssue:false,avgSize:'',sizeIssue:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
+        return {id:'new-'+Date.now()+Math.random(),sampleNumber:idx+1,sampleType:'sample_readings',defects:defects,notes:notesParts.join(' | '),score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
       });
       setCqcSamples(mapped);
     }
@@ -7465,7 +7465,7 @@ function ClientQCMgmt(props){
                   if(d.dbId===x.cqc_defect_id) defects[d.key]=String(x.value||0);
                 });});
               });
-              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',samplePH:row.sample_ph||'',sampleTraceCode:row.sample_trace_code||'',defects:defects,isNew:false};
+              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brix:row.brix!=null?String(row.brix):'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,cartonIssue:row.carton_issue||false,sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',samplePH:row.sample_ph||'',sampleTraceCode:row.sample_trace_code||'',defects:defects,isNew:false};
             });
             setCqcSamples(mapped);
           });
@@ -7689,7 +7689,7 @@ function ClientQCMgmt(props){
           var _effPlot=s.samplePlot||(_effFarmObj?_effFarmObj.plot:'');
           var _effPH=s.samplePH||(_phOpts2.length===1?_phOpts2[0]:'');
           var _effTrace=s.sampleTraceCode||(function(){var tc=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);return tc.length===1?tc[0]:'';})();
-          return {client_qc_report_id:reportId,sample_number:idx+1,sample_type:s.sampleType||'sample_readings',notes:s.notes||null,score:s.score||null,brix_issue:s.brixIssue||false,avg_size:s.avgSize?parseFloat(s.avgSize):null,size_issue:s.sizeIssue||false,sample_variety_id:(config.varietiesIdMap&&_effVar&&config.varietiesIdMap[_effVar])||null,sample_farm:_effFarm||null,sample_plot:_effPlot||null,sample_ph:_effPH||null,sample_trace_code:_effTrace||null};
+          return {client_qc_report_id:reportId,sample_number:idx+1,sample_type:s.sampleType||'sample_readings',notes:s.notes||null,score:s.score||null,brix:s.brix?parseFloat(s.brix):null,brix_issue:s.brixIssue||false,avg_size:s.avgSize?parseFloat(s.avgSize):null,size_issue:s.sizeIssue||false,carton_issue:s.cartonIssue||false,sample_variety_id:(config.varietiesIdMap&&_effVar&&config.varietiesIdMap[_effVar])||null,sample_farm:_effFarm||null,sample_plot:_effPlot||null,sample_ph:_effPH||null,sample_trace_code:_effTrace||null};
         });
         supabase.from('cqc_sample_rows').insert(sampleRows).select().then(function(sr){
           if(sr.error||!sr.data){console.error('[DalOS] CQC sample rows error:',sr.error&&sr.error.message);return;}
@@ -8288,7 +8288,7 @@ function ClientQCMgmt(props){
                       var farmOpts2=[];if(fFarm1)farmOpts2.push(1);if(fFarm2)farmOpts2.push(1);fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts2.push(1);});
                       var phOpts2=[];if(fPH)phOpts2.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts2.push(1);});
                       var traceOpts2b=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
-                      var metaCols=(varOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(phOpts2.length>0?1:0)+(traceOpts2b.length>0?1:0)+4+1;
+                      var metaCols=(varOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(phOpts2.length>0?1:0)+(traceOpts2b.length>0?1:0)+6+1;
                       return ce('th',{colSpan:metaCols,style:{padding:'4px 8px',background:'#e8f0f5',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',textAlign:'center',fontWeight:700,letterSpacing:'.05em',textTransform:'uppercase',borderBottom:'2px solid #3a5a7a'}},
                         '✓ Sample details');
                     })(),
@@ -8325,8 +8325,8 @@ function ClientQCMgmt(props){
                       if(phOpts.length>0) hdrs.push('PH');
                       var traceOpts2=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
                       if(traceOpts2.length>0) hdrs.push('Trace');
-                      hdrs.push('Score','Brix?','Size mm','Size?','Notes');
-                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':180,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150};
+                      hdrs.push('Brix','Carton?','Score','Brix?','Size mm','Size?','Notes');
+                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':180,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150};
                       return hdrs.map(function(h){return ce('th',{key:h,style:{padding:'4px 6px',background:'#f0f5f9',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h);});
                     })(),
                     ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
@@ -8433,6 +8433,16 @@ function ClientQCMgmt(props){
                             )
                         );
                       })(),
+                      /* Brix reading */
+                      ce('td',{style:tdMeta},
+                        ce('input',{style:Object.assign({},inSt,{width:58,textAlign:'right',fontFamily:'var(--font-mono)'}),type:'number',step:'0.1',min:'0',value:sample.brix||'',placeholder:'—',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brix',e.target.value);};}(si)})
+                      ),
+                      /* Carton issue */
+                      ce('td',{style:tdMeta},
+                        ce('select',{style:selSt,value:sample.cartonIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'cartonIssue',e.target.value==='Yes');};}(si)},
+                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                        )
+                      ),
                       /* Score */
                       ce('td',{style:tdMeta},
                         ce('select',{style:selSt,value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
