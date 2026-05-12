@@ -7080,10 +7080,6 @@ function ClientQCMgmt(props){
   function addTraceCode(){setTraceCodes(function(p){return p.concat({code:''});});}
   function updateTraceCode(i,v){setTraceCodes(function(p){return p.map(function(x,j){return j===i?{code:v}:x;});});}
   function removeTraceCode(i){setTraceCodes(function(p){return p.filter(function(_,j){return j!==i;});});}
-  var sTraceCodes=useState([]); var fTraceCodes=sTraceCodes[0]; var setTraceCodes=sTraceCodes[1];
-  function addTraceCode(){setTraceCodes(function(p){return p.concat({code:''});});}
-  function updateTraceCode(i,v){setTraceCodes(function(p){return p.map(function(x,j){return j===i?{code:v}:x;});});}
-  function removeTraceCode(i){setTraceCodes(function(p){return p.filter(function(_,j){return j!==i;});});}
   var sPH=useState(''); var fPH=sPH[0]; var setPH=sPH[1];
   var sPhCover=useState(''); var fPhCover=sPhCover[0]; var setPhCover=sPhCover[1];
   var sCrop=useState(''); var fCrop=sCrop[0]; var setCrop=sCrop[1];
@@ -7437,7 +7433,7 @@ function ClientQCMgmt(props){
         if(catName) setFCat(catName);
       }
     })();
-    setFarm1(r.farm||r.farm1||'');setPlot1(r.plot1||'');setFarm2(r.farm2||'');setPlot2(r.plot2||'');var _cef=r.cqcExtraFields||{};setFarmsExtra((_cef.extra_farms||[]).map(function(f){return typeof f==='string'?{farm:f,plot:''}:Object.assign({farm:'',plot:''},f);}));setPHExtra((_cef.extra_ph||(_cef.extra_ph_actual||[]).map(function(a,i){return {actual:a,cover:(_cef.extra_ph_cover||[])[i]||''};})).map(function(p){return typeof p==='string'?{actual:p,cover:''}:Object.assign({actual:'',cover:''},p);}));setVarsExtra((_cef.extra_varieties||[]).map(function(v){return Object.assign({type:'single',cat:'',var:'',cat2:'',var2:''},v);}));setLoadDate(r.loadDate||'');setPackDate(r.packDate||'');
+    setFarm1(r.farm||r.farm1||'');setPlot1(r.plot1||'');setFarm2(r.farm2||'');setPlot2(r.plot2||'');var _cef=r.cqcExtraFields||{};setTraceCodes((_cef.extra_trace_codes||[]).map(function(c){return {code:c};}));setFarmsExtra((_cef.extra_farms||[]).map(function(f){return typeof f==='string'?{farm:f,plot:''}:Object.assign({farm:'',plot:''},f);}));setPHExtra((_cef.extra_ph||(_cef.extra_ph_actual||[]).map(function(a,i){return {actual:a,cover:(_cef.extra_ph_cover||[])[i]||''};})).map(function(p){return typeof p==='string'?{actual:p,cover:''}:Object.assign({actual:'',cover:''},p);}));setVarsExtra((_cef.extra_varieties||[]).map(function(v){return Object.assign({type:'single',cat:'',var:'',cat2:'',var2:''},v);}));setLoadDate(r.loadDate||'');setPackDate(r.packDate||'');
     setHarvDate(r.harvestDate||'');setCartonType(r.cartonType||'');setQCRef(r.qcReportNumber||'');
     setRegion(r.region||'');setClient(r.client||'');setSubClient(r.subClient||'');setLot(r.lot||'');
     setDaltexCls(r.daltexClass||'');setClientCls(r.clientClass||'');setWax(r.wax||'');
@@ -7491,7 +7487,7 @@ function ClientQCMgmt(props){
                   if(d.dbId===x.cqc_defect_id) defects[d.key]=String(x.value||0);
                 });});
               });
-              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brix:row.brix!=null?String(row.brix):'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,cartonIssue:row.carton_issue||false,disputed:row.disputed||false,disputeNote:row.dispute_note||'',disputeOpen:!!(row.dispute_note),sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',samplePH:row.sample_ph||'',sampleTraceCode:row.sample_trace_code||'',defects:defects,isNew:false};
+              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brix:row.brix!=null?String(row.brix):'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,cartonIssue:row.carton_issue||false,disputed:row.disputed||false,disputeNote:row.dispute_note||'',disputeOpen:!!(row.dispute_note),confirmDelete:false,sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',samplePH:row.sample_ph||'',sampleTraceCode:row.sample_trace_code||'',defects:defects,isNew:false};
             });
             setCqcSamples(mapped);
           });
@@ -7592,11 +7588,10 @@ function ClientQCMgmt(props){
       farm_2:fFarm2||null,
       plot_2:fPlot2||null,
       client_class:fClientCls||null,
-      cqc_extra_fields:(selCqcProd==='grapes'&&(fFarmsExtra.length||fPHExtra.length||fPhCoverExtra.length||fVarsExtra.length))?{
+      cqc_extra_fields:(selCqcProd==='grapes'&&(fFarmsExtra.length||fPHExtra.length||fTraceCodes.length||fVarsExtra.length))?{
         extra_farms:fFarmsExtra.filter(function(f){return f.farm;}).map(function(f){return {farm:f.farm,plot:f.plot||''};}),
 
         extra_ph:fPHExtra.filter(function(p){return p.actual||p.cover;}),
-        extra_trace_codes:fTraceCodes.map(function(t){return t.code;}).filter(Boolean),
         extra_trace_codes:fTraceCodes.map(function(t){return t.code;}).filter(Boolean),
         extra_varieties:fVarsExtra.filter(function(v){return v.var;}).map(function(v){return {type:v.type||'single',cat:v.cat||'',var:v.var||'',cat2:v.cat2||'',var2:v.var2||''};})
       }:null
@@ -7661,7 +7656,7 @@ function ClientQCMgmt(props){
               claimedCurrency:r2.claimed_currency||'USD', claimedValue:r2.claimed_value||0,
               potentialClaim:r2.potential_claim||false, files:[],
               matched:r2.matched||false, batchId:r2.inspection_id||null,
-              season:r2.season_id||'', savedAt:r2.created_at||'', productId:r2.product_id||''
+              season:r2.season_id||'', savedAt:r2.created_at||'', productId:r2.product_id||'', cqcExtraFields:r2.cqc_extra_fields||{}
             };
             setReports(function(prev){return prev.map(function(x){return x.id===reportId?freshMapped:x;});});
             setSelRep(reportId);
