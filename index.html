@@ -9385,7 +9385,6 @@ function ClientQCMgmt(props){
                         ce('td',{style:{padding:'5px 10px',color:'var(--text3)'}},s.plot2?s.plot+' / '+s.plot2:s.plot||'—'),
                         ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)'}},s.brix||'—'),
                         ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.major>0?'var(--red)':'var(--text3)'}},s.major>0?s.major.toFixed(2)+'%':'—'),
-                        ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.major>0?'var(--red)':'var(--text3)'}},s.major>0?s.major.toFixed(2)+'%':'—'),
                         ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.minor>0?'var(--amber)':'var(--text3)'}},s.minor>0?s.minor.toFixed(2)+'%':'—'),
                         ce('td',{style:{padding:'5px 10px'}},s.score?ce('span',{style:{fontSize:10,fontWeight:500,color:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}},s.score):'—'),
                         ce('td',{style:{padding:'5px 10px',color:'var(--text3)',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.notes||'—'),
