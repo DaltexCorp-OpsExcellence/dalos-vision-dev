@@ -7703,7 +7703,20 @@ function ClientQCMgmt(props){
           var _phOpts2=[];
           if(fPH) _phOpts2.push(fPH);
           fPHExtra.forEach(function(pe){if(pe.actual)_phOpts2.push(pe.actual);});
-          var _effVar=s.sampleVariety||(_varOpts2.length===1?_varOpts2[0]:'');
+          var _effVar=(function(){
+            if(!s.sampleVariety){
+              /* Auto-fill when single option */
+              return _varOpts2.length===1?_varOpts2[0]:'';
+            }
+            /* Normalize reversed mixed variety — "Flame / Prime" → "Prime / Flame" if that's the header order */
+            if(s.sampleVariety.indexOf(' / ')>=0){
+              var parts=s.sampleVariety.split(' / ');
+              var reversed=parts[1]+' / '+parts[0];
+              if(_varOpts2.indexOf(s.sampleVariety)>=0) return s.sampleVariety;
+              if(_varOpts2.indexOf(reversed)>=0) return reversed;
+            }
+            return s.sampleVariety;
+          })();
           var _effFarmObj=(_farmOpts2.find(function(f){return f.farm===s.sampleFarm;})||(_farmOpts2.length===1?_farmOpts2[0]:null));
           var _effFarm=s.sampleFarm||(_farmOpts2.length===1?_farmOpts2[0].farm:'');
           var _effPlot=s.samplePlot||(_effFarmObj?_effFarmObj.plot:'');
@@ -8460,7 +8473,14 @@ function ClientQCMgmt(props){
                       varOpts.length>0&&ce('td',{style:tdMeta},
                         varOpts.length===1
                           ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},varOpts[0])
-                          :ce('select',{style:selSt,value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                          :ce('select',{style:selSt,value:(function(){
+                            var sv=sample.sampleVariety||'';
+                            if(sv&&varOpts.indexOf(sv)<0&&sv.indexOf(' / ')>=0){
+                              var p=sv.split(' / '),rev=p[1]+' / '+p[0];
+                              return varOpts.indexOf(rev)>=0?rev:sv;
+                            }
+                            return sv;
+                          })(),onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
                             ce('option',{value:''},'—'),
                             varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
                           )
