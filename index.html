@@ -9184,6 +9184,8 @@ function ClientQCMgmt(props){
             )
           ),
 
+          ce('div',{style:{display:'flex',gap:12,alignItems:'flex-start'}},
+          ce('div',{style:{flex:selRep?'0 0 42%':'1',minWidth:0,transition:'flex .2s'}},
           /* ── Table view ── */
           cqcView==='table'&&ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',overflow:'hidden',marginBottom:12}},
             ce('div',{style:{overflowX:'auto'}},
@@ -9270,13 +9272,15 @@ function ClientQCMgmt(props){
               })
           ),
 
+          ),/* end left pane */
           /* ── Detail panel ── */
-          selRep&&(function(){
+          selRep&&ce('div',{style:{flex:'1',minWidth:0,position:'sticky',top:16}},
+          (function(){
             var r=reports.find(function(x){return x.id===selRep;});
             if(!r) return null;
             var matchedB=batches.find(function(b){return b.id===r.batchId;});
             function scoreStyle(s){return {padding:'3px 10px',borderRadius:12,fontSize:12,fontWeight:500,background:s==='GREEN'?'var(--green-bg)':s==='RED'?'#fff0f0':'var(--amber-bg)',color:s==='GREEN'?'var(--green)':s==='RED'?'var(--red)':'var(--amber)'};};
-            setTimeout(function(){var el=document.getElementById('cqc-detail-panel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},50);return ce('div',{id:'cqc-detail-panel',style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'16px 18px',marginTop:4}},
+            return ce('div',{id:'cqc-detail-panel',style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'16px 18px',marginTop:4}},
               ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:16}},
                 ce('button',{style:{display:'flex',alignItems:'center',gap:4,color:'var(--text3)',fontSize:13,cursor:'pointer',background:'none',border:'none',padding:0},onClick:function(){setSelRep(null);}},'← Back'),
                 ce('span',{style:{color:'var(--text3)'}},'/ '),
@@ -9403,9 +9407,11 @@ function ClientQCMgmt(props){
                 )
               )
             );
-          })()
-
+          })())
+          )
         );
+
+
       })()
   );
 }
