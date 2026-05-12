@@ -7140,7 +7140,7 @@ function ClientQCMgmt(props){
     var pid=selCqcProd||'citrus';
     var secs=(config.cqcDefectSections||{})[pid]||[];
     secs.forEach(function(sec){(sec.items||[]).forEach(function(d){defects[d.key]='0';});});
-    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,disputed:false,disputeNote:'',sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
+    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,disputed:false,disputeNote:'',disputeOpen:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
   }
   function addCqcSample(){setCqcSamples(function(prev){
     var collapsed=prev.map(function(s){return Object.assign({},s,{collapsed:true});});
@@ -7308,7 +7308,7 @@ function ClientQCMgmt(props){
         var notesParts=[];
         if(s.pallet_ref) notesParts.push('Pallet: '+s.pallet_ref);
         if(s.notes) notesParts.push(s.notes);
-        return {id:'new-'+Date.now()+Math.random(),sampleNumber:idx+1,sampleType:'sample_readings',defects:defects,notes:notesParts.join(' | '),score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,disputed:false,disputeNote:'',sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
+        return {id:'new-'+Date.now()+Math.random(),sampleNumber:idx+1,sampleType:'sample_readings',defects:defects,notes:notesParts.join(' | '),score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,disputed:false,disputeNote:'',disputeOpen:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
       });
       setCqcSamples(mapped);
     }
@@ -7491,7 +7491,7 @@ function ClientQCMgmt(props){
                   if(d.dbId===x.cqc_defect_id) defects[d.key]=String(x.value||0);
                 });});
               });
-              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brix:row.brix!=null?String(row.brix):'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,cartonIssue:row.carton_issue||false,disputed:row.disputed||false,disputeNote:row.dispute_note||'',sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',samplePH:row.sample_ph||'',sampleTraceCode:row.sample_trace_code||'',defects:defects,isNew:false};
+              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brix:row.brix!=null?String(row.brix):'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,cartonIssue:row.carton_issue||false,disputed:row.disputed||false,disputeNote:row.dispute_note||'',disputeOpen:!!(row.dispute_note),sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',samplePH:row.sample_ph||'',sampleTraceCode:row.sample_trace_code||'',defects:defects,isNew:false};
             });
             setCqcSamples(mapped);
           });
@@ -8572,14 +8572,33 @@ function ClientQCMgmt(props){
                         ce('div',{style:{display:'flex',alignItems:'flex-start',gap:5}},
                           ce('button',{
                             style:{display:'inline-flex',alignItems:'center',gap:4,border:'0.5px solid '+(sample.disputed?'#BA7517':'var(--border2)'),borderRadius:6,background:sample.disputed?'#faeeda':'var(--bg2)',color:sample.disputed?'#633806':'var(--text3)',fontSize:10,fontWeight:sample.disputed?600:400,padding:'3px 8px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0},
-                            onClick:function(idx){return function(){updateCqcSampleField(idx,'disputed',!sample.disputed);if(sample.disputed)updateCqcSampleField(idx,'disputeNote','');};}(si)
+                            onClick:function(idx,s){return function(){
+                              if(s.disputed){
+                                /* already disputed — toggle note textarea open/closed */
+                                updateCqcSampleField(idx,'disputeOpen',!s.disputeOpen);
+                              } else {
+                                /* mark as disputed and open textarea */
+                                updateCqcSampleField(idx,'disputed',true);
+                                updateCqcSampleField(idx,'disputeOpen',true);
+                              }
+                            };}(si,sample)
                           },
                             ce('span',{style:{width:5,height:5,borderRadius:'50%',background:sample.disputed?'#BA7517':'var(--text3)',display:'inline-block',flexShrink:0}}),
-                            'Dispute'
+                            sample.disputed?'Disputed ✓':'Dispute'
                           ),
-                          sample.disputed&&ce('div',{style:{display:'flex',alignItems:'flex-start',background:'#fffbe0',borderLeft:'2px solid #BA7517',borderRadius:'0 4px 4px 0',padding:'3px 4px 3px 6px',flex:1,minWidth:160}},
+                          /* Inline saved note (read-only, clickable to edit) */
+                          sample.disputed&&sample.disputeNote&&!sample.disputeOpen&&ce('span',{
+                            title:sample.disputeNote,
+                            style:{fontSize:10,color:'#7a5a00',fontStyle:'italic',maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'pointer',padding:'0 4px'},
+                            onClick:function(idx){return function(){updateCqcSampleField(idx,'disputeOpen',true);};}(si)
+                          },'“'+sample.disputeNote.slice(0,30)+(sample.disputeNote.length>30?'…':'')+'”'),
+                          /* Editable textarea when open */
+                          sample.disputed&&sample.disputeOpen&&ce('div',{style:{display:'flex',alignItems:'flex-start',background:'#fffbe0',borderLeft:'2px solid #BA7517',borderRadius:'0 4px 4px 0',padding:'3px 4px 3px 6px',flex:1,minWidth:160}},
                             ce('textarea',{rows:2,placeholder:'Describe the dispute...',value:sample.disputeNote||'',style:{border:'none',background:'transparent',fontSize:11,color:'#633806',resize:'none',outline:'none',fontFamily:'var(--font-sans)',flex:1,lineHeight:1.4,padding:0,width:'100%'},onChange:function(idx){return function(e){updateCqcSampleField(idx,'disputeNote',e.target.value);};}(si)}),
-                            ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'#BA7517',fontSize:13,lineHeight:1,padding:'0 2px',flexShrink:0},onClick:function(idx){return function(){updateCqcSampleField(idx,'disputed',false);updateCqcSampleField(idx,'disputeNote','');};}(si)},'×')
+                            ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'#BA7517',fontSize:13,lineHeight:1,padding:'0 2px',flexShrink:0},onClick:function(idx,s){return function(){
+                              updateCqcSampleField(idx,'disputeOpen',false);
+                              if(!s.disputeNote){updateCqcSampleField(idx,'disputed',false);}
+                            };}(si,sample)},'×')
                           )
                         )
                       ),
