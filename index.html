@@ -935,7 +935,7 @@ function InspectionForm(props){
                   defects:def,notes:row.notes||'',
                   pass:row.sample_result===true?true:row.sample_result===false?false:null,
                   extraFields:row.extra_fields||{},
-                  sampleVariety:row.sample_variety_text||(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||''
+                  sampleVariety:row.sample_variety_text||(function(){var v1=(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'';var v2=(config.varietiesIdToName&&row.sample_variety2_id&&config.varietiesIdToName[row.sample_variety2_id])||'';return v2?v1+' / '+v2:v1;})()||(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||''
                 };
               });
               var isGrapes=(props.cropId||cropId||'').toLowerCase()==='grapes';
@@ -7487,7 +7487,7 @@ function ClientQCMgmt(props){
                   if(d.dbId===x.cqc_defect_id) defects[d.key]=String(x.value||0);
                 });});
               });
-              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brix:row.brix!=null?String(row.brix):'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,cartonIssue:row.carton_issue||false,disputed:row.disputed||false,disputeNote:row.dispute_note||'',disputeOpen:!!(row.dispute_note),confirmDelete:false,sampleVariety:row.sample_variety_text||(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',samplePH:row.sample_ph||'',sampleTraceCode:row.sample_trace_code||'',defects:defects,isNew:false};
+              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brix:row.brix!=null?String(row.brix):'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,cartonIssue:row.carton_issue||false,disputed:row.disputed||false,disputeNote:row.dispute_note||'',disputeOpen:!!(row.dispute_note),confirmDelete:false,sampleVariety:row.sample_variety_text||(function(){var v1=(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'';var v2=(config.varietiesIdToName&&row.sample_variety2_id&&config.varietiesIdToName[row.sample_variety2_id])||'';return v2?v1+' / '+v2:v1;})()||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',samplePH:row.sample_ph||'',sampleTraceCode:row.sample_trace_code||'',defects:defects,isNew:false};
             });
             setCqcSamples(mapped);
           });
@@ -7722,7 +7722,7 @@ function ClientQCMgmt(props){
           var _effPlot=s.samplePlot||(_effFarmObj?_effFarmObj.plot:'');
           var _effPH=s.samplePH||(_phOpts2.length===1?_phOpts2[0]:'');
           var _effTrace=s.sampleTraceCode||(function(){var tc=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);return tc.length===1?tc[0]:'';})();
-          return {client_qc_report_id:reportId,sample_number:idx+1,sample_type:s.sampleType||'sample_readings',notes:s.notes||null,score:s.score||null,brix:s.brix?parseFloat(s.brix):null,brix_issue:s.brixIssue||false,avg_size:s.avgSize?parseFloat(s.avgSize):null,size_issue:s.sizeIssue||false,carton_issue:s.cartonIssue||false,disputed:s.disputed||false,dispute_note:s.disputeNote||null,sample_variety_id:(function(){if(!_effVar)return null;if(_effVar.indexOf(' / ')>=0)return null;return (config.varietiesIdMap&&config.varietiesIdMap[_effVar])||null;})(),sample_variety_text:_effVar||null,sample_farm:_effFarm||null,sample_plot:_effPlot||null,sample_ph:_effPH||null,sample_trace_code:_effTrace||null};
+          return {client_qc_report_id:reportId,sample_number:idx+1,sample_type:s.sampleType||'sample_readings',notes:s.notes||null,score:s.score||null,brix:s.brix?parseFloat(s.brix):null,brix_issue:s.brixIssue||false,avg_size:s.avgSize?parseFloat(s.avgSize):null,size_issue:s.sizeIssue||false,carton_issue:s.cartonIssue||false,disputed:s.disputed||false,dispute_note:s.disputeNote||null,sample_variety_id:(function(){if(!_effVar)return null;var parts=_effVar.split(' / ');return (config.varietiesIdMap&&config.varietiesIdMap[parts[0].trim()])||null;})(),sample_variety2_id:(function(){if(!_effVar||_effVar.indexOf(' / ')<0)return null;var parts=_effVar.split(' / ');return (config.varietiesIdMap&&config.varietiesIdMap[parts[1].trim()])||null;})(),sample_variety_text:_effVar||null,sample_farm:_effFarm||null,sample_plot:_effPlot||null,sample_ph:_effPH||null,sample_trace_code:_effTrace||null};
         });
         supabase.from('cqc_sample_rows').insert(sampleRows).select().then(function(sr){
           if(sr.error||!sr.data){console.error('[DalOS] CQC sample rows error:',sr.error&&sr.error.message);return;}
