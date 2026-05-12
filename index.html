@@ -204,11 +204,20 @@ tr.click:hover td{background:var(--bg)}
 .cqc-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
 .cqc-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .cqc-two-col-bot{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cqc-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.cqc-filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:1px}
+.cqc-filters::-webkit-scrollbar{display:none}
 @media(max-width:900px){
   .cqc-list-pane.has-detail{flex:1}
   .cqc-detail-pane{display:none}
   .cqc-stat-grid{grid-template-columns:repeat(2,1fr)}
   .cqc-two-col,.cqc-two-col-bot{grid-template-columns:1fr}
+}
+@media(max-width:767px){
+  .cqc-stat-grid{grid-template-columns:repeat(2,1fr)}
+  .cqc-toolbar{flex-wrap:nowrap;gap:6px}
+  .cqc-th-hide{display:none!important}
+  .cqc-td-hide{display:none!important}
 }
 @media(max-width:767px){
   /* Sidebar becomes slide-in drawer */
@@ -9079,7 +9088,7 @@ function ClientQCMgmt(props){
 
   /* ── REPORT LIST ── */
   var prodReports=reports.filter(function(r){return r.productId===selCqcProd;});
-  return ce('div',{style:{padding:'22px 26px'}},
+  return ce('div',{className:'page',style:{}},
     ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}},
       ce('div',{style:{display:'flex',alignItems:'center',gap:12}},
         ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelCqcProd(null);setCqcSearch('');setSelRep(null);}},'\u2190 Products'),
@@ -9219,8 +9228,8 @@ function ClientQCMgmt(props){
               ce('thead',null,ce('tr',null,
                 ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('container','Container')),
                 ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},sortBtn('client','Client')),
-                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Variety'),
-                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('packDate','Pack date')),
+                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Variety'),
+                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('packDate','Pack date')),
                 ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('defect','Defect')),
                 ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Score'),
                 ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Status')
@@ -9244,8 +9253,8 @@ function ClientQCMgmt(props){
                           ce('span',{style:{fontSize:13}},r.client||'—')
                         )
                       ),
-                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},varietyBadge(r)),
-                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',fontSize:12,color:'var(--text3)',whiteSpace:'nowrap'}},r.packDate||'—'),
+                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle'}},varietyBadge(r)),
+                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',fontSize:12,color:'var(--text3)',whiteSpace:'nowrap'}},r.packDate||'—'),
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',minWidth:120}},
                         r.totalDefect||r.totalDefect===0?defectBar(r.totalDefect):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                       ),
