@@ -7140,7 +7140,7 @@ function ClientQCMgmt(props){
     var pid=selCqcProd||'citrus';
     var secs=(config.cqcDefectSections||{})[pid]||[];
     secs.forEach(function(sec){(sec.items||[]).forEach(function(d){defects[d.key]='0';});});
-    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,disputed:false,disputeNote:'',disputeOpen:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
+    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,disputed:false,disputeNote:'',disputeOpen:false,confirmDelete:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
   }
   function addCqcSample(){setCqcSamples(function(prev){
     var collapsed=prev.map(function(s){return Object.assign({},s,{collapsed:true});});
@@ -8604,9 +8604,16 @@ function ClientQCMgmt(props){
                         )
                       ),
                       /* Remove */
-                      ce('td',{style:{padding:'2px 4px',border:'1px solid var(--border)',textAlign:'center'}},
-                        ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:14,lineHeight:1,padding:'0 2px'},
-                          onClick:function(idx){return function(){removeCqcSample(idx);};}(si)},'×')
+                      ce('td',{style:{padding:'2px 4px',border:'1px solid var(--border)',textAlign:'center',whiteSpace:'nowrap',minWidth:sample.confirmDelete?64:24}},
+                        !sample.confirmDelete
+                          ?ce('button',{title:'Remove sample',style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:14,lineHeight:1,padding:'0 2px'},
+                              onClick:function(idx){return function(){updateCqcSampleField(idx,'confirmDelete',true);};}(si)},'×')
+                          :ce('div',{style:{display:'flex',alignItems:'center',gap:2}},
+                              ce('button',{title:'Confirm delete',style:{background:'var(--red)',border:'none',borderRadius:3,cursor:'pointer',color:'#fff',fontSize:10,fontWeight:600,padding:'2px 5px',lineHeight:1},
+                                onClick:function(idx){return function(){removeCqcSample(idx);};}(si)},'✓'),
+                              ce('button',{title:'Cancel',style:{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:3,cursor:'pointer',color:'var(--text2)',fontSize:10,padding:'2px 5px',lineHeight:1},
+                                onClick:function(idx){return function(){updateCqcSampleField(idx,'confirmDelete',false);};}(si)},'×')
+                            )
                       )
                     );
                   })
