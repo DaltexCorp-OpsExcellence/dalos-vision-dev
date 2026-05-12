@@ -375,14 +375,13 @@ input,select,textarea{font-size:16px!important}
 .dalos-field-error-wrap{border-radius:8px;padding:4px;margin:-4px;animation:dalos-flash 1.4s ease-in-out 2;background:rgba(176,48,48,.06)}
 .grape-dots::after{content:'';animation:gpdots 1.2s steps(1) infinite}
 /* ── Tooltip handled via JS fixed overlay ── */
-.cqc-grid{border-collapse:separate!important;border-spacing:0;table-layout:fixed;}
-.cqc-grid-outer{overflow-x:auto;}
-.cqc-grid-head{overflow:hidden;}
-.cqc-grid-body{overflow-y:auto;max-height:52vh;}
-.cqc-grid th,.cqc-grid td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
-.cqc-grid th:first-child,.cqc-grid td:first-child{border-left:1px solid var(--border);}
-.cqc-grid thead tr:first-child th{border-top:1px solid var(--border);}
-.cqc-grid tbody tr:first-child td{border-top:none;}
+.cqc-grid{border-collapse:collapse;width:100%;font-size:12px;table-layout:fixed;}
+.cqc-grid-outer{overflow-x:auto;border:1px solid var(--border);border-radius:6px;}
+.cqc-grid-head{overflow:hidden;border-bottom:2px solid var(--border);}
+.cqc-grid-head .cqc-grid{border-bottom:none;}
+.cqc-grid-body{overflow-y:auto;max-height:55vh;}
+.cqc-grid-head .cqc-grid td,.cqc-grid-head .cqc-grid th{border-top:none;}
+.cqc-grid-body .cqc-grid thead{display:none;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
 </style>
 </head>
@@ -8300,10 +8299,32 @@ function ClientQCMgmt(props){
             /* Column widths shared between header and body tables */
             var colW={hash:52,def:64,total:72,meta:{}};
             var _metaW={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':180,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
+            /* Build col widths for both tables */
+            var varOpts0=[];if(fVar)varOpts0.push(1);fVarsExtra.forEach(function(ve){if(ve.var)varOpts0.push(1);});
+            var farmOpts0=[];if(fFarm1)farmOpts0.push(1);if(fFarm2)farmOpts0.push(1);fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts0.push(1);});
+            var phOpts0=[];if(fPH)phOpts0.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts0.push(1);});
+            var traceOpts0=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
+            var mW={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':180,'Brix':60,'Brix?':50,'Size mm':60,'Size?':50,'Carton?':60,'Score':72,'Notes':150,'Dispute':80};
+            var hdrs0=[];
+            if(varOpts0.length>0) hdrs0.push('Variety');
+            if(farmOpts0.length>0){hdrs0.push('Farm');hdrs0.push('Plot');}
+            if(phOpts0.length>0) hdrs0.push('PH');
+            if(traceOpts0.length>0) hdrs0.push('Trace');
+            hdrs0.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes','Dispute');
+            function mkColgroup(){
+              return ce('colgroup',null,
+                ce('col',{style:{width:52}}),
+                allDefs.map(function(item,i){return ce('col',{key:'d'+i,style:{width:64}});}),
+                ce('col',{style:{width:72}}),
+                hdrs0.map(function(h,i){return ce('col',{key:'m'+i,style:{width:mW[h]||60}});}),
+                ce('col',{style:{width:28}})
+              );
+            }
             return ce('div',{className:'cqc-grid-outer'},
               /* ── HEADER TABLE (never scrolls) ── */
               ce('div',{className:'cqc-grid-head'},
               ce('table',{className:'cqc-grid',style:{width:'100%',fontSize:12}},
+                mkColgroup(),
                 ce('thead',null,
                   /* Row 1 — section spans + metadata group */
                   ce('tr',null,
@@ -8380,6 +8401,7 @@ function ClientQCMgmt(props){
               /* ── BODY TABLE (scrolls vertically) ── */
               ce('div',{className:'cqc-grid-body'},
               ce('table',{className:'cqc-grid',style:{width:'100%',fontSize:12}},
+                mkColgroup(),
                 ce('tbody',null,
                   cqcSamples.map(function(sample,si){
                     var sTotal=cqcSampleTotal(sample);
