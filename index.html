@@ -8288,13 +8288,13 @@ function ClientQCMgmt(props){
             if(allDefs.length===0) return ce('div',{style:{padding:'20px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No CQC defect sections configured for this product.');
             /* Column widths shared between header and body tables */
             var colW={hash:52,def:64,total:72,meta:{}};
-            var _metaW={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':180,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
+            var _metaW={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':110,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
             /* Build col widths for both tables */
             var varOpts0=[];if(fVar)varOpts0.push(1);fVarsExtra.forEach(function(ve){if(ve.var)varOpts0.push(1);});
             var farmOpts0=[];if(fFarm1)farmOpts0.push(1);if(fFarm2)farmOpts0.push(1);fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts0.push(1);});
             var phOpts0=[];if(fPH)phOpts0.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts0.push(1);});
             var traceOpts0=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
-            var mW={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':60,'PH':90,'Trace':180,'Brix':60,'Brix?':50,'Size mm':60,'Size?':50,'Carton?':60,'Score':72,'Notes':150,'Dispute':80};
+            var mW={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':60,'PH':90,'Trace':110,'Brix':60,'Brix?':50,'Size mm':60,'Size?':50,'Carton?':60,'Score':72,'Notes':150,'Dispute':80};
             var hdrs0=[];
             if(varOpts0.length>0) hdrs0.push('Variety');
             if(farmOpts0.length>0){hdrs0.push('Farm');hdrs0.push('Plot');if(hasMixed){hdrs0.push('Farm 2');hdrs0.push('Plot 2');}}
@@ -8383,7 +8383,7 @@ function ClientQCMgmt(props){
                       var traceOpts2=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
                       if(traceOpts2.length>0) hdrs.push('Trace');
                       hdrs.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes','Dispute');
-                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':60,'PH':90,'Trace':180,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
+                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':60,'PH':90,'Trace':110,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
                       return hdrs.map(function(h){var isDisp=h==='Dispute';return ce('th',{key:h,style:{padding:'4px 6px',background:isDisp?'#faeeda':'#f0f5f9',border:'1px solid var(--border)',borderBottom:isDisp?'2px solid #BA7517':'',fontSize:10,color:isDisp?'#633806':'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h);});
                     })(),
                     ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
@@ -8405,6 +8405,7 @@ function ClientQCMgmt(props){
                     var selFarmName=farmOpts.length===1?farmOpts[0].farm:sample.sampleFarm;
                     var farmMatches=selFarmName?farmOpts.filter(function(f){return f.farm===selFarmName;}):[];
                     var plots=farmMatches.map(function(f){return f.plot||'';}).filter(Boolean);
+                    var isMixedSample=sample.sampleVariety&&sample.sampleVariety.indexOf(' / ')>=0;
                     var tdMeta={padding:0,border:'1px solid var(--border)'};
                     var selSt={width:'100%',border:'none',background:'transparent',fontSize:11,padding:'3px 4px',fontFamily:'var(--font-sans)',color:'var(--text)'};
                     var inSt={width:'100%',border:'none',background:'transparent',fontSize:11,padding:'3px 4px',fontFamily:'var(--font-sans)',color:'var(--text)',outline:'none'};
@@ -8491,9 +8492,10 @@ function ClientQCMgmt(props){
                           }
                           if(varOpts.length===1) return renderVarietyLabel(varOpts[0]);
                           if(sv&&varOpts.indexOf(sv)<0) return ce('span',{title:'Saved variety no longer in header options',style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap',color:'var(--text3)',fontStyle:'italic'}},sv);
-                          if(sv&&sv.indexOf(' / ')>=0) return ce('div',{style:{padding:'2px 3px'}},
+                          /* For mixed — show badge only, clicking opens a mini select overlay */
+                          if(sv&&sv.indexOf(' / ')>=0) return ce('div',{style:{padding:'2px 3px',position:'relative'}},
                             renderVarietyLabel(sv),
-                            ce('select',{style:Object.assign({},selSt,{fontSize:9,padding:'1px 2px',marginTop:2}),value:sv,onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                            ce('select',{style:{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0,cursor:'pointer'},value:sv,onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
                               ce('option',{value:''},'—'),varOpts.map(function(v){return ce('option',{key:v,value:v},v);})));
                           return ce('select',{style:selSt,value:sv,onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
                             ce('option',{value:''},'—'),
@@ -8501,8 +8503,8 @@ function ClientQCMgmt(props){
                           );
                         })()
                       ),
-                      /* Farm */
-                      farmOpts.length>0&&ce('td',{style:tdMeta},
+                      /* Farm 1 — red tint if mixed */
+                      farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,isMixedSample?{borderLeft:'2px solid #d94f4f',background:'#fff8f8'}:{})},
                         farmOpts.length===1
                           ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},farmOpts[0].farm)
                           :ce('select',{style:selSt,value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
@@ -8514,8 +8516,8 @@ function ClientQCMgmt(props){
                             farmOpts.map(function(f,fi){return ce('option',{key:f.farm+fi,value:f.farm},f.farm);})
                           )
                       ),
-                      /* Plot */
-                      farmOpts.length>0&&ce('td',{style:tdMeta},
+                      /* Plot 1 — red tint if mixed */
+                      farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,isMixedSample?{background:'#fff8f8'}:{})},
                         plots.length===1
                           ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},plots[0])
                           :plots.length>1
@@ -8523,8 +8525,8 @@ function ClientQCMgmt(props){
                                 ce('option',{value:''},'—'),plots.map(function(p){return ce('option',{key:p,value:p},p);}))
                             :ce('span',{style:{padding:'3px 4px',fontSize:11,color:'var(--text3)',display:'block'}},'—')
                       ),
-                      /* Farm 2 */
-                      hasMixed&&farmOpts.length>0&&ce('td',{style:tdMeta},
+                      /* Farm 2 — blue tint */
+                      hasMixed&&farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,{borderLeft:'2px solid #2848b5',background:'#f8f8ff'})},
                         farmOpts.length===1
                           ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},farmOpts[0].farm)
                           :ce('select',{style:selSt,value:sample.sampleFarm2||'',onChange:function(idx,fo){return function(e){
@@ -8536,8 +8538,8 @@ function ClientQCMgmt(props){
                             farmOpts.map(function(f,fi){return ce('option',{key:f.farm+fi,value:f.farm},f.farm);})
                           )
                       ),
-                      /* Plot 2 */
-                      hasMixed&&farmOpts.length>0&&ce('td',{style:tdMeta},
+                      /* Plot 2 — blue tint */
+                      hasMixed&&farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,{background:'#f8f8ff'})},
                         (function(){
                           var selFarm2=farmOpts.length===1?farmOpts[0].farm:sample.sampleFarm2;
                           var m2=selFarm2?farmOpts.filter(function(f){return f.farm===selFarm2;}):[];
