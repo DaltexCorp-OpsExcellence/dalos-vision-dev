@@ -8471,19 +8471,21 @@ function ClientQCMgmt(props){
                       ),
                       /* Variety */
                       varOpts.length>0&&ce('td',{style:tdMeta},
-                        varOpts.length===1
-                          ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},varOpts[0])
-                          :ce('select',{style:selSt,value:(function(){
-                            var sv=sample.sampleVariety||'';
-                            if(sv&&varOpts.indexOf(sv)<0&&sv.indexOf(' / ')>=0){
-                              var p=sv.split(' / '),rev=p[1]+' / '+p[0];
-                              return varOpts.indexOf(rev)>=0?rev:sv;
-                            }
-                            return sv;
-                          })(),onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                        (function(){
+                          var sv=sample.sampleVariety||'';
+                          /* Normalize reversed mixed variety order */
+                          if(sv&&varOpts.indexOf(sv)<0&&sv.indexOf(' / ')>=0){
+                            var p=sv.split(' / '),rev=p[1]+' / '+p[0];
+                            if(varOpts.indexOf(rev)>=0) sv=rev;
+                          }
+                          if(varOpts.length===1) return ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},varOpts[0]);
+                          /* If saved value doesn't match any current option, show as static label */
+                          if(sv&&varOpts.indexOf(sv)<0) return ce('span',{title:'Saved variety no longer in header options',style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap',color:'var(--text3)',fontStyle:'italic'}},sv);
+                          return ce('select',{style:selSt,value:sv,onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
                             ce('option',{value:''},'—'),
                             varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
-                          )
+                          );
+                        })()
                       ),
                       /* Farm */
                       farmOpts.length>0&&ce('td',{style:tdMeta},
