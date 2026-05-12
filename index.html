@@ -8449,23 +8449,24 @@ function ClientQCMgmt(props){
                             'data-row':si,'data-col':allDefs.indexOf(item),
                             onFocus:function(e){e.target.select();},
                             onKeyDown:function(e){
-                              if(e.key==='Tab'||e.key==='Enter'){
+                              var isTab=e.key==='Tab';
+                              var isAltEnter=e.key==='Enter'&&e.altKey;
+                              if(isTab||isAltEnter){
                                 e.preventDefault();
                                 var row=parseInt(e.target.getAttribute('data-row'));
                                 var col=parseInt(e.target.getAttribute('data-col'));
                                 var numCols=allDefs.length;
                                 var target;
-                                if(e.key==='Tab'){
-                                  /* move right — next col, or first col of next row */
+                                if(isTab){
+                                  /* Tab — move right, wrap to next row */
                                   if(col<numCols-1){
                                     target=document.querySelector('table.cqc-grid input[data-row="'+row+'"][data-col="'+(col+1)+'"]');
                                   } else {
                                     target=document.querySelector('table.cqc-grid input[data-row="'+(row+1)+'"][data-col="0"]');
                                   }
                                 } else {
-                                  /* Enter — move down same col */
+                                  /* Alt+Enter — move down same col */
                                   target=document.querySelector('table.cqc-grid input[data-row="'+(row+1)+'"][data-col="'+col+'"]');
-                                  /* if no row below, wrap to first row same col */
                                   if(!target) target=document.querySelector('table.cqc-grid input[data-row="0"][data-col="'+col+'"]');
                                 }
                                 if(target) target.focus();
