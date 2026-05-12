@@ -9290,7 +9290,7 @@ function ClientQCMgmt(props){
             if(!r) return null;
             var matchedB=batches.find(function(b){return b.id===r.batchId;});
             function scoreStyle(s){return {padding:'3px 10px',borderRadius:12,fontSize:12,fontWeight:500,background:s==='GREEN'?'var(--green-bg)':s==='RED'?'#fff0f0':'var(--amber-bg)',color:s==='GREEN'?'var(--green)':s==='RED'?'var(--red)':'var(--amber)'};};
-            return ce('div',{id:'cqc-detail-panel',style:{background:'#f0f5f1',border:'1px solid #c5d9cc',borderRadius:'var(--r2)',padding:'16px 18px',marginTop:4}},
+            return ce('div',{id:'cqc-detail-panel',style:{background:'#E6F1FB',border:'1px solid #B5D4F4',borderRadius:'var(--r2)',padding:'16px 18px',marginTop:4}},
               ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:16}},
                 ce('button',{style:{display:'flex',alignItems:'center',gap:4,color:'var(--text3)',fontSize:13,cursor:'pointer',background:'none',border:'none',padding:0},onClick:function(){setSelRep(null);}},'← Back'),
                 ce('span',{style:{color:'var(--text3)'}},'/ '),
