@@ -374,15 +374,6 @@ input,select,textarea{font-size:16px!important}
 .dalos-field-error{outline:none!important;border-color:#b03030!important;animation:dalos-flash 1.4s ease-in-out 2;background:rgba(176,48,48,.06)!important}
 .dalos-field-error-wrap{border-radius:8px;padding:4px;margin:-4px;animation:dalos-flash 1.4s ease-in-out 2;background:rgba(176,48,48,.06)}
 .grape-dots::after{content:'';animation:gpdots 1.2s steps(1) infinite}
-/* ── Tooltip handled via JS fixed overlay ── */
-.cqc-grid{border-collapse:collapse;width:100%;font-size:12px;table-layout:fixed;}
-.cqc-grid-outer{overflow-x:auto;border:1px solid var(--border);border-radius:6px;}
-.cqc-grid-head{overflow-x:auto;overflow-y:hidden;border-bottom:2px solid var(--border);scrollbar-width:none;}.cqc-grid-head::-webkit-scrollbar{display:none;}
-.cqc-grid-head .cqc-grid{border-bottom:none;}
-.cqc-grid-body{overflow-y:auto;max-height:55vh;}
-.cqc-grid-head .cqc-grid td,.cqc-grid-head .cqc-grid th{border-top:none;}
-.cqc-grid-body .cqc-grid thead{display:none;}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
 </style>
 </head>
 <body>
@@ -935,7 +926,7 @@ function InspectionForm(props){
                   defects:def,notes:row.notes||'',
                   pass:row.sample_result===true?true:row.sample_result===false?false:null,
                   extraFields:row.extra_fields||{},
-                  sampleVariety:row.sample_variety_text||(function(){var v1=(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'';var v2=(config.varietiesIdToName&&row.sample_variety2_id&&config.varietiesIdToName[row.sample_variety2_id])||'';return v2?v1+' / '+v2:v1;})()||(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||''
+                  sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||''
                 };
               });
               var isGrapes=(props.cropId||cropId||'').toLowerCase()==='grapes';
@@ -1087,9 +1078,25 @@ function InspectionForm(props){
       /* flat samples for backward compat (client QC matching) */
       samples:allRows.map(function(r){return Object.assign({},r);})
     };
+    /* ── Pre-save token check ─────────────────────────────────────────────
+       Force a session refresh before the save chain fires. The Supabase JS
+       client refreshes automatically ~50min in, but parallel requests can
+       race against that refresh and get 401s mid-chain. Awaiting getSession()
+       ensures we hold a fresh JWT before any request leaves the browser. */
     setIsSaving(true);
     setSaveStatus('saving');
     setSaveErrMsg('');
+    supabase.auth.getSession().then(function(sessionCheck){
+      if(!sessionCheck.data||!sessionCheck.data.session){
+        setSaveStatus('error');
+        setSaveErrMsg('Your session has expired. Please sign in again.');
+        setIsSaving(false);
+        return;
+      }
+      _doSave(newBatch);
+    });
+  }
+  function _doSave(newBatch){
     /* Watchdog — surface stuck saves so they don't fail silently. 15s should
        cover slow networks; production saves typically resolve in <2s. */
     if(saveWatchdogRef.current) clearTimeout(saveWatchdogRef.current);
@@ -1789,11 +1796,13 @@ function InspectionForm(props){
         ?ce('button',{onClick:function(){
             setSaveStatus('idle');setSaveErrMsg('');
             if(isEdit&&batch&&batch.id){
-              supabase.from('inspections').select('updated_at').eq('id',batch.id).single().then(function(r){
-                if(r.data&&r.data.updated_at){
-                  loadedVersionRef.current=r.data.updated_at;
-                  try{if(typeof refreshBatchesById==='function') refreshBatchesById([batch.id]);}catch(e){}
-                }
+              supabase.auth.getSession().then(function(){
+                supabase.from('inspections').select('updated_at').eq('id',batch.id).single().then(function(r){
+                  if(r.data&&r.data.updated_at){
+                    loadedVersionRef.current=r.data.updated_at;
+                    try{if(typeof refreshBatchesById==='function') refreshBatchesById([batch.id]);}catch(e){}
+                  }
+                });
               });
             }
           },style:{background:'var(--red)',color:'#fff',border:'none',cursor:'pointer',fontSize:11,padding:'4px 11px',borderRadius:4,fontWeight:600,flexShrink:0,whiteSpace:'nowrap'}},'\u21ba Refresh')
@@ -5048,19 +5057,7 @@ function Landing(props){
     ),
 
     /* ── BRANDED HERO ── */
-    ce('div',{style:{textAlign:'center',padding:'24px 24px 28px',borderBottom:'1px solid var(--border)',marginBottom:32,position:'relative'}},
-      (window.location.href.indexOf('dalos-vision-dev')>-1||window.location.href.indexOf('localhost')>-1)&&ce('div',{style:{
-        position:'absolute',top:18,right:20,
-        display:'inline-flex',alignItems:'center',gap:7,
-        background:'linear-gradient(135deg,#ff6b35 0%,#f7c948 100%)',
-        color:'#fff',padding:'5px 16px 5px 11px',borderRadius:20,
-        boxShadow:'0 3px 14px rgba(255,107,53,0.45)',
-        fontSize:10,fontFamily:"'Courier New',monospace",fontWeight:700,
-        letterSpacing:'.2em',textTransform:'uppercase',userSelect:'none',cursor:'default'
-      }},
-        ce('span',{style:{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.9)',display:'inline-block',flexShrink:0,animation:'pulse 1.4s ease-in-out infinite'}}),
-        'Staging'
-      ),
+    ce('div',{style:{textAlign:'center',padding:'24px 24px 28px',borderBottom:'1px solid var(--border)',marginBottom:32}},
       ce('div',{style:{marginBottom:16}},
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:42,color:'var(--text)'}},'Dal'),
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:42,color:'var(--accent)'}},'OS'),
@@ -7015,7 +7012,7 @@ function ClientQCMgmt(props){
             variety2:(config.varietiesIdToName&&r.variety2_id&&config.varietiesIdToName[r.variety2_id])||'',
             varietyType:r.variety_type||'single',category2:(function(){if(!r.variety2_id)return '';var found=((config.varietiesFull||{})['grapes']||[]).find(function(v){return v.id===r.variety2_id;});return found&&found.categoryId?(config.categoriesIdToName||{})[found.categoryId]||'':'';})(),
             loadDate:r.load_date||'', packDate:r.pack_date||'',
-            harvestDate:r.harvest_date||'', phCover:r.ph_cover||'', farm1:r.farm_1||'', plot1:r.plot_1||'', farm2:r.farm_2||'', plot2:r.plot_2||'', cqcExtraFields:r.cqc_extra_fields||{},
+            harvestDate:r.harvest_date||'', phCover:r.ph_cover||'', farm1:r.farm_1||'', farm2:r.farm_2||'',
             cartonType:(config.cartonTypesIdToName&&r.carton_type_id&&config.cartonTypesIdToName[r.carton_type_id])||r.carton_type_id||'',
             qcReportNumber:r.qc_report_number||'',
             region:(config.countriesIdToName&&r.country_id&&config.countriesIdToName[r.country_id])||r.country_id||'',
@@ -7076,10 +7073,6 @@ function ClientQCMgmt(props){
   var sC=useState(''); var fContainer=sC[0]; var setContainer=sC[1];
   var sSticker=useState('No'); var fSticker=sSticker[0]; var setSticker=sSticker[1];
   var sTrace=useState(''); var fTrace=sTrace[0]; var setTrace=sTrace[1];
-  var sTraceCodes=useState([]); var fTraceCodes=sTraceCodes[0]; var setTraceCodes=sTraceCodes[1];
-  function addTraceCode(){setTraceCodes(function(p){return p.concat({code:''});});}
-  function updateTraceCode(i,v){setTraceCodes(function(p){return p.map(function(x,j){return j===i?{code:v}:x;});});}
-  function removeTraceCode(i){setTraceCodes(function(p){return p.filter(function(_,j){return j!==i;});});}
   var sPH=useState(''); var fPH=sPH[0]; var setPH=sPH[1];
   var sPhCover=useState(''); var fPhCover=sPhCover[0]; var setPhCover=sPhCover[1];
   var sCrop=useState(''); var fCrop=sCrop[0]; var setCrop=sCrop[1];
@@ -7089,21 +7082,7 @@ function ClientQCMgmt(props){
   var sVar2=useState(''); var fVar2=sVar2[0]; var setVar2=sVar2[1];
   var sCqcCat=useState(''); var fCat=sCqcCat[0]; var setFCat=sCqcCat[1];
   var sFarm1=useState(''); var fFarm1=sFarm1[0]; var setFarm1=sFarm1[1];
-  var sPlot1=useState(''); var fPlot1=sPlot1[0]; var setPlot1=sPlot1[1];
   var sFarm2=useState(''); var fFarm2=sFarm2[0]; var setFarm2=sFarm2[1];
-  var sPlot2=useState(''); var fPlot2=sPlot2[0]; var setPlot2=sPlot2[1];
-  var sFarmsExtra=useState([]); var fFarmsExtra=sFarmsExtra[0]; var setFarmsExtra=sFarmsExtra[1];
-  var sPHExtra=useState([]); var fPHExtra=sPHExtra[0]; var setPHExtra=sPHExtra[1];
-  var sVarsExtra=useState([]); var fVarsExtra=sVarsExtra[0]; var setVarsExtra=sVarsExtra[1];
-  function addFarmExtra(){setFarmsExtra(function(p){return p.concat({farm:'',plot:''});});}
-  function updateFarmExtra(i,field,v){setFarmsExtra(function(p){return p.map(function(x,j){if(j!==i)return x;var n=Object.assign({},x);n[field]=v;return n;});});}
-  function removeFarmExtra(i){setFarmsExtra(function(p){return p.filter(function(_,j){return j!==i;});});}
-  function addPHExtra(){setPHExtra(function(p){return p.concat({actual:'',cover:''});});}
-  function updatePHExtra(i,field,v){setPHExtra(function(p){return p.map(function(x,j){if(j!==i)return x;var n=Object.assign({},x);n[field]=v;return n;});});}
-  function removePHExtra(i){setPHExtra(function(p){return p.filter(function(_,j){return j!==i;});});}
-  function addVarExtra(){setVarsExtra(function(p){return p.concat({type:'single',cat:'',var:'',cat2:'',var2:''});});}
-  function updateVarExtra(i,field,v){setVarsExtra(function(p){return p.map(function(x,j){if(j!==i)return x;var n=Object.assign({},x);n[field]=v;if(field==='cat')n['var']='';if(field==='cat2')n['var2']='';return n;});});}
-  function removeVarExtra(i){setVarsExtra(function(p){return p.filter(function(_,j){return j!==i;});});}
   var sLoadDate=useState(''); var fLoadDate=sLoadDate[0]; var setLoadDate=sLoadDate[1];
   var sPackDate=useState(''); var fPackDate=sPackDate[0]; var setPackDate=sPackDate[1];
   var sHarvDate=useState(''); var fHarvDate=sHarvDate[0]; var setHarvDate=sHarvDate[1];
@@ -7128,27 +7107,18 @@ function ClientQCMgmt(props){
 
   /* ── CQC Samples state ── */
   var sSamples=useState([newCqcSample(1)]); var cqcSamples=sSamples[0]; var setCqcSamples=sSamples[1];
-  var sCqcViewMode=useState('grid'); var cqcViewMode=sCqcViewMode[0]; var setCqcViewMode=sCqcViewMode[1];
-  var sCqcExpandedRows=useState({}); var cqcExpandedRows=sCqcExpandedRows[0]; var setCqcExpandedRows=sCqcExpandedRows[1];
-  function toggleCqcGridExpand(id){setCqcExpandedRows(function(prev){var n=Object.assign({},prev);n[id]=!n[id];return n;});}
   function newCqcSample(num){
     var defects={};
     var pid=selCqcProd||'citrus';
     var secs=(config.cqcDefectSections||{})[pid]||[];
     secs.forEach(function(sec){(sec.items||[]).forEach(function(d){defects[d.key]='0';});});
-    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,disputed:false,disputeNote:'',disputeOpen:false,confirmDelete:false,sampleVariety:'',sampleFarm:'',samplePlot:'',sampleFarm2:'',samplePlot2:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
+    return {id:'new-'+Date.now()+Math.random(),sampleNumber:num,sampleType:'sample_readings',defects:defects,notes:'',score:'',brixIssue:false,avgSize:'',sizeIssue:false,sampleVariety:'',collapsed:false,isNew:true};
   }
   function addCqcSample(){setCqcSamples(function(prev){
     var collapsed=prev.map(function(s){return Object.assign({},s,{collapsed:true});});
     return collapsed.concat([newCqcSample(prev.length+1)]);
   });}
   function removeCqcSample(idx){setCqcSamples(function(prev){return prev.filter(function(_,i){return i!==idx;}).map(function(s,i){return Object.assign({},s,{sampleNumber:i+1});});});}
-  function duplicateCqcSample(idx){setCqcSamples(function(prev){
-    var src=prev[idx];
-    var dupe=Object.assign({},src,{id:'new-'+Date.now()+Math.random(),disputed:false,disputeNote:'',isNew:true});
-    var next=prev.slice(0,idx+1).concat([dupe]).concat(prev.slice(idx+1));
-    return next.map(function(s,i){return Object.assign({},s,{sampleNumber:i+1});});
-  });} 
   function updateCqcSampleType(idx,type){setCqcSamples(function(prev){return prev.map(function(s,i){return i===idx?Object.assign({},s,{sampleType:type}):s;});});}
   function updateCqcSampleField(idx,field,val){setCqcSamples(function(prev){return prev.map(function(s,i){return i===idx?Object.assign({},s,function(){var o={};o[field]=val;return o;}()):s;});});}
   function toggleCqcSampleCollapse(idx){setCqcSamples(function(prev){return prev.map(function(s,i){return i===idx?Object.assign({},s,{collapsed:!s.collapsed}):s;});});}
@@ -7194,14 +7164,7 @@ function ClientQCMgmt(props){
   /* multi-file uploads */
   var sFiles=useState([]); var uploadedFiles=sFiles[0]; var setUploadedFiles=sFiles[1];
   var sOCR=useState('idle'); var ocrStatus=sOCR[0]; var setOcrStatus=sOCR[1];
-  var sTip=useState({v:false,text:'',x:0,y:0}); var tipState=sTip[0]; var setTipState=sTip[1];
-  function showTip(text,e){var r=e.currentTarget.getBoundingClientRect();setTipState({v:true,text:text,x:r.left+r.width/2,y:r.top});}
-  function hideTip(){setTipState(function(p){return Object.assign({},p,{v:false});});}
   var sOCRLog=useState([]); var ocrLog=sOCRLog[0]; var setOcrLog=sOCRLog[1];
-  var sPasteText=useState(''); var cqcPasteText=sPasteText[0]; var setCqcPasteText=sPasteText[1];
-  var sPasteStatus=useState('idle'); var cqcPasteStatus=sPasteStatus[0]; var setCqcPasteStatus=sPasteStatus[1];
-  var sPasteFields=useState(null); var cqcPasteFields=sPasteFields[0]; var setCqcPasteFields=sPasteFields[1];
-  var sPasteErr=useState(''); var cqcPasteErr=sPasteErr[0]; var setCqcPasteErr=sPasteErr[1];
 
   /* container match */
   function findMatch(cont){
@@ -7270,78 +7233,6 @@ function ClientQCMgmt(props){
     if(parsed.notes&&!fGeneral) setGeneral(parsed.notes);
   }
 
-  /* Apply fields extracted from pasted text via Edge Function */
-  function applyPasteFields(extracted){
-    var fields=extracted&&extracted.fields||extracted||{};
-    var samples=extracted&&extracted.samples||[];
-    if(fields.container_number) setContainer(fields.container_number.toUpperCase());
-    if(fields.qc_report_number) setQCRef(fields.qc_report_number);
-    if(fields.lot_number) setLot(String(fields.lot_number));
-    if(fields.trace_code) setTrace(fields.trace_code);
-    if(fields.pack_date) setPackDate(fields.pack_date);
-    if(fields.load_date) setLoadDate(fields.load_date);
-    if(fields.harvest_date) setHarvDate(fields.harvest_date);
-    if(fields.brix!=null) setBrix(String(fields.brix));
-    if(fields.total_defect!=null) setTotalDef(String(fields.total_defect));
-    if(fields.score) setScore(fields.score);
-    if(fields.max_temp!=null) setMaxTemp(String(fields.max_temp));
-    if(fields.temp_logger) setTempLogger(fields.temp_logger);
-    if(fields.daltex_class) setDaltexCls(fields.daltex_class);
-    if(fields.client_class) setClientCls(fields.client_class);
-    if(fields.wax) setWax(fields.wax);
-    if(fields.client) setClient(fields.client);
-    if(fields.variety) setVar(fields.variety);
-    /* Apply sample rows to grid if present */
-    if(samples.length>0){
-      var pid=selCqcProd||'citrus';
-      var secs=(config.cqcDefectSections||{})[pid]||[];
-      var emptyDefs={};
-      secs.forEach(function(sec){(sec.items||[]).forEach(function(d){emptyDefs[d.key]='0';});});
-      var mapped=samples.map(function(s,idx){
-        var defects=Object.assign({},emptyDefs);
-        Object.keys(s.defects||{}).forEach(function(k){if(defects.hasOwnProperty(k)) defects[k]=String(s.defects[k]);});
-        /* Build notes: include pallet ref + any unmatched defects */
-        var notesParts=[];
-        if(s.pallet_ref) notesParts.push('Pallet: '+s.pallet_ref);
-        if(s.notes) notesParts.push(s.notes);
-        return {id:'new-'+Date.now()+Math.random(),sampleNumber:idx+1,sampleType:'sample_readings',defects:defects,notes:notesParts.join(' | '),score:'',brix:'',brixIssue:false,avgSize:'',sizeIssue:false,cartonIssue:false,disputed:false,disputeNote:'',disputeOpen:false,sampleVariety:'',sampleFarm:'',samplePlot:'',samplePH:'',sampleTraceCode:'',collapsed:false,isNew:true};
-      });
-      setCqcSamples(mapped);
-    }
-    setCqcPasteStatus('applied');
-  }
-
-  /* Call Edge Function to extract fields from pasted text */
-  function runPasteExtract(){
-    if(!cqcPasteText.trim()) return;
-    setCqcPasteStatus('loading');
-    setCqcPasteFields(null);
-    setCqcPasteErr('');
-    /* Build defect key list from config for AI matching */
-    var pid=selCqcProd||'citrus';
-    var secs=(config.cqcDefectSections||{})[pid]||[];
-    var defectsList=secs.reduce(function(arr,sec){return arr.concat((sec.items||[]).map(function(d){return {key:d.key,name:d.en};}));},[]); 
-    supabase.auth.getSession().then(function(s){
-      var token=(s.data&&s.data.session&&s.data.session.access_token)||'';
-      fetch('https://sfyjvgjwvtwkrnqrvqyc.supabase.co/functions/v1/extract-cqc-header',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-        body:JSON.stringify({text:cqcPasteText,defects:defectsList})
-      })
-      .then(function(r){
-        if(!r.ok) return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.slice(0,200));});
-        return r.json();
-      })
-      .then(function(data){
-        var fields=data&&data.fields||null;
-        if(!fields){setCqcPasteStatus('error');setCqcPasteErr('No fields returned');return;}
-        setCqcPasteFields({fields:fields,samples:data.samples||[]});
-        setCqcPasteStatus('done');
-      })
-      .catch(function(e){setCqcPasteStatus('error');setCqcPasteErr(e.message||'Request failed');});
-    });
-  }
-
   function runOCRAll(files){
     if(!files||!files.length) return;
     setOcrStatus('reading');
@@ -7406,8 +7297,8 @@ function ClientQCMgmt(props){
   }
 
   function clearForm(){
-    setContainer('');setSticker('No');setTrace('');setTraceCodes([]);setPH('');setPhCover('');setCrop('');setVar('');setFCat('');setVarType('single');setFCat2('');setVar2('');
-    setFarm1('');setPlot1('');setFarm2('');setPlot2('');setFarmsExtra([]);setPHExtra([]);setVarsExtra([]);setLoadDate('');setPackDate('');setHarvDate('');setCartonType('');
+    setContainer('');setSticker('No');setTrace('');setPH('');setPhCover('');setCrop('');setVar('');setFCat('');setVarType('single');setFCat2('');setVar2('');
+    setFarm1('');setFarm2('');setLoadDate('');setPackDate('');setHarvDate('');setCartonType('');
     setQCRef('');setRegion('');setClient('');setSubClient('');setLot('');setDaltexCls('');
     setClientCls('');setWax('');setScore('');setBrix('');setBrixIssue('No');setCartonIssue('No');
     setSizeIssue('No');setTotalDef('');setMajorRot('');setStorageMld('');setForeign('');
@@ -7433,7 +7324,7 @@ function ClientQCMgmt(props){
         if(catName) setFCat(catName);
       }
     })();
-    setFarm1(r.farm||r.farm1||'');setPlot1(r.plot1||'');setFarm2(r.farm2||'');setPlot2(r.plot2||'');var _cef=r.cqcExtraFields||{};setTraceCodes((_cef.extra_trace_codes||[]).map(function(c){return {code:c};}));setFarmsExtra((_cef.extra_farms||[]).map(function(f){return typeof f==='string'?{farm:f,plot:''}:Object.assign({farm:'',plot:''},f);}));setPHExtra((_cef.extra_ph||(_cef.extra_ph_actual||[]).map(function(a,i){return {actual:a,cover:(_cef.extra_ph_cover||[])[i]||''};})).map(function(p){return typeof p==='string'?{actual:p,cover:''}:Object.assign({actual:'',cover:''},p);}));setVarsExtra((_cef.extra_varieties||[]).map(function(v){return Object.assign({type:'single',cat:'',var:'',cat2:'',var2:''},v);}));setLoadDate(r.loadDate||'');setPackDate(r.packDate||'');
+    setFarm1(r.farm||r.farm1||'');setFarm2(r.farm2||'');setLoadDate(r.loadDate||'');setPackDate(r.packDate||'');
     setHarvDate(r.harvestDate||'');setCartonType(r.cartonType||'');setQCRef(r.qcReportNumber||'');
     setRegion(r.region||'');setClient(r.client||'');setSubClient(r.subClient||'');setLot(r.lot||'');
     setDaltexCls(r.daltexClass||'');setClientCls(r.clientClass||'');setWax(r.wax||'');
@@ -7487,7 +7378,7 @@ function ClientQCMgmt(props){
                   if(d.dbId===x.cqc_defect_id) defects[d.key]=String(x.value||0);
                 });});
               });
-              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brix:row.brix!=null?String(row.brix):'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,cartonIssue:row.carton_issue||false,disputed:row.disputed||false,disputeNote:row.dispute_note||'',disputeOpen:false,confirmDelete:false,sampleVariety:row.sample_variety_text||(function(){var v1=(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'';var v2=(config.varietiesIdToName&&row.sample_variety2_id&&config.varietiesIdToName[row.sample_variety2_id])||'';return v2?v1+' / '+v2:v1;})()||'',sampleFarm:row.sample_farm||'',samplePlot:row.sample_plot||'',sampleFarm2:row.sample_farm2||'',samplePlot2:row.sample_plot2||'',samplePH:row.sample_ph||'',sampleTraceCode:row.sample_trace_code||'',defects:defects,isNew:false};
+              return {id:row.id,sampleNumber:row.sample_number,sampleType:row.sample_type||'sample_readings',notes:row.notes||'',score:row.score||'',brixIssue:row.brix_issue||false,avgSize:row.avg_size!=null?String(row.avg_size):'',sizeIssue:row.size_issue||false,sampleVariety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',defects:defects,isNew:false};
             });
             setCqcSamples(mapped);
           });
@@ -7532,7 +7423,7 @@ function ClientQCMgmt(props){
       setReports(function(prev){return prev.concat([r]);});
     }
     var cqcSamplesSnapshot=cqcSamples.slice(); /* capture before clearForm resets */
-    var uploadedFilesSnapshot=uploadedFiles.slice(); /* full snapshot before clearForm */
+    var uploadedFilesSnapshot=uploadedFiles.filter(function(f){return f.file&&!f.storagePath;}); /* only new unuploaded files */
     clearForm();setEditRep(null);setShowNew(false);
     /* Save to Supabase */
     var dbRow={
@@ -7584,17 +7475,8 @@ function ClientQCMgmt(props){
       qc_report_number:fQCRef||null,
       ph_cover:fPhCover||null,
       farm_1:fFarm1||null,
-      plot_1:fPlot1||null,
       farm_2:fFarm2||null,
-      plot_2:fPlot2||null,
-      client_class:fClientCls||null,
-      cqc_extra_fields:(selCqcProd==='grapes'&&(fFarmsExtra.length||fPHExtra.length||fTraceCodes.length||fVarsExtra.length))?{
-        extra_farms:fFarmsExtra.filter(function(f){return f.farm;}).map(function(f){return {farm:f.farm,plot:f.plot||''};}),
-
-        extra_ph:fPHExtra.filter(function(p){return p.actual||p.cover;}),
-        extra_trace_codes:fTraceCodes.map(function(t){return t.code;}).filter(Boolean),
-        extra_varieties:fVarsExtra.filter(function(v){return v.var;}).map(function(v){return {type:v.type||'single',cat:v.cat||'',var:v.var||'',cat2:v.cat2||'',var2:v.var2||''};})
-      }:null
+      client_class:fClientCls||null
     };
     supabase.auth.getUser().then(function(ur){
       if(ur.data&&ur.data.user) dbRow.created_by=ur.data.user.id;
@@ -7611,8 +7493,9 @@ function ClientQCMgmt(props){
     }).then(function(res){
       if(res&&res.error){console.error('[DalOS] CQC save error:',res.error.message,'details:',res.error.details);return;}
       console.log('[DalOS] CQC report saved:',reportId);
-      /* Save uploaded files — only NEW ones (no dbId = not yet in DB) */
-      var newFiles=uploadedFilesSnapshot.filter(function(f){return f.storagePath&&f.fileUrl&&!f.dbId;});
+      /* Save uploaded files to client_qc_files — only NEW files not yet in DB */
+      var existingFileUrls=(reports.find(function(x){return x.id===reportId;})||{files:[]}).files.map(function(f){return f.url;});
+      var newFiles=uploadedFiles.filter(function(f){return f.storagePath&&f.fileUrl&&existingFileUrls.indexOf(f.fileUrl)<0;});
       if(newFiles.length>0){
         supabase.auth.getUser().then(function(ur){
           var fileRows=newFiles.map(function(f){
@@ -7625,7 +7508,7 @@ function ClientQCMgmt(props){
         });
       }
       /* Reload fresh report from DB to update local state */
-      supabase.from('client_qc_reports').select('*, client_qc_files(id,file_name,file_url,file_type)').eq('id',reportId).single().then(function(fresh){
+      supabase.from('client_qc_reports').select('*').eq('id',reportId).single().then(function(fresh){
         if(fresh.data){
           var r2=fresh.data;
           /* Also load defect readings */
@@ -7639,7 +7522,7 @@ function ClientQCMgmt(props){
               variety2:(config.varietiesIdToName&&r2.variety2_id&&config.varietiesIdToName[r2.variety2_id])||'',
               varietyType:r2.variety_type||'single',category2:(function(){if(!r2.variety2_id)return '';var found=((config.varietiesFull||{})['grapes']||[]).find(function(v){return v.id===r2.variety2_id;});return found&&found.categoryId?(config.categoriesIdToName||{})[found.categoryId]||'':'';})(),
               loadDate:r2.load_date||'', packDate:r2.pack_date||'', harvestDate:r2.harvest_date||'',
-              phCover:r2.ph_cover||'', farm1:r2.farm_1||'', plot1:r2.plot_1||'', farm2:r2.farm_2||'', plot2:r2.plot_2||'', cqcExtraFields:r2.cqc_extra_fields||{},
+              phCover:r2.ph_cover||'', farm1:r2.farm_1||'', farm2:r2.farm_2||'',
               cartonType:(config.cartonTypesIdToName&&r2.carton_type_id&&config.cartonTypesIdToName[r2.carton_type_id])||r2.carton_type_id||'',
               qcReportNumber:r2.qc_report_number||'',
               region:(config.countriesIdToName&&r2.country_id&&config.countriesIdToName[r2.country_id])||r2.country_id||'',
@@ -7653,9 +7536,9 @@ function ClientQCMgmt(props){
               tempLogger:r2.temp_logger||'', maxTemp:r2.max_temp||'', qcReportLink:r2.qc_report_link||'',
               photoLink:r2.photo_link||'', cause:r2.cause||'',
               claimedCurrency:r2.claimed_currency||'USD', claimedValue:r2.claimed_value||0,
-              potentialClaim:r2.potential_claim||false, files:(r2.client_qc_files||[]).map(function(f){return {id:f.id,name:f.file_name,url:f.file_url,type:f.file_type};}),
+              potentialClaim:r2.potential_claim||false, files:[],
               matched:r2.matched||false, batchId:r2.inspection_id||null,
-              season:r2.season_id||'', savedAt:r2.created_at||'', productId:r2.product_id||'', cqcExtraFields:r2.cqc_extra_fields||{}
+              season:r2.season_id||'', savedAt:r2.created_at||'', productId:r2.product_id||''
             };
             setReports(function(prev){return prev.map(function(x){return x.id===reportId?freshMapped:x;});});
             setSelRep(reportId);
@@ -7692,37 +7575,7 @@ function ClientQCMgmt(props){
         var pid=selCqcProd||'citrus';
         var secs=(config.cqcDefectSections||{})[pid]||[];
         var sampleRows=cqcSamplesSnapshot.map(function(s,idx){
-          /* compute effective values — auto-fill when only 1 option in header */
-          var _varOpts2=[];
-          if(fVar)_varOpts2.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);
-          fVarsExtra.forEach(function(ve){if(ve.var)_varOpts2.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
-          var _farmOpts2=[];
-          if(fFarm1) _farmOpts2.push({farm:fFarm1,plot:fPlot1});
-          if(fFarm2) _farmOpts2.push({farm:fFarm2,plot:fPlot2});
-          fFarmsExtra.forEach(function(fe){if(fe.farm)_farmOpts2.push({farm:fe.farm,plot:fe.plot||''});});
-          var _phOpts2=[];
-          if(fPH) _phOpts2.push(fPH);
-          fPHExtra.forEach(function(pe){if(pe.actual)_phOpts2.push(pe.actual);});
-          var _effVar=(function(){
-            if(!s.sampleVariety){
-              /* Auto-fill when single option */
-              return _varOpts2.length===1?_varOpts2[0]:'';
-            }
-            /* Normalize reversed mixed variety — "Flame / Prime" → "Prime / Flame" if that's the header order */
-            if(s.sampleVariety.indexOf(' / ')>=0){
-              var parts=s.sampleVariety.split(' / ');
-              var reversed=parts[1]+' / '+parts[0];
-              if(_varOpts2.indexOf(s.sampleVariety)>=0) return s.sampleVariety;
-              if(_varOpts2.indexOf(reversed)>=0) return reversed;
-            }
-            return s.sampleVariety;
-          })();
-          var _effFarmObj=(_farmOpts2.find(function(f){return f.farm===s.sampleFarm;})||(_farmOpts2.length===1?_farmOpts2[0]:null));
-          var _effFarm=s.sampleFarm||(_farmOpts2.length===1?_farmOpts2[0].farm:'');
-          var _effPlot=s.samplePlot||(_effFarmObj?_effFarmObj.plot:'');
-          var _effPH=s.samplePH||(_phOpts2.length===1?_phOpts2[0]:'');
-          var _effTrace=s.sampleTraceCode||(function(){var tc=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);return tc.length===1?tc[0]:'';})();
-          return {client_qc_report_id:reportId,sample_number:idx+1,sample_type:s.sampleType||'sample_readings',notes:s.notes||null,score:s.score||null,brix:s.brix?parseFloat(s.brix):null,brix_issue:s.brixIssue||false,avg_size:s.avgSize?parseFloat(s.avgSize):null,size_issue:s.sizeIssue||false,carton_issue:s.cartonIssue||false,disputed:s.disputed||false,dispute_note:s.disputeNote||null,sample_variety_id:(function(){if(!_effVar)return null;var parts=_effVar.split(' / ');return (config.varietiesIdMap&&config.varietiesIdMap[parts[0].trim()])||null;})(),sample_variety2_id:(function(){if(!_effVar||_effVar.indexOf(' / ')<0)return null;var parts=_effVar.split(' / ');return (config.varietiesIdMap&&config.varietiesIdMap[parts[1].trim()])||null;})(),sample_variety_text:_effVar||null,sample_farm:_effFarm||null,sample_plot:_effPlot||null,sample_farm2:s.sampleFarm2||null,sample_plot2:s.samplePlot2||null,sample_ph:_effPH||null,sample_trace_code:_effTrace||null};
+          return {client_qc_report_id:reportId,sample_number:idx+1,sample_type:s.sampleType||'sample_readings',notes:s.notes||null,score:s.score||null,brix_issue:s.brixIssue||false,avg_size:s.avgSize?parseFloat(s.avgSize):null,size_issue:s.sizeIssue||false,sample_variety_id:(config.varietiesIdMap&&s.sampleVariety&&config.varietiesIdMap[s.sampleVariety])||null};
         });
         supabase.from('cqc_sample_rows').insert(sampleRows).select().then(function(sr){
           if(sr.error||!sr.data){console.error('[DalOS] CQC sample rows error:',sr.error&&sr.error.message);return;}
@@ -7744,7 +7597,24 @@ function ClientQCMgmt(props){
         });
       });
     }).catch(function(e){console.error('[DalOS] CQC save failed:',e);});
-
+    /* ── Save file records to client_qc_files (files already uploaded to storage) ── */
+    var allFiles=uploadedFiles.filter(function(f){return f.storagePath&&f.fileUrl;});
+    if(allFiles.length>0&&isNew){
+      /* For new reports, insert all file records now that we have the reportId */
+      var fileRecords=allFiles.map(function(f){
+        /* Fix path to use actual reportId instead of 'pending-...' */
+        return {
+          client_qc_report_id:reportId,
+          file_name:f.name,
+          file_url:f.fileUrl,
+          file_type:f.type
+        };
+      });
+      supabase.from('client_qc_files').insert(fileRecords).then(function(r){
+        if(r.error) console.error('[DalOS] client_qc_files insert error:',r.error.message);
+        else console.log('[DalOS] Files saved:',fileRecords.length);
+      });
+    }
   }
 
   /* score color */
@@ -7829,68 +7699,6 @@ function ClientQCMgmt(props){
                 ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:14},onClick:function(){removeFile(i);}},'\u00d7')
               );
             })
-          ),
-
-          /* ── QC REPORT LINK ── */
-          ce('div',{style:{marginTop:10,borderTop:'1px solid var(--border)',paddingTop:10}},
-            ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.05em'}},'Or add report link'),
-            ce('div',{style:{display:'flex',gap:8,alignItems:'center'}},
-              ce('input',{className:'form-input',value:fQCLink,onChange:function(e){setQCLink(e.target.value);},placeholder:'https://drive.google.com/... (Google Drive, OneDrive, Dropbox…)',style:{flex:1}}),
-              fQCLink&&ce('a',{href:fQCLink,target:'_blank',style:{flexShrink:0,fontSize:12,color:'var(--accent)',textDecoration:'none',display:'inline-flex',alignItems:'center',gap:4,padding:'6px 10px',border:'1px solid var(--accent)',borderRadius:6}},
-                '↗ Open'
-              )
-            )
-          ),
-
-          /* ── PASTE TEXT ALTERNATIVE ── */
-          ce('div',{style:{marginTop:10,borderTop:'1px solid var(--border)',paddingTop:10}},
-            ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.05em'}},'Or paste report text'),
-            ce('textarea',{
-              style:{width:'100%',minHeight:72,padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:12,fontFamily:'var(--font-mono)',color:'var(--text)',background:'var(--bg2)',resize:'vertical',lineHeight:1.5},
-              placeholder:'Paste the text content from the client QC report here (copy from PDF)...',
-              value:cqcPasteText,
-              onChange:function(e){setCqcPasteText(e.target.value);setCqcPasteStatus('idle');setCqcPasteFields(null);}
-            }),
-            ce('div',{style:{display:'flex',alignItems:'center',gap:8,marginTop:6}},
-              ce('button',{
-                className:'btn btn-primary btn-sm',
-                disabled:!cqcPasteText.trim()||cqcPasteStatus==='loading',
-                onClick:runPasteExtract
-              },cqcPasteStatus==='loading'?'\u23f3 Extracting...':'\u2728 Extract fields'),
-              cqcPasteStatus==='done'&&ce('span',{style:{fontSize:12,color:'var(--green)',fontWeight:500}},'\u2713 Fields extracted \u2014 review below'),
-              cqcPasteStatus==='applied'&&ce('span',{style:{fontSize:12,color:'var(--green)',fontWeight:500}},'\u2713 Applied to form'),
-              cqcPasteStatus==='error'&&ce('span',{style:{fontSize:12,color:'var(--red)'}},'Error: '+cqcPasteErr)
-            ),
-
-            /* Preview panel */
-            cqcPasteStatus==='done'&&cqcPasteFields&&ce('div',{style:{marginTop:10,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 14px'}},
-              ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:6,marginBottom:10}},
-                (function(){
-                  var f=cqcPasteFields.fields||cqcPasteFields;
-                  var LABELS={container_number:'Container',qc_report_number:'QC ref',lot_number:'Lot #',trace_code:'Trace code',pack_date:'Pack date',load_date:'Load date',harvest_date:'Harvest date',client:'Client',variety:'Variety',brix:'Brix',total_defect:'Total defect',score:'Score',max_temp:'Max temp',temp_logger:'Temp logger',daltex_class:'Daltex class',client_class:'Client class',wax:'Wax'};
-                  return Object.keys(LABELS).map(function(key){
-                    var val=f[key];
-                    var found=val!=null&&val!=='';
-                    return ce('div',{key:key,style:{background:'var(--card)',borderRadius:5,padding:'5px 8px',border:'1px solid '+(found?'var(--green-border)':'var(--border)')}},
-                      ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1,textTransform:'uppercase',letterSpacing:'.04em'}},LABELS[key]),
-                      ce('div',{style:{fontSize:11,fontWeight:found?600:400,color:found?'var(--green)':'var(--text3)',fontFamily:found?'var(--font-mono)':'inherit'}},
-                        found?String(val):'not found')
-                    );
-                  });
-                })()
-              ),
-              /* Sample rows summary */
-              (cqcPasteFields.samples||[]).length>0&&ce('div',{style:{borderTop:'1px solid var(--border)',paddingTop:8,marginBottom:10}},
-                ce('div',{style:{fontSize:12,color:'var(--text2)',fontWeight:500,marginBottom:4}},
-                  '\u2713 '+cqcPasteFields.samples.length+' sample rows extracted'
-                ),
-                (cqcPasteFields.samples||[]).filter(function(s){return (s.low_confidence||[]).length>0;}).length>0&&
-                  ce('div',{style:{fontSize:11,color:'var(--amber)'}},
-                    '\u26a0 Low confidence matches in some rows \u2014 check notes after applying'
-                  )
-              ),
-              ce('button',{className:'btn btn-primary btn-sm',onClick:function(){applyPasteFields(cqcPasteFields);}},'\u2713 Apply to form')
-            )
           )
         ),
 
@@ -7903,7 +7711,7 @@ function ClientQCMgmt(props){
               ce('input',{className:'form-input',value:fContainer,onChange:function(e){setContainer(e.target.value.toUpperCase());},placeholder:'e.g. MNBU 3564353',style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600}})
             ),
             fi('QC Report Number',fQCRef,setQCRef),
-            selCqcProd!=='grapes'&&fi('Lot #',fLot,setLot)
+            fi('Lot #',fLot,setLot)
           ),
           matchedBatch&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:8,padding:'10px 14px',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}},
             [['Batch',matchedBatch.id],['Variety',matchedBatch.variety],['Date',matchedBatch.date],['Internal defect',matchedBatch.totalDefect.toFixed(1)+'%'],['Client',matchedBatch.client],['Farm',matchedBatch.farm],['Decision',matchedBatch.decision==='A'?'Accept':'Reject'],['Status',matchedBatch.status]].map(function(item){
@@ -7927,8 +7735,8 @@ function ClientQCMgmt(props){
                 ce('span',{style:{fontSize:11,color:'var(--text3)',marginLeft:4}},'(locked)')
               )
             ),
-            selCqcProd!=='grapes'&&fi('Category',fCat,function(v){setFCat(v);setVar('');},((config.categories||{})[selCqcProd]||[]).map(function(c){return c.name;}),true),
-            selCqcProd!=='grapes'&&fi('Variety',fVar,function(selectedName){
+            fi('Category',fCat,function(v){setFCat(v);setVar('');},((config.categories||{})[selCqcProd]||[]).map(function(c){return c.name;}),true),
+            fi('Variety',fVar,function(selectedName){
               setVar(selectedName);
               var allVars=(config.varietiesFull||{})[selCqcProd]||[];
               var found=allVars.find(function(v){return v.name===selectedName;});
@@ -7945,215 +7753,51 @@ function ClientQCMgmt(props){
             fi('Daltex class',fDaltexCls,setDaltexCls,(config.classes||[])),
             fi('Client class',fClientCls,setClientCls,null)
           ),
-          /* ── Grapes: variety slots ── */
-          selCqcProd==='grapes'&&ce('div',{style:{marginBottom:10}},
-            /* Slot 1 — always present */
-            ce('div',{style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',marginBottom:6}},
-              ce('div',{style:{background:'var(--bg2)',padding:'7px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}},
-                ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
-                  ce('div',{style:{width:22,height:22,borderRadius:'50%',background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600,color:'#fff',flexShrink:0}},'1'),
-                  ce('span',{style:{fontSize:12,fontWeight:600,color:'var(--text)'}},'Variety 1')
-                ),
-                ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
-                  ['single','mixed'].map(function(t){
-                    return ce('button',{key:t,type:'button',
-                      style:{padding:'3px 12px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
-                        background:fVarType===t?'var(--accent)':'transparent',
-                        color:fVarType===t?'#fff':'var(--text3)'},
-                      onClick:function(){setVarType(t);if(t==='single'){setVar2('');setFCat2('');}}
-                    },t==='single'?'Single':'Mixed');
-                  })
+          /* ── Grapes only: variety type + second variety ── */
+          selCqcProd==='grapes'&&ce('div',{style:{marginBottom:10,padding:'10px 14px',background:'var(--bg2)',borderRadius:8,border:'1px solid var(--border)'}},
+            ce('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:fVarType==='mixed'?12:0}},
+              ce('div',{style:{fontSize:12,fontWeight:600,color:'var(--text2)',marginRight:4}},'Variety type:'),
+              ['single','mixed'].map(function(t){
+                return ce('button',{key:t,type:'button',
+                  style:{padding:'4px 14px',borderRadius:20,border:'1.5px solid '+(fVarType===t?'var(--accent)':'var(--border2)'),
+                    background:fVarType===t?'var(--accent)':'transparent',color:fVarType===t?'#fff':'var(--text2)',
+                    fontSize:12,fontWeight:600,cursor:'pointer'},
+                  onClick:function(){setVarType(t);if(t==='single'){setVar2('');setFCat2('');}}
+                },t==='single'?'Single variety':'Mixed varieties');
+              })
+            ),
+            fVarType==='mixed'&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+              ce('div',{className:'form-field',style:{marginBottom:0}},
+                ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2 — Category'),
+                ce('select',{className:'form-select',value:fCat2,onChange:function(e){setFCat2(e.target.value);setVar2('');}},
+                  ce('option',{value:''},'— All —'),
+                  ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
                 )
               ),
-              ce('div',{style:{padding:'10px 12px'}},
-                ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:fVarType==='mixed'?8:0}},
-                  ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Category'),
-                    ce('select',{className:'form-select',value:fCat,onChange:function(e){setFCat(e.target.value);setVar('');}},
-                      ce('option',{value:''},'— All —'),
-                      ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
-                    )
-                  ),
-                  ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Variety'),
-                    ce('select',{className:'form-select',value:fVar,onChange:function(e){
-                      var name=e.target.value;setVar(name);
-                      var allVars=(config.varietiesFull||{})[selCqcProd]||[];
-                      var found=allVars.find(function(v){return v.name===name;});
-                      if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat(cn);}
-                    }},
-                      ce('option',{value:''},'— Select —'),
-                      (function(){var allVars=(config.varietiesFull||{})[selCqcProd]||[];var catId=fCat?(config.categoriesIdMap||{})[fCat]:null;var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});})()
-                    )
-                  )
-                ),
-                fVarType==='mixed'&&ce('div',{style:{padding:'8px 10px',background:'var(--bg2)',borderRadius:6,border:'1px solid var(--border)'}},
-                  ce('div',{style:{fontSize:10,fontWeight:500,color:'#0F6E56',marginBottom:6}},'⊕ Mixed with'),
-                  ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
-                    ce('div',{className:'form-field',style:{marginBottom:0}},
-                      ce('label',{className:'form-label',style:{fontSize:10}},'Category'),
-                      ce('select',{className:'form-select',value:fCat2,onChange:function(e){setFCat2(e.target.value);setVar2('');}},
-                        ce('option',{value:''},'— All —'),
-                        ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
-                      )
-                    ),
-                    ce('div',{className:'form-field',style:{marginBottom:0}},
-                      ce('label',{className:'form-label',style:{fontSize:10}},'Variety'),
-                      ce('select',{className:'form-select',value:fVar2,onChange:function(e){
-                        var name=e.target.value;setVar2(name);
-                        var allVars=(config.varietiesFull||{})[selCqcProd]||[];
-                        var found=allVars.find(function(v){return v.name===name;});
-                        if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat2(cn);}
-                      }},
-                        ce('option',{value:''},'— Select —'),
-                        (function(){var allVars=(config.varietiesFull||{})[selCqcProd]||[];var catId=fCat2?(config.categoriesIdMap||{})[fCat2]:null;var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});})()
-                      )
-                    )
-                  ),
-                  ce('div',{style:{marginTop:5,fontSize:10,color:'var(--text3)'}},'Sampled together — readings averaged across the mix')
+              ce('div',{className:'form-field',style:{marginBottom:0}},
+                ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2'),
+                ce('select',{className:'form-select',value:fVar2,onChange:function(e){
+                  var name=e.target.value; setVar2(name);
+                  var allVars=(config.varietiesFull||{})[selCqcProd]||[];
+                  var found=allVars.find(function(v){return v.name===name;});
+                  if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat2(cn);}
+                }},
+                  ce('option',{value:''},'— Select —'),
+                  (function(){
+                    var allVars=(config.varietiesFull||{})[selCqcProd]||[];
+                    var catId=fCat2?(config.categoriesIdMap||{})[fCat2]:null;
+                    var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
+                    return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});
+                  })()
                 )
-              )
-            ),
-            /* Extra variety slots (2+) */
-            fVarsExtra.map(function(ve,i){
-              var allVars=(config.varietiesFull||{})[selCqcProd]||[];
-              var catId=ve.cat?(config.categoriesIdMap||{})[ve.cat]:null;
-              var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
-              var catId2=ve.cat2?(config.categoriesIdMap||{})[ve.cat2]:null;
-              var filtered2=catId2?allVars.filter(function(v){return v.categoryId===catId2;}):allVars;
-              return ce('div',{key:'ve'+i,style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',marginBottom:6}},
-                ce('div',{style:{background:'var(--bg2)',padding:'7px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}},
-                  ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
-                    ce('div',{style:{width:22,height:22,borderRadius:'50%',background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600,color:'#fff',flexShrink:0}},i+2),
-                    ce('span',{style:{fontSize:12,fontWeight:600,color:'var(--text)'}},'Variety '+(i+2))
-                  ),
-                  ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
-                    ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
-                      ['single','mixed'].map(function(t){
-                        return ce('button',{key:t,type:'button',
-                          style:{padding:'3px 12px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
-                            background:ve.type===t?'var(--accent)':'transparent',
-                            color:ve.type===t?'#fff':'var(--text3)'},
-                          onClick:function(idx,type){return function(){updateVarExtra(idx,'type',type);if(type==='single'){updateVarExtra(idx,'cat2','');updateVarExtra(idx,'var2','');}};}(i,t)
-                        },t==='single'?'Single':'Mixed');
-                      })
-                    ),
-                    ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,lineHeight:1,padding:'0 2px'},onClick:function(idx){return function(){removeVarExtra(idx);};}(i)},'×')
-                  )
-                ),
-                ce('div',{style:{padding:'10px 12px'}},
-                  ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:ve.type==='mixed'?8:0}},
-                    ce('div',{className:'form-field',style:{marginBottom:0}},
-                      ce('label',{className:'form-label'},'Category'),
-                      ce('select',{className:'form-select',value:ve.cat||'',onChange:function(idx){return function(e){updateVarExtra(idx,'cat',e.target.value);};}(i)},
-                        ce('option',{value:''},'— All —'),
-                        ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
-                      )
-                    ),
-                    ce('div',{className:'form-field',style:{marginBottom:0}},
-                      ce('label',{className:'form-label'},'Variety'),
-                      ce('select',{className:'form-select',value:ve.var||'',onChange:function(idx){return function(e){updateVarExtra(idx,'var',e.target.value);};}(i)},
-                        ce('option',{value:''},'— Select —'),
-                        filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
-                      )
-                    )
-                  ),
-                  ve.type==='mixed'&&ce('div',{style:{padding:'8px 10px',background:'var(--bg2)',borderRadius:6,border:'1px solid var(--border)'}},
-                    ce('div',{style:{fontSize:10,fontWeight:500,color:'#0F6E56',marginBottom:6}},'⊕ Mixed with'),
-                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
-                      ce('div',{className:'form-field',style:{marginBottom:0}},
-                        ce('label',{className:'form-label',style:{fontSize:10}},'Category'),
-                        ce('select',{className:'form-select',value:ve.cat2||'',onChange:function(idx){return function(e){updateVarExtra(idx,'cat2',e.target.value);};}(i)},
-                          ce('option',{value:''},'— All —'),
-                          ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
-                        )
-                      ),
-                      ce('div',{className:'form-field',style:{marginBottom:0}},
-                        ce('label',{className:'form-label',style:{fontSize:10}},'Variety'),
-                        ce('select',{className:'form-select',value:ve.var2||'',onChange:function(idx){return function(e){updateVarExtra(idx,'var2',e.target.value);};}(i)},
-                          ce('option',{value:''},'— Select —'),
-                          filtered2.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
-                        )
-                      )
-                    ),
-                    ce('div',{style:{marginTop:5,fontSize:10,color:'var(--text3)'}},'Sampled together — readings averaged across the mix')
-                  )
-                )
-              );
-            }),
-            ce('button',{className:'btn btn-secondary btn-sm',style:{width:'100%',marginTop:2},onClick:addVarExtra},'+ Add variety')
-          ),
-                    /* Packhouses + Farms */
-          ce('div',{style:{marginBottom:10}},
-            ce('div',{className:'grid4',style:{marginBottom:6}},
-              fi('Packhouse (actual)',fPH,setPH,(config.packhouses||[]).map(function(p){return p.name;}),true),
-              fi('Packhouse (cover)',fPhCover,setPhCover,(config.packhouses||[]).map(function(p){return p.name;}),true),
-              /* Farm 1 + Plot 1 */
-              ce('div',{className:'form-field'},
-                ce('label',{className:'form-label'},'Farm / Raw source 1'),
-                ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}},
-                  ce('select',{className:'form-select',value:fFarm1,onChange:function(e){setFarm1(e.target.value);}},
-                    ce('option',{value:''},'— Select —'),
-                    (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
-                  ),
-                  ce('input',{className:'form-input',value:fPlot1,onChange:function(e){setPlot1(e.target.value);},placeholder:'Plot'})
-                )
-              ),
-              /* Farm 2 + Plot 2 */
-              ce('div',{className:'form-field'},
-                ce('label',{className:'form-label'},'Farm / Raw source 2'),
-                ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}},
-                  ce('select',{className:'form-select',value:fFarm2,onChange:function(e){setFarm2(e.target.value);}},
-                    ce('option',{value:''},'— Select —'),
-                    (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
-                  ),
-                  ce('input',{className:'form-input',value:fPlot2,onChange:function(e){setPlot2(e.target.value);},placeholder:'Plot'})
-                )
-              )
-            ),
-            /* Grapes: extra packhouses and farms */
-            selCqcProd==='grapes'&&ce('div',null,
-              /* Extra packhouses — actual + cover per row */
-              fPHExtra.map(function(ph,i){
-                return ce('div',{key:'ph'+i,style:{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:6,marginBottom:6,alignItems:'end'}},
-                  ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Packhouse actual '+(i+2)),
-                    ce('select',{className:'form-select',value:ph.actual||'',onChange:function(idx){return function(e){updatePHExtra(idx,'actual',e.target.value);};}(i)},
-                      ce('option',{value:''},'— Select —'),
-                      (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
-                    )
-                  ),
-                  ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Packhouse cover '+(i+2)),
-                    ce('select',{className:'form-select',value:ph.cover||'',onChange:function(idx){return function(e){updatePHExtra(idx,'cover',e.target.value);};}(i)},
-                      ce('option',{value:''},'— Select —'),
-                      (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
-                    )
-                  ),
-                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removePHExtra(idx);};}(i)},'×')
-                );
-              }),
-              /* Extra farms */
-              fFarmsExtra.map(function(fe,i){
-                return ce('div',{key:'frm'+i,style:{display:'grid',gridTemplateColumns:'1fr auto',gap:6,marginBottom:6,alignItems:'end'}},
-                  ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Farm / Raw source '+(i+3)),
-                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}},
-                      ce('select',{className:'form-select',value:fe.farm||'',onChange:function(idx){return function(e){updateFarmExtra(idx,'farm',e.target.value);};}(i)},
-                        ce('option',{value:''},'— Select —'),
-                        (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
-                      ),
-                      ce('input',{className:'form-input',value:fe.plot||'',onChange:function(idx){return function(e){updateFarmExtra(idx,'plot',e.target.value);};}(i),placeholder:'Plot'})
-                    )
-                  ),
-                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removeFarmExtra(idx);};}(i)},'×')
-                );
-              }),
-              ce('div',{style:{display:'flex',gap:8,marginTop:4}},
-                ce('button',{className:'btn btn-secondary btn-sm',onClick:addPHExtra},'+ Packhouse'),
-                ce('button',{className:'btn btn-secondary btn-sm',onClick:addFarmExtra},'+ Farm')
               )
             )
+          ),
+          ce('div',{className:'grid4',style:{marginBottom:10}},
+            fi('Packhouse (actual)',fPH,setPH,(config.packhouses||[]).map(function(p){return p.name;}),true),
+            fi('Packhouse (cover)',fPhCover,setPhCover,(config.packhouses||[]).map(function(p){return p.name;}),true),
+            fi('Farm / Raw source 1',fFarm1,setFarm1,(config.farms||[]),true),
+            fi('Farm / Raw source 2',fFarm2,setFarm2,(config.farms||[]),true)
           ),
           ce('div',{className:'grid4',style:{marginBottom:10}},
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Client'),
@@ -8167,7 +7811,7 @@ function ClientQCMgmt(props){
               })()
             ),
             fi('Region / Destination',fRegion,setRegion,(config.countries||[]),true),
-            selCqcProd!=='grapes'&&fi('Wax type',fWax,setWax,WAX_CODES.map(function(w){return w.code;}))
+            fi('Wax type',fWax,setWax,WAX_CODES.map(function(w){return w.code;}))
           ),
           ce('div',{className:'grid4',style:{marginBottom:10}},
             fi('Loading date',fLoadDate,setLoadDate,null,false,'date'),
@@ -8175,37 +7819,10 @@ function ClientQCMgmt(props){
             fi('Harvest date',fHarvDate,setHarvDate,null,false,'date'),
             fi('Carton type',fCartonType,setCartonType,(config.cartonTypes||[]),true)
           ),
-          ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}},
+          ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}},
+            fi('Traceability code',fTrace,setTrace),
             fi('Sticker picture available?',fSticker,setSticker,['Yes','No']),
             fi('Temp data logger',fTempLogger,setTempLogger,['OK','NOT OK','N/A'])
-          )
-        ),
-
-        /* TRACEABILITY CODES */
-        ce('div',{className:'card',style:{marginBottom:12}},
-          ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
-            ce('div',{className:'section-title',style:{marginBottom:0}},
-              ce('div',{className:'section-title-bar',style:{background:'#3a7a8a'}}),
-              'Traceability codes'
-            ),
-            ce('button',{className:'btn btn-secondary btn-sm',onClick:addTraceCode},'+ Add code')
-          ),
-          /* Primary code */
-          ce('div',{style:{display:'flex',gap:8,alignItems:'flex-end',flexWrap:'wrap'}},
-            ce('div',{className:'form-field',style:{marginBottom:0,minWidth:220}},
-              ce('label',{className:'form-label'},'Traceability code 1'),
-              ce('input',{className:'form-input',value:fTrace,onChange:function(e){setTrace(e.target.value);},placeholder:'e.g. 25103002416...',style:{fontFamily:'var(--font-mono)'}})
-            ),
-            /* Extra codes */
-            fTraceCodes.map(function(tc,i){
-              return ce('div',{key:'tc'+i,style:{display:'flex',gap:4,alignItems:'flex-end'}},
-                ce('div',{className:'form-field',style:{marginBottom:0,minWidth:220}},
-                  ce('label',{className:'form-label'},'Traceability code '+(i+2)),
-                  ce('input',{className:'form-input',value:tc.code,onChange:function(idx){return function(e){updateTraceCode(idx,e.target.value);};}(i),placeholder:'e.g. 25103002416...',style:{fontFamily:'var(--font-mono)'}})
-                ),
-                ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removeTraceCode(idx);};}(i)},'×')
-              );
-            })
           )
         ),
 
@@ -8233,471 +7850,22 @@ function ClientQCMgmt(props){
           )
         ),
 
-        /* ── Tooltip overlay ── */
-        tipState.v&&ce('div',{style:{
-          position:'fixed',zIndex:99999,
-          left:tipState.x,top:tipState.y-8,
-          transform:'translate(-50%,-100%)',
-          background:'#1a1a2e',color:'#fff',
-          fontSize:11,fontWeight:400,fontStyle:'normal',textTransform:'none',letterSpacing:'.01em',
-          padding:'4px 10px',borderRadius:5,whiteSpace:'nowrap',pointerEvents:'none',
-          boxShadow:'0 2px 8px rgba(0,0,0,.3)'
-        }},
-          tipState.text,
-          ce('div',{style:{
-            position:'absolute',top:'100%',left:'50%',transform:'translateX(-50%)',
-            borderLeft:'4px solid transparent',borderRight:'4px solid transparent',
-            borderTop:'4px solid #1a1a2e',width:0,height:0
-          }})
-        ),
         /* ── CQC SAMPLE READINGS ── */
-        ce('div',{className:'card',style:{marginBottom:12,padding:0,overflow:'visible'}},
+        ce('div',{className:'card',style:{marginBottom:12,padding:0,overflow:'hidden'}},
           ce('div',{style:{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--bg2)'}},
             ce('div',{className:'section-title',style:{marginBottom:0}},
               ce('div',{className:'section-title-bar',style:{background:'#3a7a4a'}}),
               'Client sample readings'
             ),
-            ce('div',{style:{display:'flex',alignItems:'center',gap:10}},
+            ce('div',{style:{display:'flex',alignItems:'center',gap:12}},
               cqcSamples.length>0&&ce('span',{style:{fontSize:13,color:cqcSamplesReportTotal>10?'var(--red)':cqcSamplesReportTotal>5?'var(--amber)':'var(--green)',fontFamily:'var(--font-mono)',fontWeight:700}},
                 'Total defect: '+cqcSamplesReportTotal.toFixed(2)+'%'
-              ),
-              /* View toggle */
-              ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
-                ['grid','card'].map(function(mode){
-                  var active=cqcViewMode===mode;
-                  return ce('button',{key:mode,
-                    style:{padding:'4px 12px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
-                      background:active?'var(--accent)':'var(--bg2)',
-                      color:active?'#fff':'var(--text3)'},
-                    onClick:function(){setCqcViewMode(mode);}
-                  },mode==='grid'?'\u22ee Grid':'Card');
-                })
               ),
               ce('button',{className:'btn btn-primary btn-sm',onClick:addCqcSample},'+ Add sample')
             )
           ),
           cqcSamples.length===0
             ?ce('div',{style:{padding:'24px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No samples added yet. Click + Add sample to record client sample readings.')
-
-          /* ══ GRID VIEW ══ */
-          :cqcViewMode==='grid'
-          ?(function(){
-            var pid=selCqcProd||'citrus';
-            var secs=(config.cqcDefectSections||{})[pid]||[];
-            var allDefs=secs.reduce(function(arr,sec){return arr.concat((sec.items||[]).map(function(d){return {def:d,sec:sec};}));},[]); 
-            if(allDefs.length===0) return ce('div',{style:{padding:'20px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No CQC defect sections configured for this product.');
-            /* Column widths shared between header and body tables */
-            var colW={hash:52,def:64,total:72,meta:{}};
-            var _metaW={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':200,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
-            /* Build col widths for both tables */
-            var varOpts0=[];if(fVar)varOpts0.push(1);fVarsExtra.forEach(function(ve){if(ve.var)varOpts0.push(1);});
-            var farmOpts0=[];if(fFarm1)farmOpts0.push(1);if(fFarm2)farmOpts0.push(1);fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts0.push(1);});
-            var phOpts0=[];if(fPH)phOpts0.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts0.push(1);});
-            var traceOpts0=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
-            var mW={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Brix':60,'Brix?':50,'Size mm':60,'Size?':50,'Carton?':60,'Score':72,'Notes':150,'Dispute':80};
-            var hasMixed=cqcSamples.some(function(s){return s.sampleVariety&&s.sampleVariety.indexOf(' / ')>=0;})||(fVarType==='mixed'&&fVar2)||fVarsExtra.some(function(ve){return ve.type==='mixed'&&ve.var2;});
-            var hdrs0=[];
-            if(varOpts0.length>0) hdrs0.push('Variety');
-            if(farmOpts0.length>0){hdrs0.push('Farm');hdrs0.push('Plot');if(hasMixed){hdrs0.push('Farm 2');hdrs0.push('Plot 2');}}
-            if(phOpts0.length>0) hdrs0.push('PH');
-            if(traceOpts0.length>0) hdrs0.push('Trace');
-            hdrs0.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes','Dispute');
-            function mkColgroup(){
-              return ce('colgroup',null,
-                ce('col',{style:{width:52}}),
-                allDefs.map(function(item,i){return ce('col',{key:'d'+i,style:{width:64}});}),
-                ce('col',{style:{width:72}}),
-                hdrs0.map(function(h,i){return ce('col',{key:'m'+i,style:{width:mW[h]||60}});}),
-                ce('col',{style:{width:28}})
-              );
-            }
-            var gridOuterId='cqc-go-'+Date.now();
-            function syncGridScroll(e){var h=document.querySelector('#'+gridOuterId+' .cqc-grid-head');var b=document.querySelector('#'+gridOuterId+' .cqc-grid-body');if(h&&b){if(e.target===b)h.scrollLeft=b.scrollLeft;else b.scrollLeft=h.scrollLeft;}}
-            return ce('div',{className:'cqc-grid-outer',id:gridOuterId},
-              /* ── HEADER TABLE (never scrolls) ── */
-              ce('div',{className:'cqc-grid-head',onScroll:syncGridScroll},
-              ce('table',{className:'cqc-grid',style:{width:'100%',fontSize:12,tableLayout:'fixed'}},
-                mkColgroup(),
-                ce('thead',null,
-                  /* Row 1 — section spans + metadata group */
-                  ce('tr',null,
-                    ce('th',{style:{padding:'5px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap',textAlign:'left',minWidth:52}},'#'),
-                    secs.map(function(sec){
-                      var cnt=(sec.items||[]).length;
-                      if(!cnt) return null;
-                      var sName=(sec.section||'').toLowerCase();
-                      var isMajor=sName.includes('major');
-                      var isMinor=sName.includes('minor');
-                      var hBg=isMajor?'#fde8e8':isMinor?'#fef9e0':secBgFor(sec);
-                      var hBorder=isMajor?'#d94f4f':isMinor?'#c49a00':secTextFor(sec);
-                      var hText=isMajor?'#b52828':isMinor?'#7a5a00':secTextFor(sec);
-                      return ce('th',{key:sec.section,colSpan:cnt,
-                        style:{padding:'5px 8px',border:'1px solid var(--border)',borderBottom:'2px solid '+hBorder,
-                          textAlign:'center',fontSize:10,fontWeight:700,
-                          letterSpacing:'.05em',textTransform:'uppercase',
-                          background:hBg,color:hText,whiteSpace:'nowrap',
-                          position:'sticky',top:0,zIndex:3,boxShadow:'0 1px 0 var(--border)'}},
-                        ce('span',{onMouseEnter:function(e){showTip(sec.section,e);},onMouseLeave:hideTip,style:{cursor:'default'}},sec.section));
-                    }),
-                    ce('th',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',whiteSpace:'nowrap',fontWeight:600}},'Total %'),
-                    /* Metadata group header */
-                    (function(){
-                      var varOpts2=[];if(fVar)varOpts2.push(1);if(fVarType==='mixed'&&fVar2)varOpts2.push(1);fVarsExtra.forEach(function(ve){if(ve.var)varOpts2.push(1);});
-                      var farmOpts2=[];if(fFarm1)farmOpts2.push(1);if(fFarm2)farmOpts2.push(1);fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts2.push(1);});
-                      var phOpts2=[];if(fPH)phOpts2.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts2.push(1);});
-                      var traceOpts2b=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
-                      var metaCols=(varOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(farmOpts2.length>0?1:0)+(phOpts2.length>0?1:0)+(traceOpts2b.length>0?1:0)+(hasMixed?2:0)+7+1;
-                      return ce('th',{colSpan:metaCols,style:{padding:'4px 8px',background:'#e8f0f5',border:'1px solid var(--border)',fontSize:10,color:'#3a5a7a',textAlign:'center',fontWeight:700,letterSpacing:'.05em',textTransform:'uppercase',borderBottom:'2px solid #3a5a7a'}},
-                        '✓ Sample details');
-                    })(),
-                    ce('th',{style:{padding:'5px 4px',background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
-                  ),
-                  /* Row 2 — defect names + metadata field names */
-                  ce('tr',null,
-                    ce('th',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'left'}},'Sample'),
-                    allDefs.map(function(item){
-                      var def=item.def; var sec=item.sec;
-                      var sName2=(sec.section||'').toLowerCase();
-                      var isMajor2=sName2.includes('major');
-                      var isMinor2=sName2.includes('minor');
-                      var dBg=isMajor2?'#fff0f0':isMinor2?'#fffdf0':secBgFor(sec);
-                      var dText=isMajor2?'#b52828':isMinor2?'#7a5a00':secTextFor(sec);
-                      return ce('th',{key:def.key,
-                        style:{padding:'3px 5px',border:'1px solid var(--border)',textAlign:'center',fontSize:9,
-                          fontWeight:500,color:dText,background:dBg,
-                          whiteSpace:'normal',width:62,verticalAlign:'bottom'}},
-                        ce('div',{onMouseEnter:function(en){return function(e){showTip(en,e);};}(def.en),onMouseLeave:hideTip,
-                          style:{height:26,overflow:'hidden',lineHeight:1.3,cursor:'default',wordBreak:'break-word',textAlign:'center'}},
-                          def.en));
-                    }),
-                    ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',border:'1px solid var(--border)',fontSize:10,color:'var(--text3)',textAlign:'center',fontWeight:600}},'%'),
-                    /* Metadata column headers */
-                    (function(){
-                      var varOpts=[];if(fVar)varOpts.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
-                      var farmOpts=[];if(fFarm1)farmOpts.push({farm:fFarm1,plot:fPlot1});if(fFarm2)farmOpts.push({farm:fFarm2,plot:fPlot2});fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts.push({farm:fe.farm,plot:fe.plot||''});});
-                      var phOpts=[];if(fPH)phOpts.push(fPH);fPHExtra.forEach(function(pe){if(pe.actual)phOpts.push(pe.actual);});
-                      var hdrs=[];
-                      if(varOpts.length>0) hdrs.push('Variety');
-                      if(farmOpts.length>0){hdrs.push('Farm');hdrs.push('Plot');if(hasMixed){hdrs.push('Farm 2');hdrs.push('Plot 2');}}
-                      if(phOpts.length>0) hdrs.push('PH');
-                      var traceOpts2=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
-                      if(traceOpts2.length>0) hdrs.push('Trace');
-                      hdrs.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes','Dispute');
-                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
-                      return hdrs.map(function(h){var isDisp=h==='Dispute';return ce('th',{key:h,style:{padding:'4px 6px',background:isDisp?'#faeeda':'#f0f5f9',border:'1px solid var(--border)',borderBottom:isDisp?'2px solid #BA7517':'',fontSize:10,color:isDisp?'#633806':'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h);});
-                    })(),
-                    ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
-                  )
-                )
-              )),
-              /* ── BODY TABLE (scrolls vertically) ── */
-              ce('div',{className:'cqc-grid-body',onScroll:syncGridScroll},
-              ce('table',{className:'cqc-grid',style:{width:'100%',fontSize:12,tableLayout:'fixed'}},
-                mkColgroup(),
-                ce('tbody',null,
-                  cqcSamples.map(function(sample,si){
-                    var sTotal=cqcSampleTotal(sample);
-                    var totalColor=sTotal>10?'var(--red)':sTotal>5?'var(--amber)':'var(--green)';
-                    /* Build options */
-                    var varOpts=[];if(fVar)varOpts.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
-                    var farmOpts=[];if(fFarm1)farmOpts.push({farm:fFarm1,plot:fPlot1});if(fFarm2)farmOpts.push({farm:fFarm2,plot:fPlot2});fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts.push({farm:fe.farm,plot:fe.plot||''});});
-                    var phOpts=[];if(fPH)phOpts.push(fPH);fPHExtra.forEach(function(pe){if(pe.actual)phOpts.push(pe.actual);});
-                    var selFarmName=farmOpts.length===1?farmOpts[0].farm:sample.sampleFarm;
-                    var farmMatches=selFarmName?farmOpts.filter(function(f){return f.farm===selFarmName;}):[];
-                    var plots=farmMatches.map(function(f){return f.plot||'';}).filter(Boolean);
-                    var isMixedSample=sample.sampleVariety&&sample.sampleVariety.indexOf(' / ')>=0;
-                    var tdMeta={padding:0,border:'1px solid var(--border)'};
-                    var selSt={width:'100%',border:'none',background:'transparent',fontSize:11,padding:'3px 4px',fontFamily:'var(--font-sans)',color:'var(--text)'};
-                    var inSt={width:'100%',border:'none',background:'transparent',fontSize:11,padding:'3px 4px',fontFamily:'var(--font-sans)',color:'var(--text)',outline:'none'};
-                    return ce('tr',{key:sample.id,style:{background:si%2===0?'var(--card)':'var(--bg2)'}},
-                      /* # + duplicate */
-                      ce('td',{style:{padding:'2px 4px',border:'1px solid var(--border)',whiteSpace:'nowrap',textAlign:'center'}},
-                        ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:3}},
-                          ce('span',{style:{fontWeight:600,fontSize:12,minWidth:14,textAlign:'center'}},sample.sampleNumber),
-                          ce('button',{
-                            title:'Duplicate row below',
-                            style:{background:'none',border:'0.5px solid var(--border2)',borderRadius:4,cursor:'pointer',color:'var(--text3)',fontSize:10,fontWeight:600,lineHeight:1,padding:'2px 5px',flexShrink:0,fontFamily:'var(--font-sans)',letterSpacing:'-.01em'},
-                            onMouseEnter:function(e){e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';},
-                            onMouseLeave:function(e){e.currentTarget.style.borderColor='var(--border2)';e.currentTarget.style.color='var(--text3)';},
-                            onClick:function(idx){return function(){duplicateCqcSample(idx);};}(si)
-                          },'+▤')
-                        )
-                      ),
-                      /* Defect cells */
-                      allDefs.map(function(item){
-                        var def=item.def;
-                        var v=(sample.defects||{})[def.key]||'0';
-                        var vNum=parseFloat(v)||0;
-                        var isCrit=def.sev==='Critical';
-                        var over=isCrit?vNum>0:vNum>3;
-                        return ce('td',{key:def.key,style:{padding:0,border:'1px solid var(--border)'}},
-                          ce('input',{
-                            type:'number',step:'0.1',min:'0',value:v,
-                            style:{width:52,border:'none',background:over?'var(--red-bg)':'transparent',
-                              color:over?'var(--red)':'var(--text)',textAlign:'right',
-                              fontFamily:'var(--font-mono)',fontSize:12,padding:'4px 5px',display:'block',outline:'none'},
-                            onChange:function(idx,key){return function(e){updateCqcSampleDefect(idx,key,e.target.value);};}(si,def.key),
-                            'data-row':si,'data-col':allDefs.indexOf(item),
-                            onFocus:function(e){e.target.select();},
-                            onKeyDown:function(e){
-                              var isTab=e.key==='Tab';
-                              var isAltEnter=e.key==='Enter'&&e.altKey;
-                              if(isTab||isAltEnter){
-                                e.preventDefault();
-                                var row=parseInt(e.target.getAttribute('data-row'));
-                                var col=parseInt(e.target.getAttribute('data-col'));
-                                var numCols=allDefs.length;
-                                var target;
-                                if(isTab){
-                                  /* Tab — move right, wrap to next row */
-                                  if(col<numCols-1){
-                                    target=document.querySelector('table.cqc-grid input[data-row="'+row+'"][data-col="'+(col+1)+'"]');
-                                  } else {
-                                    target=document.querySelector('table.cqc-grid input[data-row="'+(row+1)+'"][data-col="0"]');
-                                  }
-                                } else {
-                                  /* Alt+Enter — move down same col */
-                                  target=document.querySelector('table.cqc-grid input[data-row="'+(row+1)+'"][data-col="'+col+'"]');
-                                  if(!target) target=document.querySelector('table.cqc-grid input[data-row="0"][data-col="'+col+'"]');
-                                }
-                                if(target) target.focus();
-                              }
-                            }
-                          })
-                        );
-                      }),
-                      /* Row total */
-                      ce('td',{style:{padding:'4px 6px',border:'1px solid var(--border)',textAlign:'center',fontFamily:'var(--font-mono)',fontWeight:700,fontSize:12,color:totalColor,whiteSpace:'nowrap'}},
-                        sTotal>0?sTotal.toFixed(2)+'%':'—'
-                      ),
-                      /* Variety */
-                      varOpts.length>0&&ce('td',{style:tdMeta},
-                        (function(){
-                          var sv=sample.sampleVariety||'';
-                          /* Normalize reversed mixed variety order */
-                          if(sv&&varOpts.indexOf(sv)<0&&sv.indexOf(' / ')>=0){
-                            var p=sv.split(' / '),rev=p[1]+' / '+p[0];
-                            if(varOpts.indexOf(rev)>=0) sv=rev;
-                          }
-                          /* Render variety with color coding for mixed */
-                          function renderVarietyLabel(v){
-                            if(!v) return ce('span',{style:{padding:'3px 4px',fontSize:11,color:'var(--text3)',display:'block'}},'—');
-                            var parts=v.split(' / ');
-                            if(parts.length===2) return ce('span',{style:{padding:'3px 4px',fontSize:11,display:'flex',gap:2,alignItems:'center',whiteSpace:'nowrap'}},
-                              ce('span',{style:{background:'#fef0dc',color:'#b56a00',borderRadius:3,padding:'1px 4px',fontSize:10,fontWeight:600}},parts[0]),
-                              ce('span',{style:{color:'var(--text3)',fontSize:9}},'×'),
-                              ce('span',{style:{background:'#e8f0fd',color:'#2848b5',borderRadius:3,padding:'1px 4px',fontSize:10,fontWeight:600}},parts[1])
-                            );
-                            return ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},v);
-                          }
-                          if(varOpts.length===1) return renderVarietyLabel(varOpts[0]);
-                          /* allVarOpts: includes stale value as first option when it doesn't match current header */
-                          var allVarOpts=sv&&varOpts.indexOf(sv)<0?[sv].concat(varOpts):varOpts;
-                          /* For mixed — show badge only, clicking opens a mini select overlay */
-                          if(sv&&sv.indexOf(' / ')>=0) return ce('div',{style:{padding:'2px 3px',position:'relative'}},
-                            renderVarietyLabel(sv),
-                            ce('select',{style:{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0,cursor:'pointer'},value:sv,onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
-                              ce('option',{value:''},'—'),varOpts.map(function(v){return ce('option',{key:v,value:v},v);})));
-                          return ce('select',{style:Object.assign({},selSt,allVarOpts.length>varOpts.length?{color:'#b56a00'}:{}),value:sv,onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
-                            ce('option',{value:''},'—'),
-                            allVarOpts.length>varOpts.length&&ce('option',{value:sv,style:{color:'#b56a00'}},'⚠ '+sv+' (old)'),
-                            varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
-                          );
-                        })()
-                      ),
-                      /* Farm 1 — red tint if mixed */
-                      farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,isMixedSample?{borderLeft:'2px solid #d07000'}:{})},
-                        farmOpts.length===1
-                          ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},farmOpts[0].farm)
-                          :ce('select',{style:selSt,value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
-                            var sel=e.target.value;updateCqcSampleField(idx,'sampleFarm',sel);
-                            var m=fo.filter(function(f){return f.farm===sel;});
-                            if(m.length===1&&m[0].plot)updateCqcSampleField(idx,'samplePlot',m[0].plot);else updateCqcSampleField(idx,'samplePlot','');
-                          };}(si,farmOpts)},
-                            ce('option',{value:''},'—'),
-                            farmOpts.map(function(f,fi){return ce('option',{key:f.farm+fi,value:f.farm},f.farm);})
-                          )
-                      ),
-                      /* Plot 1 — red tint if mixed */
-                      farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,{})},
-                        plots.length===1
-                          ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},plots[0])
-                          :plots.length>1
-                            ?ce('select',{style:selSt,value:sample.samplePlot||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)},
-                                ce('option',{value:''},'—'),plots.map(function(p){return ce('option',{key:p,value:p},p);}))
-                            :ce('span',{style:{padding:'3px 4px',fontSize:11,color:'var(--text3)',display:'block'}},'—')
-                      ),
-                      /* Farm 2 — blue tint */
-                      hasMixed&&farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,{borderLeft:'2px solid #2848b5'})},
-                        farmOpts.length===1
-                          ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},farmOpts[0].farm)
-                          :ce('select',{style:selSt,value:sample.sampleFarm2||'',onChange:function(idx,fo){return function(e){
-                            var sel=e.target.value;updateCqcSampleField(idx,'sampleFarm2',sel);
-                            var m=fo.filter(function(f){return f.farm===sel;});
-                            if(m.length===1&&m[0].plot)updateCqcSampleField(idx,'samplePlot2',m[0].plot);else updateCqcSampleField(idx,'samplePlot2','');
-                          };}(si,farmOpts)},
-                            ce('option',{value:''},'—'),
-                            farmOpts.map(function(f,fi){return ce('option',{key:f.farm+fi,value:f.farm},f.farm);})
-                          )
-                      ),
-                      /* Plot 2 — blue tint */
-                      hasMixed&&farmOpts.length>0&&ce('td',{style:tdMeta},
-                        (function(){
-                          var selFarm2=farmOpts.length===1?farmOpts[0].farm:sample.sampleFarm2;
-                          var m2=selFarm2?farmOpts.filter(function(f){return f.farm===selFarm2;}):[];
-                          var plots2=m2.map(function(f){return f.plot||'';}).filter(Boolean);
-                          if(!plots2.length) return ce('span',{style:{padding:'3px 4px',fontSize:11,color:'var(--text3)',display:'block'}},'—');
-                          return plots2.length===1
-                            ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},plots2[0])
-                            :ce('select',{style:selSt,value:sample.samplePlot2||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot2',e.target.value);};}(si)},
-                              ce('option',{value:''},'—'),
-                              plots2.map(function(p){return ce('option',{key:p,value:p},p);}));
-                        })()
-                      ),
-                      /* PH */
-                      phOpts.length>0&&ce('td',{style:tdMeta},
-                        phOpts.length===1
-                          ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},phOpts[0])
-                          :ce('select',{style:selSt,value:sample.samplePH||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePH',e.target.value);};}(si)},
-                            ce('option',{value:''},'—'),phOpts.map(function(p){return ce('option',{key:p,value:p},p);})
-                          )
-                      ),
-                      /* Trace code */
-                      (function(){
-                        var traceOpts=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
-                        if(!traceOpts.length) return null;
-                        return ce('td',{style:tdMeta},
-                          traceOpts.length===1
-                            ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap',fontFamily:'var(--font-mono)'}},traceOpts[0])
-                            :ce('select',{style:selSt,value:sample.sampleTraceCode||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleTraceCode',e.target.value);};}(si)},
-                              ce('option',{value:''},'—'),
-                              traceOpts.map(function(t){return ce('option',{key:t,value:t,title:t},t.length>14?'…'+t.slice(-10):t);})
-                            )
-                        );
-                      })(),
-                      /* Brix reading */
-                      ce('td',{style:tdMeta},
-                        ce('input',{style:Object.assign({},inSt,{width:58,textAlign:'right',fontFamily:'var(--font-mono)'}),type:'number',step:'0.1',min:'0',value:sample.brix||'',placeholder:'—',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brix',e.target.value);};}(si)})
-                      ),
-                      /* Brix issue */
-                      ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
-                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                        )
-                      ),
-                      /* Avg size */
-                      ce('td',{style:tdMeta},
-                        ce('input',{style:inSt,type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'—',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
-                      ),
-                      /* Size issue */
-                      ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
-                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                        )
-                      ),
-                      /* Carton issue */
-                      ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.cartonIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'cartonIssue',e.target.value==='Yes');};}(si)},
-                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                        )
-                      ),
-                      /* Score */
-                      ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
-                          ce('option',{value:''},'—'),
-                          ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
-                        )
-                      ),
-                      /* Notes */
-                      ce('td',{style:tdMeta},
-                        ce('input',{style:Object.assign({},inSt,{minWidth:140}),value:sample.notes||'',placeholder:'Notes...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
-                      ),
-                      /* Dispute */
-                      ce('td',{style:{border:'1px solid var(--border)',padding:'3px 5px',background:sample.disputed?'#fffbe0':'var(--card)',width:80,whiteSpace:'nowrap',verticalAlign:'middle',position:'relative'}},
-                        ce('button',{
-                          style:{display:'inline-flex',alignItems:'center',gap:4,border:'0.5px solid '+(sample.disputed?'#BA7517':'var(--border2)'),borderRadius:6,background:sample.disputed?'#faeeda':'var(--bg2)',color:sample.disputed?'#633806':'var(--text3)',fontSize:10,fontWeight:sample.disputed?600:400,padding:'3px 8px',cursor:'pointer',whiteSpace:'nowrap',width:'100%',justifyContent:'center'},
-                          onClick:function(idx,s){return function(){
-                            if(s.disputed){updateCqcSampleField(idx,'disputeOpen',!s.disputeOpen);}
-                            else{updateCqcSampleField(idx,'disputed',true);updateCqcSampleField(idx,'disputeOpen',true);}
-                          };}(si,sample)
-                        },
-                          ce('span',{style:{width:5,height:5,borderRadius:'50%',background:sample.disputed?'#BA7517':'var(--text3)',display:'inline-block',flexShrink:0}}),
-                          sample.disputed?'Disputed':'Dispute'
-                        ),
-                        /* Floating note popover — doesn't affect column width */
-                        sample.disputed&&sample.disputeOpen&&ce('div',{style:{
-                          position:'absolute',right:0,top:'100%',zIndex:200,
-                          background:'#fffbe0',border:'1px solid #BA7517',borderRadius:6,
-                          boxShadow:'0 4px 12px rgba(0,0,0,.15)',
-                          padding:'8px 10px',width:240,
-                          display:'flex',flexDirection:'column',gap:6
-                        }},
-                          ce('div',{style:{fontSize:10,fontWeight:600,color:'#7a5a00',marginBottom:2}},'Dispute note'),
-                          ce('textarea',{rows:3,placeholder:'Describe why this score is incorrect...',value:sample.disputeNote||'',
-                            style:{border:'1px solid #e0c88a',background:'#fff',fontSize:11,color:'#3a2000',resize:'vertical',outline:'none',fontFamily:'var(--font-sans)',lineHeight:1.5,padding:'4px 6px',borderRadius:4,width:'100%'},
-                            onChange:function(idx){return function(e){updateCqcSampleField(idx,'disputeNote',e.target.value);};}(si)}),
-                          ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:4}},
-                            ce('button',{style:{fontSize:10,color:'var(--red)',background:'none',border:'1px solid var(--red)',borderRadius:4,cursor:'pointer',padding:'2px 6px'},
-                              onClick:function(idx){return function(){
-                                updateCqcSampleField(idx,'disputed',false);
-                                updateCqcSampleField(idx,'disputeNote','');
-                                updateCqcSampleField(idx,'disputeOpen',false);
-                              };}(si)},'Remove dispute'),
-                            ce('button',{style:{fontSize:10,fontWeight:600,color:'#633806',background:'#faeeda',border:'1px solid #BA7517',borderRadius:4,cursor:'pointer',padding:'2px 8px'},
-                              onClick:function(idx){return function(){updateCqcSampleField(idx,'disputeOpen',false);};}(si)},'Done')
-                          )
-                        )
-                      ),
-                      /* Remove */
-                      ce('td',{style:{padding:'2px 4px',border:'1px solid var(--border)',textAlign:'center',width:24,position:'relative'}},
-                        ce('button',{title:'Remove sample',style:{background:'none',border:'none',cursor:'pointer',color:sample.confirmDelete?'var(--red)':'var(--text3)',fontSize:14,lineHeight:1,padding:'0 2px',fontWeight:sample.confirmDelete?700:400},
-                          onClick:function(idx){return function(){updateCqcSampleField(idx,'confirmDelete',!sample.confirmDelete);};}(si)},'×'),
-                        sample.confirmDelete&&ce('div',{style:{
-                          position:'absolute',right:0,top:'100%',zIndex:200,
-                          background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,
-                          boxShadow:'0 4px 16px rgba(0,0,0,.15)',
-                          padding:'12px 14px',width:180,
-                          display:'flex',flexDirection:'column',gap:10,
-                          textAlign:'left'
-                        }},
-                          ce('div',{style:{fontSize:12,fontWeight:600,color:'var(--text)'}},'⚠️ Delete sample?'),
-                          ce('div',{style:{fontSize:11,color:'var(--text3)',lineHeight:1.4}},'Sample #'+(si+1)+' will be removed. This cannot be undone after saving.'),
-                          ce('div',{style:{display:'flex',gap:6}},
-                            ce('button',{style:{flex:1,background:'var(--red)',border:'none',borderRadius:5,cursor:'pointer',color:'#fff',fontSize:11,fontWeight:600,padding:'5px 0'},
-                              onClick:function(idx){return function(){removeCqcSample(idx);};}(si)},'Delete'),
-                            ce('button',{style:{flex:1,background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:5,cursor:'pointer',color:'var(--text2)',fontSize:11,padding:'5px 0'},
-                              onClick:function(idx){return function(){updateCqcSampleField(idx,'confirmDelete',false);};}(si)},'Cancel')
-                          )
-                        )
-                      )
-                    );
-                  })
-                ),
-                /* Footer — column averages */
-                ce('tfoot',null,
-                  ce('tr',{style:{background:'var(--bg2)'}},
-                    ce('td',{style:{padding:'5px 10px',border:'1px solid var(--border)',fontSize:11,fontWeight:600,color:'var(--text3)',textAlign:'left'}},'Avg'),
-                    allDefs.map(function(item){
-                      var def=item.def;
-                      var avg=cqcSamples.length>0?
-                        Math.round(cqcSamples.reduce(function(sum,s){return sum+(parseFloat((s.defects||{})[def.key])||0);},0)/cqcSamples.length*100)/100:0;
-                      return ce('td',{key:def.key,style:{padding:'4px 6px',border:'1px solid var(--border)',textAlign:'right',fontFamily:'var(--font-mono)',fontSize:11,color:avg>0?'var(--text2)':'var(--text3)'}},
-                        avg>0?avg.toFixed(1):'—'
-                      );
-                    }),
-                    ce('td',{style:{padding:'5px 8px',border:'1px solid var(--border)',textAlign:'center',fontFamily:'var(--font-mono)',fontWeight:700,fontSize:12,
-                      color:(cqcSamplesReportTotal/Math.max(cqcSamples.length,1))>10?'var(--red)':(cqcSamplesReportTotal/Math.max(cqcSamples.length,1))>5?'var(--amber)':'var(--green)'}},
-                      cqcSamples.length>0?(cqcSamplesReportTotal/cqcSamples.length).toFixed(2)+'%':'—'
-                    ),
-                    ce('td',{colSpan:99,style:{border:'1px solid var(--border)'}})
-                  )
-                )
-              )
-              ) /* close body div */
-            ) /* close outer div */
-          })()
-
-          /* ══ CARD VIEW (unchanged) ══ */
             :ce('div',{style:{padding:'12px 16px',display:'flex',flexDirection:'column',gap:12}},
               cqcSamples.map(function(sample,si){
                 var pid=selCqcProd||'citrus';
@@ -8798,95 +7966,44 @@ function ClientQCMgmt(props){
                         ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:700,color:sTotal>10?'var(--red)':sTotal>5?'var(--amber)':'var(--green)'}},sTotal.toFixed(2)+'%')
                       )
                     ),
-                    (function(){
-                      var varOpts=[];
-                      if(fVar)varOpts.push(fVarType==='mixed'&&fVar2?fVar+' / '+fVar2:fVar);
-                      fVarsExtra.forEach(function(ve){if(ve.var)varOpts.push(ve.type==='mixed'&&ve.var2?ve.var+' / '+ve.var2:ve.var);});
-                      var farmOpts=[];
-                      if(fFarm1) farmOpts.push({farm:fFarm1,plot:fPlot1});
-                      if(fFarm2) farmOpts.push({farm:fFarm2,plot:fPlot2});
-                      fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts.push({farm:fe.farm,plot:fe.plot||''});});
-                      var phOpts=[];
-                      if(fPH) phOpts.push(fPH);
-                      fPHExtra.forEach(function(pe){if(pe.actual)phOpts.push(pe.actual);});
-                      return ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10}},
-                        varOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
-                          ce('label',{className:'form-label'},'Variety'),
-                          varOpts.length===1
-                            ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},varOpts[0])
-                            :ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
-                              ce('option',{value:''},'— Pick —'),
-                              varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
-                            )
-                        ),
-                        farmOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
-                          ce('label',{className:'form-label'},'Farm'),
-                          farmOpts.length===1
-                            ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},farmOpts[0].farm)
-                            :ce('select',{className:'form-select',value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
-                              var sel=e.target.value;
-                              updateCqcSampleField(idx,'sampleFarm',sel);
-                              var matches=fo.filter(function(f){return f.farm===sel;});
-                              if(matches.length===1&&matches[0].plot) updateCqcSampleField(idx,'samplePlot',matches[0].plot);
-                              else updateCqcSampleField(idx,'samplePlot','');
-                            };}(si,farmOpts)},
-                              ce('option',{value:''},'— Pick —'),
-                              farmOpts.map(function(f,fi){return ce('option',{key:f.farm+fi,value:f.farm},f.farm);})
-                            )
-                        ),
-                        (function(){
-                          var selFarmName=farmOpts.length===1?farmOpts[0].farm:sample.sampleFarm;
-                          var matches=selFarmName?farmOpts.filter(function(f){return f.farm===selFarmName;}):[];
-                          var plots=matches.map(function(f){return f.plot||'';}).filter(Boolean);
-                          if(!plots.length) return null;
-                          return ce('div',{className:'form-field',style:{marginBottom:0}},
-                            ce('label',{className:'form-label'},'Plot'),
-                            plots.length===1
-                              ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},plots[0])
-                              :ce('select',{className:'form-select',value:sample.samplePlot||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePlot',e.target.value);};}(si)},
-                                ce('option',{value:''},'— Pick —'),
-                                plots.map(function(p){return ce('option',{key:p,value:p},p);})
-                              )
-                          );
-                        })(),
-                        phOpts.length>0&&ce('div',{className:'form-field',style:{marginBottom:0}},
-                          ce('label',{className:'form-label'},'Packhouse'),
-                          phOpts.length===1
-                            ?ce('div',{style:{padding:'5px 8px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:12,fontWeight:500,color:'var(--text)'}},phOpts[0])
-                            :ce('select',{className:'form-select',value:sample.samplePH||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'samplePH',e.target.value);};}(si)},
-                              ce('option',{value:''},'— Pick —'),
-                              phOpts.map(function(p){return ce('option',{key:p,value:p},p);})
-                            )
-                        ),
-                        ce('div',{className:'form-field',style:{marginBottom:0}},
-                          ce('label',{className:'form-label'},'Brix issue?'),
-                          ce('select',{className:'form-select',value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
-                            ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                          )
-                        ),
-                        ce('div',{className:'form-field',style:{marginBottom:0}},
-                          ce('label',{className:'form-label'},'Avg size (mm)'),
-                          ce('input',{className:'form-input',type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'mm',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
-                        ),
-                        ce('div',{className:'form-field',style:{marginBottom:0}},
-                          ce('label',{className:'form-label'},'Size issue?'),
-                          ce('select',{className:'form-select',value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
-                            ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                          )
-                        ),
-                        ce('div',{className:'form-field',style:{marginBottom:0,gridColumn:'span 2'}},
-                          ce('label',{className:'form-label'},'Notes'),
-                          ce('input',{className:'form-input',value:sample.notes||'',placeholder:'Sample observations...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
-                        ),
-                        ce('div',{className:'form-field',style:{marginBottom:0}},
-                          ce('label',{className:'form-label'},'Client score'),
-                          ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
-                            ce('option',{value:''},'— Select —'),
-                            ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
-                          )
+                    ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10}},
+                      /* Variety — grapes mixed only */
+                      selCqcProd==='grapes'&&fVarType==='mixed'&&fVar&&fVar2&&ce('div',{className:'form-field',style:{marginBottom:0}},
+                        ce('label',{className:'form-label'},'Variety (this sample)'),
+                        ce('select',{className:'form-select',value:sample.sampleVariety||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                          ce('option',{value:''},'— Pick —'),
+                          ce('option',{value:fVar},fVar),
+                          ce('option',{value:fVar2},fVar2)
                         )
-                      );
-                    })()
+                      ),
+                      ce('div',{className:'form-field',style:{marginBottom:0}},
+                        ce('label',{className:'form-label'},'Brix issue?'),
+                        ce('select',{className:'form-select',value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
+                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                        )
+                      ),
+                      ce('div',{className:'form-field',style:{marginBottom:0}},
+                        ce('label',{className:'form-label'},'Avg size (mm)'),
+                        ce('input',{className:'form-input',type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'mm',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
+                      ),
+                      ce('div',{className:'form-field',style:{marginBottom:0}},
+                        ce('label',{className:'form-label'},'Size issue?'),
+                        ce('select',{className:'form-select',value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
+                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
+                        )
+                      ),
+                      ce('div',{className:'form-field',style:{marginBottom:0,gridColumn:'span 2'}},
+                        ce('label',{className:'form-label'},'Notes'),
+                        ce('input',{className:'form-input',value:sample.notes||'',placeholder:'Sample observations...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
+                      ),
+                      ce('div',{className:'form-field',style:{marginBottom:0}},
+                        ce('label',{className:'form-label'},'Client score'),
+                        ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
+                          ce('option',{value:''},'— Select —'),
+                          ['GREEN','AMBER','RED','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                        )
+                      )
+                    )
                   )
                 );
               })
@@ -8903,6 +8020,7 @@ function ClientQCMgmt(props){
           ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}},
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Possible cause of problem / response'),ce('textarea',{className:'form-input',rows:2,value:fCause,onChange:function(e){setCause(e.target.value);},style:{resize:'vertical'}})),
             ce('div',null,
+              ce('div',{className:'form-field'},ce('label',{className:'form-label'},'QC report link (Google Drive)'),ce('input',{className:'form-input',value:fQCLink,onChange:function(e){setQCLink(e.target.value);},placeholder:'https://drive.google.com/...'})),
               ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Photo / data logger link'),ce('input',{className:'form-input',value:fPhotoLink,onChange:function(e){setPhotoLink(e.target.value);},placeholder:'https://drive.google.com/...'})),
               ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Foreign bodies present?'),
                 ce('div',{style:{display:'flex',gap:8,marginTop:4}},
