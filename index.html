@@ -7015,7 +7015,7 @@ function ClientQCMgmt(props){
             variety2:(config.varietiesIdToName&&r.variety2_id&&config.varietiesIdToName[r.variety2_id])||'',
             varietyType:r.variety_type||'single',category2:(function(){if(!r.variety2_id)return '';var found=((config.varietiesFull||{})['grapes']||[]).find(function(v){return v.id===r.variety2_id;});return found&&found.categoryId?(config.categoriesIdToName||{})[found.categoryId]||'':'';})(),
             loadDate:r.load_date||'', packDate:r.pack_date||'',
-            harvestDate:r.harvest_date||'', phCover:r.ph_cover||'', farm1:r.farm_1||'', farm2:r.farm_2||'',
+            harvestDate:r.harvest_date||'', phCover:r.ph_cover||'', farm1:r.farm_1||'', plot1:r.plot_1||'', farm2:r.farm_2||'', plot2:r.plot_2||'', cqcExtraFields:r.cqc_extra_fields||{},
             cartonType:(config.cartonTypesIdToName&&r.carton_type_id&&config.cartonTypesIdToName[r.carton_type_id])||r.carton_type_id||'',
             qcReportNumber:r.qc_report_number||'',
             region:(config.countriesIdToName&&r.country_id&&config.countriesIdToName[r.country_id])||r.country_id||'',
