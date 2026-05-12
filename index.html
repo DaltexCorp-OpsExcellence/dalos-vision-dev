@@ -65,7 +65,7 @@ input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--te
 .nav-item.active .nav-icon{opacity:1}
 .sidebar-bottom{margin-top:auto;padding:10px 8px;border-top:1px solid rgba(255,255,255,.06)}
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
-.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-shrink:0;gap:8px}
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;flex-shrink:0;gap:8px}
 .topbar-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
 .topbar-title{font-family:var(--font-display);font-size:17px;white-space:nowrap}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -9023,8 +9023,8 @@ function ClientQCMgmt(props){
       ),
       /* ── PRODUCT CARDS ── */
       ce('div',{style:{maxWidth:680,margin:'0 auto',padding:'0 16px'}},
-        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6,color:'var(--text)'}},'Client QC'),
-        ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:20}},'Select a product to view reports or log a new client QC report.'),
+        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18,marginBottom:4,color:'var(--text)'}},'Client QC'),
+        ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:14}},'Select a product to view reports.'),
         ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
         prodList.map(function(p){
           var count=reports.filter(function(r){return r.productId===p.id;}).length;
@@ -9088,17 +9088,12 @@ function ClientQCMgmt(props){
 
   /* ── REPORT LIST ── */
   var prodReports=reports.filter(function(r){return r.productId===selCqcProd;});
-  return ce('div',{className:'page',style:{}},
-    ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}},
-      ce('div',{style:{display:'flex',alignItems:'center',gap:12}},
-        ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelCqcProd(null);setCqcSearch('');setSelRep(null);}},'\u2190 Products'),
-        ce('div',{style:{width:12,height:12,borderRadius:'50%',background:selProdObj.color||'var(--accent)'}}),
-        ce('div',null,
-          ce('div',{style:{fontFamily:'var(--font-display)',fontSize:22}},selProdObj.name+' \u2014 Client QC'),
-          ce('div',{style:{fontSize:12,color:'var(--text3)',marginTop:2}},'Log, upload and match client QC reports')
-        )
-      ),
-      perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowNew(true);}},'+ New client report')
+  return ce('div',{className:'page'},
+    ce('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:14,flexWrap:'nowrap',minWidth:0}},
+      ce('button',{className:'btn btn-secondary btn-sm',style:{flexShrink:0},onClick:function(){setSelCqcProd(null);setCqcSearch('');setSelRep(null);}},'← Products'),
+      ce('div',{style:{width:10,height:10,borderRadius:'50%',background:selProdObj.color||'var(--accent)',flexShrink:0}}),
+      ce('div',{style:{fontFamily:'var(--font-display)',fontSize:16,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}},selProdObj.name),
+      perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',style:{flexShrink:0,whiteSpace:'nowrap'},onClick:function(){setShowNew(true);}},'+ New')
     ),
     /* ── Stats bar ── */
     ce('div',{className:'cqc-stat-grid',style:{marginBottom:16}},
