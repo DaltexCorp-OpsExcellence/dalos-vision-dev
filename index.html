@@ -8504,7 +8504,7 @@ function ClientQCMgmt(props){
                         })()
                       ),
                       /* Farm 1 — red tint if mixed */
-                      farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,isMixedSample?{borderLeft:'2px solid #d07000',background:'#fffbf4'}:{})},
+                      farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,isMixedSample?{borderLeft:'2px solid #d07000'}:{})},
                         farmOpts.length===1
                           ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},farmOpts[0].farm)
                           :ce('select',{style:selSt,value:sample.sampleFarm||'',onChange:function(idx,fo){return function(e){
@@ -8517,7 +8517,7 @@ function ClientQCMgmt(props){
                           )
                       ),
                       /* Plot 1 — red tint if mixed */
-                      farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,isMixedSample?{background:'#fffbf4'}:{})},
+                      farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,{})},
                         plots.length===1
                           ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},plots[0])
                           :plots.length>1
@@ -8526,7 +8526,7 @@ function ClientQCMgmt(props){
                             :ce('span',{style:{padding:'3px 4px',fontSize:11,color:'var(--text3)',display:'block'}},'—')
                       ),
                       /* Farm 2 — blue tint */
-                      hasMixed&&farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,{borderLeft:'2px solid #2848b5',background:'#f4f6ff'})},
+                      hasMixed&&farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,{borderLeft:'2px solid #2848b5'})},
                         farmOpts.length===1
                           ?ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},farmOpts[0].farm)
                           :ce('select',{style:selSt,value:sample.sampleFarm2||'',onChange:function(idx,fo){return function(e){
@@ -8539,7 +8539,7 @@ function ClientQCMgmt(props){
                           )
                       ),
                       /* Plot 2 — blue tint */
-                      hasMixed&&farmOpts.length>0&&ce('td',{style:Object.assign({},tdMeta,{background:'#f4f6ff'})},
+                      hasMixed&&farmOpts.length>0&&ce('td',{style:tdMeta},
                         (function(){
                           var selFarm2=farmOpts.length===1?farmOpts[0].farm:sample.sampleFarm2;
                           var m2=selFarm2?farmOpts.filter(function(f){return f.farm===selFarm2;}):[];
