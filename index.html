@@ -8591,12 +8591,13 @@ function ClientQCMgmt(props){
                           ce('textarea',{rows:3,placeholder:'Describe why this score is incorrect...',value:sample.disputeNote||'',
                             style:{border:'1px solid #e0c88a',background:'#fff',fontSize:11,color:'#3a2000',resize:'vertical',outline:'none',fontFamily:'var(--font-sans)',lineHeight:1.5,padding:'4px 6px',borderRadius:4,width:'100%'},
                             onChange:function(idx){return function(e){updateCqcSampleField(idx,'disputeNote',e.target.value);};}(si)}),
-                          ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
-                            ce('button',{style:{fontSize:10,color:'var(--text3)',background:'none',border:'none',cursor:'pointer',padding:'2px 4px'},
-                              onClick:function(idx,s){return function(){
+                          ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:4}},
+                            ce('button',{style:{fontSize:10,color:'var(--red)',background:'none',border:'1px solid var(--red)',borderRadius:4,cursor:'pointer',padding:'2px 6px'},
+                              onClick:function(idx){return function(){
+                                updateCqcSampleField(idx,'disputed',false);
+                                updateCqcSampleField(idx,'disputeNote','');
                                 updateCqcSampleField(idx,'disputeOpen',false);
-                                if(!s.disputeNote){updateCqcSampleField(idx,'disputed',false);}
-                              };}(si,sample)},'Cancel'),
+                              };}(si)},'Remove dispute'),
                             ce('button',{style:{fontSize:10,fontWeight:600,color:'#633806',background:'#faeeda',border:'1px solid #BA7517',borderRadius:4,cursor:'pointer',padding:'2px 8px'},
                               onClick:function(idx){return function(){updateCqcSampleField(idx,'disputeOpen',false);};}(si)},'Done')
                           )
