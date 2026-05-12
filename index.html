@@ -8497,14 +8497,10 @@ function ClientQCMgmt(props){
                             renderVarietyLabel(sv),
                             ce('select',{style:{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0,cursor:'pointer'},value:sv,onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
                               ce('option',{value:''},'—'),varOpts.map(function(v){return ce('option',{key:v,value:v},v);})));
-                          return ce('select',{style:Object.assign({},selSt,allVarOpts.length>varOpts.length?{color:'var(--amber)',fontStyle:'italic'}:{}),value:sv,onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
+                          return ce('select',{style:Object.assign({},selSt,allVarOpts.length>varOpts.length?{color:'#b56a00'}:{}),value:sv,onChange:function(idx){return function(e){updateCqcSampleField(idx,'sampleVariety',e.target.value);};}(si)},
                             ce('option',{value:''},'—'),
-                            allVarOpts.length>varOpts.length&&ce('optgroup',{label:'⚠ Saved (not in current header)'},
-                              ce('option',{value:sv},sv+' ⚠')
-                            ),
-                            ce('optgroup',{label:'Current options'},
-                              varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
-                            )
+                            allVarOpts.length>varOpts.length&&ce('option',{value:sv,style:{color:'#b56a00'}},'⚠ '+sv+' (old)'),
+                            varOpts.map(function(v){return ce('option',{key:v,value:v},v);})
                           );
                         })()
                       ),
