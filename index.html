@@ -7532,7 +7532,7 @@ function ClientQCMgmt(props){
       setReports(function(prev){return prev.concat([r]);});
     }
     var cqcSamplesSnapshot=cqcSamples.slice(); /* capture before clearForm resets */
-    var uploadedFilesSnapshot=uploadedFiles.filter(function(f){return f.file&&!f.storagePath;}); /* only new unuploaded files */
+    var uploadedFilesSnapshot=uploadedFiles.slice(); /* full snapshot before clearForm */
     clearForm();setEditRep(null);setShowNew(false);
     /* Save to Supabase */
     var dbRow={
@@ -7611,9 +7611,8 @@ function ClientQCMgmt(props){
     }).then(function(res){
       if(res&&res.error){console.error('[DalOS] CQC save error:',res.error.message,'details:',res.error.details);return;}
       console.log('[DalOS] CQC report saved:',reportId);
-      /* Save uploaded files to client_qc_files — only NEW files not yet in DB */
-      var existingFileUrls=(reports.find(function(x){return x.id===reportId;})||{files:[]}).files.map(function(f){return f.url;});
-      var newFiles=uploadedFiles.filter(function(f){return f.storagePath&&f.fileUrl&&existingFileUrls.indexOf(f.fileUrl)<0;});
+      /* Save uploaded files — only NEW ones (no dbId = not yet in DB) */
+      var newFiles=uploadedFilesSnapshot.filter(function(f){return f.storagePath&&f.fileUrl&&!f.dbId;});
       if(newFiles.length>0){
         supabase.auth.getUser().then(function(ur){
           var fileRows=newFiles.map(function(f){
@@ -7626,7 +7625,7 @@ function ClientQCMgmt(props){
         });
       }
       /* Reload fresh report from DB to update local state */
-      supabase.from('client_qc_reports').select('*').eq('id',reportId).single().then(function(fresh){
+      supabase.from('client_qc_reports').select('*, client_qc_files(id,file_name,file_url,file_type)').eq('id',reportId).single().then(function(fresh){
         if(fresh.data){
           var r2=fresh.data;
           /* Also load defect readings */
@@ -7654,7 +7653,7 @@ function ClientQCMgmt(props){
               tempLogger:r2.temp_logger||'', maxTemp:r2.max_temp||'', qcReportLink:r2.qc_report_link||'',
               photoLink:r2.photo_link||'', cause:r2.cause||'',
               claimedCurrency:r2.claimed_currency||'USD', claimedValue:r2.claimed_value||0,
-              potentialClaim:r2.potential_claim||false, files:[],
+              potentialClaim:r2.potential_claim||false, files:(r2.client_qc_files||[]).map(function(f){return {id:f.id,name:f.file_name,url:f.file_url,type:f.file_type};}),
               matched:r2.matched||false, batchId:r2.inspection_id||null,
               season:r2.season_id||'', savedAt:r2.created_at||'', productId:r2.product_id||'', cqcExtraFields:r2.cqc_extra_fields||{}
             };
@@ -7732,24 +7731,7 @@ function ClientQCMgmt(props){
         });
       });
     }).catch(function(e){console.error('[DalOS] CQC save failed:',e);});
-    /* ── Save file records to client_qc_files (files already uploaded to storage) ── */
-    var allFiles=uploadedFiles.filter(function(f){return f.storagePath&&f.fileUrl;});
-    if(allFiles.length>0&&isNew){
-      /* For new reports, insert all file records now that we have the reportId */
-      var fileRecords=allFiles.map(function(f){
-        /* Fix path to use actual reportId instead of 'pending-...' */
-        return {
-          client_qc_report_id:reportId,
-          file_name:f.name,
-          file_url:f.fileUrl,
-          file_type:f.type
-        };
-      });
-      supabase.from('client_qc_files').insert(fileRecords).then(function(r){
-        if(r.error) console.error('[DalOS] client_qc_files insert error:',r.error.message);
-        else console.log('[DalOS] Files saved:',fileRecords.length);
-      });
-    }
+
   }
 
   /* score color */
