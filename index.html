@@ -9506,11 +9506,62 @@ function ClientQCMgmt(props){
                     })
                   )
                 ),
-                (r.general||r.pkgComments||r.cause)&&ce('div',{style:{marginTop:12}},
+                /* Sample readings */
+                r.sampleRows&&r.sampleRows.length>0&&ce('div',{style:{marginTop:14}},
+                  ce('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:8}},
+                    ce('span',{style:{fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em'}},'Sample readings'),
+                    ce('span',{style:{fontSize:11,color:'var(--text3)'}},r.sampleRows.length+' samples')
+                  ),
+                  ce('div',{style:{overflowX:'auto',border:'1px solid var(--border)',borderRadius:8}},
+                    ce('table',{style:{width:'100%',minWidth:480,fontSize:11,borderCollapse:'collapse'}},
+                      ce('thead',null,ce('tr',null,['#','Variety','Farm','Brix','Major','Minor','Score'].map(function(h){return ce('th',{key:h,style:{padding:'5px 8px',textAlign:'left',fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},h);}))),
+                      ce('tbody',null,r.sampleRows.map(function(s,i){
+                        var isMix=s.variety&&s.variety.indexOf(' / ')>=0;
+                        var parts=isMix?s.variety.split(' / '):null;
+                        var vCell=isMix?ce('span',{style:{display:'inline-flex',alignItems:'center',gap:2}},ce('span',{style:{background:'#fef0dc',color:'#b56a00',borderRadius:3,padding:'1px 4px',fontSize:9,fontWeight:500}},parts[0]),ce('span',{style:{color:'var(--text3)',fontSize:8}},'×'),ce('span',{style:{background:'#e8f0fd',color:'#2848b5',borderRadius:3,padding:'1px 4px',fontSize:9,fontWeight:500}},parts[1])):ce('span',null,s.variety||'—');
+                        return ce('tr',{key:s.id||i,style:{borderBottom:'0.5px solid var(--border)',background:i%2===0?'var(--card)':'var(--bg2)'}},
+                          ce('td',{style:{padding:'4px 8px',fontWeight:500}},s.num),
+                          ce('td',{style:{padding:'4px 8px'}},vCell),
+                          ce('td',{style:{padding:'4px 8px',fontSize:11}},s.farm2?s.farm+'/'+s.farm2:s.farm||'—'),
+                          ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)'}},s.brix||'—'),
+                          ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)',color:s.major>0?'var(--red)':'var(--text3)'}},s.major>0?s.major.toFixed(2)+'%':'—'),
+                          ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)',color:s.minor>0?'var(--amber)':'var(--text3)'}},s.minor>0?s.minor.toFixed(2)+'%':'—'),
+                          ce('td',{style:{padding:'4px 8px'}},s.score?ce('span',{style:{fontSize:10,fontWeight:500,color:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}},s.score):'—')
+                        );
+                      }))
+                    )
+                  )
+                ),
+                /* Files */
+                (r.files||[]).length>0&&ce('div',{style:{marginTop:14}},
+                  ce('div',{style:{fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Files'),
+                  (r.files||[]).map(function(f,i){
+                    return ce('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'0.5px solid var(--border)'}},
+                      ce('div',{style:{width:26,height:26,background:'var(--bg2)',borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},'📄'),
+                      ce('a',{href:f.url,target:'_blank',rel:'noopener noreferrer',style:{fontSize:12,fontWeight:500,color:'var(--accent)',textDecoration:'none',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},f.name)
+                    );
+                  })
+                ),
+                /* Comments */
+                (r.general||r.pkgComments||r.cause)&&ce('div',{style:{marginTop:14}},
+                  ce('div',{style:{fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Comments'),
                   r.general&&ce('div',{style:{marginBottom:8}},ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',marginBottom:3}},'General'),ce('div',{style:{fontSize:12,lineHeight:1.5}},r.general)),
                   r.pkgComments&&ce('div',{style:{marginBottom:8}},ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',marginBottom:3}},'Packaging'),ce('div',{style:{fontSize:12,lineHeight:1.5}},r.pkgComments)),
                   r.cause&&ce('div',null,ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',marginBottom:3}},'Cause'),ce('div',{style:{fontSize:12,lineHeight:1.5}},r.cause))
-                )
+                ),
+                /* Matched inspection */
+                (function(){
+                  var matchedB=batches.find(function(b){return b.id===r.batchId;});
+                  if(!matchedB) return null;
+                  return ce('div',{style:{marginTop:14,background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
+                    ce('div',{style:{fontWeight:500,fontSize:12,color:'var(--green)',marginBottom:8}},'✓ Matched: '+matchedB.id),
+                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:11}},
+                      [['Date',matchedB.date],['Variety',matchedB.variety],['Internal defect',matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'—'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'★ Special Accept':'Reject'],['Farm',matchedB.farm],['Status',matchedB.status]].map(function(item){
+                        return ce('div',{key:item[0],style:{background:'var(--card)',borderRadius:5,padding:'5px 8px'}},ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1}},item[0]),ce('div',{style:{fontWeight:500,fontSize:11}},item[1]||'—'));
+                      })
+                    )
+                  );
+                })()
               ),
               ce('div',{className:'dp-sheet-actions'},
                 perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary',style:{flex:1},onClick:function(){loadReportForEdit(r);setSelRep(null);}},'✎ Edit'),
