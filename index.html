@@ -8491,7 +8491,8 @@ function ClientQCMgmt(props){
                             return ce('span',{style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap'}},v);
                           }
                           if(varOpts.length===1) return renderVarietyLabel(varOpts[0]);
-                          if(sv&&varOpts.indexOf(sv)<0) return ce('span',{title:'Saved variety no longer in header options',style:{padding:'3px 4px',fontSize:11,display:'block',whiteSpace:'nowrap',color:'var(--text3)',fontStyle:'italic'}},sv);
+                          /* allVarOpts: includes stale value as first option when it doesn't match current header */
+                          var allVarOpts=sv&&varOpts.indexOf(sv)<0?[sv].concat(varOpts):varOpts;
                           /* For mixed — show badge only, clicking opens a mini select overlay */
                           if(sv&&sv.indexOf(' / ')>=0) return ce('div',{style:{padding:'2px 3px',position:'relative'}},
                             renderVarietyLabel(sv),
