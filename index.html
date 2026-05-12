@@ -196,6 +196,24 @@ tr.click:hover td{background:var(--bg)}
 }
 
 /* Mobile: up to 767px */
+/* CQC listing responsive */
+.cqc-list-row{display:flex;gap:12px;align-items:flex-start}
+.cqc-list-pane{flex:1;min-width:0;transition:flex .2s}
+.cqc-list-pane.has-detail{flex:0 0 42%}
+.cqc-detail-pane{flex:1;min-width:0}
+.cqc-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.cqc-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.cqc-two-col-bot{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:900px){
+  .cqc-list-row{flex-direction:column}
+  .cqc-list-pane.has-detail{flex:1}
+  .cqc-stat-grid{grid-template-columns:repeat(2,1fr)}
+  .cqc-two-col,.cqc-two-col-bot{grid-template-columns:1fr}
+}
+@media(max-width:767px){
+  .cqc-stat-grid{grid-template-columns:repeat(2,1fr)}
+  .cqc-two-col,.cqc-two-col-bot{grid-template-columns:1fr}
+}
 @media(max-width:767px){
   /* Sidebar becomes slide-in drawer */
   .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:41;transform:translateX(-100%);width:240px!important;min-width:0!important}
@@ -9076,7 +9094,7 @@ function ClientQCMgmt(props){
       perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowNew(true);}},'+ New client report')
     ),
     /* ── Stats bar ── */
-    ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}},
+    ce('div',{className:'cqc-stat-grid',style:{marginBottom:16}},
       ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
         ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Reports'),
         ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--accent)'}},prodReports.length)
@@ -9194,8 +9212,8 @@ function ClientQCMgmt(props){
             )
           ),
 
-          ce('div',{style:{display:'flex',gap:12,alignItems:'flex-start'}},
-          ce('div',{style:{flex:selRep?'0 0 42%':'1',minWidth:0,transition:'flex .2s'}},
+          ce('div',{className:'cqc-list-row'},
+          ce('div',{className:'cqc-list-pane'+(selRep?' has-detail':'')},
           /* ── Table view ── */
           cqcView==='table'&&ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',overflow:'hidden',marginBottom:12}},
             ce('div',{style:{overflowX:'auto'}},
@@ -9284,7 +9302,7 @@ function ClientQCMgmt(props){
 
           ),/* end left pane */
           /* ── Detail panel ── */
-          selRep&&ce('div',{style:{flex:'1',minWidth:0,position:'sticky',top:16}},
+          selRep&&ce('div',{className:'cqc-detail-pane',style:{position:'sticky',top:16}},
           (function(){
             var r=reports.find(function(x){return x.id===selRep;});
             if(!r) return null;
@@ -9303,7 +9321,7 @@ function ClientQCMgmt(props){
                   ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelRep(null);},style:{fontSize:12}},'× Close')
                 )
               ),
-              ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:14}},
+              ce('div',{className:'cqc-stat-grid'},
                 ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Total defect'),ce('div',{style:{fontSize:20,fontWeight:500,color:r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)'}},r.totalDefect||r.totalDefect===0?r.totalDefect.toFixed(1)+'%':'—')),
                 ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Samples'),ce('div',{style:{fontSize:20,fontWeight:500}},(r.sampleRows||[]).length)),
                 ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},
@@ -9315,7 +9333,7 @@ function ClientQCMgmt(props){
                   ce('div',{style:{fontSize:20,fontWeight:500,color:'var(--amber)'}},r.sectionAvgs&&r.sectionAvgs.Minor!=null?r.sectionAvgs.Minor.toFixed(2)+'%':'—')
                 )
               ),
-              ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}},
+              ce('div',{className:'cqc-two-col'},
                 ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
                   ce('div',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}},'Shipment info'),
                   [['Container',r.container],['QC ref',r.qcReportNumber],['Client',r.client+(r.subClient?' · '+r.subClient:'')],['Region',r.region],['Pack date',r.packDate],['Carton type',r.cartonType],['Trace code',r.traceCode]].map(function(item){
@@ -9401,7 +9419,7 @@ function ClientQCMgmt(props){
                   )
                 )
               ),
-              ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:matchedB?14:0}},
+              ce('div',{className:'cqc-two-col-bot',style:{marginBottom:matchedB?14:0}},
                 ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
                   ce('div',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}},'Files'),
                   (r.files||[]).length===0?ce('div',{style:{fontSize:12,color:'var(--text3)'}},'No files attached'):(r.files||[]).map(function(f,i){
