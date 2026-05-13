@@ -196,6 +196,29 @@ tr.click:hover td{background:var(--bg)}
 }
 
 /* Mobile: up to 767px */
+/* CQC listing responsive */
+.cqc-list-row{display:flex;gap:12px;align-items:flex-start}
+.cqc-list-pane{flex:1;min-width:0;transition:flex .2s}
+.cqc-list-pane.has-detail{flex:0 0 42%}
+.cqc-detail-pane{flex:1;min-width:0;position:sticky;top:16px}
+.cqc-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.cqc-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.cqc-two-col-bot{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cqc-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.cqc-filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:1px}
+.cqc-filters::-webkit-scrollbar{display:none}
+@media(max-width:900px){
+  .cqc-list-pane.has-detail{flex:1}
+  .cqc-detail-pane{display:none}
+  .cqc-stat-grid{grid-template-columns:repeat(2,1fr)}
+  .cqc-two-col,.cqc-two-col-bot{grid-template-columns:1fr}
+}
+@media(max-width:767px){
+  .cqc-stat-grid{grid-template-columns:repeat(2,1fr)}
+  .cqc-toolbar{flex-wrap:nowrap;gap:6px}
+  .cqc-th-hide{display:none!important}
+  .cqc-td-hide{display:none!important}
+}
 @media(max-width:767px){
   /* Sidebar becomes slide-in drawer */
   .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:41;transform:translateX(-100%);width:240px!important;min-width:0!important}
@@ -711,7 +734,6 @@ function InspectionForm(props){
   })()).current;
   var draftKey='dalos_draft_'+(packhouse.id||'')+'_'+cropId+(isEdit&&batch?'_'+batch.id:'_new')+'_'+tabId;
   function safeClose(){
-    if(isSaving) return; /* block navigation while save chain is running */
     if(isDirty&&!window.confirm('You have unsaved changes. Leave without saving?')) return;
     try{localStorage.removeItem(draftKey);}catch(e){}
     onClose();
@@ -970,8 +992,6 @@ function InspectionForm(props){
   function setExtraLabelImg(idx,v){setExtraLabels(function(prev){return prev.map(function(l,i){return i!==idx?l:Object.assign({},l,{img:v});});});}
   function toggleExtraLabelCheck(idx,key){setExtraLabels(function(prev){return prev.map(function(l,i){if(i!==idx)return l;var c=Object.assign({},l.checks);c[key]=!c[key];return Object.assign({},l,{checks:c});});});}
   var sSaving=useState(false); var isSaving=sSaving[0]; var setIsSaving=sSaving[1];
-  /* savePending: true while save chain is in flight for new grapes inspections
-     saveFailed:  null = not failed, string = error message (shown on confirmation screen) */
   var sSavePending=useState(false); var savePending=sSavePending[0]; var setSavePending=sSavePending[1];
   var sSaveFailed=useState(null); var saveFailed=sSaveFailed[0]; var setSaveFailed=sSaveFailed[1];
   var sValidErr=useState([]); var validErrs=sValidErr[0]; var setValidErrs=sValidErr[1];
@@ -1717,52 +1737,25 @@ function InspectionForm(props){
   var countries=config.countries||[];
   var farms=config.farms||[];
 
-  /* ── Post-save confirmation screen (pending / success / failed) ── */
-  if(savePending || savedLot || saveFailed!==null){
-    var isConfirmPending=savePending&&!savedLot&&saveFailed===null;
-    var isConfirmFailed=saveFailed!==null&&!savedLot;
-    var isConfirmSuccess=!!savedLot;
+  /* ── Post-save success screen ── */
+  if(savedLot){
     return ce('div',{style:{background:'var(--bg)',minHeight:'100vh',display:'flex',flexDirection:'column'}},
       ce('div',{className:'form-topbar',style:{background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'0 16px',height:50,display:'flex',alignItems:'center',gap:8}},
-        isConfirmFailed&&ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){
-          setSaveFailed(null);
-          setSaveStatus('error');
-          setSaveErrMsg(saveFailed||'Save failed — please try again.');
-        }},'← Back to form'),
-        isConfirmSuccess&&ce('button',{className:'btn btn-secondary btn-sm',onClick:safeClose},'← Back to list'),
-        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:16}},
-          isConfirmPending?'Saving\u2026':isConfirmFailed?'Save failed':'Inspection saved'
-        )
+        ce('button',{className:'btn btn-secondary btn-sm',onClick:safeClose},'← Back to list'),
+        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:16}},'Inspection saved')
       ),
       ce('div',{style:{maxWidth:480,margin:'60px auto',padding:'0 24px',textAlign:'center'}},
-        /* Icon */
-        ce('div',{style:{width:56,height:56,borderRadius:'50%',
-          background:isConfirmFailed?'#fff0f0':isConfirmPending?'var(--bg2)':'var(--green-bg)',
-          border:'2px solid '+(isConfirmFailed?'#f5c0c0':isConfirmPending?'var(--border)':'var(--green-border)'),
-          display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 20px',fontSize:22}},
-          isConfirmPending?ce('span',{className:'dalos-spinner',style:{width:22,height:22,borderWidth:3}}):
-          isConfirmFailed?'\u2717':'\u2713'
-        ),
-        /* Title */
-        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:22,color:'var(--text)',marginBottom:8}},
-          isConfirmPending?'Saving inspection\u2026':isConfirmFailed?'Save failed':'Unit saved'
-        ),
-        /* ID / status line */
+        ce('div',{style:{width:56,height:56,borderRadius:'50%',background:'var(--green-bg)',border:'2px solid var(--green-border)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 20px',fontSize:24}},'✓'),
+        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:22,color:'var(--text)',marginBottom:8}},'Unit saved'),
         ce('div',{style:{fontSize:14,color:'var(--text3)',marginBottom:32}},
-          isConfirmPending
-            ?ce('span',{style:{fontFamily:'var(--font-mono)',color:'var(--text3)',letterSpacing:'.05em'}},'Assigning ID\u2026')
-            :isConfirmFailed
-            ?ce('span',{style:{color:'var(--red)',fontSize:13}},saveFailed)
-            :ce('span',null,
-                cropId==='grapes'?'Pallets saved under session ':'Inspection saved — ',
-                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,color:'var(--text)'}},savedInspId||savedLot),
-                cropId!=='grapes'&&savedLot?ce('span',{style:{color:'var(--text3)'}},' · LOT '+savedLot):null
-              )
+          cropId==='grapes'?'Pallets saved under session ':'Inspection saved — ',
+          ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,color:'var(--text)'}},savedInspId||savedLot),
+          cropId!=='grapes'&&savedLot?ce('span',{style:{color:'var(--text3)'}},' · LOT '+savedLot):null
         ),
-        /* Action buttons */
         ce('div',{style:{display:'flex',flexDirection:'column',gap:10}},
-          isConfirmSuccess&&ce('button',{className:'btn btn-primary',style:{justifyContent:'center',padding:'12px 24px',fontSize:14},
+          ce('button',{className:'btn btn-primary',style:{justifyContent:'center',padding:'12px 24px',fontSize:14},
             onClick:function(){
+              /* Pre-fill from just-saved lot/session and reset for new unit */
               if(cropId!=='grapes') prefillFromLot(savedLot);
               if(cropId!=='grapes') setLot(savedLot);
               setDecision('');
@@ -1770,24 +1763,8 @@ function InspectionForm(props){
               setActivePalletIdx(0);
               setSavedLot(false);
             }
-          },cropId==='grapes'?'+ Add more pallets to this session':'+ Add another unit under LOT '+savedLot),
-          isConfirmFailed&&ce('button',{className:'btn btn-primary',style:{justifyContent:'center',padding:'12px 24px',fontSize:14},
-            onClick:function(){
-              setSaveFailed(null);
-              setSaveStatus('error');
-              setSaveErrMsg(saveFailed||'Save failed — please try again.');
-            }
-          },'\u2190 Back to form'),
-          ce('button',{
-            className:'btn btn-secondary',
-            style:{justifyContent:'center',padding:'12px 24px',fontSize:14,
-              opacity:(isConfirmPending||isConfirmFailed)?.35:1,
-              pointerEvents:(isConfirmPending||isConfirmFailed)?'none':'auto',
-              cursor:(isConfirmPending||isConfirmFailed)?'not-allowed':'pointer'
-            },
-            onClick:isConfirmSuccess?onClose:undefined,
-            disabled:isConfirmPending||isConfirmFailed
-          },isConfirmFailed?'Done — back to list (save first)':'Done — back to list')
+          },cropId==='grapes'?('+ Add more pallets to this session'):'+ Add another unit under LOT '+savedLot),
+          ce('button',{className:'btn btn-secondary',style:{justifyContent:'center',padding:'12px 24px',fontSize:14},onClick:onClose},'Done — back to list')
         )
       )
     );
@@ -1796,7 +1773,7 @@ function InspectionForm(props){
   return ce('div',{style:{background:'var(--bg)',minHeight:'100vh'}},
     ce('div',{className:'form-topbar',style:{background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'0 16px',height:50,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:20,gap:8}},
       ce('div',{className:'form-topbar-left-group',style:{display:'flex',alignItems:'center',gap:8,minWidth:0,flex:1}},
-        ce('button',{className:'btn btn-secondary btn-sm',onClick:safeClose,style:{flexShrink:0,padding:'6px 10px',opacity:isSaving?.4:1,pointerEvents:isSaving?'none':'auto'}},'← Back'),
+        ce('button',{className:'btn btn-secondary btn-sm',onClick:safeClose,style:{flexShrink:0,padding:'6px 10px'}},'← Back'),
         ce('div',{className:'form-topbar-title',style:{fontFamily:'var(--font-display)',fontSize:16,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},isEdit?'Edit':'New inspection'),
         ce('div',{className:'topbar-badge',style:{display:'flex',alignItems:'center',gap:6,background:packhouse.color+'14',border:'1px solid '+packhouse.color+'40',borderRadius:6,padding:'3px 10px',flexShrink:0}},
           ce('div',{style:{width:7,height:7,borderRadius:'50%',background:packhouse.color,flexShrink:0}}),
@@ -1873,13 +1850,11 @@ function InspectionForm(props){
         ?ce('button',{onClick:function(){
             setSaveStatus('idle');setSaveErrMsg('');
             if(isEdit&&batch&&batch.id){
-              supabase.auth.getUser().then(function(){
-                supabase.from('inspections').select('updated_at').eq('id',batch.id).single().then(function(r){
-                  if(r.data&&r.data.updated_at){
-                    loadedVersionRef.current=r.data.updated_at;
-                    try{if(typeof refreshBatchesById==='function') refreshBatchesById([batch.id]);}catch(e){}
-                  }
-                });
+              supabase.from('inspections').select('updated_at').eq('id',batch.id).single().then(function(r){
+                if(r.data&&r.data.updated_at){
+                  loadedVersionRef.current=r.data.updated_at;
+                  try{if(typeof refreshBatchesById==='function') refreshBatchesById([batch.id]);}catch(e){}
+                }
               });
             }
           },style:{background:'var(--red)',color:'#fff',border:'none',cursor:'pointer',fontSize:11,padding:'4px 11px',borderRadius:4,fontWeight:600,flexShrink:0,whiteSpace:'nowrap'}},'\u21ba Refresh')
@@ -7066,6 +7041,11 @@ function ClientQCMgmt(props){
   var sShowNew=useState(false); var showNew=sShowNew[0]; var setShowNew=sShowNew[1];
   var sCQCSrch=useState(''); var cqcSearch=sCQCSrch[0]; var setCqcSearch=sCQCSrch[1];
   var sCQCSrchFocus=useState(false); var cqcSearchFocus=sCQCSrchFocus[0]; var setCqcSearchFocus=sCQCSrchFocus[1];
+  var sCqcFilter=useState('all'); var cqcFilter=sCqcFilter[0]; var setCqcFilter=sCqcFilter[1];
+  var sCqcView=useState('table'); var cqcView=sCqcView[0]; var setCqcView=sCqcView[1];
+  var sCqcSort=useState({col:'defect',dir:'desc'}); var cqcSort=sCqcSort[0]; var setCqcSort=sCqcSort[1];
+  var sCqcMob=useState(typeof window!=='undefined'&&window.innerWidth<=767); var cqcMob=sCqcMob[0];
+  var sCqcMobDispute=useState(null); var cqcMobDispute=sCqcMobDispute[0]; var setCqcMobDispute=sCqcMobDispute[1];
   var sSelCqcProd=useState(null); var selCqcProd=sSelCqcProd[0]; var setSelCqcProd=sSelCqcProd[1];
 
   /* Warn before browser navigation when new report form is open */
@@ -7089,7 +7069,7 @@ function ClientQCMgmt(props){
 
   /* Load CQC reports from Supabase on mount */
   React.useEffect(function(){
-    var q=supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,cqc_sample_defect_readings(cqc_defect_id,value))').order('created_at',{ascending:false}).limit(200);
+    var q=supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value))').order('created_at',{ascending:false}).limit(200);
     if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);
     q.then(function(res){
         if(res.error){console.error('[DalOS] CQC load error:',res.error.message);return;}
@@ -7128,6 +7108,35 @@ function ClientQCMgmt(props){
             files:(r.client_qc_files||[]).map(function(f){return {id:f.id,name:f.file_name,url:f.file_url,type:f.file_type};}), matched:r.matched||false, batchId:r.inspection_id||null,
             season:r.season_id||'', savedAt:r.created_at||'',
             productId:r.product_id||'',
+            /* All varieties from header config */
+            allVarieties:(function(){
+              var cef=r.cqc_extra_fields||{};
+              var vn=function(id){return (config.varietiesIdToName&&id&&config.varietiesIdToName[id])||'';};
+              var list=[];
+              var v1=vn(r.variety_id)||'';
+              var v2=vn(r.variety2_id)||'';
+              if(v1){list.push({v:v1,v2:r.variety_type==='mixed'&&v2?v2:null});}
+              (cef.extra_varieties||[]).forEach(function(ev){
+                if(ev.var) list.push({v:ev.var,v2:ev.type==='mixed'&&ev.var2?ev.var2:null});
+              });
+              return list;
+            })(),
+            /* Sample rows for detail panel */
+            sampleRows:(r.cqc_sample_rows||[]).map(function(sr){
+              var vn=function(id){return (config.varietiesIdToName&&id&&config.varietiesIdToName[id])||'';};
+              var sv=sr.sample_variety_text||(function(){var a=vn(sr.sample_variety_id);var b=vn(sr.sample_variety2_id);return b?a+' / '+b:a;})()||'';
+              var pid2=r.product_id||'citrus';
+              var secs2=(config.cqcDefectSections||{})[pid2]||[];
+              var majorTotal=0,minorTotal=0;
+              secs2.forEach(function(sec){
+                var secDbIds=(sec.items||[]).map(function(d){return d.dbId;});
+                var secSum=0;
+                (sr.cqc_sample_defect_readings||[]).forEach(function(dr){if(secDbIds.indexOf(dr.cqc_defect_id)>=0)secSum+=parseFloat(dr.value)||0;});
+                if(sec.section==='Major')majorTotal=secSum;
+                else if(sec.section==='Minor')minorTotal=secSum;
+              });
+              return {id:sr.id,num:sr.sample_number,variety:sv,farm:sr.sample_farm||'',plot:sr.sample_plot||'',farm2:sr.sample_farm2||'',plot2:sr.sample_plot2||'',notes:sr.notes||'',score:sr.score||'',brix:sr.brix!=null?sr.brix:'',disputed:sr.disputed||false,disputeNote:sr.dispute_note||'',major:majorTotal,minor:minorTotal};
+            }),
             /* Compute Minor/Major averages from sample rows */
             sectionAvgs:(function(){
               var samples=r.cqc_sample_rows||[];
@@ -9117,7 +9126,7 @@ function ClientQCMgmt(props){
 
   /* ── REPORT LIST ── */
   var prodReports=reports.filter(function(r){return r.productId===selCqcProd;});
-  return ce('div',{style:{padding:'22px 26px'}},
+  return ce('div',{className:'page',style:{}},
     ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}},
       ce('div',{style:{display:'flex',alignItems:'center',gap:12}},
         ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelCqcProd(null);setCqcSearch('');setSelRep(null);}},'\u2190 Products'),
@@ -9129,284 +9138,510 @@ function ClientQCMgmt(props){
       ),
       perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowNew(true);}},'+ New client report')
     ),
-    ce('div',{className:'kpi-grid'},
-      ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Reports received'),ce('div',{className:'kpi-value'},prodReports.length),ce('div',{className:'kpi-sub'},'This season')),
-      ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Matched to inspections'),ce('div',{className:'kpi-value',style:{color:'var(--green)'}},prodReports.filter(function(r){return r.matched;}).length),ce('div',{className:'kpi-sub'},'Container matched')),
-      ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Active / potential claims'),ce('div',{className:'kpi-value',style:{color:'var(--red)'}},prodReports.filter(function(r){return r.claimedValue>0||r.potentialClaim;}).length),ce('div',{className:'kpi-sub'},'Flagged for follow-up')),
-      ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Avg total defects'),ce('div',{className:'kpi-value',style:{color:'var(--amber)'}},prodReports.length?Math.round(prodReports.reduce(function(s,r){return s+(r.totalDefect||0);},0)/prodReports.length*10)/10+'%':'—'),ce('div',{className:'kpi-sub'},'Across '+selProdObj.name+' reports'))
+    /* ── Stats bar ── */
+    ce('div',{className:'cqc-stat-grid',style:{marginBottom:16}},
+      ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
+        ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Reports'),
+        ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--accent)'}},prodReports.length)
+      ),
+      ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
+        ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Matched'),
+        ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--green)'}},prodReports.filter(function(r){return r.matched;}).length)
+      ),
+      ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
+        ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Claims'),
+        ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--red)'}},prodReports.filter(function(r){return r.claimedValue>0||r.potentialClaim;}).length)
+      ),
+      ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
+        ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Avg defect'),
+        ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--amber)'}},prodReports.length?(prodReports.reduce(function(s,r){return s+(r.totalDefect||0);},0)/prodReports.length).toFixed(1)+'%':'—')
+      )
     ),
-    prodReports.length===0?ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'40px',textAlign:'center',color:'var(--text3)'}},
-      ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18,marginBottom:6}},'No '+selProdObj.name+' reports yet'),
-      ce('div',{style:{fontSize:13,marginBottom:16}},'Upload and log your first '+selProdObj.name+' client QC report'),
-      perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowNew(true);}},'+  New client report')
-    ):
-    ce('div',null,
-    ce('div',{style:{marginBottom:12,position:'relative',display:'inline-block'}},
-      ce('input',{className:'form-input',value:cqcSearch,
-        onChange:function(e){setCqcSearch(e.target.value);},
-        onFocus:function(){setCqcSearchFocus(true);},
-        onBlur:function(){setTimeout(function(){setCqcSearchFocus(false);},200);},
-        placeholder:'Search Container No...',
-        style:{width:240,fontSize:12,padding:'5px 26px 5px 10px',height:30}
-      }),
-      cqcSearch&&ce('button',{onClick:function(){setCqcSearch('');},style:{position:'absolute',right:7,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:13,color:'var(--text3)',lineHeight:1,padding:0}},'\u00d7'),
-      cqcSearchFocus&&cqcSearch.trim().length>=2&&(function(){
-        var q=cqcSearch.trim().toLowerCase();
-        var seen={};var sugs=[];
-        reports.forEach(function(r){
-          var c=r.container||'';
-          if(c&&c.toLowerCase().indexOf(q)>=0&&!seen[c]){seen[c]=1;sugs.push(c);}
-        });
-        return sugs.length>0&&ce('div',{style:{position:'absolute',top:'calc(100% + 3px)',left:0,minWidth:240,background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,boxShadow:'0 4px 16px rgba(0,0,0,.12)',zIndex:200,overflow:'hidden'}},
-          sugs.slice(0,8).map(function(c,i){
-            return ce('div',{key:i,style:{padding:'8px 12px',cursor:'pointer',borderBottom:i<Math.min(sugs.length,8)-1?'1px solid var(--border)':'none',fontSize:12,fontFamily:'var(--font-mono)',color:'var(--text)'},
-              onMouseDown:function(){setCqcSearch(c);setCqcSearchFocus(false);}},c);
-          })
-        );
-      })()
-    ),
-    ce('div',{className:'scroll-card'},
-      ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
-      ce('table',{style:{minWidth:900}},
-        ce('thead',null,ce('tr',null,
-          ce('th',null,'Container'),ce('th',null,'QC Ref'),ce('th',null,'Client'),ce('th',null,'Sub-client'),
-          ce('th',null,'Variety'),ce('th',null,'Pack date'),ce('th',null,'Total defect'),ce('th',null,'Sections avg'),ce('th',null,'Score'),
-          ce('th',null,'Matched'),ce('th',null,'Files'),ce('th',null,'')
-        )),
-        ce('tbody',null,
-          prodReports.filter(function(r){
-            if(!cqcSearch.trim()) return true;
-            var q=cqcSearch.trim().toLowerCase();
-            return (r.container||'').toLowerCase().indexOf(q)>=0;
-          }).map(function(r,i){
-            return ce('tr',{key:r.id||i,className:'click',onClick:function(){setSelRep(selRep===r.id?null:r.id);}},
-              ce('td',null,
-                ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
-                  ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,fontWeight:600}},r.container||'\u2014'),
-                  ce('button',{className:'btn btn-sm',style:{fontSize:10,background:r.potentialClaim?'var(--amber)':'var(--bg2)',color:r.potentialClaim?'#fff':'var(--text3)',border:'1px solid '+(r.potentialClaim?'var(--amber)':'var(--border2)'),padding:'1px 7px',flexShrink:0},onClick:function(rid){return function(e){e.stopPropagation();toggleClaim(rid);};}(r.id||i)},r.potentialClaim?'\u26a0 Claim':'Claim?')
-                )
-              ),
-              ce('td',{style:{fontSize:11,color:'var(--text3)'}},r.qcReportNumber||'\u2014'),
-              ce('td',null,r.client||'\u2014'),
-              ce('td',{style:{fontSize:11,color:'var(--text3)'}},r.subClient||'\u2014'),
-              ce('td',null,r.variety||'—',r.variety2&&r.varietyType==='mixed'&&ce('div',{style:{fontSize:10,color:'var(--text3)',marginTop:1}},'+ ',r.variety2)),
-              ce('td',{style:{color:'var(--text3)',fontSize:11}},r.packDate||'\u2014'),
-              ce('td',null,r.totalDefect||r.totalDefect===0?ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,color:r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)'}},r.totalDefect.toFixed(1)+'%'):'\u2014'),
-              ce('td',null,(function(){
-                var avgs=r.sectionAvgs||{};
-                var keys=Object.keys(avgs).filter(function(k){return avgs[k]>0;});
-                if(keys.length===0) return ce('span',{style:{color:'var(--text3)',fontSize:11}},'\u2014');
-                return ce('div',{style:{display:'flex',flexDirection:'column',gap:2}},
-                  keys.map(function(k){
-                    return ce('div',{key:k,style:{fontSize:10,fontFamily:'var(--font-mono)',color:avgs[k]>5?'var(--red)':avgs[k]>2?'var(--amber)':'var(--text2)'}},
-                      k+': ',ce('strong',null,avgs[k].toFixed(1)+'%')
-                    );
-                  })
-                );
-              })()),
-              ce('td',null,r.score?ce('span',{style:{fontSize:11,fontWeight:600,color:scoreColor(r.score)}},r.score):'\u2014'),
-              ce('td',null,r.matched?ce('span',{className:'badge badge-pass',style:{fontSize:10}},'\u2713 '+r.batchId):ce('span',{className:'badge badge-neutral',style:{fontSize:10}},'Unmatched')),
-              ce('td',{style:{fontSize:11,color:'var(--text3)'}},(r.files||[]).length+' file'+(r.files&&r.files.length!==1?'s':'')),
-              ce('td',null,ce('button',{className:'btn btn-secondary btn-sm',style:{fontSize:11},onClick:function(rep){return function(e){e.stopPropagation();setSelRep(selRep===rep.id?null:rep.id);};}(r)},selRep===r.id?'Close':'View'))
-            );
-          })
+    prodReports.length===0
+      ?ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'40px',textAlign:'center',color:'var(--text3)'}},
+          ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18,marginBottom:6}},'No '+selProdObj.name+' reports yet'),
+          ce('div',{style:{fontSize:13,marginBottom:16}},'Upload and log your first '+selProdObj.name+' client QC report'),
+          perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowNew(true);}},'+  New client report')
         )
-      )
-      )
-    )),
-    /* ── DETAIL PANEL ── */
-    selRep&&ce('div',{style:{marginTop:16}},
-      (function(){
-        var r=reports.find(function(x){return x.id===selRep;});
-        if(!r) return null;
-        var matchedB=batches.find(function(b){return b.id===r.batchId;});
-        var BUCKET_LABELS={majorRot:'Major Rot/Decay',storageMld:'Storage MLD',foreign:'Foreign Bodies',blemishScarring:'Blemish/Scarring',bruisingOil:'Bruising/Oil/RBD',softness:'Softness/Puffiness',granulation:'Granulation',stalk:'Stalk/Stem',coloration:'Poor Coloration',internalDisc:'Int. Discoloration',splitting:'Splitting',sizing:'Size Issue',injuries:'Injuries',underweight:'Underweight'};
-        return ce('div',{className:'card'},
-          ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}},
-            ce('div',null,
-              ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18}},r.qcReportNumber||r.id),
-              ce('div',{style:{fontSize:12,color:'var(--text3)',marginTop:2}},r.client+(r.subClient?' \u00b7 '+r.subClient:'')+(r.packDate?' \u00b7 '+r.packDate:''))
+      :(function(){
+        /* ── Filter + sort helpers ── */
+        var sortedFiltered=prodReports.filter(function(r){
+          if(cqcFilter==='matched'&&!r.matched) return false;
+          if(cqcFilter==='claim'&&!(r.claimedValue>0||r.potentialClaim)) return false;
+          if(cqcFilter==='unmatched'&&r.matched) return false;
+          if(cqcSearch.trim()){
+            var q=cqcSearch.trim().toLowerCase();
+            return (r.container||'').toLowerCase().indexOf(q)>=0
+              ||(r.qcReportNumber||'').toLowerCase().indexOf(q)>=0
+              ||(r.client||'').toLowerCase().indexOf(q)>=0;
+          }
+          return true;
+        }).sort(function(a,b){
+          var col=cqcSort.col,dir=cqcSort.dir;
+          var v=0;
+          if(col==='container') v=(a.container||'').localeCompare(b.container||'');
+          else if(col==='packDate') v=(a.packDate||'').localeCompare(b.packDate||'');
+          else if(col==='client') v=(a.client||'').localeCompare(b.client||'');
+          else v=(a.totalDefect||0)-(b.totalDefect||0);
+          return dir==='desc'?-v:v;
+        });
+        function sortBtn(col,label){
+          var isActive=cqcSort.col===col;
+          return ce('span',{style:{cursor:'pointer',userSelect:'none',display:'inline-flex',alignItems:'center',gap:2},
+            onClick:function(){setCqcSort(function(prev){return {col:col,dir:prev.col===col&&prev.dir==='desc'?'asc':'desc'};});}},
+            label,
+            ce('span',{style:{fontSize:9,color:isActive?'var(--accent)':'var(--text3)',marginLeft:1}},
+              isActive?(cqcSort.dir==='desc'?'↓':'↑'):'↕')
+          );
+        }
+        function renderVBadge(v,v2){
+          if(v2) return ce('span',{style:{display:'inline-flex',alignItems:'center',gap:2,flexShrink:0}},
+            ce('span',{style:{background:'#fef0dc',color:'#b56a00',borderRadius:3,padding:'1px 5px',fontSize:10,fontWeight:500}},v),
+            ce('span',{style:{color:'var(--text3)',fontSize:9}},'×'),
+            ce('span',{style:{background:'#e8f0fd',color:'#2848b5',borderRadius:3,padding:'1px 5px',fontSize:10,fontWeight:500}},v2)
+          );
+          return ce('span',{style:{background:'var(--bg2)',color:'var(--text)',borderRadius:3,padding:'1px 5px',fontSize:11}},v);
+        }
+        function varietyBadge(r){
+          var all=r.allVarieties||[];
+          if(all.length===0) return ce('span',{style:{color:'var(--text3)',fontSize:12}},'—');
+          if(all.length===1) return renderVBadge(all[0].v,all[0].v2);
+          return ce('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
+            all.map(function(a,i){return ce('span',{key:i},renderVBadge(a.v,a.v2));})
+          );
+        }
+        function defectBar(val){
+          var color=val>15?'var(--red)':val>8?'var(--amber)':'var(--green)';
+          var w=Math.min(val/35*100,100).toFixed(1)+'%';
+          return ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
+            ce('span',{style:{fontWeight:500,fontSize:12,color:color,minWidth:38,fontFamily:'var(--font-mono)'}},val.toFixed(1)+'%'),
+            ce('div',{style:{flex:1,height:5,background:'var(--border)',borderRadius:3,overflow:'hidden',minWidth:40}},
+              ce('div',{style:{height:'100%',width:w,background:color,borderRadius:3}})
+            )
+          );
+        }
+        function statusCell(r){
+          var parts=[];
+          if(r.matched) parts.push(ce('span',{key:'m',style:{display:'inline-flex',alignItems:'center',gap:3,background:'var(--green-bg)',color:'var(--green)',border:'1px solid var(--green-border)',borderRadius:4,padding:'2px 7px',fontSize:10,fontWeight:500}},'✓ Matched'));
+          else parts.push(ce('span',{key:'u',style:{fontSize:11,color:'var(--text3)'}},'Unmatched'));
+          if(r.claimedValue>0||r.potentialClaim) parts.push(ce('span',{key:'c',style:{display:'inline-flex',alignItems:'center',gap:3,background:'#fff0f0',color:'var(--red)',border:'1px solid #f5c0c0',borderRadius:4,padding:'2px 7px',fontSize:10,fontWeight:500,marginLeft:4}},'⚠ Claim'));
+          return ce('div',{style:{display:'flex',flexWrap:'wrap',gap:4,alignItems:'center'}},parts);
+        }
+
+        return ce('div',null,
+          /* ── Toolbar ── */
+          ce('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:12,flexWrap:'wrap'}},
+            /* Search */
+            ce('div',{style:{position:'relative',flex:1,minWidth:160}},
+              ce('span',{style:{position:'absolute',left:9,top:'50%',transform:'translateY(-50%)',color:'var(--text3)',fontSize:13,pointerEvents:'none'}},'🔍'),
+              ce('input',{className:'form-input',value:cqcSearch,
+                onChange:function(e){setCqcSearch(e.target.value);},
+                placeholder:'Container, QC ref, client…',
+                style:{width:'100%',fontSize:12,padding:'6px 26px 6px 28px',height:32}
+              }),
+              cqcSearch&&ce('button',{onClick:function(){setCqcSearch('');},style:{position:'absolute',right:7,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:13,color:'var(--text3)',lineHeight:1,padding:0}},'×')
             ),
-            ce('div',{style:{display:'flex',gap:8,alignItems:'center'}},
-              r.potentialClaim&&ce('span',{style:{fontSize:11,fontWeight:600,background:'var(--amber-bg)',color:'var(--amber)',border:'1px solid var(--amber-border)',borderRadius:6,padding:'3px 10px'}},'\u26a0 Potential claim flagged'),
-              r.claimedValue>0&&ce('span',{style:{fontSize:12,fontWeight:700,color:'var(--red)',background:'#fff0f0',border:'1px solid #f5c0c0',borderRadius:6,padding:'3px 10px'}},(r.claimedCurrency||'')+' '+r.claimedValue.toLocaleString()+' claimed'),
-              r.score&&ce('span',{style:{fontSize:14,fontWeight:700,color:scoreColor(r.score),background:scoreColor(r.score)+'18',border:'1px solid '+scoreColor(r.score)+'40',borderRadius:6,padding:'3px 12px'}},r.score),
-              ce('button',{className:'btn btn-primary btn-sm',onClick:function(){loadReportForEdit(r);}},'\u270e Edit'),
-              ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelRep(null);}},'\u00d7 Close')
+            /* Filter pills */
+            ['all','matched','claim','unmatched'].map(function(f){
+              var labels={all:'All',matched:'Matched',claim:'Claims',unmatched:'Unmatched'};
+              var active=cqcFilter===f;
+              return ce('button',{key:f,
+                style:{padding:'5px 12px',border:'0.5px solid '+(active?'#2e5d3a':'var(--border2)'),borderRadius:20,fontSize:12,cursor:'pointer',background:active?'#2e5d3a':'var(--card)',color:active?'#fff':'var(--text2)',whiteSpace:'nowrap'},
+                onClick:function(){setCqcFilter(f);}
+              },labels[f]);
+            }),
+            /* View toggle */
+            ce('div',{style:{display:'flex',border:'0.5px solid var(--border2)',borderRadius:'var(--r1)',overflow:'hidden',marginLeft:'auto'}},
+              ce('button',{title:'Table view',style:{padding:'5px 9px',background:cqcView==='table'?'#2e5d3a':'var(--card)',color:cqcView==='table'?'#fff':'var(--text3)',border:'none',cursor:'pointer',fontSize:13},onClick:function(){setCqcView('table');}},'≡'),
+              ce('button',{title:'Card view',style:{padding:'5px 9px',background:cqcView==='cards'?'#2e5d3a':'var(--card)',color:cqcView==='cards'?'#fff':'var(--text3)',border:'none',cursor:'pointer',fontSize:13},onClick:function(){setCqcView('cards');}},'\u229e')
             )
           ),
-          /* Key fields grid */
-          ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}},
-            [
-              ['Container',r.container],['QC Ref',r.qcReportNumber],['Variety',r.variety+(r.variety2&&r.varietyType==='mixed'?' + '+r.variety2:'')],['Lot #',r.lot],
-              ['Packhouse',r.packhouse],['Region',r.region],['Pack date',r.packDate],['Brix',r.brix?r.brix+'%':'—'],
-              ['Daltex class',r.daltexClass],['Client class',r.clientClass],['Wax',r.wax],['Temp',r.tempLogger||'—'],
-              ['GGN',r.ggn||'—'],['Trace code',r.traceCode||'—'],['Carton type',r.cartonType||'—']
-            ].map(function(item){
-              return ce('div',{key:item[0],style:{background:'var(--bg2)',borderRadius:6,padding:'7px 10px'}},
-                ce('div',{style:{fontSize:10,color:'var(--text3)',marginBottom:2,textTransform:'uppercase',letterSpacing:'.05em'}},item[0]),
-                ce('div',{style:{fontSize:12,fontWeight:500,wordBreak:'break-all'}},item[1]||'—')
-              );
-            }).concat([
-              ce('div',{key:'files',style:{background:'var(--bg2)',borderRadius:6,padding:'7px 10px'}},
-                ce('div',{style:{fontSize:10,color:'var(--text3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.05em'}},'Files'),
-                (r.files||[]).length===0
-                  ?ce('div',{style:{fontSize:12,color:'var(--text3)'}},'—')
-                  :ce('div',{style:{display:'flex',flexDirection:'column',gap:6}},
-                    (r.files||[]).map(function(f,i){
-                      return ce('a',{key:i,href:f.url,target:'_blank',rel:'noopener noreferrer',
-                        style:{fontSize:12,color:'var(--accent)',textDecoration:'none',display:'flex',alignItems:'center',gap:6,
-                          background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:6,padding:'6px 10px',wordBreak:'break-all'}},
-                        '📎 ',ce('span',{style:{fontWeight:500}},f.name)
+
+          ce('div',{className:'cqc-list-row'},
+          ce('div',{className:'cqc-list-pane'+(selRep?' has-detail':'')},
+          /* ── Table view ── */
+          cqcView==='table'&&ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',overflow:'hidden',marginBottom:12}},
+            ce('div',{style:{overflowX:'auto'}},
+            ce('table',{style:{width:'100%',minWidth:820,borderCollapse:'collapse',fontSize:13}},
+              ce('thead',null,ce('tr',null,
+                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('container','Container')),
+                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},sortBtn('client','Client')),
+                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Variety'),
+                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('packDate','Pack date')),
+                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('defect','Defect')),
+                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Score'),
+                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Status')
+              )),
+              ce('tbody',null,
+                sortedFiltered.length===0
+                  ?ce('tr',null,ce('td',{colSpan:7,style:{padding:'32px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No reports match the current filters.'))
+                  :sortedFiltered.map(function(r,i){
+                    var isSelected=selRep===r.id;
+                    return ce('tr',{key:r.id||i,
+                      style:{borderBottom:'0.5px solid var(--border)',background:isSelected?'var(--bg2)':'var(--card)',cursor:'pointer'},
+                      onClick:function(){setSelRep(isSelected?null:r.id);}
+                    },
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},
+                        ce('div',{style:{fontWeight:500,fontSize:13,fontFamily:'var(--font-mono)'}},r.container||'—'),
+                        ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},r.qcReportNumber||'—')
+                      ),
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},
+                        ce('div',{style:{display:'flex',alignItems:'center',gap:7}},
+                          ce('div',{style:{width:26,height:26,borderRadius:'50%',background:'var(--bg2)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:500,flexShrink:0,color:'var(--text2)'}},(r.client||'?').slice(0,2).toUpperCase()),
+                          ce('span',{style:{fontSize:13}},r.client||'—')
+                        )
+                      ),
+                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle'}},varietyBadge(r)),
+                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',fontSize:12,color:'var(--text3)',whiteSpace:'nowrap'}},r.packDate||'—'),
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',minWidth:120}},
+                        r.totalDefect||r.totalDefect===0?defectBar(r.totalDefect):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
+                      ),
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},
+                        r.score?ce('span',{style:{display:'inline-block',padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
+                          background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',
+                          color:r.score==='GREEN'?'var(--green)':r.score==='RED'?'var(--red)':'var(--amber)'}},r.score)
+                          :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
+                      ),
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},statusCell(r))
+                    );
+                  })
+              )
+            )
+            )
+          ),
+
+          /* ── Cards view ── */
+          cqcView==='cards'&&ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:10,marginBottom:12}},
+            sortedFiltered.length===0
+              ?ce('div',{style:{gridColumn:'1/-1',padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}},'No reports match the current filters.')
+              :sortedFiltered.map(function(r,i){
+                var isSelected=selRep===r.id;
+                return ce('div',{key:r.id||i,
+                  style:{background:'var(--card)',border:'1px solid '+(isSelected?'var(--accent)':'var(--border)'),borderRadius:'var(--r2)',padding:'14px',cursor:'pointer'},
+                  onClick:function(){setSelRep(isSelected?null:r.id);}
+                },
+                  ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}},
+                    ce('div',null,
+                      ce('div',{style:{fontWeight:500,fontSize:13,fontFamily:'var(--font-mono)'}},r.container||'—'),
+                      ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:2}},r.qcReportNumber+' · '+r.client)
+                    ),
+                    r.score&&ce('span',{style:{padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
+                      background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',
+                      color:r.score==='GREEN'?'var(--green)':r.score==='RED'?'var(--red)':'var(--amber)'}},r.score)
+                  ),
+                  ce('div',{style:{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4}},
+                    ce('span',{style:{color:'var(--text3)'}},'Variety'),
+                    varietyBadge(r)
+                  ),
+                  ce('div',{style:{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:8}},
+                    ce('span',{style:{color:'var(--text3)'}},'Pack date'),
+                    ce('span',{style:{color:'var(--text3)'}},r.packDate||'—')
+                  ),
+                  ce('div',{style:{borderTop:'0.5px solid var(--border)',paddingTop:8}},
+                    ce('div',{style:{marginBottom:6}},r.totalDefect||r.totalDefect===0?defectBar(r.totalDefect):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')),
+                    statusCell(r)
+                  )
+                );
+              })
+          ),
+
+          ),/* end left pane */
+          /* ── Detail panel ── */
+          selRep&&!cqcMob&&ce('div',{className:'cqc-detail-pane'},
+          (function(){
+            var r=reports.find(function(x){return x.id===selRep;});
+            if(!r) return null;
+            var matchedB=batches.find(function(b){return b.id===r.batchId;});
+            function scoreStyle(s){return {padding:'3px 10px',borderRadius:12,fontSize:12,fontWeight:500,background:s==='GREEN'?'var(--green-bg)':s==='RED'?'#fff0f0':'var(--amber-bg)',color:s==='GREEN'?'var(--green)':s==='RED'?'var(--red)':'var(--amber)'};};
+            return ce('div',{id:'cqc-detail-panel',style:{background:'#E6F1FB',border:'1px solid #B5D4F4',borderRadius:'var(--r2)',padding:'16px 18px',marginTop:4}},
+              ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:16}},
+                ce('button',{style:{display:'flex',alignItems:'center',gap:4,color:'var(--text3)',fontSize:13,cursor:'pointer',background:'none',border:'none',padding:0},onClick:function(){setSelRep(null);}},'← Back'),
+                ce('span',{style:{color:'var(--text3)'}},'/ '),
+                ce('span',{style:{fontSize:15,fontWeight:500,fontFamily:'var(--font-mono)'}},r.container||r.qcReportNumber||r.id),
+                r.score&&ce('span',{style:scoreStyle(r.score)},r.score),
+                r.matched&&ce('span',{style:{display:'inline-flex',alignItems:'center',gap:3,background:'var(--green-bg)',color:'var(--green)',border:'1px solid var(--green-border)',borderRadius:6,padding:'3px 8px',fontSize:11,fontWeight:500}},'✓ Matched'),
+                (r.claimedValue>0||r.potentialClaim)&&ce('span',{style:{background:'#fff0f0',color:'var(--red)',border:'1px solid #f5c0c0',borderRadius:6,padding:'3px 8px',fontSize:11,fontWeight:500}},r.claimedValue>0?'⚠ '+(r.claimedCurrency||'')+' '+r.claimedValue.toLocaleString()+' claimed':'⚠ Potential claim'),
+                ce('div',{style:{marginLeft:'auto',display:'flex',gap:6}},
+                  perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){loadReportForEdit(r);},style:{fontSize:12}},'✎ Edit'),
+                  ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelRep(null);},style:{fontSize:12}},'× Close')
+                )
+              ),
+              ce('div',{className:'cqc-stat-grid'},
+                ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Total defect'),ce('div',{style:{fontSize:20,fontWeight:500,color:r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)'}},r.totalDefect||r.totalDefect===0?r.totalDefect.toFixed(1)+'%':'—')),
+                ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Samples'),ce('div',{style:{fontSize:20,fontWeight:500}},(r.sampleRows||[]).length)),
+                ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},
+                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Major avg'),
+                  ce('div',{style:{fontSize:20,fontWeight:500,color:'var(--red)'}},r.sectionAvgs&&r.sectionAvgs.Major!=null?r.sectionAvgs.Major.toFixed(2)+'%':'—')
+                ),
+                ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},
+                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Minor avg'),
+                  ce('div',{style:{fontSize:20,fontWeight:500,color:'var(--amber)'}},r.sectionAvgs&&r.sectionAvgs.Minor!=null?r.sectionAvgs.Minor.toFixed(2)+'%':'—')
+                )
+              ),
+              ce('div',{className:'cqc-two-col'},
+                ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
+                  ce('div',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}},'Shipment info'),
+                  [['Container',r.container],['QC ref',r.qcReportNumber],['Client',r.client+(r.subClient?' · '+r.subClient:'')],['Region',r.region],['Pack date',r.packDate],['Carton type',r.cartonType],['Trace code',r.traceCode]].map(function(item){
+                    return ce('div',{key:item[0],style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'0.5px solid var(--border)'}},
+                      ce('span',{style:{fontSize:12,color:'var(--text3)'}},item[0]),
+                      ce('span',{style:{fontSize:12,fontWeight:500,textAlign:'right',maxWidth:'55%',wordBreak:'break-all'}},item[1]||'—')
+                    );
+                  })
+                ),
+                ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
+                  ce('div',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}},'Product info'),
+                  [['Crop',selProdObj.name],['Daltex class',r.daltexClass],['Client class',r.clientClass],['Packhouse',r.packhouse],['Farm 1',r.farm1||r.farm],['Farm 2',r.farm2]].map(function(item){
+                    return ce('div',{key:item[0],style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'0.5px solid var(--border)'}},
+                      ce('span',{style:{fontSize:12,color:'var(--text3)'}},item[0]),
+                      ce('span',{style:{fontSize:12,fontWeight:500}},item[1]||'—')
+                    );
+                  }),
+                  ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0'}},
+                    ce('span',{style:{fontSize:12,color:'var(--text3)'}},'Varieties'),
+                    (r.allVarieties||[]).length>0
+                      ?ce('div',{style:{display:'flex',flexWrap:'wrap',gap:3,justifyContent:'flex-end'}},
+                          (r.allVarieties||[]).map(function(a,i){
+                            return a.v2
+                              ?ce('span',{key:i,style:{display:'inline-flex',alignItems:'center',gap:2}},ce('span',{style:{background:'#fef0dc',color:'#b56a00',borderRadius:3,padding:'1px 5px',fontSize:10,fontWeight:500}},a.v),ce('span',{style:{color:'var(--text3)',fontSize:9}},'×'),ce('span',{style:{background:'#e8f0fd',color:'#2848b5',borderRadius:3,padding:'1px 5px',fontSize:10,fontWeight:500}},a.v2))
+                              :ce('span',{key:i,style:{background:'var(--bg2)',borderRadius:3,padding:'1px 6px',fontSize:11}},a.v);
+                          })
+                        )
+                      :ce('span',{style:{fontSize:12,fontWeight:500}},r.variety||'—')
+                  )
+                )
+              ),
+              r.defects&&Object.keys(r.defects).filter(function(k){return r.defects[k]>0;}).length>0&&ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px',marginBottom:14}},
+                ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
+                  ce('span',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em'}},'Defect breakdown'),
+                  r.totalDefect||r.totalDefect===0?ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:500,color:r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)'}},r.totalDefect.toFixed(1)+'% client reported'):null
+                ),
+                ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:6}},
+                  Object.keys(r.defects).filter(function(k){return r.defects[k]>0;}).map(function(k){
+                    var v=r.defects[k];
+                    var w=Math.min(v/20*100,100).toFixed(1)+'%';
+                    return ce('div',{key:k,style:{background:'var(--bg2)',borderRadius:6,padding:'7px 10px'}},
+                      ce('div',{style:{fontSize:10,color:'var(--text3)',marginBottom:4}},k.replace(/([A-Z])/g,' $1').replace(/^./,function(c){return c.toUpperCase();})),
+                      ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
+                        ce('div',{style:{flex:1,height:5,background:'var(--border)',borderRadius:3,overflow:'hidden'}},ce('div',{style:{height:'100%',width:w,background:v>5?'var(--red)':v>2?'var(--amber)':'var(--green)',borderRadius:3}})),
+                        ce('span',{style:{fontSize:11,fontWeight:500,fontFamily:'var(--font-mono)',color:v>5?'var(--red)':v>2?'var(--amber)':'var(--green)',minWidth:36,textAlign:'right'}},v.toFixed(1)+'%')
+                      )
+                    );
+                  })
+                )
+              ),
+              r.sampleRows&&r.sampleRows.length>0&&ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px',marginBottom:14}},
+                ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
+                  ce('span',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em'}},'Sample readings'),
+                  ce('span',{style:{fontSize:12,color:'var(--text3)'}},r.sampleRows.length+' samples')
+                ),
+                ce('div',{style:{overflowX:'auto',border:'1px solid var(--border)',borderRadius:8}},
+                  ce('table',{style:{width:'100%',minWidth:520,fontSize:11,borderCollapse:'collapse'}},
+                    ce('thead',null,ce('tr',null,['#','Variety','Farm','Plot','Brix','Major','Minor','Score','Notes','Dispute'].map(function(h){return ce('th',{key:h,style:{padding:'6px 10px',textAlign:'left',fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},h);}))),
+                    ce('tbody',null,r.sampleRows.map(function(s,i){
+                      var isMix=s.variety&&s.variety.indexOf(' / ')>=0;
+                      var parts=isMix?s.variety.split(' / '):null;
+                      var vCell=isMix?ce('span',{style:{display:'inline-flex',alignItems:'center',gap:2}},ce('span',{style:{background:'#fef0dc',color:'#b56a00',borderRadius:3,padding:'1px 4px',fontSize:10,fontWeight:500}},parts[0]),ce('span',{style:{color:'var(--text3)',fontSize:9}},'×'),ce('span',{style:{background:'#e8f0fd',color:'#2848b5',borderRadius:3,padding:'1px 4px',fontSize:10,fontWeight:500}},parts[1])):ce('span',{style:{fontSize:11}},s.variety||'—');
+                      return ce('tr',{key:s.id||i,style:{borderBottom:'0.5px solid var(--border)',background:i%2===0?'var(--card)':'var(--bg2)'}},
+                        ce('td',{style:{padding:'5px 10px',fontWeight:500}},s.num),
+                        ce('td',{style:{padding:'5px 10px'}},vCell),
+                        ce('td',{style:{padding:'5px 10px'}},s.farm2?ce('div',{style:{display:'flex',flexDirection:'column',gap:2}},ce('span',{style:{borderLeft:'2px solid #d07000',paddingLeft:4,fontSize:11}},s.farm||'—'),ce('span',{style:{borderLeft:'2px solid #2848b5',paddingLeft:4,fontSize:11}},s.farm2)):s.farm||'—'),
+                        ce('td',{style:{padding:'5px 10px',color:'var(--text3)'}},s.plot2?s.plot+' / '+s.plot2:s.plot||'—'),
+                        ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)'}},s.brix||'—'),
+                        ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.major>0?'var(--red)':'var(--text3)'}},s.major>0?s.major.toFixed(2)+'%':'—'),
+                        ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.minor>0?'var(--amber)':'var(--text3)'}},s.minor>0?s.minor.toFixed(2)+'%':'—'),
+                        ce('td',{style:{padding:'5px 10px'}},s.score?ce('span',{style:{fontSize:10,fontWeight:500,color:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}},s.score):'—'),
+                        ce('td',{style:{padding:'5px 10px',color:'var(--text3)',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.notes||'—'),
+                        ce('td',{style:{padding:'5px 10px',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},
+                          s.disputed
+                            ?ce('span',{title:s.disputeNote||'',style:{display:'inline-flex',alignItems:'center',gap:3,background:'#fff0f0',color:'var(--red)',borderRadius:3,padding:'1px 5px',fontSize:10,fontWeight:500,cursor:s.disputeNote?'help':'default'}},
+                                ce('span',{style:{width:5,height:5,borderRadius:'50%',background:'var(--red)',display:'inline-block',flexShrink:0}}),
+                                'Disputed'+(s.disputeNote?' → '+s.disputeNote.slice(0,20)+(s.disputeNote.length>20?'…':''):'')
+                              )
+                            :ce('span',{style:{color:'var(--text3)',fontSize:11}},'—')
+                        )
+                      );
+                    }))
+                  )
+                )
+              ),
+              ce('div',{className:'cqc-two-col-bot',style:{marginBottom:matchedB?14:0}},
+                ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
+                  ce('div',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}},'Files'),
+                  (r.files||[]).length===0?ce('div',{style:{fontSize:12,color:'var(--text3)'}},'No files attached'):(r.files||[]).map(function(f,i){
+                    return ce('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'0.5px solid var(--border)'}},
+                      ce('div',{style:{width:26,height:26,background:'var(--bg2)',borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},'📄'),
+                      ce('a',{href:f.url,target:'_blank',rel:'noopener noreferrer',style:{fontSize:12,fontWeight:500,color:'var(--accent)',textDecoration:'none',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},f.name)
+                    );
+                  }),
+                  matchedB&&ce('div',{style:{marginTop:10,paddingTop:10,borderTop:'0.5px solid var(--border)'}},
+                    ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:4}},'Matched inspection'),
+                    ce('div',{style:{fontSize:12,fontWeight:500,color:'var(--accent)'}},matchedB.id),
+                    ce('div',{style:{fontSize:11,color:'var(--text3)'}},(matchedB.packhouse||matchedB.farm||'')+(matchedB.date?' · '+matchedB.date:''))
+                  )
+                ),
+                ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
+                  ce('div',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}},'Comments'),
+                  r.general&&ce('div',{style:{marginBottom:8}},ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',marginBottom:3}},'General'),ce('div',{style:{fontSize:12,lineHeight:1.5}},r.general)),
+                  r.pkgComments&&ce('div',{style:{marginBottom:8}},ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',marginBottom:3}},'Packaging'),ce('div',{style:{fontSize:12,lineHeight:1.5}},r.pkgComments)),
+                  r.cause&&ce('div',null,ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',marginBottom:3}},'Cause / response'),ce('div',{style:{fontSize:12,lineHeight:1.5}},r.cause)),
+                  !r.general&&!r.pkgComments&&!r.cause&&ce('div',{style:{fontSize:12,color:'var(--text3)'}},'No comments recorded')
+                )
+              ),
+              matchedB&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
+                ce('div',{style:{fontWeight:500,fontSize:12,color:'var(--green)',marginBottom:8}},'✓ Matched inspection: '+matchedB.id),
+                ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,fontSize:12}},
+                  [['Date',matchedB.date],['Variety',matchedB.variety],['Internal defect',matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'—'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'★ Special Accept':matchedB.decision==='SR'?'★ Special Reject':'Reject'],['Farm',matchedB.farm],['Client',matchedB.client],['LOT',matchedB.lot],['Status',matchedB.status]].map(function(item){
+                    return ce('div',{key:item[0],style:{background:'var(--card)',borderRadius:5,padding:'5px 8px'}},ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1}},item[0]),ce('div',{style:{fontWeight:500,fontSize:11}},item[1]||'—'));
+                  })
+                )
+              )
+            );
+          })())
+        ,
+        /* ── Mobile bottom sheet detail panel ── */
+        cqcMob&&selRep&&(function(){
+          var r=reports.find(function(x){return x.id===selRep;});
+          if(!r) return null;
+          return ce('div',{className:'dp-overlay',onClick:function(e){if(e.target===e.currentTarget)setSelRep(null);}},
+            ce('div',{className:'dp-sheet'},
+              ce('div',{className:'dp-handle-wrap'},ce('div',{className:'dp-handle'})),
+              ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 16px 8px',flexShrink:0}},
+                ce('div',null,
+                  ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:14,fontWeight:500}},r.container||r.id),
+                  ce('div',{style:{fontSize:11,color:'var(--text3)'}},r.client+(r.packDate?' · '+r.packDate:''))
+                ),
+                ce('div',{style:{display:'flex',gap:6,alignItems:'center'}},
+                  r.score&&ce('span',{style:{padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',color:r.score==='GREEN'?'var(--green)':r.score==='RED'?'var(--red)':'var(--amber)'}},r.score),
+                  r.matched&&ce('span',{style:{background:'var(--green-bg)',color:'var(--green)',border:'1px solid var(--green-border)',borderRadius:6,padding:'2px 7px',fontSize:10,fontWeight:500}},'✓ Matched'),
+                  ce('button',{style:{background:'none',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer',lineHeight:1},onClick:function(){setSelRep(null);}},'×')
+                )
+              ),
+              ce('div',{className:'dp-body',style:{paddingTop:0}},
+                ce('div',{className:'cqc-stat-grid',style:{marginBottom:14}},
+                  ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Total defect'),ce('div',{style:{fontSize:18,fontWeight:500,color:r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)'}},r.totalDefect||r.totalDefect===0?r.totalDefect.toFixed(1)+'%':'—')),
+                  ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Samples'),ce('div',{style:{fontSize:18,fontWeight:500}},(r.sampleRows||[]).length)),
+                  ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Major'),ce('div',{style:{fontSize:18,fontWeight:500,color:'var(--red)'}},r.sectionAvgs&&r.sectionAvgs.Major!=null?r.sectionAvgs.Major.toFixed(2)+'%':'—')),
+                  ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Minor'),ce('div',{style:{fontSize:18,fontWeight:500,color:'var(--amber)'}},r.sectionAvgs&&r.sectionAvgs.Minor!=null?r.sectionAvgs.Minor.toFixed(2)+'%':'—'))
+                ),
+                [['Container',r.container],['QC ref',r.qcReportNumber],['Client',r.client],['Region',r.region],['Pack date',r.packDate],['Carton type',r.cartonType],['Trace code',r.traceCode]].map(function(item){
+                  return ce('div',{key:item[0],style:{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'0.5px solid var(--border)'}},
+                    ce('span',{style:{fontSize:12,color:'var(--text3)'}},item[0]),
+                    ce('span',{style:{fontSize:12,fontWeight:500,textAlign:'right',maxWidth:'55%',wordBreak:'break-all'}},item[1]||'—')
+                  );
+                }),
+                (r.allVarieties||[]).length>0&&ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'0.5px solid var(--border)'}},
+                  ce('span',{style:{fontSize:12,color:'var(--text3)'}},'Varieties'),
+                  ce('div',{style:{display:'flex',flexWrap:'wrap',gap:3,justifyContent:'flex-end'}},
+                    (r.allVarieties||[]).map(function(a,i){
+                      return a.v2
+                        ?ce('span',{key:i,style:{display:'inline-flex',alignItems:'center',gap:2}},ce('span',{style:{background:'#fef0dc',color:'#b56a00',borderRadius:3,padding:'1px 5px',fontSize:10,fontWeight:500}},a.v),ce('span',{style:{color:'var(--text3)',fontSize:9}},'×'),ce('span',{style:{background:'#e8f0fd',color:'#2848b5',borderRadius:3,padding:'1px 5px',fontSize:10,fontWeight:500}},a.v2))
+                        :ce('span',{key:i,style:{background:'var(--bg2)',borderRadius:3,padding:'1px 6px',fontSize:11}},a.v);
+                    })
+                  )
+                ),
+                r.defects&&Object.keys(r.defects).filter(function(k){return r.defects[k]>0;}).length>0&&ce('div',{style:{marginTop:14}},
+                  ce('div',{style:{fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Defect breakdown — ',ce('span',{style:{color:r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)',fontFamily:'var(--font-mono)'}},r.totalDefect?r.totalDefect.toFixed(1)+'%':'')),
+                  ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}},
+                    Object.keys(r.defects).filter(function(k){return r.defects[k]>0;}).map(function(k){
+                      var v=r.defects[k];
+                      return ce('div',{key:k,style:{background:'var(--bg2)',borderRadius:6,padding:'7px 10px'}},
+                        ce('div',{style:{fontSize:10,color:'var(--text3)',marginBottom:3}},k.replace(/([A-Z])/g,' $1').replace(/^./,function(c){return c.toUpperCase();})),
+                        ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
+                          ce('div',{style:{flex:1,height:5,background:'var(--border)',borderRadius:3,overflow:'hidden'}},ce('div',{style:{height:'100%',width:Math.min(v/20*100,100).toFixed(1)+'%',background:v>5?'var(--red)':v>2?'var(--amber)':'var(--green)',borderRadius:3}})),
+                          ce('span',{style:{fontSize:11,fontWeight:500,color:v>5?'var(--red)':v>2?'var(--amber)':'var(--green)',minWidth:36,textAlign:'right'}},v.toFixed(1)+'%')
+                        )
                       );
                     })
                   )
-              )
-            ])
-          ),
-          /* Defect breakdown */
-          r.defects&&ce('div',{style:{marginBottom:14}},
-            ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},
-              'Defect breakdown \u2014 Client reported total: ',
-              ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:13,color:r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)'}},r.totalDefect.toFixed(1)+'%')
-            ),
-            ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:6}},
-              Object.keys(r.defects).map(function(k){
-                var v=r.defects[k];
-                var intV=matchedB?matchedB[k]||0:null;
-                return ce('div',{key:k,style:{background:v>3?'var(--amber-bg)':v>0?'var(--bg2)':'var(--bg2)',border:'1px solid '+(v>3?'var(--amber-border)':'var(--border)'),borderRadius:6,padding:'6px 9px'}},
-                  ce('div',{style:{fontSize:10,color:'var(--text3)',marginBottom:3}},BUCKET_LABELS[k]||k),
-                  ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
-                    ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600,color:v>3?'var(--amber)':v>0?'var(--text)':'var(--text3)'}},v>0?v.toFixed(1)+'%':'—'),
-                    matchedB&&intV>0&&ce('span',{style:{fontSize:9,color:'var(--text3)'}},'\u25b2int '+intV.toFixed(1)+'%')
+                ),
+                /* Sample readings */
+                r.sampleRows&&r.sampleRows.length>0&&ce('div',{style:{marginTop:14}},
+                  ce('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:8}},
+                    ce('span',{style:{fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em'}},'Sample readings'),
+                    ce('span',{style:{fontSize:11,color:'var(--text3)'}},r.sampleRows.length+' samples')
+                  ),
+                  ce('div',{style:{overflowX:'auto',border:'1px solid var(--border)',borderRadius:8}},
+                    ce('table',{style:{width:'100%',minWidth:480,fontSize:11,borderCollapse:'collapse'}},
+                      ce('thead',null,ce('tr',null,['#','Variety','Farm','Brix','Major','Minor','Score'].map(function(h){return ce('th',{key:h,style:{padding:'5px 8px',textAlign:'left',fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},h);}))),
+                      ce('tbody',null,r.sampleRows.map(function(s,i){
+                        var isMix=s.variety&&s.variety.indexOf(' / ')>=0;
+                        var parts=isMix?s.variety.split(' / '):null;
+                        var vCell=isMix?ce('span',{style:{display:'inline-flex',alignItems:'center',gap:2}},ce('span',{style:{background:'#fef0dc',color:'#b56a00',borderRadius:3,padding:'1px 4px',fontSize:9,fontWeight:500}},parts[0]),ce('span',{style:{color:'var(--text3)',fontSize:8}},'×'),ce('span',{style:{background:'#e8f0fd',color:'#2848b5',borderRadius:3,padding:'1px 4px',fontSize:9,fontWeight:500}},parts[1])):ce('span',null,s.variety||'—');
+                        return ce('tr',{key:s.id||i,style:{borderBottom:'0.5px solid var(--border)',background:i%2===0?'var(--card)':'var(--bg2)'}},
+                          ce('td',{style:{padding:'4px 8px',fontWeight:500,whiteSpace:'nowrap',position:'relative'}},
+                            s.num,
+                            s.disputed&&ce('span',{
+                              onClick:function(sid){return function(e){e.stopPropagation();setCqcMobDispute(cqcMobDispute===sid?null:sid);};}(s.id),
+                              style:{display:'inline-block',width:7,height:7,borderRadius:'50%',background:'var(--red)',marginLeft:4,verticalAlign:'middle',cursor:'pointer',flexShrink:0}
+                            }),
+                            s.disputed&&cqcMobDispute===s.id&&ce('div',{style:{
+                              position:'absolute',left:0,top:'calc(100% + 4px)',zIndex:300,
+                              background:'var(--card)',border:'1px solid var(--red-border)',borderRadius:8,
+                              boxShadow:'0 4px 16px rgba(0,0,0,.15)',
+                              padding:'10px 12px',width:220,
+                              fontSize:12,color:'var(--text)',lineHeight:1.5
+                            }},
+                              ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--red)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}},'● Disputed sample'),
+                              ce('div',null,s.disputeNote||'No note provided.'),
+                              ce('div',{style:{marginTop:8,textAlign:'right'}},
+                                ce('button',{style:{background:'none',border:'none',fontSize:11,color:'var(--text3)',cursor:'pointer'},onClick:function(e){e.stopPropagation();setCqcMobDispute(null);}},'× Close')
+                              )
+                            )
+                          ),
+                          ce('td',{style:{padding:'4px 8px'}},vCell),
+                          ce('td',{style:{padding:'4px 8px',fontSize:11}},s.farm2?s.farm+'/'+s.farm2:s.farm||'—'),
+                          ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)'}},s.brix||'—'),
+                          ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)',color:s.major>0?'var(--red)':'var(--text3)'}},s.major>0?s.major.toFixed(2)+'%':'—'),
+                          ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)',color:s.minor>0?'var(--amber)':'var(--text3)'}},s.minor>0?s.minor.toFixed(2)+'%':'—'),
+                          ce('td',{style:{padding:'4px 8px'}},s.score?ce('span',{style:{fontSize:10,fontWeight:500,color:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}},s.score):'—')
+                        );
+                      }))
+                    )
                   )
-                );
-              })
-            )
-          ),
-          /* Matched batch comparison */
-          matchedB&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:8,padding:'12px 14px',marginBottom:14}},
-            ce('div',{style:{fontWeight:600,fontSize:12,color:'var(--green)',marginBottom:8}},'\u2713 Matched internal inspection: '+matchedB.id),
-            ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,fontSize:12,marginBottom:matchedB.samples&&matchedB.samples.length?10:0}},
-              [['Date',matchedB.date],['Variety',matchedB.variety],['Internal defect %',matchedB.totalDefect.toFixed(1)+'%'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'\u2605 Special Accept':matchedB.decision==='SR'?'\u2605 Special Reject':'Reject'],['Farm',matchedB.farm],['Client',matchedB.client],['LOT',matchedB.lot],['Status',matchedB.status]].map(function(item){
-                return ce('div',{key:item[0],style:{background:'var(--card)',borderRadius:5,padding:'5px 8px'}},
-                  ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1}},item[0]),
-                  ce('div',{style:{fontWeight:500,fontSize:11}},item[1])
-                );
-              })
-            ),
-            /* Sample readings from internal inspection */
-            matchedB.samples&&matchedB.samples.length>0&&ce('div',null,
-              ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--green)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Internal sample readings ('+matchedB.samples.length+' samples)'),
-              ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
-                ce('table',{style:{width:'100%',minWidth:520,fontSize:11,borderCollapse:'collapse'}},
-                  ce('thead',null,
-                    ce('tr',{style:{background:'rgba(0,0,0,.06)'}},
-                      ['Time','Size','Wt (kg)','Brix','Blemish','Sunburn','Mech','Thrips','Oil','Notes'].map(function(h){
-                        return ce('th',{key:h,style:{padding:'4px 8px',textAlign:'left',fontWeight:600,fontSize:10,color:'var(--green)',whiteSpace:'nowrap'}},h);
+                ),
+                /* Files */
+                (r.files||[]).length>0&&ce('div',{style:{marginTop:14}},
+                  ce('div',{style:{fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Files'),
+                  (r.files||[]).map(function(f,i){
+                    return ce('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'0.5px solid var(--border)'}},
+                      ce('div',{style:{width:26,height:26,background:'var(--bg2)',borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},'📄'),
+                      ce('a',{href:f.url,target:'_blank',rel:'noopener noreferrer',style:{fontSize:12,fontWeight:500,color:'var(--accent)',textDecoration:'none',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},f.name)
+                    );
+                  })
+                ),
+                /* Comments */
+                (r.general||r.pkgComments||r.cause)&&ce('div',{style:{marginTop:14}},
+                  ce('div',{style:{fontSize:10,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Comments'),
+                  r.general&&ce('div',{style:{marginBottom:8}},ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',marginBottom:3}},'General'),ce('div',{style:{fontSize:12,lineHeight:1.5}},r.general)),
+                  r.pkgComments&&ce('div',{style:{marginBottom:8}},ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',marginBottom:3}},'Packaging'),ce('div',{style:{fontSize:12,lineHeight:1.5}},r.pkgComments)),
+                  r.cause&&ce('div',null,ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',marginBottom:3}},'Cause'),ce('div',{style:{fontSize:12,lineHeight:1.5}},r.cause))
+                ),
+                /* Matched inspection */
+                (function(){
+                  var matchedB=batches.find(function(b){return b.id===r.batchId;});
+                  if(!matchedB) return null;
+                  return ce('div',{style:{marginTop:14,background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
+                    ce('div',{style:{fontWeight:500,fontSize:12,color:'var(--green)',marginBottom:8}},'✓ Matched: '+matchedB.id),
+                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:11}},
+                      [['Date',matchedB.date],['Variety',matchedB.variety],['Internal defect',matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'—'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'★ Special Accept':'Reject'],['Farm',matchedB.farm],['Status',matchedB.status]].map(function(item){
+                        return ce('div',{key:item[0],style:{background:'var(--card)',borderRadius:5,padding:'5px 8px'}},ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1}},item[0]),ce('div',{style:{fontWeight:500,fontSize:11}},item[1]||'—'));
                       })
                     )
-                  ),
-                  ce('tbody',null,
-                    matchedB.samples.map(function(s,i){
-                      return ce('tr',{key:i,style:{background:i%2===0?'transparent':'rgba(0,0,0,.04)'}},
-                        ['time','size','cartonWt','brix'].map(function(f){
-                          return ce('td',{key:f,style:{padding:'4px 8px',fontFamily:'var(--font-mono)',fontSize:11,whiteSpace:'nowrap'}},s[f]||'\u2014');
-                        }),
-                        ['blemish','sunburn','mech_dmg','thrips','oil_spots'].map(function(k){
-                          var v=s.defects&&s.defects[k]?parseFloat(s.defects[k]):0;
-                          return ce('td',{key:k,style:{padding:'4px 8px',fontFamily:'var(--font-mono)',fontSize:11,color:v>3?'var(--amber)':v>0?'var(--text)':'var(--text3)'}},v>0?v.toFixed(1):'\u2014');
-                        }),
-                        ce('td',{style:{padding:'4px 8px',fontSize:10,color:'var(--text3)'}},s.notes||'\u2014')
-                      );
-                    }),
-                    /* averages row */
-                    ce('tr',{style:{background:'rgba(0,0,0,.06)',fontWeight:600}},
-                      ce('td',{style:{padding:'4px 8px',fontSize:10,color:'var(--green)'},colSpan:4},'Avg ('+matchedB.samples.length+' samples)'),
-                      ['blemish','sunburn','mech_dmg','thrips','oil_spots'].map(function(k){
-                        var avg=matchedB.samples.reduce(function(s,r){return s+(parseFloat(r.defects&&r.defects[k])||0);},0)/matchedB.samples.length;
-                        return ce('td',{key:k,style:{padding:'4px 8px',fontFamily:'var(--font-mono)',fontSize:11,color:avg>3?'var(--amber)':avg>0?'var(--text)':'var(--text3)'}},avg>0?avg.toFixed(1):'\u2014');
-                      }),
-                      ce('td',null)
-                    )
-                  )
-                )
+                  );
+                })()
+              ),
+              ce('div',{className:'dp-sheet-actions'},
+                perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary',style:{flex:1},onClick:function(){loadReportForEdit(r);setSelRep(null);}},'✎ Edit'),
+                ce('button',{className:'btn btn-secondary',style:{flex:1},onClick:function(){setSelRep(null);}},'Close')
               )
             )
-          ),
-          /* Comments */
-          /* Samples from linked internal inspection */
-          matchedB&&matchedB.samples&&matchedB.samples.length>0&&ce('div',{style:{marginBottom:14}},
-            ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Internal sample readings (— '+matchedB.samples.length+' sample'+(matchedB.samples.length!==1?'s':'')+')'),
-            ce('div',{style:{overflowX:'auto'}},
-              ce('table',{style:{minWidth:600,fontSize:11}},
-                ce('thead',null,ce('tr',null,
-                  ce('th',{style:{textAlign:'left',padding:'4px 8px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)'}},'Time'),
-                  ce('th',{style:{textAlign:'right',padding:'4px 8px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)'}},'Size'),
-                  ce('th',{style:{textAlign:'right',padding:'4px 8px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)'}},'Wt (kg)'),
-                  ce('th',{style:{textAlign:'right',padding:'4px 8px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)'}},'Brix'),
-                  ce('th',{style:{textAlign:'right',padding:'4px 8px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)'}},'Blemish'),
-                  ce('th',{style:{textAlign:'right',padding:'4px 8px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)'}},'Thrips'),
-                  ce('th',{style:{textAlign:'right',padding:'4px 8px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)'}},'Oil spots'),
-                  ce('th',{style:{textAlign:'right',padding:'4px 8px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)'}},'Total %'),
-                  ce('th',{style:{padding:'4px 8px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)'}},'Notes')
-                )),
-                ce('tbody',null,
-                  matchedB.samples.map(function(s,i){
-                    var tot=Object.values(s.defects||{}).reduce(function(a,v){return a+(parseFloat(v)||0);},0);
-                    return ce('tr',{key:i,style:{background:i%2===0?'var(--card)':'var(--bg2)'}},
-                      ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)'}},(s.time||'—')),
-                      ce('td',{style:{padding:'4px 8px',textAlign:'right'}},(s.size||'—')),
-                      ce('td',{style:{padding:'4px 8px',textAlign:'right',fontFamily:'var(--font-mono)'}},(s.cartonWt?parseFloat(s.cartonWt).toFixed(1):'—')),
-                      ce('td',{style:{padding:'4px 8px',textAlign:'right',fontFamily:'var(--font-mono)'}},(s.brix?parseFloat(s.brix).toFixed(1)+'°':'—')),
-                      ce('td',{style:{padding:'4px 8px',textAlign:'right',fontFamily:'var(--font-mono)',color:(parseFloat((s.defects||{}).blemish)||0)>8?'var(--red)':'inherit'}},(parseFloat((s.defects||{}).blemish)||0).toFixed(1)+'%'),
-                      ce('td',{style:{padding:'4px 8px',textAlign:'right',fontFamily:'var(--font-mono)',color:(parseFloat((s.defects||{}).thrips)||0)>0?'var(--red)':'inherit'}},(parseFloat((s.defects||{}).thrips)||0).toFixed(1)+'%'),
-                      ce('td',{style:{padding:'4px 8px',textAlign:'right',fontFamily:'var(--font-mono)'}},(parseFloat((s.defects||{}).oil_spots)||0).toFixed(1)+'%'),
-                      ce('td',{style:{padding:'4px 8px',textAlign:'right',fontFamily:'var(--font-mono)',fontWeight:600,color:tot>10?'var(--red)':tot>5?'var(--amber)':'var(--green)'}},tot.toFixed(1)+'%'),
-                      ce('td',{style:{padding:'4px 8px',color:'var(--text3)'}},(s.notes||'—'))
-                    );
-                  })
-                )
-              )
-            )
-          ),
-          /* ── Internal sample readings ── */
-          matchedB&&matchedB.samples&&matchedB.samples.length>0&&ce('div',{style:{marginBottom:14}},
-            ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Internal sample readings \u2014 '+matchedB.samples.length+' sample'+(matchedB.samples.length!==1?'s':'')),
-            ce('div',{style:{overflowX:'auto',border:'1px solid var(--border)',borderRadius:8,overflow:'hidden'}},
-              ce('table',{style:{minWidth:580,fontSize:11,width:'100%'}},
-                ce('thead',null,ce('tr',null,
-                  ['Time','Size','Wt kg','Brix','Blemish','Thrips','Oil spots','Total %','Notes'].map(function(h){
-                    return ce('th',{key:h,style:{textAlign:h==='Notes'||h==='Time'||h==='Size'?'left':'right',padding:'5px 10px',background:'var(--bg2)',fontWeight:600,color:'var(--text3)',fontSize:10,textTransform:'uppercase',letterSpacing:'.04em',whiteSpace:'nowrap'}},h);
-                  })
-                )),
-                ce('tbody',null,
-                  matchedB.samples.map(function(s,i){
-                    var tot=0;Object.values(s.defects||{}).forEach(function(v){tot+=parseFloat(v)||0;});
-                    return ce('tr',{key:i,style:{background:i%2===0?'var(--card)':'var(--bg2)'}},
-                      ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)',whiteSpace:'nowrap'}},s.time||'\u2014'),
-                      ce('td',{style:{padding:'5px 10px'}},(s.size||'\u2014')),
-                      ce('td',{style:{padding:'5px 10px',textAlign:'right',fontFamily:'var(--font-mono)'}},(s.cartonWt?parseFloat(s.cartonWt).toFixed(1):'\u2014')),
-                      ce('td',{style:{padding:'5px 10px',textAlign:'right',fontFamily:'var(--font-mono)'}},(s.brix?parseFloat(s.brix).toFixed(1)+'\u00b0':'\u2014')),
-                      ce('td',{style:{padding:'5px 10px',textAlign:'right',fontFamily:'var(--font-mono)',color:(parseFloat((s.defects||{}).blemish)||0)>8?'var(--red)':'inherit'}},(parseFloat((s.defects||{}).blemish)||0).toFixed(1)+'%'),
-                      ce('td',{style:{padding:'5px 10px',textAlign:'right',fontFamily:'var(--font-mono)',color:(parseFloat((s.defects||{}).thrips)||0)>0?'var(--red)':'\u2014'==='—'?'inherit':'inherit'}},(parseFloat((s.defects||{}).thrips)||0)>0?ce('span',{style:{color:'var(--red)',fontWeight:700}},(parseFloat((s.defects||{}).thrips)).toFixed(1)+'%'):'\u2014'),
-                      ce('td',{style:{padding:'5px 10px',textAlign:'right',fontFamily:'var(--font-mono)'}},(parseFloat((s.defects||{}).oil_spots)||0).toFixed(1)+'%'),
-                      ce('td',{style:{padding:'5px 10px',textAlign:'right',fontFamily:'var(--font-mono)',fontWeight:700,color:tot>10?'var(--red)':tot>5?'var(--amber)':'var(--green)'}},tot.toFixed(1)+'%'),
-                      ce('td',{style:{padding:'5px 10px',color:'var(--text3)',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(s.notes||'\u2014'))
-                    );
-                  })
-                )
-              )
-            )
-          ),
-          (r.general||r.pkgComments||r.cause)&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}},
-            r.general&&ce('div',null,ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',marginBottom:4,textTransform:'uppercase'}},'General / appearance'),ce('div',{style:{fontSize:12,color:'var(--text2)',lineHeight:1.5}},r.general)),
-            r.pkgComments&&ce('div',null,ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',marginBottom:4,textTransform:'uppercase'}},'Packaging comments'),ce('div',{style:{fontSize:12,color:'var(--text2)',lineHeight:1.5}},r.pkgComments)),
-            r.cause&&ce('div',null,ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',marginBottom:4,textTransform:'uppercase'}},'Cause / response'),ce('div',{style:{fontSize:12,color:'var(--text2)',lineHeight:1.5}},r.cause))
+          );
+        })()
           )
         );
+
+
       })()
-    )
   );
 }
 
@@ -10221,7 +10456,7 @@ var supabase = window.supabase.createClient(
 
 var DALOS_VERSION='v8'; /* bump to clear stale localStorage */
 /* User-visible version shown under "Sign out" in the sidebar. Bump on each user-facing release. */
-var DALOS_BUILD='v1.2.0 (2026.05.10)';
+var DALOS_BUILD='v1.3.0 (2026.05.13)';
 (function(){
   try{
     if(localStorage.getItem('dalos_version')!==DALOS_VERSION){
