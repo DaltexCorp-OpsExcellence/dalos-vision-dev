@@ -1166,7 +1166,10 @@ function InspectionForm(props){
       }
     };
     if(props.onAddBatch) props.onAddBatch(newBatch, saveCallback);
-    if(!isEdit){setSavedLot(newBatch.lot||newBatch.id||realId||'saved');}
+    /* Grapes: confirmation is shown from saveCallback once the real sequential ID
+       is confirmed by the server. For other products (Citrus etc.), show immediately
+       using the lot number since the lot is user-entered and known up front. */
+    if(!isEdit && cropId!=='grapes'){setSavedLot(newBatch.lot||newBatch.id||realId||'saved');}
   }
 
   /* ── PDF Report Generation ── */
