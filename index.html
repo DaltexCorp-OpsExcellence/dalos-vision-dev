@@ -1738,24 +1738,48 @@ function InspectionForm(props){
   var farms=config.farms||[];
 
   /* ── Post-save success screen ── */
-  if(savedLot){
+  /* ── Post-save confirmation screen (pending / success / failed) ── */
+  if(savePending || savedLot || saveFailed!==null){
+    var isConfirmPending=savePending&&!savedLot&&saveFailed===null;
+    var isConfirmFailed=saveFailed!==null&&!savedLot;
+    var isConfirmSuccess=!!savedLot;
     return ce('div',{style:{background:'var(--bg)',minHeight:'100vh',display:'flex',flexDirection:'column'}},
       ce('div',{className:'form-topbar',style:{background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'0 16px',height:50,display:'flex',alignItems:'center',gap:8}},
-        ce('button',{className:'btn btn-secondary btn-sm',onClick:safeClose},'← Back to list'),
-        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:16}},'Inspection saved')
+        isConfirmFailed&&ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){
+          setSaveFailed(null);
+          setSaveStatus('error');
+          setSaveErrMsg(saveFailed||'Save failed — please try again.');
+        }},'← Back to form'),
+        isConfirmSuccess&&ce('button',{className:'btn btn-secondary btn-sm',onClick:safeClose},'← Back to list'),
+        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:16}},
+          isConfirmPending?'Saving\u2026':isConfirmFailed?'Save failed':'Inspection saved'
+        )
       ),
       ce('div',{style:{maxWidth:480,margin:'60px auto',padding:'0 24px',textAlign:'center'}},
-        ce('div',{style:{width:56,height:56,borderRadius:'50%',background:'var(--green-bg)',border:'2px solid var(--green-border)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 20px',fontSize:24}},'✓'),
-        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:22,color:'var(--text)',marginBottom:8}},'Unit saved'),
+        ce('div',{style:{width:56,height:56,borderRadius:'50%',
+          background:isConfirmFailed?'#fff0f0':isConfirmPending?'var(--bg2)':'var(--green-bg)',
+          border:'2px solid '+(isConfirmFailed?'#f5c0c0':isConfirmPending?'var(--border)':'var(--green-border)'),
+          display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 20px',fontSize:22}},
+          isConfirmPending?ce('span',{className:'dalos-spinner',style:{width:22,height:22,borderWidth:3}}):
+          isConfirmFailed?'\u2717':'\u2713'
+        ),
+        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:22,color:'var(--text)',marginBottom:8}},
+          isConfirmPending?'Saving inspection\u2026':isConfirmFailed?'Save failed':'Unit saved'
+        ),
         ce('div',{style:{fontSize:14,color:'var(--text3)',marginBottom:32}},
-          cropId==='grapes'?'Pallets saved under session ':'Inspection saved — ',
-          ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,color:'var(--text)'}},savedInspId||savedLot),
-          cropId!=='grapes'&&savedLot?ce('span',{style:{color:'var(--text3)'}},' · LOT '+savedLot):null
+          isConfirmPending
+            ?ce('span',{style:{fontFamily:'var(--font-mono)',color:'var(--text3)',letterSpacing:'.05em'}},'Assigning ID\u2026')
+            :isConfirmFailed
+            ?ce('span',{style:{color:'var(--red)',fontSize:13}},saveFailed)
+            :ce('span',null,
+                cropId==='grapes'?'Pallets saved under session ':'Inspection saved — ',
+                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,color:'var(--text)'}},savedInspId||savedLot),
+                cropId!=='grapes'&&savedLot?ce('span',{style:{color:'var(--text3)'}},' · LOT '+savedLot):null
+              )
         ),
         ce('div',{style:{display:'flex',flexDirection:'column',gap:10}},
-          ce('button',{className:'btn btn-primary',style:{justifyContent:'center',padding:'12px 24px',fontSize:14},
+          isConfirmSuccess&&ce('button',{className:'btn btn-primary',style:{justifyContent:'center',padding:'12px 24px',fontSize:14},
             onClick:function(){
-              /* Pre-fill from just-saved lot/session and reset for new unit */
               if(cropId!=='grapes') prefillFromLot(savedLot);
               if(cropId!=='grapes') setLot(savedLot);
               setDecision('');
@@ -1763,8 +1787,24 @@ function InspectionForm(props){
               setActivePalletIdx(0);
               setSavedLot(false);
             }
-          },cropId==='grapes'?('+ Add more pallets to this session'):'+ Add another unit under LOT '+savedLot),
-          ce('button',{className:'btn btn-secondary',style:{justifyContent:'center',padding:'12px 24px',fontSize:14},onClick:onClose},'Done — back to list')
+          },cropId==='grapes'?'+ Add more pallets to this session':'+ Add another unit under LOT '+savedLot),
+          isConfirmFailed&&ce('button',{className:'btn btn-primary',style:{justifyContent:'center',padding:'12px 24px',fontSize:14},
+            onClick:function(){
+              setSaveFailed(null);
+              setSaveStatus('error');
+              setSaveErrMsg(saveFailed||'Save failed — please try again.');
+            }
+          },'\u2190 Back to form'),
+          ce('button',{
+            className:'btn btn-secondary',
+            style:{justifyContent:'center',padding:'12px 24px',fontSize:14,
+              opacity:(isConfirmPending||isConfirmFailed)?.35:1,
+              pointerEvents:(isConfirmPending||isConfirmFailed)?'none':'auto',
+              cursor:(isConfirmPending||isConfirmFailed)?'not-allowed':'pointer'
+            },
+            onClick:isConfirmSuccess?onClose:undefined,
+            disabled:isConfirmPending||isConfirmFailed
+          },isConfirmFailed?'Done — back to list (save first)':'Done — back to list')
         )
       )
     );
