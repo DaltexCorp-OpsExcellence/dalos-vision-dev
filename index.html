@@ -1092,18 +1092,19 @@ function InspectionForm(props){
       /* flat samples for backward compat (client QC matching) */
       samples:allRows.map(function(r){return Object.assign({},r);})
     };
-    /* ── Pre-save token check ─────────────────────────────────────────────
-       Force a session refresh before the save chain fires. Parallel requests
-       can race against a token refresh and get 401s mid-chain. Calling
-       getSession() first ensures a fresh JWT before any request leaves. */
     /* For new grapes inspections: switch to pending confirmation screen immediately
        so the user sees progress and can't navigate away mid-save. */
     if(!isEdit&&cropId==='grapes') setSavePending(true);
     setIsSaving(true);
     setSaveStatus('saving');
     setSaveErrMsg('');
-    supabase.auth.getSession().then(function(sessionCheck){
-      if(!sessionCheck.data||!sessionCheck.data.session){
+    /* ── Pre-save token check ─────────────────────────────────────────────
+       Use getUser() rather than getSession() — getUser() makes an actual
+       server round-trip to validate the JWT, whereas getSession() only reads
+       localStorage and can return a stale/expired token without refreshing.
+       This prevents RLS violations caused by silent JWT expiry. */
+    supabase.auth.getUser().then(function(userCheck){
+      if(!userCheck.data||!userCheck.data.user){
         setSavePending(false);
         setSaveStatus('error');
         setSaveErrMsg('Your session has expired. Please sign in again.');
@@ -1872,7 +1873,7 @@ function InspectionForm(props){
         ?ce('button',{onClick:function(){
             setSaveStatus('idle');setSaveErrMsg('');
             if(isEdit&&batch&&batch.id){
-              supabase.auth.getSession().then(function(){
+              supabase.auth.getUser().then(function(){
                 supabase.from('inspections').select('updated_at').eq('id',batch.id).single().then(function(r){
                   if(r.data&&r.data.updated_at){
                     loadedVersionRef.current=r.data.updated_at;
