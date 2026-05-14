@@ -7239,6 +7239,11 @@ function ClientQCMgmt(props){
   function addVarExtra(){setVarsExtra(function(p){return p.concat({type:'single',cat:'',var:'',cat2:'',var2:''});});}
   function updateVarExtra(i,field,v){setVarsExtra(function(p){return p.map(function(x,j){if(j!==i)return x;var n=Object.assign({},x);n[field]=v;if(field==='cat')n['var']='';if(field==='cat2')n['var2']='';return n;});});}
   function removeVarExtra(i){setVarsExtra(function(p){return p.filter(function(_,j){return j!==i;});});}
+  /* ── Inspection lookup state ── */
+  var sInspIds=useState([]); var fInspectionIds=sInspIds[0]; var setInspectionIds=sInspIds[1];
+  var sInspResults=useState([]); var inspLookupResults=sInspResults[0]; var setInspLookupResults=sInspResults[1];
+  var sInspLoading=useState(false); var inspLookupLoading=sInspLoading[0]; var setInspLookupLoading=sInspLoading[1];
+  var sInspDone=useState(false); var inspLookupDone=sInspDone[0]; var setInspLookupDone=sInspDone[1];
   var sLoadDate=useState(''); var fLoadDate=sLoadDate[0]; var setLoadDate=sLoadDate[1];
   var sPackDate=useState(''); var fPackDate=sPackDate[0]; var setPackDate=sPackDate[1];
   var sHarvDate=useState(''); var fHarvDate=sHarvDate[0]; var setHarvDate=sHarvDate[1];
@@ -7553,6 +7558,119 @@ function ClientQCMgmt(props){
     setClaimedVal('0');setFPotClaim(false);setDefVals({});
     setCqcSamples([newCqcSample(1)]);
     setUploadedFiles([]);setOcrStatus('idle');setOcrLog([]);
+    setInspectionIds([]);setInspLookupResults([]);setInspLookupDone(false);
+  }
+
+  /* ── Inspection lookup: query inspections by container number ── */
+  function lookupInspectionsByContainer(containerVal){
+    var val=(containerVal||'').trim();
+    if(!val){setInspLookupResults([]);setInspLookupDone(false);return;}
+    setInspLookupLoading(true);
+    var q=supabase.from('inspections')
+      .select('id,date,packhouse_id,farm_id,farm2_id,plot,plot2,variety_id,variety2_id,variety_type,trace_code,ggn,wax,lot_number,container_number,status')
+      .eq('container_number',val)
+      .eq('product_id',selCqcProd||'grapes');
+    if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);
+    q.then(function(res){
+      setInspLookupLoading(false);
+      setInspLookupDone(true);
+      if(res.error){console.error('[DalOS] Inspection lookup error:',res.error.message);return;}
+      setInspLookupResults(res.data||[]);
+      /* Also lookup shipment for load_date, client, subclient */
+      var sq=supabase.from('shipments').select('loading_date,client,subclient,receiving_country')
+        .eq('container_number',val)
+        .eq('product_id',selCqcProd||'grapes')
+        .limit(1);
+      if(config.activeSeasonId) sq=sq.eq('season_id',config.activeSeasonId);
+      sq.then(function(sr){
+        if(sr.error||!sr.data||sr.data.length===0) return;
+        var s=sr.data[0];
+        if(s.loading_date&&!fLoadDate) setLoadDate(s.loading_date);
+        if(s.client&&!fClient){
+          var cId=(config.clientsIdMap&&config.clientsIdMap[s.client])||null;
+          if(cId) setClient(s.client);
+        }
+        if(s.subclient&&!fSubClient) setSubClient(s.subclient);
+        if(s.receiving_country&&!fRegion){
+          var ctId=(config.countriesIdMap&&config.countriesIdMap[s.receiving_country])||null;
+          if(ctId) setRegion(s.receiving_country);
+        }
+      });
+    });
+  }
+
+  /* ── Pre-fill form fields from selected inspections ── */
+  function applyInspectionPrefill(selectedIds,allResults){
+    var selected=allResults.filter(function(r){return selectedIds.indexOf(r.id)>=0;});
+    if(selected.length===0) return;
+    var phSeen={}, farmSeen={}, varSeen={}, plotPairs=[];
+    var phList=[], farmList=[], varList=[];
+    selected.forEach(function(r){
+      /* Packhouse */
+      if(r.packhouse_id&&!phSeen[r.packhouse_id]){
+        phSeen[r.packhouse_id]=true;
+        var phName=(config.packhouses&&config.packhouses.find(function(p){return p.id===r.packhouse_id;})&&config.packhouses.find(function(p){return p.id===r.packhouse_id;}).name)||r.packhouse_id;
+        phList.push({id:r.packhouse_id,name:phName});
+      }
+      /* Farms + plots */
+      if(r.farm_id&&!farmSeen[r.farm_id]){
+        farmSeen[r.farm_id]=true;
+        var fn=(config.farmsIdToName&&config.farmsIdToName[r.farm_id])||r.farm_id;
+        farmList.push({name:fn,plot:r.plot||''});
+      }
+      if(r.farm2_id&&!farmSeen[r.farm2_id]){
+        farmSeen[r.farm2_id]=true;
+        var fn2=(config.farmsIdToName&&config.farmsIdToName[r.farm2_id])||r.farm2_id;
+        farmList.push({name:fn2,plot:r.plot2||''});
+      }
+      /* Varieties */
+      if(r.variety_id){
+        var vn=(config.varietiesIdToName&&config.varietiesIdToName[r.variety_id])||'';
+        var vn2=r.variety2_id?(config.varietiesIdToName&&config.varietiesIdToName[r.variety2_id])||'':'';
+        var vkey=r.variety_id+(r.variety2_id||'');
+        if(!varSeen[vkey]){varSeen[vkey]=true;varList.push({var:vn,var2:vn2,type:r.variety_type||'single'});}
+      }
+      /* Trace code */
+      if(r.trace_code&&fTraceCodes.filter(function(t){return t.code===r.trace_code;}).length===0){
+        setTraceCodes(function(p){return p.concat({code:r.trace_code});});
+      }
+      /* Wax — first inspection wins */
+      if(r.wax&&!fWax) setWax(r.wax);
+      /* GGN */
+      if(r.ggn&&!fTrace) setTrace(r.ggn);
+    });
+    /* Apply packhouses */
+    if(phList.length>0){
+      var ph0=phList[0];
+      setPH(ph0.id);setPhCover(ph0.name);
+      setPHExtra(phList.slice(1).map(function(p){return {actual:p.id,cover:p.name};}));
+    }
+    /* Apply farms */
+    if(farmList.length>0){
+      setFarm1(farmList[0].name);setPlot1(farmList[0].plot||'');
+      if(farmList.length>1){setFarm2(farmList[1].name);setPlot2(farmList[1].plot||'');}
+      if(farmList.length>2) setFarmsExtra(farmList.slice(2).map(function(f){return {farm:f.name,plot:f.plot||''};}));
+    }
+    /* Apply varieties */
+    if(varList.length>0){
+      var v0=varList[0];setVar(v0.var);setVarType(v0.type||'single');setVar2(v0.var2||'');
+      /* Restore category */
+      var allVars=(config.varietiesFull&&config.varietiesFull[selCqcProd||'grapes'])||[];
+      var found=allVars.find(function(v){return v.name===v0.var;});
+      if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat(cn);}
+      if(varList.length>1){
+        setVarsExtra(varList.slice(1).map(function(ve){
+          var catName='';
+          var fnd=allVars.find(function(v){return v.name===ve.var;});
+          if(fnd&&fnd.categoryId)catName=(config.categoriesIdToName||{})[fnd.categoryId]||'';
+          var cat2Name='';
+          if(ve.var2){var fnd2=allVars.find(function(v){return v.name===ve.var2;});if(fnd2&&fnd2.categoryId)cat2Name=(config.categoriesIdToName||{})[fnd2.categoryId]||'';}
+          return {type:ve.type||'single',cat:catName,var:ve.var,cat2:cat2Name,var2:ve.var2||''};
+        }));
+      }
+    }
+    /* Pack date from first inspection */
+    if(selected[0].date&&!fPackDate) setPackDate(selected[0].date);
   }
 
   function loadReportForEdit(r){
@@ -7585,6 +7703,8 @@ function ClientQCMgmt(props){
     setQCLink(r.qcReportLink||'');setPhotoLink(r.photoLink||'');setCause(r.cause||'');
     setCurrency(r.claimedCurrency||'USD');setClaimedVal(r.claimedValue?String(r.claimedValue):'0');
     setFPotClaim(r.potentialClaim||false);
+    setInspectionIds(r.cqcExtraFields&&r.cqcExtraFields.inspection_ids?r.cqcExtraFields.inspection_ids:[]);
+    setInspLookupResults([]);setInspLookupDone(false);
     setEditRep(r.id);setShowNew(true);
     /* Load existing files */
     setUploadedFiles([]);
@@ -7701,7 +7821,7 @@ function ClientQCMgmt(props){
       claimed_currency:fCurrency||'USD',
       potential_claim:fPotClaim||false,
       matched:matchedBatch?true:(editRep&&reports.find(function(x){return x.id===editRep;})?reports.find(function(x){return x.id===editRep;}).matched:false),
-      inspection_id:matchedBatch?matchedBatch.id:(editRep&&reports.find(function(x){return x.id===editRep;})?reports.find(function(x){return x.id===editRep;}).batchId:null),
+      inspection_id:fInspectionIds.length>0?fInspectionIds[0]:(matchedBatch?matchedBatch.id:(editRep&&reports.find(function(x){return x.id===editRep;})?reports.find(function(x){return x.id===editRep;}).batchId:null)),
       daltex_class:fDaltexCls||null,
       product_id:selCqcProd||null,
       packhouse_id:(function(){var ph=(config.packhouses||[]).find(function(p){return p.name===fPH||p.id===fPH;});return ph?ph.id:fPH||null;})()||null,
@@ -7723,12 +7843,13 @@ function ClientQCMgmt(props){
       farm_2:fFarm2||null,
       plot_2:fPlot2||null,
       client_class:fClientCls||null,
-      cqc_extra_fields:(selCqcProd==='grapes'&&(fFarmsExtra.length||fPHExtra.length||fTraceCodes.length||fVarsExtra.length))?{
+      cqc_extra_fields:(selCqcProd==='grapes'&&(fFarmsExtra.length||fPHExtra.length||fTraceCodes.length||fVarsExtra.length||fInspectionIds.length>1))?{
         extra_farms:fFarmsExtra.filter(function(f){return f.farm;}).map(function(f){return {farm:f.farm,plot:f.plot||''};}),
 
         extra_ph:fPHExtra.filter(function(p){return p.actual||p.cover;}),
         extra_trace_codes:fTraceCodes.map(function(t){return t.code;}).filter(Boolean),
-        extra_varieties:fVarsExtra.filter(function(v){return v.var;}).map(function(v){return {type:v.type||'single',cat:v.cat||'',var:v.var||'',cat2:v.cat2||'',var2:v.var2||''};})
+        extra_varieties:fVarsExtra.filter(function(v){return v.var;}).map(function(v){return {type:v.type||'single',cat:v.cat||'',var:v.var||'',cat2:v.cat2||'',var2:v.var2||''};}),
+        inspection_ids:fInspectionIds.length>0?fInspectionIds:undefined
       }:null
     };
     supabase.auth.getUser().then(function(ur){
@@ -8032,13 +8153,54 @@ function ClientQCMgmt(props){
         /* CONTAINER + MATCH */
         ce('div',{className:'card',style:{marginBottom:12}},
           ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#2b5c3f'}}),'Container & matching'),
-          ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:matchedBatch?10:0}},
+          ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:matchedBatch||inspLookupDone?10:0}},
             ce('div',{className:'form-field'},
               ce('label',{className:'form-label'},'Container number'),
-              ce('input',{className:'form-input',value:fContainer,onChange:function(e){setContainer(e.target.value.toUpperCase());},placeholder:'e.g. MNBU 3564353',style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600}})
+              ce('input',{className:'form-input',value:fContainer,
+                onChange:function(e){setContainer(e.target.value.toUpperCase());setInspLookupDone(false);setInspLookupResults([]);setInspectionIds([]);},
+                onBlur:function(e){if(selCqcProd==='grapes') lookupInspectionsByContainer(e.target.value);},
+                placeholder:'e.g. MNBU 3564353',style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600}})
             ),
             fi('QC Report Number',fQCRef,setQCRef),
             selCqcProd!=='grapes'&&fi('Lot #',fLot,setLot)
+          ),
+          /* ── Inspection lookup results ── */
+          selCqcProd==='grapes'&&inspLookupLoading&&ce('div',{style:{fontSize:12,color:'var(--text3)',padding:'8px 0'}},'\u23f3 Searching inspections...'),
+          selCqcProd==='grapes'&&inspLookupDone&&inspLookupResults.length===0&&ce('div',{style:{background:'var(--amber-bg)',border:'1px solid var(--amber-border)',borderRadius:6,padding:'8px 12px',fontSize:12,color:'var(--amber)'}},
+            '\u26a0\ufe0f No inspections found for this container \u2014 fields will need to be filled manually.'
+          ),
+          selCqcProd==='grapes'&&inspLookupResults.length>0&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:8,padding:'10px 14px',marginBottom:4}},
+            ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+              ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--green)',textTransform:'uppercase',letterSpacing:'.06em'}},
+                inspLookupResults.length+' inspection'+(inspLookupResults.length>1?'s':'')+' found \u2014 select to pre-fill'
+              ),
+              fInspectionIds.length>0&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){applyInspectionPrefill(fInspectionIds,inspLookupResults);}},
+                '\u2713 Apply '+fInspectionIds.length+' selected'
+              )
+            ),
+            inspLookupResults.map(function(r){
+              var isSelected=fInspectionIds.indexOf(r.id)>=0;
+              var phName=(config.packhouses&&config.packhouses.find(function(p){return p.id===r.packhouse_id;})&&config.packhouses.find(function(p){return p.id===r.packhouse_id;}).name)||r.packhouse_id||'\u2014';
+              var farmName=(config.farmsIdToName&&r.farm_id&&config.farmsIdToName[r.farm_id])||r.farm_id||'';
+              var farm2Name=(config.farmsIdToName&&r.farm2_id&&config.farmsIdToName[r.farm2_id])||'';
+              var varName=(config.varietiesIdToName&&r.variety_id&&config.varietiesIdToName[r.variety_id])||'';
+              return ce('div',{key:r.id,
+                style:{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:isSelected?'var(--green)':'var(--card)',borderRadius:6,marginBottom:4,cursor:'pointer',border:'1px solid '+(isSelected?'var(--green)':'var(--border)'),transition:'all .12s'},
+                onClick:function(id){return function(){setInspectionIds(function(prev){return prev.indexOf(id)>=0?prev.filter(function(x){return x!==id;}):prev.concat([id]);});};}(r.id)
+              },
+                ce('div',{style:{width:18,height:18,borderRadius:4,border:'2px solid '+(isSelected?'#fff':'var(--green)'),background:isSelected?'rgba(255,255,255,0.3)':'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+                  isSelected&&ce('svg',{width:10,height:10,viewBox:'0 0 10 10'},ce('polyline',{points:'1.5,5 4,7.5 8.5,2',stroke:'#fff',strokeWidth:1.8,fill:'none',strokeLinecap:'round',strokeLinejoin:'round'}))
+                ),
+                ce('div',{style:{flex:1,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}},
+                  [['ID',r.id],['Packhouse',phName],['Farm',[farmName,farm2Name].filter(Boolean).join(' / ')||'\u2014'],['Variety',varName||'\u2014'],['Date',r.date||'\u2014'],['Plot',[r.plot,r.plot2].filter(Boolean).join(', ')||'\u2014'],['Trace',r.trace_code||'\u2014'],['Status',r.status||'\u2014']].map(function(item){
+                    return ce('div',{key:item[0],style:{minWidth:0}},
+                      ce('div',{style:{fontSize:9,color:isSelected?'rgba(255,255,255,0.7)':'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em'}},(item[0])),
+                      ce('div',{style:{fontSize:11,fontWeight:500,color:isSelected?'#fff':'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(item[1]))
+                    );
+                  })
+                )
+              );
+            })
           ),
           matchedBatch&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:8,padding:'10px 14px',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}},
             [['Batch',matchedBatch.id],['Variety',matchedBatch.variety],['Date',matchedBatch.date],['Internal defect',matchedBatch.totalDefect.toFixed(1)+'%'],['Client',matchedBatch.client],['Farm',matchedBatch.farm],['Decision',matchedBatch.decision==='A'?'Accept':'Reject'],['Status',matchedBatch.status]].map(function(item){
