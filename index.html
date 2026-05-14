@@ -8064,8 +8064,7 @@ function ClientQCMgmt(props){
         ce('div',{style:{display:'flex',alignItems:'center',gap:10}},
           ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setShowNew(false);clearForm();setEditRep(null);}},'← Back'),
           ce('div',{style:{fontFamily:'var(--font-display)',fontSize:16}},editRep?'Edit client QC report':'New client QC report'),
-          fContainer&&matchedBatch&&ce('span',{className:'badge badge-pass',style:{fontSize:11}},'\u2713 Matched: '+matchedBatch.id),
-          fContainer&&!matchedBatch&&fContainer.trim()&&ce('span',{className:'badge badge-warn',style:{fontSize:11}},'No match yet')
+
         ),
         ce('button',{className:'btn btn-primary btn-sm',onClick:saveReport},'Save report')
       ),
@@ -8179,7 +8178,7 @@ function ClientQCMgmt(props){
         /* CONTAINER + MATCH */
         ce('div',{className:'card',style:{marginBottom:12}},
           ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#2b5c3f'}}),'Container & matching'),
-          ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:matchedBatch||inspLookupDone?10:0}},
+          ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:inspLookupDone?10:0}},
             ce('div',{className:'form-field'},
               ce('label',{className:'form-label'},'Container number'),
               ce('div',{style:{display:'flex',gap:6}},
@@ -8235,14 +8234,7 @@ function ClientQCMgmt(props){
               );
             })
           ),
-          matchedBatch&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:8,padding:'10px 14px',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}},
-            [['Batch',matchedBatch.id],['Variety',matchedBatch.variety],['Date',matchedBatch.date],['Internal defect',matchedBatch.totalDefect.toFixed(1)+'%'],['Client',matchedBatch.client],['Farm',matchedBatch.farm],['Decision',matchedBatch.decision==='A'?'Accept':'Reject'],['Status',matchedBatch.status]].map(function(item){
-              return ce('div',{key:item[0],style:{background:'var(--card)',borderRadius:5,padding:'5px 8px'}},
-                ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1,textTransform:'uppercase',letterSpacing:'.05em'}},item[0]),
-                ce('div',{style:{fontSize:12,fontWeight:500}},item[1])
-              );
-            })
-          )
+
         ),
 
         /* SHIPMENT INFO */
