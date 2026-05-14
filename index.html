@@ -7206,6 +7206,37 @@ function ClientQCMgmt(props){
   },[]);
   var sSel=useState(null); var selRep=sSel[0]; var setSelRep=sSel[1];
   var sEditRep=useState(null); var editRep=sEditRep[0]; var setEditRep=sEditRep[1];
+  var sMBDef=useState(null); var matchedBDefects=sMBDef[0]; var setMatchedBDefects=sMBDef[1];
+
+  /* Fetch Critical/Major/Minor % for matched inspection when detail panel opens */
+  React.useEffect(function(){
+    if(!selRep){setMatchedBDefects(null);return;}
+    var r=reports.find(function(x){return x.id===selRep;});
+    var batchId=r&&r.batchId;
+    if(!batchId){setMatchedBDefects(null);return;}
+    supabase.from('sample_rows').select('id').eq('inspection_id',batchId)
+      .then(function(sr){
+        if(!sr.data||sr.data.length===0){setMatchedBDefects({});return;}
+        var rowIds=sr.data.map(function(x){return x.id;});
+        var sampleCount=sr.data.length;
+        supabase.from('sample_defect_readings')
+          .select('value,defects(severity)')
+          .in('sample_row_id',rowIds)
+          .then(function(dr){
+            if(!dr.data){setMatchedBDefects({});return;}
+            var totals={Critical:0,Major:0,Minor:0};
+            dr.data.forEach(function(x){
+              var sev=x.defects&&x.defects.severity;
+              if(sev&&totals[sev]!==undefined) totals[sev]+=parseFloat(x.value)||0;
+            });
+            setMatchedBDefects({
+              Critical:Math.round(totals.Critical/sampleCount*100)/100,
+              Major:Math.round(totals.Major/sampleCount*100)/100,
+              Minor:Math.round(totals.Minor/sampleCount*100)/100
+            });
+          });
+      });
+  },[selRep]);
 
   /* ── FORM STATE (mirrors Client QC Input Sheet exactly) ── */
   var sC=useState(''); var fContainer=sC[0]; var setContainer=sC[1];
@@ -9727,7 +9758,7 @@ function ClientQCMgmt(props){
               matchedB&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
                 ce('div',{style:{fontWeight:500,fontSize:12,color:'var(--green)',marginBottom:8}},'✓ Matched inspection: '+matchedB.id),
                 ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,fontSize:12}},
-                  [['Date',matchedB.date],['Variety',matchedB.variety],['Internal defect',matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'—'],['Avg brix',matchedB.brix?parseFloat(matchedB.brix).toFixed(1)+'\u00b0':'\u2014'],['Critical',matchedB.hasCrit?'\u26a0\ufe0f Yes':'No'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'\u2605 Special Accept':matchedB.decision==='SR'?'\u2605 Special Reject':'Reject'],['Farm',matchedB.farm],['Status',matchedB.status]].map(function(item){
+                  [['Date',matchedB.date],['Variety',matchedB.variety],['Avg brix',matchedB.brix?parseFloat(matchedB.brix).toFixed(1)+'\u00b0':'\u2014'],['Critical %',matchedBDefects?matchedBDefects.Critical.toFixed(2)+'%':(matchedB.hasCrit?'\u26a0\ufe0f Yes':'No')],['Major %',matchedBDefects?matchedBDefects.Major.toFixed(2)+'%':'\u2014'],['Minor %',matchedBDefects?matchedBDefects.Minor.toFixed(2)+'%':'\u2014'],['Internal defect',matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'\u2014'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'\u2605 Special Accept':matchedB.decision==='SR'?'\u2605 Special Reject':'Reject'],['Status',matchedB.status]].map(function(item){
                     return ce('div',{key:item[0],style:{background:'var(--card)',borderRadius:5,padding:'5px 8px'}},ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1}},item[0]),ce('div',{style:{fontWeight:500,fontSize:11}},item[1]||'—'));
                   })
                 )
@@ -9860,7 +9891,7 @@ function ClientQCMgmt(props){
                   return ce('div',{style:{marginTop:14,background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
                     ce('div',{style:{fontWeight:500,fontSize:12,color:'var(--green)',marginBottom:8}},'✓ Matched: '+matchedB.id),
                     ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:11}},
-                      [['Date',matchedB.date],['Variety',matchedB.variety],['Internal defect',matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'—'],['Avg brix',matchedB.brix?parseFloat(matchedB.brix).toFixed(1)+'\u00b0':'\u2014'],['Critical',matchedB.hasCrit?'\u26a0\ufe0f Yes':'No'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'\u2605 Special Accept':'Reject'],['Farm',matchedB.farm],['Status',matchedB.status]].map(function(item){
+                      [['Date',matchedB.date],['Variety',matchedB.variety],['Avg brix',matchedB.brix?parseFloat(matchedB.brix).toFixed(1)+'\u00b0':'\u2014'],['Critical %',matchedBDefects?matchedBDefects.Critical.toFixed(2)+'%':(matchedB.hasCrit?'\u26a0\ufe0f Yes':'No')],['Major %',matchedBDefects?matchedBDefects.Major.toFixed(2)+'%':'\u2014'],['Minor %',matchedBDefects?matchedBDefects.Minor.toFixed(2)+'%':'\u2014'],['Internal defect',matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'\u2014'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'\u2605 Special Accept':'Reject'],['Status',matchedB.status]].map(function(item){
                         return ce('div',{key:item[0],style:{background:'var(--card)',borderRadius:5,padding:'5px 8px'}},ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1}},item[0]),ce('div',{style:{fontWeight:500,fontSize:11}},item[1]||'—'));
                       })
                     )
