@@ -8374,8 +8374,10 @@ function ClientQCMgmt(props){
                     ce('div',{className:'form-field',style:{marginBottom:0}},
                       ce('label',{className:'form-label'},'Variety'),
                       ce('select',{className:'form-select',value:ve.var||'',onChange:function(idx,allV,catIdToName){return function(e){
-                          var name=e.target.value;updateVarExtra(idx,'var',name);
-                          if(name){var f=allV.find(function(v){return v.name===name;});if(f&&f.categoryId){var cn=(catIdToName||{})[f.categoryId];if(cn)updateVarExtra(idx,'cat',cn);}}
+                          var name=e.target.value;
+                          var f=name?allV.find(function(v){return v.name===name;}):null;
+                          var cn=f&&f.categoryId?(catIdToName||{})[f.categoryId]||'':'';
+                          setVarsExtra(function(p){return p.map(function(x,j){if(j!==idx)return x;var n=Object.assign({},x,{'var':name});if(cn)n['cat']=cn;return n;});});
                         };}(i,allVars,config.categoriesIdToName)},
                         ce('option',{value:''},'— Select —'),
                         filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
@@ -8395,8 +8397,10 @@ function ClientQCMgmt(props){
                       ce('div',{className:'form-field',style:{marginBottom:0}},
                         ce('label',{className:'form-label',style:{fontSize:10}},'Variety'),
                         ce('select',{className:'form-select',value:ve.var2||'',onChange:function(idx,allV,catIdToName){return function(e){
-                            var name=e.target.value;updateVarExtra(idx,'var2',name);
-                            if(name){var f=allV.find(function(v){return v.name===name;});if(f&&f.categoryId){var cn=(catIdToName||{})[f.categoryId];if(cn)updateVarExtra(idx,'cat2',cn);}}
+                            var name=e.target.value;
+                            var f=name?allV.find(function(v){return v.name===name;}):null;
+                            var cn=f&&f.categoryId?(catIdToName||{})[f.categoryId]||'':'';
+                            setVarsExtra(function(p){return p.map(function(x,j){if(j!==idx)return x;var n=Object.assign({},x,{'var2':name});if(cn)n['cat2']=cn;return n;});});
                           };}(i,allVars,config.categoriesIdToName)},
                           ce('option',{value:''},'— Select —'),
                           filtered2.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
