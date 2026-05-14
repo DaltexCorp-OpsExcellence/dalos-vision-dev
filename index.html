@@ -7567,10 +7567,11 @@ function ClientQCMgmt(props){
     if(!val){setInspLookupResults([]);setInspLookupDone(false);return;}
     setInspLookupLoading(true);
     var q=supabase.from('inspections')
-      .select('id,date,packhouse_id,farm_id,farm2_id,plot,plot2,variety_id,variety2_id,variety_type,trace_code,ggn,wax,lot_number,container_number,status')
-      .eq('container_number',val)
-      .eq('product_id',selCqcProd||'grapes');
-    if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);
+      .select('id,date,packhouse_id,farm_id,farm2_id,plot,plot2,variety_id,variety2_id,variety_type,trace_code,ggn,wax,lot_number,container_number,status,season_id')
+      .ilike('container_number',val)
+      .eq('product_id',selCqcProd||'grapes')
+      .order('date',{ascending:false})
+      .limit(20);
     q.then(function(res){
       setInspLookupLoading(false);
       setInspLookupDone(true);
@@ -7578,10 +7579,9 @@ function ClientQCMgmt(props){
       setInspLookupResults(res.data||[]);
       /* Also lookup shipment for load_date, client, subclient */
       var sq=supabase.from('shipments').select('loading_date,client,subclient,receiving_country')
-        .eq('container_number',val)
+        .ilike('container_number',val)
         .eq('product_id',selCqcProd||'grapes')
         .limit(1);
-      if(config.activeSeasonId) sq=sq.eq('season_id',config.activeSeasonId);
       sq.then(function(sr){
         if(sr.error||!sr.data||sr.data.length===0) return;
         var s=sr.data[0];
@@ -8156,10 +8156,17 @@ function ClientQCMgmt(props){
           ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:matchedBatch||inspLookupDone?10:0}},
             ce('div',{className:'form-field'},
               ce('label',{className:'form-label'},'Container number'),
-              ce('input',{className:'form-input',value:fContainer,
-                onChange:function(e){setContainer(e.target.value.toUpperCase());setInspLookupDone(false);setInspLookupResults([]);setInspectionIds([]);},
-                onBlur:function(e){if(selCqcProd==='grapes') lookupInspectionsByContainer(e.target.value);},
-                placeholder:'e.g. MNBU 3564353',style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600}})
+              ce('div',{style:{display:'flex',gap:6}},
+                ce('input',{className:'form-input',value:fContainer,
+                  onChange:function(e){setContainer(e.target.value.toUpperCase());setInspLookupDone(false);setInspLookupResults([]);setInspectionIds([]);},
+                  onBlur:function(e){if(selCqcProd==='grapes') lookupInspectionsByContainer(e.target.value);},
+                  placeholder:'e.g. MNBU 3564353',style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600,flex:1}}),
+                selCqcProd==='grapes'&&ce('button',{className:'btn btn-secondary btn-sm',type:'button',
+                  style:{flexShrink:0,whiteSpace:'nowrap',alignSelf:'flex-end',marginBottom:0},
+                  onClick:function(){lookupInspectionsByContainer(fContainer);}},
+                  inspLookupLoading?'\u23f3 ...':'Find Inspections'
+                )
+              )
             ),
             fi('QC Report Number',fQCRef,setQCRef),
             selCqcProd!=='grapes'&&fi('Lot #',fLot,setLot)
