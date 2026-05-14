@@ -7621,12 +7621,12 @@ function ClientQCMgmt(props){
         farmSeen[r.farm2_id]=true;
         farmList.push({name:(config.farmsIdToName&&config.farmsIdToName[r.farm2_id])||r.farm2_id,plot:r.plot2||''});
       }
-      /* Varieties */
+      /* Varieties - store IDs for reliable category lookup */
       if(r.variety_id){
         var vn=(config.varietiesIdToName&&config.varietiesIdToName[r.variety_id])||'';
         var vn2=r.variety2_id?(config.varietiesIdToName&&config.varietiesIdToName[r.variety2_id])||'':'';
         var vkey=r.variety_id+(r.variety2_id||'');
-        if(!varSeen[vkey]){varSeen[vkey]=true;varList.push({var:vn,var2:vn2,type:r.variety_type||'single'});}
+        if(!varSeen[vkey]){varSeen[vkey]=true;varList.push({var:vn,var2:vn2,type:r.variety_type||'single',id:r.variety_id,id2:r.variety2_id||''});}
       }
       /* Trace codes - prefer trace_codes jsonb (already split); fall back to splitting trace_code by comma */
       var allTc=[];
@@ -7671,19 +7671,28 @@ function ClientQCMgmt(props){
       setTrace(tcList[0]);
       setTraceCodes(tcList.slice(1).map(function(c){return {code:c};}));
     }
-    /* Apply varieties */
+    /* Apply varieties - use IDs for reliable category lookup */
     if(varList.length>0){
-      var v0=varList[0];setVar(v0.var);setVarType(v0.type||'single');setVar2(v0.var2||'');
+      var v0=varList[0];
       var allVars=(config.varietiesFull&&config.varietiesFull[selCqcProd||'grapes'])||[];
-      var found=allVars.find(function(v){return v.name===v0.var;});
-      if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat(cn);}
+      /* Helper: get category name by variety ID */
+      function getCatName(vid){
+        if(!vid) return '';
+        var vObj=allVars.find(function(v){return v.id===vid;});
+        return (vObj&&vObj.categoryId&&(config.categoriesIdToName||{})[vObj.categoryId])||'';
+      }
+      setVar(v0.var);setVarType(v0.type||'single');setVar2(v0.var2||'');
+      /* Category 1 */
+      var cat1=getCatName(v0.id);
+      if(cat1) setFCat(cat1);
+      /* Category 2 (only when mixed) */
+      if(v0.type==='mixed'&&v0.id2){
+        var cat2=getCatName(v0.id2);
+        if(cat2) setFCat2(cat2);
+      }
       if(varList.length>1){
         setVarsExtra(varList.slice(1).map(function(ve){
-          var catName='',cat2Name='';
-          var fnd=allVars.find(function(v){return v.name===ve.var;});
-          if(fnd&&fnd.categoryId) catName=(config.categoriesIdToName||{})[fnd.categoryId]||'';
-          if(ve.var2){var fnd2=allVars.find(function(v){return v.name===ve.var2;});if(fnd2&&fnd2.categoryId)cat2Name=(config.categoriesIdToName||{})[fnd2.categoryId]||'';}
-          return {type:ve.type||'single',cat:catName,var:ve.var,cat2:cat2Name,var2:ve.var2||''};
+          return {type:ve.type||'single',cat:getCatName(ve.id),var:ve.var,cat2:getCatName(ve.id2),var2:ve.var2||''};
         }));
       }
     }
