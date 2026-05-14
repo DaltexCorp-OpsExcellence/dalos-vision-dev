@@ -7628,13 +7628,16 @@ function ClientQCMgmt(props){
         var vkey=r.variety_id+(r.variety2_id||'');
         if(!varSeen[vkey]){varSeen[vkey]=true;varList.push({var:vn,var2:vn2,type:r.variety_type||'single'});}
       }
-      /* Trace codes - collect all unique from trace_code (text) and trace_codes (jsonb array) */
+      /* Trace codes - prefer trace_codes jsonb (already split); fall back to splitting trace_code by comma */
       var allTc=[];
-      if(r.trace_code) allTc.push(r.trace_code);
-      if(r.trace_codes&&Array.isArray(r.trace_codes)) r.trace_codes.forEach(function(tc){
-        if(typeof tc==='string') allTc.push(tc);
-        else if(tc&&tc.code) allTc.push(tc.code);
-      });
+      if(r.trace_codes&&Array.isArray(r.trace_codes)&&r.trace_codes.length>0){
+        r.trace_codes.forEach(function(tc){
+          if(typeof tc==='string') allTc.push(tc);
+          else if(tc&&tc.code) allTc.push(tc.code);
+        });
+      } else if(r.trace_code){
+        r.trace_code.split(',').forEach(function(tc){var t=tc.trim();if(t)allTc.push(t);});
+      }
       allTc.forEach(function(tc){if(tc&&!tcSeen[tc]){tcSeen[tc]=true;tcList.push(tc);}});
       /* Wax - first wins */
       if(r.wax&&!fWax) setWax(r.wax);
@@ -7663,8 +7666,11 @@ function ClientQCMgmt(props){
       if(farmList.length>1){setFarm2(farmList[1].name);setPlot2(farmList[1].plot||'');}
       if(farmList.length>2) setFarmsExtra(farmList.slice(2).map(function(f){return {farm:f.name,plot:f.plot||''};}));
     }
-    /* Apply trace codes - each one separate */
-    if(tcList.length>0) setTraceCodes(tcList.map(function(c){return {code:c};}));
+    /* Apply trace codes - first code into fTrace (primary field), rest into fTraceCodes[] */
+    if(tcList.length>0){
+      setTrace(tcList[0]);
+      setTraceCodes(tcList.slice(1).map(function(c){return {code:c};}));
+    }
     /* Apply varieties */
     if(varList.length>0){
       var v0=varList[0];setVar(v0.var);setVarType(v0.type||'single');setVar2(v0.var2||'');
