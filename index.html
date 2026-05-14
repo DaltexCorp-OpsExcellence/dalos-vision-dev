@@ -4023,15 +4023,16 @@ function FGView(props){
   var initialSel=props.initialSel||null;
   var navBack=props.navBack||null;
   var navBackLabel=props.navBackLabel||'Back';
+  var onSetContext=props.onSetContext||null;
   var stateS=useState(initialSel); var sel=stateS[0]; var setSel=stateS[1];
   /* Auto-open inspection form when navigated from CQC */
   React.useEffect(function(){
     if(!initialSel) return;
     var found=batches.find(function(b){return b.id===initialSel;});
     if(found){
+      if(onSetContext) onSetContext(found.crop||null, found.packhouse||null);
       setEditBatch(found);
     } else {
-      /* batches not yet loaded — wait for them */
       setSel(initialSel);
     }
   },[initialSel,batches]);
@@ -4301,14 +4302,25 @@ function FGView(props){
 
   return ce('div',null,
     /* ── Back to CQC button ── */
-    navBack&&ce('div',{style:{marginBottom:14}},
-      ce('button',{className:'btn btn-secondary btn-sm',
-        style:{display:'inline-flex',alignItems:'center',gap:6},
+    navBack&&ce('div',{style:{marginBottom:14,padding:'10px 14px',background:'#e1f5ee',border:'1px solid #9fe1cb',borderRadius:'var(--r2)',display:'flex',alignItems:'center',justifyContent:'space-between'}},
+      ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
+        ce('div',{style:{width:28,height:28,borderRadius:'50%',background:'#0f6e56',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+          ce('svg',{width:14,height:14,viewBox:'0 0 16 16',fill:'none',stroke:'#fff',strokeWidth:2.5,strokeLinecap:'round',strokeLinejoin:'round'},
+            ce('path',{d:'M10 12L6 8l4-4'})
+          )
+        ),
+        ce('div',null,
+          ce('div',{style:{fontSize:12,fontWeight:500,color:'#0f6e56'}},'Navigated from CQC report'),
+          ce('div',{style:{fontSize:11,color:'#3a9e6a'}},navBackLabel)
+        )
+      ),
+      ce('button',{className:'btn btn-sm',
+        style:{background:'#0f6e56',color:'#fff',border:'none',display:'inline-flex',alignItems:'center',gap:5,padding:'6px 14px'},
         onClick:navBack},
-        ce('svg',{width:14,height:14,viewBox:'0 0 16 16',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'},
+        ce('svg',{width:13,height:13,viewBox:'0 0 16 16',fill:'none',stroke:'currentColor',strokeWidth:2.5,strokeLinecap:'round',strokeLinejoin:'round'},
           ce('path',{d:'M10 12L6 8l4-4'})
         ),
-        navBackLabel
+        'Back to CQC'
       )
     ),
 
@@ -12181,7 +12193,7 @@ function App(){
   var phInfo=(config.packhouses||[]).find(function(p){return p.id===phId;})||{name:'',color:'#2b5c3f',initials:phId?phId.slice(0,2).toUpperCase():'--'};
   var phLoading=phId&&!phInfo.name;
   var cur=availViews.find(function(v){return v.id===view;})||availViews[0]||{label:'',id:''};
-  var needsCropPH=perms.viewFG&&(!cropId||!phId)&&view!=='admin'&&view!=='analytics'&&view!=='export'&&view!=='clientqc'&&view!=='escalation'&&view!=='shipments';
+  var needsCropPH=perms.viewFG&&(!cropId||!phId)&&!navTarget&&view!=='admin'&&view!=='analytics'&&view!=='export'&&view!=='clientqc'&&view!=='escalation'&&view!=='shipments';
   var needsCQCLanding=!perms.viewFG&&perms.viewClientQC&&view==='clientqc'&&false; /* handled inside ClientQCMgmt */
 
   function mkSidebar(){
@@ -12305,7 +12317,8 @@ function App(){
         view==='fg'         &&perms.viewFG        &&ce(FGView,{packhouse:phInfo,perms:perms,cropId:cropId,config:config,batches:batches,onEscalate:escalateBatch,currentUser:liveCurrentUser,onAddBatch:addBatch,currentUserObj:currentUser,viewSeason:currentViewSeason,inspLoading:inspLoading,onRefreshBatches:refreshBatchesById,
           initialSel:navTarget,
           navBack:navHistory?function(){var h=navHistory;setNavHistory(null);setNavTarget(null);setView(h.view);}:null,
-          navBackLabel:navHistory?'Back to CQC report':null}),
+          navBackLabel:navHistory?'Back to CQC report':null,
+          onSetContext:function(crop,ph){if(crop)setCropId(crop);if(ph)setPhId(ph);}}),
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,null),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser}),
