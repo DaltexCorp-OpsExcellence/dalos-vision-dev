@@ -7209,7 +7209,7 @@ function ClientQCMgmt(props){
 
   /* ── FORM STATE (mirrors Client QC Input Sheet exactly) ── */
   var sC=useState(''); var fContainer=sC[0]; var setContainer=sC[1];
-  var sSticker=useState('No'); var fSticker=sSticker[0]; var setSticker=sSticker[1];
+  var sSticker=useState(''); var fSticker=sSticker[0]; var setSticker=sSticker[1];
   var sTrace=useState(''); var fTrace=sTrace[0]; var setTrace=sTrace[1];
   var sTraceCodes=useState([]); var fTraceCodes=sTraceCodes[0]; var setTraceCodes=sTraceCodes[1];
   function addTraceCode(){setTraceCodes(function(p){return p.concat({code:''});});}
@@ -7546,7 +7546,7 @@ function ClientQCMgmt(props){
   }
 
   function clearForm(){
-    setContainer('');setSticker('No');setTrace('');setTraceCodes([]);setPH('');setPhCover('');setCrop('');setVar('');setFCat('');setVarType('single');setFCat2('');setVar2('');
+    setContainer('');setSticker('');setTrace('');setTraceCodes([]);setPH('');setPhCover('');setCrop('');setVar('');setFCat('');setVarType('single');setFCat2('');setVar2('');
     setFarm1('');setPlot1('');setFarm2('');setPlot2('');setFarmsExtra([]);setPHExtra([]);setVarsExtra([]);setLoadDate('');setPackDate('');setHarvDate('');setCartonType('');
     setQCRef('');setRegion('');setClient('');setSubClient('');setLot('');setDaltexCls('');
     setClientCls('');setWax('');setScore('');setBrix('');setBrixIssue('No');setCartonIssue('No');
