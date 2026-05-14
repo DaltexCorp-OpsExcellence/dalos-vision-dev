@@ -9755,14 +9755,7 @@ function ClientQCMgmt(props){
                   !r.general&&!r.pkgComments&&!r.cause&&ce('div',{style:{fontSize:12,color:'var(--text3)'}},'No comments recorded')
                 )
               ),
-              matchedB&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
-                ce('div',{style:{fontWeight:500,fontSize:12,color:'var(--green)',marginBottom:8}},'✓ Matched inspection: '+matchedB.id),
-                ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,fontSize:12}},
-                  [['Date',matchedB.date],['Variety',matchedB.variety],['Avg brix',matchedB.brix?parseFloat(matchedB.brix).toFixed(1)+'\u00b0':'\u2014'],['Critical %',matchedBDefects?matchedBDefects.Critical.toFixed(2)+'%':(matchedB.hasCrit?'\u26a0\ufe0f Yes':'No')],['Major %',matchedBDefects?matchedBDefects.Major.toFixed(2)+'%':'\u2014'],['Minor %',matchedBDefects?matchedBDefects.Minor.toFixed(2)+'%':'\u2014'],['Internal defect',matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'\u2014'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'\u2605 Special Accept':matchedB.decision==='SR'?'\u2605 Special Reject':'Reject'],['Status',matchedB.status]].map(function(item){
-                    return ce('div',{key:item[0],style:{background:'var(--card)',borderRadius:5,padding:'5px 8px'}},ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1}},item[0]),ce('div',{style:{fontWeight:500,fontSize:11}},item[1]||'—'));
-                  })
-                )
-              )
+              matchedB&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},  ce('div',{style:{fontWeight:500,fontSize:12,color:'var(--green)'}},'\u2713 Matched inspection: '+matchedB.id),  ce('div',{style:{fontSize:11,color:'var(--text3)'}},matchedB.date||'\u2014')),ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:10}},ce('div',{style:{display:'flex',borderRadius:8,overflow:'hidden',border:'0.5px solid #F7C1C1'}},  ce('div',{style:{width:5,background:'#E24B4A',flexShrink:0}}),  ce('div',{style:{flex:1,padding:'8px 10px',background:'#FCEBEB'}},    ce('div',{style:{fontSize:9,fontWeight:500,color:'#A32D2D',letterSpacing:'.06em',marginBottom:4}},'CRITICAL'),    ce('div',{style:{fontSize:20,fontWeight:500,color:'#A32D2D',lineHeight:1}},matchedBDefects?matchedBDefects.Critical.toFixed(2)+'%':(matchedB.hasCrit?'\u26a0\ufe0f':'\u2014')),    ce('div',{style:{marginTop:5,height:3,background:'#F7C1C1',borderRadius:2,overflow:'hidden'}},      ce('div',{style:{width:matchedBDefects?Math.min(matchedBDefects.Critical/15*100,100).toFixed(1)+'%':'0%',height:'100%',background:'#E24B4A',borderRadius:2}})    )  )),ce('div',{style:{display:'flex',borderRadius:8,overflow:'hidden',border:'0.5px solid #FAC775'}},  ce('div',{style:{width:5,background:'#BA7517',flexShrink:0}}),  ce('div',{style:{flex:1,padding:'8px 10px',background:'#FAEEDA'}},    ce('div',{style:{fontSize:9,fontWeight:500,color:'#854F0B',letterSpacing:'.06em',marginBottom:4}},'MAJOR'),    ce('div',{style:{fontSize:20,fontWeight:500,color:'#854F0B',lineHeight:1}},matchedBDefects?matchedBDefects.Major.toFixed(2)+'%':'\u2014'),    ce('div',{style:{marginTop:5,height:3,background:'#FAC775',borderRadius:2,overflow:'hidden'}},      ce('div',{style:{width:matchedBDefects?Math.min(matchedBDefects.Major/15*100,100).toFixed(1)+'%':'0%',height:'100%',background:'#BA7517',borderRadius:2}})    )  )),ce('div',{style:{display:'flex',borderRadius:8,overflow:'hidden',border:'0.5px solid #C0DD97'}},  ce('div',{style:{width:5,background:'#3B6D11',flexShrink:0}}),  ce('div',{style:{flex:1,padding:'8px 10px',background:'#EAF3DE'}},    ce('div',{style:{fontSize:9,fontWeight:500,color:'#27500A',letterSpacing:'.06em',marginBottom:4}},'MINOR'),    ce('div',{style:{fontSize:20,fontWeight:500,color:'#27500A',lineHeight:1}},matchedBDefects?matchedBDefects.Minor.toFixed(2)+'%':'\u2014'),    ce('div',{style:{marginTop:5,height:3,background:'#C0DD97',borderRadius:2,overflow:'hidden'}},      ce('div',{style:{width:matchedBDefects?Math.min(matchedBDefects.Minor/15*100,100).toFixed(1)+'%':'0%',height:'100%',background:'#3B6D11',borderRadius:2}})    )  ))),ce('div',{style:{display:'flex',gap:16,borderTop:'0.5px solid var(--green-border)',paddingTop:8,fontSize:12}},  ce('span',{style:{color:'var(--text3)'}},'Total ',ce('b',{style:{color:'var(--accent)'}},matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'\u2014')),  ce('span',{style:{color:'var(--text3)'}},'Brix ',ce('b',{style:{color:'var(--text)'}},matchedB.brix?parseFloat(matchedB.brix).toFixed(1)+'\u00b0':'\u2014')),  ce('span',{style:{color:'var(--text3)'}},'Decision ',ce('b',{style:{color:'var(--green)'}},matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'\u2605 Special Accept':matchedB.decision==='SR'?'\u2605 Special Reject':'Reject'))))
             );
           })())
         ,
@@ -9889,11 +9882,46 @@ function ClientQCMgmt(props){
                   var matchedB=batches.find(function(b){return b.id===r.batchId;});
                   if(!matchedB) return null;
                   return ce('div',{style:{marginTop:14,background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
-                    ce('div',{style:{fontWeight:500,fontSize:12,color:'var(--green)',marginBottom:8}},'✓ Matched: '+matchedB.id),
-                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:11}},
-                      [['Date',matchedB.date],['Variety',matchedB.variety],['Avg brix',matchedB.brix?parseFloat(matchedB.brix).toFixed(1)+'\u00b0':'\u2014'],['Critical %',matchedBDefects?matchedBDefects.Critical.toFixed(2)+'%':(matchedB.hasCrit?'\u26a0\ufe0f Yes':'No')],['Major %',matchedBDefects?matchedBDefects.Major.toFixed(2)+'%':'\u2014'],['Minor %',matchedBDefects?matchedBDefects.Minor.toFixed(2)+'%':'\u2014'],['Internal defect',matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'\u2014'],['Decision',matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'\u2605 Special Accept':'Reject'],['Status',matchedB.status]].map(function(item){
-                        return ce('div',{key:item[0],style:{background:'var(--card)',borderRadius:5,padding:'5px 8px'}},ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:1}},item[0]),ce('div',{style:{fontWeight:500,fontSize:11}},item[1]||'—'));
-                      })
+                    ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
+                      ce('div',{style:{fontWeight:500,fontSize:12,color:'var(--green)'}},'✓ Matched: '+matchedB.id),
+                      ce('div',{style:{fontSize:11,color:'var(--text3)'}},matchedB.date||'—')
+                    ),
+                    ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:10}},
+                      ce('div',{style:{display:'flex',borderRadius:8,overflow:'hidden',border:'0.5px solid #F7C1C1'}},
+                        ce('div',{style:{width:5,background:'#E24B4A',flexShrink:0}}),
+                        ce('div',{style:{flex:1,padding:'8px 10px',background:'#FCEBEB'}},
+                          ce('div',{style:{fontSize:9,fontWeight:500,color:'#A32D2D',letterSpacing:'.06em',marginBottom:4}},'CRITICAL'),
+                          ce('div',{style:{fontSize:18,fontWeight:500,color:'#A32D2D',lineHeight:1}},matchedBDefects?matchedBDefects.Critical.toFixed(2)+'%':(matchedB.hasCrit?'⚠️':'—')),
+                          ce('div',{style:{marginTop:5,height:3,background:'#F7C1C1',borderRadius:2,overflow:'hidden'}},
+                            ce('div',{style:{width:matchedBDefects?Math.min(matchedBDefects.Critical/15*100,100).toFixed(1)+'%':'0%',height:'100%',background:'#E24B4A',borderRadius:2}})
+                          )
+                        )
+                      ),
+                      ce('div',{style:{display:'flex',borderRadius:8,overflow:'hidden',border:'0.5px solid #FAC775'}},
+                        ce('div',{style:{width:5,background:'#BA7517',flexShrink:0}}),
+                        ce('div',{style:{flex:1,padding:'8px 10px',background:'#FAEEDA'}},
+                          ce('div',{style:{fontSize:9,fontWeight:500,color:'#854F0B',letterSpacing:'.06em',marginBottom:4}},'MAJOR'),
+                          ce('div',{style:{fontSize:18,fontWeight:500,color:'#854F0B',lineHeight:1}},matchedBDefects?matchedBDefects.Major.toFixed(2)+'%':'—'),
+                          ce('div',{style:{marginTop:5,height:3,background:'#FAC775',borderRadius:2,overflow:'hidden'}},
+                            ce('div',{style:{width:matchedBDefects?Math.min(matchedBDefects.Major/15*100,100).toFixed(1)+'%':'0%',height:'100%',background:'#BA7517',borderRadius:2}})
+                          )
+                        )
+                      ),
+                      ce('div',{style:{display:'flex',borderRadius:8,overflow:'hidden',border:'0.5px solid #C0DD97'}},
+                        ce('div',{style:{width:5,background:'#3B6D11',flexShrink:0}}),
+                        ce('div',{style:{flex:1,padding:'8px 10px',background:'#EAF3DE'}},
+                          ce('div',{style:{fontSize:9,fontWeight:500,color:'#27500A',letterSpacing:'.06em',marginBottom:4}},'MINOR'),
+                          ce('div',{style:{fontSize:18,fontWeight:500,color:'#27500A',lineHeight:1}},matchedBDefects?matchedBDefects.Minor.toFixed(2)+'%':'—'),
+                          ce('div',{style:{marginTop:5,height:3,background:'#C0DD97',borderRadius:2,overflow:'hidden'}},
+                            ce('div',{style:{width:matchedBDefects?Math.min(matchedBDefects.Minor/15*100,100).toFixed(1)+'%':'0%',height:'100%',background:'#3B6D11',borderRadius:2}})
+                          )
+                        )
+                      )
+                    ),
+                    ce('div',{style:{display:'flex',gap:16,borderTop:'0.5px solid var(--green-border)',paddingTop:8,fontSize:12}},
+                      ce('span',{style:{color:'var(--text3)'}},'Total ',ce('b',{style:{color:'var(--accent)'}},matchedB.totalDefect?matchedB.totalDefect.toFixed(1)+'%':'—')),
+                      ce('span',{style:{color:'var(--text3)'}},'Brix ',ce('b',{style:{color:'var(--text)'}},matchedB.brix?parseFloat(matchedB.brix).toFixed(1)+'°':'—')),
+                      ce('span',{style:{color:'var(--text3)'}},'Decision ',ce('b',{style:{color:'var(--green)'}},matchedB.decision==='A'?'Accept':matchedB.decision==='SA'?'★ Special Accept':'Reject'))
                     )
                   );
                 })()
