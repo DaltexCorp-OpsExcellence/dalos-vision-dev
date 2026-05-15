@@ -897,6 +897,8 @@ function InspectionForm(props){
       }]
     :(restoredDraft&&restoredDraft.pallets&&restoredDraft.pallets.length>0?restoredDraft.pallets:[newPallet(1)]);
   var sPallets=useState(initPallets); var pallets=sPallets[0]; var setPallets=sPallets[1];
+  /* Track pallet DB IDs removed during edit so we can DELETE them on save */
+  var sDeletedPallets=useState([]); var deletedPalletIds=sDeletedPallets[0]; var setDeletedPalletIds=sDeletedPallets[1];
   var sActivePallet=useState(0); var activePalletIdx=sActivePallet[0]; var setActivePalletIdx=sActivePallet[1];
   var sExp=useState(null); var expandedRow=sExp[0]; var setExpandedRow=sExp[1];
   /* pfTried: tracks rows where P/F was clicked while fields were incomplete — triggers red highlights */
@@ -2631,7 +2633,14 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                 disabled:!!animatingPalletId,
                 onClick:function(i,p){return function(e){e.stopPropagation();openMoveModal(i,p);};}(pIdx,pallet)
               },'Move to session…'),
-              pallets.length>1&&ce('button',{className:'btn btn-sm',style:{background:'var(--red-bg)',color:'var(--red)',border:'1px solid var(--red-border)',fontSize:11},onClick:function(i){return function(e){e.stopPropagation();setPallets(function(prev){var next=prev.filter(function(_,j){return j!==i;});return next;});if(activePalletIdx>=pallets.length-1)setActivePalletIdx(Math.max(0,pallets.length-2));};}(pIdx)},'× Remove pallet')
+              pallets.length>1&&ce('button',{className:'btn btn-sm',style:{background:'var(--red-bg)',color:'var(--red)',border:'1px solid var(--red-border)',fontSize:11},onClick:function(i){return function(e){e.stopPropagation();
+              var removedPallet=pallets[i];
+              if(removedPallet&&removedPallet.palletId&&isEdit){
+                var idStr=String(removedPallet.palletId);
+                if(idStr.includes('-')){setDeletedPalletIds(function(prev){return prev.includes(idStr)?prev:prev.concat(idStr);});}
+              }
+              setPallets(function(prev){var next=prev.filter(function(_,j){return j!==i;});return next;});
+              if(activePalletIdx>=pallets.length-1)setActivePalletIdx(Math.max(0,pallets.length-2));};}(pIdx)},'× Remove pallet')
             )
           ),
           /* Trace codes row — grapes only, sits between header and sample table */
@@ -11950,6 +11959,18 @@ function App(){
             }
             processRow(0);
           });
+        }
+        /* DELETE pallets removed by the user during this edit session */
+        if(deletedPalletIds&&deletedPalletIds.length>0){
+          supabase.from('sample_rows').delete().in('pallet_id',deletedPalletIds)
+            .then(function(){
+              return supabase.from('pallets').delete().in('id',deletedPalletIds);
+            })
+            .then(function(r){
+              if(r&&r.error) console.error('[DalOS] pallet delete error:',r.error.message);
+              else console.log('[DalOS] Deleted',deletedPalletIds.length,'pallet(s) from DB');
+            });
+          setDeletedPalletIds([]);
         }
         /* INSERT new rows if any */
         if(newSampleRows.length>0){
