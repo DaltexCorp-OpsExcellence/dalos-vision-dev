@@ -1124,7 +1124,7 @@ function InspectionForm(props){
       /* Audit timing — for draft_started_at + completion_minutes (only used on new inserts) */
       formOpenedAt:formOpenedAtRef.current,
       /* DB-ready structure: pallets with their sample rows */
-      pallets:pallets.map(function(p){return {palletId:p.palletId,palletNo:p.palletNo,palletLabel:p.palletLabel||'',palletContainer:p.palletContainer||'',palletTraceCodes:p.palletTraceCodes||[],actualTraceCode:p.actualTraceCode||'',rows:p.rows.slice()};}),
+      pallets:pallets.map(function(p){return {palletId:p.palletId,palletNo:p.palletNo,palletLabel:p.palletLabel||'',palletContainer:p.palletContainer||'',palletTraceCodes:p.palletTraceCodes||[],palletCartonCompany:p.palletCartonCompany||'',actualTraceCode:p.actualTraceCode||'',rows:p.rows.slice()};}),
       /* flat samples for backward compat (client QC matching) */
       samples:allRows.map(function(r){return Object.assign({},r);})
     };
