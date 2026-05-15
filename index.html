@@ -2833,13 +2833,17 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           var plotOpts1=[];
                           if(selFarm1===farm&&plot) plotOpts1.push(plot);
                           if(selFarm1===farm2&&plot2) plotOpts1.push(plot2);
-                          if(!selFarm1){if(plot)plotOpts1.push(plot);if(plot2)plotOpts1.push(plot2);}
+                          if(selFarm1===farm3&&plot3) plotOpts1.push(plot3);
+                          if(selFarm1===farm4&&plot4) plotOpts1.push(plot4);
+                          if(!selFarm1){if(plot)plotOpts1.push(plot);if(plot2)plotOpts1.push(plot2);if(plot3)plotOpts1.push(plot3);if(plot4)plotOpts1.push(plot4);}
                           /* V2 plot */
                           var selFarm2=ef.sampleFarm2||'';
                           var plotOpts2=[];
                           if(selFarm2===farm&&plot) plotOpts2.push(plot);
                           if(selFarm2===farm2&&plot2) plotOpts2.push(plot2);
-                          if(!selFarm2){if(plot)plotOpts2.push(plot);if(plot2)plotOpts2.push(plot2);}
+                          if(selFarm2===farm3&&plot3) plotOpts2.push(plot3);
+                          if(selFarm2===farm4&&plot4) plotOpts2.push(plot4);
+                          if(!selFarm2){if(plot)plotOpts2.push(plot);if(plot2)plotOpts2.push(plot2);if(plot3)plotOpts2.push(plot3);if(plot4)plotOpts2.push(plot4);}
                           return ce('div',{style:{display:'flex',gap:2,alignItems:'flex-end',width:'100%'}},
                             ce('div',{style:{display:'flex',flexDirection:'column',gap:1,flex:1}},
                               ce('span',{style:{fontSize:7.5,fontWeight:600,color:'#3b6d11',textAlign:'center',lineHeight:1}},(variety||'V1').slice(0,6)),
