@@ -2728,7 +2728,6 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               /* 26px S# badge column prepended
                  Column order: S# | Variety | Farm | Plot | Time | Op.Date | Smp# | Net Wt | Bags/Pun | Avg Wt | Low | High | Clr | Inner | Brix | [Carton Co] | [sections] | Total% | Notes | P/F | delete
                  All numeric input columns sized to fit 2 digits comfortably (min 44px for # inputs, 52px for decimal) */
-              var hasMultiCarton=!!(cartonCompany&&cartonCompany2);
               var cartonCoCol=hasMultiCarton?' 64px':'';
               var gridTpl='26px '+varCol+farmCol+' '+plotCol+' 58px 72px 48px 52px 48px 52px 44px 44px 44px 48px '+brixCol+cartonCoCol+' '+secCols+' 52px minmax(64px,1fr) 36px 18px';
               var hdrLabels=['Farm','Plot','Time','Op.Date','Smp#','Net Wt','Bags/\nPun','Avg Wt','Low','High','Clr','Inner','Brix'].concat(hasMultiCarton?['Carton\nCo']:[]).concat(defSections.map(function(s){return (s.section||s.name||'Defect').split(' ')[0];})).concat(['Total%','Notes','P/F','']);
@@ -3510,7 +3509,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:14,background:'var(--card)',minHeight:44},placeholder:'Notes...',value:row.notes,onChange:function(i,id){return function(e){updateRowField(i,id,'notes',e.target.value);};}(pIdx,row.id)})
                     ),
                     /* ── Carton Company picker (mobile) — only when 2 companies in header ── */
-                    hasMultiCarton&&ce('div',{style:{marginBottom:10}},
+                    (function(){var hasMultiCarton=!!(cartonCompany&&cartonCompany2);return hasMultiCarton&&ce('div',{style:{marginBottom:10}},
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Carton Company'),
                       ce('select',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,background:'var(--card)',minHeight:44},
                         value:((row.extraFields||{}).sampleCartonCompany)||'',
@@ -3522,7 +3521,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         cartonCompany&&ce('option',{value:cartonCompany},cartonCompany),
                         cartonCompany2&&ce('option',{value:cartonCompany2},cartonCompany2)
                       )
-                    ),
+                    );})(),
                     /* ── Sample Specifics block (green, below main fields) ── */
                     ce('div',{style:{background:'#edf5e9',borderRadius:8,border:'1px solid #c2dbb9',borderLeft:'3px solid var(--accent)',padding:'10px 12px'}},
                       ce('div',{style:{fontSize:10,fontWeight:700,color:'#2e5d3a',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Sample Specifics'),
