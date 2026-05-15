@@ -2725,6 +2725,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               /* Farm/Plot columns are wider for mixed (split V1/V2 pickers) */
               var farmCol=isMixed?'124px':'64px';
               var plotCol=isMixed?'100px':'52px';
+              /* hasMultiCarton: true when both header carton companies are filled — adds Carton Co column */
+              var hasMultiCarton=!!(cartonCompany&&cartonCompany2);
               /* 26px S# badge column prepended
                  Column order: S# | Variety | Farm | Plot | Time | Op.Date | Smp# | Net Wt | Bags/Pun | Avg Wt | Low | High | Clr | Inner | Brix | [Carton Co] | [sections] | Total% | Notes | P/F | delete
                  All numeric input columns sized to fit 2 digits comfortably (min 44px for # inputs, 52px for decimal) */
