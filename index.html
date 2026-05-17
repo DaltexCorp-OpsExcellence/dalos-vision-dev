@@ -11878,7 +11878,7 @@ function App(){
             var rawLabel=p.palletLabel&&p.palletLabel.trim()?p.palletLabel.trim():String(p.palletNo);
             var palletUpdate={pallet_number:(palletPfx&&!rawLabel.startsWith(palletPfx))?palletPfx+rawLabel:rawLabel};
             if(p.palletContainer) palletUpdate.container_number=p.palletContainer;
-            if(p.palletTraceCodes) palletUpdate.trace_codes=p.palletTraceCodes;
+            palletUpdate.trace_codes=p.palletTraceCodes||[];
             if(p.actualTraceCode!==undefined) palletUpdate.actual_trace_code=p.actualTraceCode||null;
             palletUpdate.carton_company=p.palletCartonCompany||null;
             console.log('[DalOS] updating pallet',palletId,'with',JSON.stringify(palletUpdate));
@@ -11991,6 +11991,7 @@ function App(){
                 palletNumE=p.palletNo;
               }
               var pr2={inspection_id:realId,pallet_number:palletNumE,actual_trace_code:p.actualTraceCode||null};
+              if(isCropGrapesEdit&&p.palletTraceCodes&&p.palletTraceCodes.length) pr2.trace_codes=p.palletTraceCodes;
               if(isCropGrapesEdit&&p.palletContainer) pr2.container_number=p.palletContainer;
               if(p.palletCartonCompany) pr2.carton_company=p.palletCartonCompany;
               newPalletObjs.push({pallet:p,row:pr2});
