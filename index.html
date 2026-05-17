@@ -11653,6 +11653,29 @@ function App(){
         history.replaceState(null,'',window.location.pathname);
         setShowInvite(true);
       }
+      /* TOKEN_REFRESHED: update the current user silently so UI stays in sync */
+      if(event==='TOKEN_REFRESHED'&&session&&session.user){
+        console.log('[DalOS] Token refreshed silently — session continues');
+      }
+      /* SIGNED_OUT: try to recover session from localStorage before logging user out.
+         This handles the refresh token rotation conflict between multiple tabs —
+         Supabase fires SIGNED_OUT when it detects token reuse, but the new token
+         is often already stored in localStorage by the tab that won the race. */
+      if(event==='SIGNED_OUT'){
+        console.warn('[DalOS] SIGNED_OUT event received — attempting session recovery');
+        setTimeout(function(){
+          supabase.auth.getSession().then(function(res){
+            if(res.data&&res.data.session&&res.data.session.user){
+              console.log('[DalOS] Session recovered after SIGNED_OUT — staying logged in');
+              /* Session recovered — do nothing, user stays logged in */
+            } else {
+              /* Truly signed out — reload so login screen appears cleanly */
+              console.warn('[DalOS] Session could not be recovered — reloading to login');
+              window.location.reload();
+            }
+          });
+        }, 2000); /* Wait 2s for localStorage to sync from winning tab */
+      }
     });
     supabase.auth.getSession().then(function(res){
       if(res.data&&res.data.session&&res.data.session.user){
