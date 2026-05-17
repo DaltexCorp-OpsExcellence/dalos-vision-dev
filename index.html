@@ -12110,7 +12110,11 @@ function App(){
       if(!palletRes) return; /* edit mode already handled onDone via Promise.all */
       if(palletRes.error){
         if(palletRes.error) console.error('[DalOS] Pallets insert error:',palletRes.error.message);
-        if(onDone){onDone('Pallets save failed');onDone=null;}
+        var palletErrMsg='Pallets save failed';
+        if(palletRes.error.message&&(palletRes.error.message.includes('JWT')||palletRes.error.message.includes('expired')||palletRes.error.message.includes('invalid')||palletRes.error.message.includes('401'))){
+          palletErrMsg='Your session was signed out on another tab or device. Please refresh the page and sign in again to save.';
+        }
+        if(onDone){onDone(palletErrMsg);onDone=null;}
         return;
       }
       console.log('[DalOS] Pallets saved:',palletRes.data.length);
