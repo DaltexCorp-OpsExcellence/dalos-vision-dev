@@ -12414,7 +12414,13 @@ function App(){
             ce('div',{style:{fontSize:9,color:'var(--sidebar-muted)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:3}},'Season'),
             ce('select',{style:{fontSize:12,fontWeight:700,color:'#fff',background:'transparent',border:'none',outline:'none',cursor:'pointer',fontFamily:'var(--font-body)',padding:0,width:'100%'},
               value:currentViewSeason,
-              onChange:function(e){setViewSeason(e.target.value);}},
+              onChange:function(e){
+                var name=e.target.value;
+                setViewSeason(name);
+                /* Also update config.activeSeasonId so shipments and other season-aware components react */
+                var found=(config.seasons||[]).find(function(s){return s.name===name;});
+                if(found) setConfig(function(prev){return Object.assign({},prev,{activeSeasonId:found.id,activeSeason:found.name});});
+              }},
               (config.seasons||[{id:'2025/26',name:'2025/26',active:true}]).map(function(s){
                 var isActive=s.name===(config.activeSeason||'2025/26');
                 return ce('option',{key:s.id,value:s.name},s.name+(isActive?' \u2713':''));
