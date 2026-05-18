@@ -5073,70 +5073,363 @@ function FGView(props){
 }
 
 /* ─── ANALYTICS ─── */
-var TREND=[
-  {m:'Oct',int:86,cli:81,cr:2.1},{m:'Nov',int:84,cli:79,cr:2.8},
-  {m:'Dec',int:82,cli:74,cr:3.6},{m:'Jan',int:85,cli:78,cr:3.1},
-  {m:'Feb',int:87,cli:82,cr:2.4},{m:'Mar',int:83,cli:76,cr:3.4}
-];
+function AnalyticsView(props){
+  var config=props.config||{};
+  var seasonId=config.trueActiveSeasonId||config.activeSeasonId||null;
+  var seasonName=config.activeSeason||'2025/26';
 
-function AnalyticsView(){
+  /* ── state ── */
+  var sData=useState(null);     var data=sData[0];     var setData=sData[1];
+  var sLoading=useState(true);  var loading=sLoading[0]; var setLoading=sLoading[1];
+  var sErr=useState(null);      var err=sErr[0];        var setErr=sErr[1];
+  var sTab=useState('overview');var activeTab=sTab[0];  var setTab=sTab[1];
+  var sPH=useState('');         var filterPH=sPH[0];    var setFilterPH=sPH[1];
+  var sCl=useState('');         var filterCl=sCl[0];    var setFilterCl=sCl[1];
+  var sVr=useState('');         var filterVr=sVr[0];    var setFilterVr=sVr[1];
+
+  /* week nav — default to last full Mon-Sun window */
+  function getDefaultWeek(){
+    var today=new Date();
+    var dow=today.getDay();
+    var sinceMonday=dow===0?6:dow-1;
+    var end=new Date(today); end.setDate(today.getDate()-dow); /* last Sunday */
+    var start=new Date(end); start.setDate(end.getDate()-6);
+    return {start:start,end:end};
+  }
+  var sWeek=useState(getDefaultWeek); var week=sWeek[0]; var setWeek=sWeek[1];
+
+  function toISO(d){return d.toISOString().split('T')[0];}
+  function fmtWeek(w){
+    var ms=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var sd=w.start.getDate(),ed=w.end.getDate(),em=ms[w.end.getMonth()],ey=w.end.getFullYear();
+    return w.start.getMonth()===w.end.getMonth()?sd+'\u2013'+ed+' '+em+' '+ey:sd+' '+ms[w.start.getMonth()]+'\u2013'+ed+' '+em+' '+ey;
+  }
+  function isoWeekNum(d){
+    var dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+    var day=dt.getUTCDay()||7; dt.setUTCDate(dt.getUTCDate()+4-day);
+    var y1=new Date(Date.UTC(dt.getUTCFullYear(),0,1));
+    return Math.ceil((((dt.getTime()-y1.getTime())/86400000)+1)/7);
+  }
+  function shiftWeek(dir){
+    setWeek(function(w){
+      var s=new Date(w.start); var e=new Date(w.end);
+      s.setDate(s.getDate()+dir*7); e.setDate(e.getDate()+dir*7);
+      return {start:s,end:e};
+    });
+  }
+
+  /* ── fetch ── */
+  React.useEffect(function(){
+    if(!seasonId) return;
+    setLoading(true); setErr(null);
+    var lwkEnd=new Date(week.start); lwkEnd.setDate(week.start.getDate()-1);
+    var lwkStart=new Date(lwkEnd); lwkStart.setDate(lwkEnd.getDate()-6);
+    supabase.rpc('grapes_weekly_report_data',{
+      p_season_id:seasonId,
+      p_week_start:toISO(week.start),
+      p_week_end:toISO(week.end),
+      p_last_week_start:toISO(lwkStart),
+      p_last_week_end:toISO(lwkEnd)
+    }).then(function(r){
+      if(r.error){setErr(r.error.message);setLoading(false);return;}
+      setData(r.data); setLoading(false);
+    });
+  },[seasonId,week.start.toISOString(),week.end.toISOString()]);
+
+  /* ── helpers ── */
+  function n(v,dec){dec=dec===undefined?2:dec;var f=parseFloat(v);return isNaN(f)?'\u2014':f.toFixed(dec);}
+  function ni(v){return parseInt(v)||0;}
+  function pctColor(p){return p>=2.5?'var(--red)':p>=2.0?'var(--amber)':'#0f6e56';}
+  function sigBadge(p){
+    if(p>=2.5) return ce('span',{className:'badge badge-fail'},'High');
+    if(p>=2.0) return ce('span',{className:'badge badge-warn'},'Watch');
+    return ce('span',{className:'badge badge-pass'},'Good');
+  }
+  function sevBadge(s){
+    if(s==='Critical') return ce('span',{className:'badge badge-fail'},'Critical');
+    if(s==='Major')    return ce('span',{className:'badge badge-warn'},'Major');
+    return ce('span',{className:'badge',style:{background:'var(--bg2)',color:'var(--text2)'}},'Minor');
+  }
+
+  var insp=data?data.insp:{};
+  var pal=data?data.pallets:{};
+  var sev=data?data.severity:{};
+  var topDef=data&&data.top_defects?data.top_defects:[];
+  var clients=data&&data.clients?data.clients:[];
+  var farms=data&&data.farms?data.farms:[];
+  var phouses=data&&data.packhouses?data.packhouses:[];
+  var critForms=data&&data.critical_forms?data.critical_forms:[];
+
+  /* apply filters */
+  var filteredClients=filterCl?clients.filter(function(c){return (c.client||'').toLowerCase().indexOf(filterCl.toLowerCase())>=0;}):clients;
+  var filteredFarms=filterVr?farms.filter(function(f){return (f.variety||'').toLowerCase().indexOf(filterVr.toLowerCase())>=0;}):farms;
+  var filteredPH=filterPH?phouses.filter(function(p){return (p.packhouse||'').toLowerCase().indexOf(filterPH.toLowerCase())>=0;}):phouses;
+
+  var totalPallets=ni(pal.total);
+  var avgDefect=parseFloat(insp.avg_defect||0);
+  var lwkDefect=insp.lwk_defect!==null&&insp.lwk_defect!==undefined?parseFloat(insp.lwk_defect):null;
+  var minorPct=parseFloat((sev||{})['Minor']||0);
+  var majorPct=parseFloat((sev||{})['Major']||0);
+  var critPct=parseFloat((sev||{})['Critical']||0);
+  var weekNum=isoWeekNum(week.end);
+
+  /* ── SEND NOW handler ── */
+  function handleSendNow(){
+    if(!window.confirm('Send the Week '+weekNum+' report to all recipients now?')) return;
+    fetch('https://sfyjvgjwvtwkrnqrvqyc.supabase.co/functions/v1/weekly-grapes-report',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d&&d.status===200) alert('Report sent successfully!');
+        else alert('Send failed: '+(d&&d.error?d.error:'Unknown error'));
+      }).catch(function(e){alert('Error: '+e.message);});
+  }
+
+  /* ── TABS ── */
+  var TABS=[{id:'overview',label:'Overview'},{id:'defects',label:'Defects'},{id:'clients',label:'Clients'},{id:'farms',label:'Farms & varieties'},{id:'packhouses',label:'Packhouses'}];
+
+  /* ── RENDER ── */
   return ce('div',null,
-    ce('div',{className:'kpi-grid'},
-      ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Avg total defect % (season)'),ce('div',{className:'kpi-value',style:{color:'var(--amber)'}},'4.2%'),ce('div',{className:'kpi-sub'},'Target: below 5%')),
-      ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Rejection rate'),ce('div',{className:'kpi-value',style:{color:'var(--red)'}},'18%'),ce('div',{className:'kpi-sub down'},'\u2191 3% vs. last season')),
-      ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Top defect'),ce('div',{className:'kpi-value',style:{fontSize:15,paddingTop:6}},'Oil spots'),ce('div',{className:'kpi-sub'},'Present in 82% of inspections')),
-      ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Critical findings (season)'),ce('div',{className:'kpi-value',style:{color:'var(--red)'}},'3'),ce('div',{className:'kpi-sub'},'Thrips x2, Scale x1'))
+
+    /* header */
+    ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}},
+      ce('div',null,
+        ce('div',{style:{fontSize:18,fontWeight:500,color:'var(--text)'}},'\u{1F347} Grapes \u2014 Weekly Report'),
+        ce('div',{style:{fontSize:12,color:'var(--text3)',marginTop:3}},'Export inspections \u00b7 Season '+seasonName)
+      ),
+      ce('div',{style:{display:'flex',gap:8}},
+        ce('button',{className:'btn-secondary',style:{fontSize:12},onClick:handleSendNow},'\u2709 Send report now')
+      )
     ),
-    ce('div',{className:'grid2',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}},
-      ce('div',{className:'card'},ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#2b5c3f'}}),'Internal vs. client score trend'),ce(MiniLine,{data:TREND,k1:'int',k2:'cli'}),
-        ce('div',{style:{display:'flex',gap:14,marginTop:8}},
-          ce('div',{style:{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'var(--text3)'}},ce('svg',{width:16,height:8},ce('line',{x1:0,y1:4,x2:16,y2:4,stroke:'#2b5c3f',strokeWidth:2})),'Internal'),
-          ce('div',{style:{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'var(--text3)'}},ce('svg',{width:16,height:8},ce('line',{x1:0,y1:4,x2:16,y2:4,stroke:'#b03030',strokeWidth:2,strokeDasharray:'4 2'})),'Client')
+
+    /* filters */
+    ce('div',{style:{background:'var(--bg2)',borderRadius:8,padding:'10px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},
+      ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',whiteSpace:'nowrap'}},'Week'),
+      ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
+        ce('button',{className:'btn-secondary',style:{fontSize:11,padding:'3px 8px'},onClick:function(){shiftWeek(-1);}},'\u2190'),
+        ce('span',{style:{fontSize:12,fontWeight:500,minWidth:150,textAlign:'center'}},'Week '+weekNum+' \u00b7 '+fmtWeek(week)),
+        ce('button',{className:'btn-secondary',style:{fontSize:11,padding:'3px 8px'},onClick:function(){shiftWeek(1);}},'\u2192')
+      ),
+      ce('div',{style:{width:'0.5px',height:20,background:'var(--border)'}}),
+      ce('select',{style:{fontSize:12},value:filterPH,onChange:function(e){setFilterPH(e.target.value);}},
+        ce('option',{value:''},'All packhouses'),
+        phouses.map(function(p,i){return ce('option',{key:i,value:p.packhouse},p.packhouse);})
+      ),
+      ce('select',{style:{fontSize:12},value:filterCl,onChange:function(e){setFilterCl(e.target.value);}},
+        ce('option',{value:''},'All clients'),
+        clients.map(function(c,i){return ce('option',{key:i,value:c.client},c.client);})
+      ),
+      ce('select',{style:{fontSize:12},value:filterVr,onChange:function(e){setFilterVr(e.target.value);}},
+        ce('option',{value:''},'All varieties'),
+        Array.from(new Set(farms.map(function(f){return f.variety;}))).filter(Boolean).map(function(v,i){return ce('option',{key:i,value:v},v);})
+      ),
+      (filterPH||filterCl||filterVr)?ce('button',{className:'btn-secondary',style:{fontSize:11},onClick:function(){setFilterPH('');setFilterCl('');setFilterVr('');}},'\u00d7 Clear filters'):null
+    ),
+
+    /* tabs */
+    ce('div',{style:{display:'flex',gap:2,marginBottom:14,borderBottom:'0.5px solid var(--border)'}},
+      TABS.map(function(t){
+        return ce('div',{key:t.id,
+          onClick:function(){setTab(t.id);},
+          style:{fontSize:12,padding:'6px 14px',cursor:'pointer',borderBottom:activeTab===t.id?'2px solid #2e5d3a':'2px solid transparent',
+            color:activeTab===t.id?'#2e5d3a':'var(--text3)',fontWeight:activeTab===t.id?600:400,marginBottom:'-0.5px'}
+        },t.label);
+      })
+    ),
+
+    /* loading / error */
+    loading&&ce('div',{style:{textAlign:'center',padding:'40px 0',color:'var(--text3)',fontSize:13}},'Loading report data\u2026'),
+    !loading&&err&&ce('div',{style:{color:'var(--red)',fontSize:13,padding:'12px 0'}},'Error: '+err),
+
+    /* ── OVERVIEW TAB ── */
+    !loading&&!err&&activeTab==='overview'&&ce('div',null,
+
+      ce('div',{className:'kpi-grid'},
+        ce('div',{className:'kpi'},
+          ce('div',{className:'kpi-label'},'Pallets (STD)'),
+          ce('div',{className:'kpi-value'},ni(pal.total)),
+          ce('div',{className:'kpi-sub'},(ni(pal.wk_pallets)||0)+' this week \u00b7 '+(ni(pal.lwk_pallets)||0)+' last week')
+        ),
+        ce('div',{className:'kpi'},
+          ce('div',{className:'kpi-label'},'Acceptance rate'),
+          ce('div',{className:'kpi-value',style:{color:'#0f6e56'}},ni(insp.total)>0?Math.round(ni(insp.accepted)/ni(insp.total)*100)+'%':'—'),
+          ce('div',{className:'kpi-sub'},ni(insp.accepted)+' / '+ni(insp.total)+' inspection forms')
+        ),
+        ce('div',{className:'kpi'},
+          ce('div',{className:'kpi-label'},'Avg total defect (STD)'),
+          ce('div',{className:'kpi-value'},n(insp.avg_defect)+'%'),
+          ce('div',{className:'kpi-sub'},
+            lwkDefect!==null&&ce('span',{style:{color:avgDefect>lwkDefect?'var(--red)':'#0f6e56'}},
+              (avgDefect>lwkDefect?'\u2191 ':'\u2193 ')+Math.abs(avgDefect-lwkDefect).toFixed(2)+'% vs last week'
+            )
+          )
+        ),
+        ce('div',{className:'kpi'},
+          ce('div',{className:'kpi-label'},'Critical flags (STD)'),
+          ce('div',{className:'kpi-value',style:{color:ni(insp.critical_count)>0?'var(--red)':'#0f6e56'}},ni(insp.critical_count)),
+          ce('div',{className:'kpi-sub'},ni(insp.critical_count)>0?ni(insp.critical_count)+' flagged form(s)':'No critical events')
+        )
+      ),
+
+      /* critical callout */
+      critForms.length>0&&ce('div',{style:{background:'#FDF2F2',border:'0.5px solid #f0c0c0',borderRadius:8,padding:'10px 14px',marginBottom:14}},
+        ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--red)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}},
+          '\u26A0 '+critForms.length+' critical-flagged form'+(critForms.length>1?'s':'')+' this season'
+        ),
+        critForms.map(function(f,i){
+          var defs=(f.crit_defects||[]).map(function(cd){return cd.defect_name+' '+cd.max_pct+'%';}).join(', ');
+          var failedPallets=(f.crit_defects||[]).reduce(function(mx,cd){return Math.max(mx,ni(cd.pallet_count));},0);
+          var accepted=ni(f.total_pallets)-failedPallets;
+          return ce('div',{key:i,style:{fontSize:11,color:'var(--text2)',marginBottom:i<critForms.length-1?4:0}},
+            ce('strong',{style:{color:'var(--red)'}},f.id),' \u00b7 ',f.packhouse,' / ',f.client,' \u00b7 ',f.date_label,
+            ' \u00b7 ',f.total_pallets,' pallets \u00b7 ',
+            ce('span',{style:{color:'var(--red)',fontWeight:600}},failedPallets+' failed'),
+            ' (',defs,') \u00b7 ',
+            ce('span',{style:{color:'#0f6e56'}},accepted+' accepted')
+          );
+        })
+      ),
+
+      ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}},
+        ce('div',{className:'card'},
+          ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#2e5d3a'}}),'Inspection form status'),
+          ['Accepted','Pending','Escalated','Rejected','Special Accept'].map(function(s,i){
+            var colors=['#1d9e75','#ef9f27','#533AB7','#e24b4a','#5dcaa5'];
+            var keys=['accepted','pending','escalated','rejected','special_accept'];
+            return ce('div',{key:i,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0',borderBottom:i<4?'0.5px solid var(--border)':'none',fontSize:12}},
+              ce('div',{style:{display:'flex',alignItems:'center',gap:7}},
+                ce('span',{style:{display:'inline-block',width:7,height:7,borderRadius:'50%',background:colors[i]}}),
+                s
+              ),
+              ce('strong',{style:{color:ni(insp[keys[i]])>0?(s==='Accepted'?'#0f6e56':'var(--red)'):'var(--text3)'}},ni(insp[keys[i]]))
+            );
+          })
+        ),
+        ce('div',{className:'card'},
+          ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#5a3a8a'}}),'Quality metrics'),
+          [['Avg total defect (STD)',n(insp.avg_defect)+'%'],
+           ['Avg total defect (this week)',n(insp.wk_defect)+'%'],
+           ['Avg brix (STD)',n(insp.avg_brix,1)+'\u00b0'],
+           ['Avg brix (this week)',n(insp.wk_brix,1)+'\u00b0'],
+           ['Avg net weight',pal.avg_nw_kg?n(pal.avg_nw_kg)+' kg':'\u2014'],
+           ['Pallets / Samples',ni(pal.total)+' / '+ni(pal.total_samples)]
+          ].map(function(row,i){
+            return ce('div',{key:i,style:{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:i<5?'0.5px solid var(--border)':'none',fontSize:12}},
+              ce('span',{style:{color:'var(--text3)'}},row[0]),
+              ce('strong',null,row[1])
+            );
+          })
+        )
+      )
+    ),
+
+    /* ── DEFECTS TAB ── */
+    !loading&&!err&&activeTab==='defects'&&ce('div',null,
+      ce('div',{className:'card',style:{marginBottom:12}},
+        ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#2e5d3a'}}),'Severity breakdown (STD)'),
+        ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10}},
+          [['Critical',critPct,'#791f1f'],['Major',majorPct,'#e24b4a'],['Minor',minorPct,'#ef9f27']].map(function(s,i){
+            return ce('div',{key:i,style:{background:'var(--bg2)',borderRadius:6,padding:'10px 12px'}},
+              ce('div',{style:{fontSize:10,color:'var(--text3)',marginBottom:2}},s[0]),
+              ce('div',{style:{fontSize:20,fontWeight:600,color:s[2]}},s[1].toFixed(1)+'%'),
+              ce('div',{style:{fontSize:10,color:'var(--text3)',marginTop:2}},'of total defect load'),
+              ce('div',{style:{height:3,borderRadius:2,background:s[2],width:s[1]+'%',marginTop:6,maxWidth:'100%'}})
+            );
+          })
+        ),
+        ce('div',{style:{display:'flex',height:6,borderRadius:3,overflow:'hidden',gap:2,marginBottom:4}},
+          ce('div',{style:{flex:Math.round(critPct)||1,background:'#791f1f'}}),
+          ce('div',{style:{flex:Math.round(majorPct),background:'#e24b4a'}}),
+          ce('div',{style:{flex:Math.round(minorPct),background:'#ef9f27'}})
         )
       ),
       ce('div',{className:'card'},
-        ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#d4620a'}}),'Top defects by frequency (season)'),
-        [['Oil spots / bruising',82,4.1,'Minor'],['Blemish',62,2.4,'Minor'],['Injuries (harvest)',48,1.8,'Major'],['Sunburn',38,2.1,'Major'],['Mechanical damage',28,1.4,'Major'],['Thrips',12,0.4,'Critical']].map(function(d,i){
-          var barColor=d[3]==='Critical'?'var(--red)':d[3]==='Major'?'var(--amber)':'var(--accent)';
-          return ce('div',{key:i,style:{marginBottom:8}},
-            ce('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:3}},
-              ce('span',{style:{fontSize:12,color:'var(--text)'}},[d[0]]),
-              ce('div',{style:{display:'flex',gap:10,fontSize:11,fontFamily:'var(--font-mono)'}},
-                ce('span',{style:{color:'var(--text3)'}},d[1]+'% of batches'),
-                ce('span',{style:{color:barColor,fontWeight:600}},'avg '+d[2]+'%')
-              )
-            ),
-            ce('div',{style:{height:5,background:'var(--bg2)',borderRadius:3,overflow:'hidden'}},
-              ce('div',{style:{height:'100%',width:d[1]+'%',background:barColor,borderRadius:3,opacity:.85}})
-            )
-          );
-        })
+        ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#d4620a'}}),'Top defects by volume'),
+        ce('div',{className:'scroll-card',style:{border:'none'}},
+          ce('table',null,
+            ce('thead',null,ce('tr',null,ce('th',null,'Defect'),ce('th',null,'Severity'),ce('th',null,'Pallets affected'),ce('th',null,'Avg %'))),
+            ce('tbody',null,topDef.map(function(d,i){
+              return ce('tr',{key:i},
+                ce('td',null,d.name),
+                ce('td',{style:{textAlign:'center'}},sevBadge(d.severity)),
+                ce('td',{style:{textAlign:'center'}},ni(d.pallets)+(totalPallets?'/'+totalPallets:'')),
+                ce('td',{style:{textAlign:'center',color:d.severity==='Major'||d.severity==='Critical'?'var(--red)':'var(--amber)',fontWeight:600}},n(d.avg_pct)+'%')
+              );
+            }))
+          )
+        )
       )
     ),
-    ce('div',{className:'card'},
-      ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#8a3a1a'}}),'Critical & zero-tolerance defect log (season)'),
-      ce('div',{className:'scroll-card',style:{border:'none'}},
-        ce('table',null,
-          ce('thead',null,ce('tr',null,ce('th',null,'Batch'),ce('th',null,'Date'),ce('th',null,'Variety'),ce('th',null,'Farm'),ce('th',null,'Defect'),ce('th',null,'Value'),ce('th',null,'Decision'))),
-          ce('tbody',null,
-            [['PB-2026-1201','2026-03-15','Midknight Valencia','Hana','Thrips','2.4%','R'],
-             ['PB-2026-1187','2026-03-13','Eureka Lemon','Nour','Thrips','1.8%','A*'],
-             ['PB-2026-0988','2026-02-20','Navel Lanelate','Badr','Scale insect','0.8%','R']
-            ].map(function(r,i){
+
+    /* ── CLIENTS TAB ── */
+    !loading&&!err&&activeTab==='clients'&&ce('div',null,
+      ce('div',{className:'card'},
+        ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#2e5d3a'}}),'Client performance (STD)'),
+        ce('div',{className:'scroll-card',style:{border:'none'}},
+          ce('table',null,
+            ce('thead',null,ce('tr',null,ce('th',{style:{textAlign:'left'}},'Client'),ce('th',null,'Pallets'),ce('th',null,'Forms'),ce('th',null,'Avg defect'),ce('th',null,'Avg brix'),ce('th',null,'Avg NW'),ce('th',null,'Signal'))),
+            ce('tbody',null,filteredClients.map(function(c,i){
+              var pct=parseFloat(c.avg_defect||0);
               return ce('tr',{key:i},
-                ce('td',null,ce('span',{className:'lot'},r[0])),
-                ce('td',{style:{color:'var(--text3)'}},r[1]),
-                ce('td',null,r[2]),
-                ce('td',null,r[3]),
-                ce('td',null,ce('span',{className:'badge badge-fail'},r[4])),
-                ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:12,color:'var(--red)',fontWeight:600}},r[5]),
-                ce('td',null,ce('span',{className:'badge badge-'+(r[6]==='R'?'fail':r[6]==='A*'?'warn':'pass')},r[6]))
+                ce('td',null,c.client),
+                ce('td',{style:{textAlign:'center'}},ni(c.pallets)),
+                ce('td',{style:{textAlign:'center'}},ni(c.forms)),
+                ce('td',{style:{textAlign:'center',color:pctColor(pct),fontWeight:600}},n(c.avg_defect)+'%'),
+                ce('td',{style:{textAlign:'center'}},n(c.avg_brix,1)+'\u00b0'),
+                ce('td',{style:{textAlign:'center'}},c.avg_nw_kg?n(c.avg_nw_kg)+' kg':'\u2014'),
+                ce('td',{style:{textAlign:'center'}},sigBadge(pct))
               );
-            })
+            }))
+          )
+        ),
+        ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:8}},'High >2.5% \u00b7 Watch 2.0\u20132.5% \u00b7 Good <2.0%')
+      )
+    ),
+
+    /* ── FARMS & VARIETIES TAB ── */
+    !loading&&!err&&activeTab==='farms'&&ce('div',null,
+      ce('div',{className:'card'},
+        ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#5a3a8a'}}),'Farm \u00d7 variety performance (STD)'),
+        ce('div',{className:'scroll-card',style:{border:'none'}},
+          ce('table',null,
+            ce('thead',null,ce('tr',null,ce('th',{style:{textAlign:'left'}},'Farm'),ce('th',{style:{textAlign:'left'}},'Variety'),ce('th',null,'Pallets'),ce('th',null,'Avg defect'),ce('th',null,'Avg brix'))),
+            ce('tbody',null,filteredFarms.map(function(f,i){
+              var pct=parseFloat(f.avg_defect||0);
+              return ce('tr',{key:i},
+                ce('td',null,f.farm),
+                ce('td',null,f.variety),
+                ce('td',{style:{textAlign:'center'}},ni(f.pallets)),
+                ce('td',{style:{textAlign:'center',color:pctColor(pct),fontWeight:600}},n(f.avg_defect)+'%'),
+                ce('td',{style:{textAlign:'center'}},n(f.avg_brix,1)+'\u00b0')
+              );
+            }))
+          )
+        )
+      )
+    ),
+
+    /* ── PACKHOUSES TAB ── */
+    !loading&&!err&&activeTab==='packhouses'&&ce('div',null,
+      ce('div',{className:'card'},
+        ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#8a3a1a'}}),'Packhouse performance (STD)'),
+        ce('div',{className:'scroll-card',style:{border:'none'}},
+          ce('table',null,
+            ce('thead',null,ce('tr',null,ce('th',{style:{textAlign:'left'}},'Packhouse'),ce('th',null,'Pallets'),ce('th',null,'Avg defect'),ce('th',null,'Avg NW'),ce('th',null,'Critical flags'))),
+            ce('tbody',null,filteredPH.map(function(p,i){
+              var pct=parseFloat(p.avg_defect||0);
+              var hasCrit=ni(p.critical_flags)>0;
+              return ce('tr',{key:i},
+                ce('td',null,p.packhouse),
+                ce('td',{style:{textAlign:'center'}},ni(p.pallets)),
+                ce('td',{style:{textAlign:'center',color:pctColor(pct),fontWeight:600}},n(p.avg_defect)+'%'),
+                ce('td',{style:{textAlign:'center'}},p.avg_nw_kg?n(p.avg_nw_kg)+' kg':'\u2014'),
+                ce('td',{style:{textAlign:'center',color:hasCrit?'var(--red)':'#0f6e56',fontWeight:hasCrit?600:400}},ni(p.critical_flags))
+              );
+            }))
           )
         )
       )
     )
+
   );
 }
 
@@ -12391,7 +12684,7 @@ function App(){
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & claims'});
-  if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'QC Analytics',      sub:'Dashboard',       comingSoon:true});
+  if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'QC Analytics',      sub:'Dashboard'});
   if(perms.viewExport)       availViews.push({id:'export',     label:'Export data',       sub:'CSV / Tableau',   comingSoon:true});
   if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Board Review',      sub:'Escalation queue'});
   if(perms.viewAdmin)        availViews.push({id:'admin',      label:'Admin',             sub:'Users & access'});
@@ -12531,7 +12824,7 @@ function App(){
           initialSel:navTarget,
           navBack:navHistory?function(){var h=navHistory;setNavHistory(null);setNavTarget(null);setView(h.view);}:null,
           navBackLabel:navHistory?'Back to CQC report':null}),
-        view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,null),
+        view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
