@@ -10153,6 +10153,17 @@ function ShipmentsMgmt(props){
   /* product container counts for hero */
   var sProdCounts=useState({}); var prodCounts=sProdCounts[0]; var setProdCounts=sProdCounts[1];
 
+  /* Reset product selection when season changes */
+  React.useEffect(function(){
+    setSelProd(null);
+    setSelShip(null);
+    setSelContainer(null);
+    setShipments([]);
+    setGrades([]);
+    setCqcMatches({});
+    setProdCounts({});
+  },[config.activeSeasonId]);
+
   /* Load container counts per product for hero page */
   React.useEffect(function(){
     if(!config.activeSeasonId) return;
@@ -10183,6 +10194,10 @@ function ShipmentsMgmt(props){
   /* Load shipments + grades + CQC matches */
   React.useEffect(function(){
     if(!selProd) return;
+    /* Reset data when product or season changes */
+    setShipments([]);
+    setGrades([]);
+    setCqcMatches({});
     setLoading(true);
     /* Supabase caps at 1000 rows per request — paginate to get all */
     var allRows=[];
@@ -10219,7 +10234,7 @@ function ShipmentsMgmt(props){
       });
     }
     fetchPage(0);
-  },[selProd]);
+  },[selProd,config.activeSeasonId]);
 
   function getGrade(containerNum){
     return grades.find(function(g){return g.container_number===containerNum;})||null;
