@@ -5292,25 +5292,47 @@ function HomeView(props){
   var setView=props.setView||function(){};
   var currentViewSeason=props.currentViewSeason||'';
 
-  /* ── Derived stats from live data ── */
+  /* ── Product filter — default Grapes ── */
+  var sProd=useState('grapes'); var selProd=sProd[0]; var setSelProd=sProd[1];
+
+  /* Active products for filter pills */
+  var ACTIVE_PRODS=[
+    {id:'grapes',   label:'Grapes'},
+    {id:'citrus',   label:'Citrus'},
+    {id:'mango',    label:'Mango'},
+    {id:'pomegranate', label:'Pomegranate'},
+  ];
+
+  /* Pill accent colors matching product chips */
+  var PROD_PILL={
+    grapes:   {active:{background:'#7f77dd',color:'#fff',border:'1px solid #7f77dd'},   inactive:{background:'rgba(255,255,255,.07)',color:'#9fb89a',border:'1px solid rgba(255,255,255,.12)'}},
+    citrus:   {active:{background:'#ef9f27',color:'#fff',border:'1px solid #ef9f27'},   inactive:{background:'rgba(255,255,255,.07)',color:'#9fb89a',border:'1px solid rgba(255,255,255,.12)'}},
+    mango:    {active:{background:'#ba7517',color:'#fff',border:'1px solid #ba7517'},   inactive:{background:'rgba(255,255,255,.07)',color:'#9fb89a',border:'1px solid rgba(255,255,255,.12)'}},
+    pomegranate:{active:{background:'#d4537e',color:'#fff',border:'1px solid #d4537e'},inactive:{background:'rgba(255,255,255,.07)',color:'#9fb89a',border:'1px solid rgba(255,255,255,.12)'}},
+  };
+
+  /* ── Derived stats — filtered by selProd ── */
   var today=new Date(); today.setHours(0,0,0,0);
 
-  /* Inspections with any activity today */
-  var inspToday=batches.filter(function(b){
+  /* Filtered batch pool */
+  var filteredBatches=batches.filter(function(b){return b.crop===selProd;});
+
+  /* Inspections with any activity today for selected product */
+  var inspToday=filteredBatches.filter(function(b){
     var d=b.updatedAt||b.createdAt||b.date;
     if(!d) return false;
     var bd=new Date(d); bd.setHours(0,0,0,0);
     return bd.getTime()===today.getTime();
   });
 
-  /* Pallets today — sum pallets across inspections active today */
+  /* Pallets today */
   var palletsToday=inspToday.reduce(function(sum,b){return sum+(b.palletCount||0);},0);
 
   /* Pallets STD */
-  var palletsSTD=batches.reduce(function(sum,b){return sum+(b.palletCount||0);},0);
+  var palletsSTD=filteredBatches.reduce(function(sum,b){return sum+(b.palletCount||0);},0);
 
-  /* Open drafts sorted by oldest first */
-  var drafts=batches.filter(function(b){return b.status==='Draft';});
+  /* Open drafts for selected product, sorted oldest first */
+  var drafts=filteredBatches.filter(function(b){return b.status==='Draft';});
   drafts.sort(function(a,b){return new Date(a.createdAt||a.date||0)-new Date(b.createdAt||b.date||0);});
 
   /* Per-product counts */
@@ -5408,10 +5430,22 @@ function HomeView(props){
 
     /* ── HERO ── */
     ce('div',{style:heroStyle},
-      ce('div',{style:{marginBottom:14}},
-        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,color:'#fff',lineHeight:1.2}},greeting+', '+(currentUser.name||currentUser.full_name||'').split(' ')[0]),
-        ce('div',{style:{fontSize:10,color:'#4a6b52',textTransform:'uppercase',letterSpacing:'.08em',marginTop:4}},
-          'Season '+currentViewSeason+(drafts.length?' · '+drafts.length+' draft'+(drafts.length!==1?'s':'')+' open':'')
+      ce('div',{style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:14}},
+        ce('div',null,
+          ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,color:'#fff',lineHeight:1.2}},greeting+', '+(currentUser.name||currentUser.full_name||'').split(' ')[0]),
+          ce('div',{style:{fontSize:10,color:'#4a6b52',textTransform:'uppercase',letterSpacing:'.08em',marginTop:4}},
+            'Season '+currentViewSeason+(drafts.length?' · '+drafts.length+' draft'+(drafts.length!==1?'s':'')+' open':'')
+          )
+        ),
+        /* Product filter pills */
+        ce('div',{style:{display:'flex',gap:5,flexWrap:'wrap',justifyContent:'flex-end'}},
+          ACTIVE_PRODS.map(function(p){
+            var isActive=selProd===p.id;
+            var pillStyle=PROD_PILL[p.id]||PROD_PILL.grapes;
+            return ce('div',{key:p.id,onClick:function(){setSelProd(p.id);},
+              style:{...isActive?pillStyle.active:pillStyle.inactive,fontSize:11,fontWeight:600,padding:'4px 10px',borderRadius:20,cursor:'pointer',transition:'all .15s',fontFamily:'var(--font-body)'}
+            },p.label);
+          })
         )
       ),
       /* KPIs */
