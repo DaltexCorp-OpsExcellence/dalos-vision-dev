@@ -5284,283 +5284,6 @@ function MangoIcon(p){var s=p.size||44,c=p.color;return ce('svg',{width:s,height
 function PomIcon(p){var s=p.size||44,c=p.color;return ce('svg',{width:s,height:s,viewBox:'0 0 44 44',fill:'none'},ce('circle',{cx:22,cy:26,r:14,fill:c,opacity:.85}),ce('path',{d:'M16 15 Q22 10 28 15',stroke:c,strokeWidth:2.5,fill:'none',strokeLinecap:'round'}),ce('rect',{x:19,y:7,width:6,height:9,rx:2,fill:c}),ce('circle',{cx:18,cy:24,r:2.5,fill:'#fff',opacity:.45}),ce('circle',{cx:26,cy:21,r:2.5,fill:'#fff',opacity:.45}),ce('circle',{cx:22,cy:29,r:2.5,fill:'#fff',opacity:.45}));}
 var ICONS={citrus:CitrusIcon,grapes:GrapesIcon,mango:MangoIcon,pomegranate:PomIcon};
 
-function HomeView(props){
-  var currentUser=props.currentUser||{};
-  var config=props.config||INITIAL_CONFIG;
-  var batches=props.batches||[];
-  var perms=props.perms||{};
-  var setView=props.setView||function(){};
-  var currentViewSeason=props.currentViewSeason||'';
-
-  /* ── Product filter — default Grapes ── */
-  var sProd=useState('grapes'); var selProd=sProd[0]; var setSelProd=sProd[1];
-
-  /* Active products for filter pills */
-  var ACTIVE_PRODS=[
-    {id:'grapes',   label:'Grapes'},
-    {id:'citrus',   label:'Citrus'},
-    {id:'mango',    label:'Mango'},
-    {id:'pomegranate', label:'Pomegranate'},
-  ];
-
-  /* Pill accent colors matching product chips */
-  var PROD_PILL={
-    grapes:   {active:{background:'#7f77dd',color:'#fff',border:'1px solid #7f77dd'},   inactive:{background:'rgba(255,255,255,.07)',color:'#9fb89a',border:'1px solid rgba(255,255,255,.12)'}},
-    citrus:   {active:{background:'#ef9f27',color:'#fff',border:'1px solid #ef9f27'},   inactive:{background:'rgba(255,255,255,.07)',color:'#9fb89a',border:'1px solid rgba(255,255,255,.12)'}},
-    mango:    {active:{background:'#ba7517',color:'#fff',border:'1px solid #ba7517'},   inactive:{background:'rgba(255,255,255,.07)',color:'#9fb89a',border:'1px solid rgba(255,255,255,.12)'}},
-    pomegranate:{active:{background:'#d4537e',color:'#fff',border:'1px solid #d4537e'},inactive:{background:'rgba(255,255,255,.07)',color:'#9fb89a',border:'1px solid rgba(255,255,255,.12)'}},
-  };
-
-  /* ── Derived stats — filtered by selProd ── */
-  var today=new Date(); today.setHours(0,0,0,0);
-
-  /* Filtered batch pool — season + product */
-  var filteredBatches=batches.filter(function(b){
-    return b.crop===selProd&&(b.season||'2025/26')===currentViewSeason;
-  });
-
-  /* Inspections with any activity today for selected product */
-  var inspToday=filteredBatches.filter(function(b){
-    var d=b.updatedAt||b.createdAt||b.date;
-    if(!d) return false;
-    var bd=new Date(d); bd.setHours(0,0,0,0);
-    return bd.getTime()===today.getTime();
-  });
-
-  /* Pallets today */
-  var palletsToday=inspToday.reduce(function(sum,b){return sum+(b.palletCount||0);},0);
-
-  /* Pallets STD */
-  var palletsSTD=filteredBatches.reduce(function(sum,b){return sum+(b.palletCount||0);},0);
-
-  /* Open drafts for selected product, sorted oldest first */
-  var drafts=filteredBatches.filter(function(b){return b.status==='Draft';});
-  drafts.sort(function(a,b){return new Date(a.createdAt||a.date||0)-new Date(b.createdAt||b.date||0);});
-
-  /* Per-product counts */
-  var products=(config.products||CROPS).filter(function(p){return p.id==='grapes'||p.id==='citrus'||p.id==='mango'||p.id==='pomegranate';});
-
-  function getProductStats(pid){
-    var pb=batches.filter(function(b){return b.crop===pid;});
-    var esc=pb.filter(function(b){return b.status==='Escalated';}).length;
-    return {count:pb.length,escalated:esc};
-  }
-
-  /* Draft age label */
-  function draftAge(b){
-    var created=new Date(b.draftStartedAt||b.createdAt||b.date||Date.now());
-    var diffH=Math.floor((Date.now()-created.getTime())/3600000);
-    if(diffH>=72) return {label:Math.floor(diffH/24)+'d',cls:'old'};
-    if(diffH>=20) return {label:Math.floor(diffH/24)+'d',cls:'stale'};
-    if(diffH>=1)  return {label:diffH+'h',cls:diffH>=6?'stale':'fresh'};
-    return {label:'<1h',cls:'fresh'};
-  }
-
-  /* Product chip colors */
-  var PROD_STYLE={
-    grapes:{bg:'#f0eeff',border:'#c8c0f0',nameColor:'#26215c',valColor:'#26215c',subColor:'#26215c'},
-    citrus:{bg:'#fffbf0',border:'#f0d890',nameColor:'#633806',valColor:'#633806',subColor:'#633806'},
-    mango:{bg:'#f1efe8',border:'#d4d0c8',nameColor:'#7a7668',valColor:'#7a7668',subColor:'#7a7668'},
-    pomegranate:{bg:'#f1efe8',border:'#d4d0c8',nameColor:'#7a7668',valColor:'#7a7668',subColor:'#7a7668'},
-  };
-
-  var greetingHour=new Date().getHours();
-  var greeting=greetingHour<12?'Good morning':greetingHour<17?'Good afternoon':'Good evening';
-
-  var heroStyle={background:'#1e2d22',padding:'16px 18px',flexShrink:0};
-  var hsStyle={background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.07)',borderRadius:8,padding:'10px 12px',cursor:'pointer'};
-  var hsLabelStyle={fontSize:9,color:'#4a6b52',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:5,fontWeight:600};
-  var hsValStyle={fontFamily:'var(--font-display)',fontSize:24,color:'#fff',lineHeight:1};
-  var hsSubStyle={fontSize:10,color:'#4a6b52',marginTop:3};
-
-  function CtaBtn(p){
-    return ce('div',{onClick:p.onClick,style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',background:p.primary?'#2b5c3f':'rgba(255,255,255,.08)',color:p.primary?'#fff':'#c8d4c0',border:p.primary?'none':'1px solid rgba(255,255,255,.1)',transition:'opacity .15s',fontFamily:'var(--font-body)'}},
-      ce('span',{style:{fontSize:14}},p.icon),p.label
-    );
-  }
-
-  function CardSection(p){
-    return ce('div',{style:{background:'#fff',border:'1px solid #d4d0c8',borderRadius:10,padding:'12px 14px',marginBottom:12}},
-      ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
-        ce('div',{style:{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'#4a4840',display:'flex',alignItems:'center',gap:5}},p.title),
-        p.onViewAll&&ce('span',{onClick:p.onViewAll,style:{fontSize:11,color:'#2b5c3f',cursor:'pointer',fontWeight:500}},'View all')
-      ),
-      p.children
-    );
-  }
-
-  function DraftRow(p){
-    var b=p.batch;
-    var age=draftAge(b);
-    var ageColors={old:{bg:'#fde8e8',color:'#8b1a1a',border:'1px solid #f0a0a0'},stale:{bg:'#fff8ec',color:'#a06010',border:'1px solid #f0d090'},fresh:{bg:'#f0ede6',color:'#7a7668',border:'1px solid #d4d0c8'}};
-    var ac=ageColors[age.cls]||ageColors.fresh;
-    var cropColor=b.crop==='grapes'?'#7f77dd':b.crop==='citrus'?'#ef9f27':'#2b5c3f';
-    var ph=(config.packhouses||[]).find(function(x){return x.id===b.packhouse;})||{name:b.packhouse||''};
-    var inspectorName=b.createdByName||b.inspector||'';
-    return ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid #f0ede6'}},
-      ce('div',{style:{display:'flex',alignItems:'center',gap:7}},
-        ce('div',{style:{width:7,height:7,borderRadius:'50%',background:cropColor,flexShrink:0}}),
-        ce('div',null,
-          ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,fontWeight:600,color:'#1a1a17'}},b.id),
-          ce('div',{style:{fontSize:10,color:'#7a7668',marginTop:1}},(b.crop?b.crop.charAt(0).toUpperCase()+b.crop.slice(1):'')+(ph.name?' · '+ph.name:'')+(inspectorName?' · '+inspectorName:''))
-        )
-      ),
-      ce('span',{style:{fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:6,background:ac.bg,color:ac.color,border:ac.border}},age.label)
-    );
-  }
-
-  function ContainerRow(p){
-    return ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 0',borderBottom:p.last?'none':'1px solid #f0ede6'}},
-      ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
-        p.grade&&ce('div',{style:{display:'inline-flex',width:18,height:18,borderRadius:4,alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0,background:p.grade==='A'?'#d4edda':p.grade==='B'?'#fff3cd':'#fde8e8',color:p.grade==='A'?'#1a5c2a':p.grade==='B'?'#7a4f00':'#8b1a1a'}},p.grade),
-        ce('div',null,
-          ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,fontWeight:600,color:'#1a1a17'}},p.container),
-          ce('div',{style:{fontSize:10,color:'#7a7668',marginTop:1}},p.meta)
-        )
-      ),
-      ce('div',{style:{fontSize:10,color:'#7a7668',fontStyle:'italic',whiteSpace:'nowrap',marginLeft:8}},p.right)
-    );
-  }
-
-  /* Recent containers from inspections (batches with container_number, sorted by updatedAt desc) */
-  var recentInspContainers=batches
-    .filter(function(b){return b.containerNumber&&b.status!=='Draft';})
-    .slice().sort(function(a,b){return new Date(b.updatedAt||b.date||0)-new Date(a.updatedAt||a.date||0);})
-    .slice(0,4);
-
-  return ce('div',{style:{flex:1,overflowY:'auto'}},
-
-    /* ── HERO ── */
-    ce('div',{style:heroStyle},
-      ce('div',{style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:14}},
-        ce('div',null,
-          ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,color:'#fff',lineHeight:1.2}},greeting+', '+(currentUser.name||currentUser.full_name||'').split(' ')[0]),
-          ce('div',{style:{fontSize:10,color:'#4a6b52',textTransform:'uppercase',letterSpacing:'.08em',marginTop:4}},
-            'Season '+currentViewSeason+(drafts.length?' · '+drafts.length+' draft'+(drafts.length!==1?'s':'')+' open':'')
-          )
-        ),
-        /* Product filter pills */
-        ce('div',{style:{display:'flex',gap:5,flexWrap:'wrap',justifyContent:'flex-end'}},
-          ACTIVE_PRODS.map(function(p){
-            var isActive=selProd===p.id;
-            var pillStyle=PROD_PILL[p.id]||PROD_PILL.grapes;
-            return ce('div',{key:p.id,onClick:function(){setSelProd(p.id);},
-              style:{...isActive?pillStyle.active:pillStyle.inactive,fontSize:11,fontWeight:600,padding:'4px 10px',borderRadius:20,cursor:'pointer',transition:'all .15s',fontFamily:'var(--font-body)'}
-            },p.label);
-          })
-        )
-      ),
-      /* KPIs */
-      ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}},
-        ce('div',{style:hsStyle},
-          ce('div',{style:hsLabelStyle},'Inspections today'),
-          ce('div',{style:{...hsValStyle,color:'#5dcaa5'}},inspToday.length||0),
-          ce('div',{style:hsSubStyle},'with activity')
-        ),
-        ce('div',{style:hsStyle},
-          ce('div',{style:hsLabelStyle},'Pallets today'),
-          ce('div',{style:hsValStyle},palletsToday||0),
-          ce('div',{style:hsSubStyle},'across sessions')
-        ),
-        ce('div',{style:hsStyle},
-          ce('div',{style:hsLabelStyle},'Pallets STD'),
-          ce('div',{style:hsValStyle},(palletsSTD||0).toLocaleString()),
-          ce('div',{style:hsSubStyle},batches.length+' sessions')
-        ),
-        ce('div',{style:hsStyle},
-          ce('div',{style:hsLabelStyle},'Open drafts'),
-          ce('div',{style:{...hsValStyle,color:drafts.length>0?'#fac775':'#fff'}},drafts.length||0),
-          ce('div',{style:hsSubStyle},'not submitted')
-        )
-      ),
-      /* CTAs */
-      ce('div',{style:{display:'flex',gap:8}},
-        perms.viewFG&&perms.createFG&&ce(CtaBtn,{primary:true,icon:'＋',label:'New inspection',onClick:function(){setView('fg');}}),
-        perms.viewClientQC&&perms.createClientQC&&ce(CtaBtn,{icon:'＋',label:'New CQC report',onClick:function(){setView('clientqc');}}),
-        perms.viewShipments&&ce(CtaBtn,{icon:'⬡',label:'Shipments',onClick:function(){setView('shipments');}}),
-        perms.viewEscalation&&ce(CtaBtn,{icon:'⚑',label:'Board review',onClick:function(){setView('escalation');}})
-      )
-    ),
-
-    /* ── PAGE BODY ── */
-    ce('div',{style:{padding:14}},
-
-      /* Product chips */
-      ce('div',{style:{display:'flex',gap:8,marginBottom:12}},
-        products.map(function(prod){
-          var ps=PROD_STYLE[prod.id]||PROD_STYLE.mango;
-          var stats=getProductStats(prod.id);
-          var inactive=prod.id==='mango'||prod.id==='pomegranate';
-          return ce('div',{key:prod.id,onClick:inactive?null:function(){setView('fg');},style:{flex:1,borderRadius:10,padding:'10px 12px',border:'1px solid '+ps.border,background:ps.bg,cursor:inactive?'default':'pointer',opacity:inactive?.5:1}},
-            ce('div',{style:{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',marginBottom:4,color:ps.nameColor}},prod.name),
-            ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,lineHeight:1,color:ps.valColor}},inactive?'—':stats.count),
-            ce('div',{style:{display:'flex',alignItems:'baseline',gap:6,marginTop:3}},
-              ce('div',{style:{fontSize:9,opacity:.7,color:ps.subColor}},inactive?'season upcoming':'inspections'),
-              !inactive&&stats.escalated>0&&ce('div',{style:{fontSize:10,fontWeight:600,color:'#a32d2d'}},stats.escalated+' escalated')
-            )
-          );
-        })
-      ),
-
-      /* Sync status */
-      ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',background:'#fff',border:'1px solid #d4d0c8',borderRadius:10,padding:'9px 13px',marginBottom:12}},
-        ce('div',{style:{display:'flex',alignItems:'center',gap:7,fontSize:12,color:'#1a1a17'}},
-          ce('div',{style:{width:7,height:7,borderRadius:'50%',background:'#2b5c3f',flexShrink:0,boxShadow:'0 0 0 2px #d4edda'}}),
-          ce('span',null,'Shipments sync · last ran '),
-          ce('strong',{style:{margin:'0 3px'}},'today'),
-          ce('span',{style:{color:'#7a7668'}},' · Grapes + Citrus')
-        ),
-        ce('span',{onClick:function(){setView('shipments');},style:{fontSize:11,color:'#2b5c3f',cursor:'pointer',fontWeight:500}},'Open shipments')
-      ),
-
-      /* Open drafts + Unmatched */
-      ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}},
-
-        ce(CardSection,{title:'✏ Open drafts',onViewAll:function(){setView('fg');}},
-          drafts.length===0
-            ? ce('div',{style:{fontSize:12,color:'#7a7668',padding:'8px 0',fontStyle:'italic'}},'No open drafts')
-            : drafts.slice(0,4).map(function(b){return ce(DraftRow,{key:b.id,batch:b});})
-        ),
-
-        ce(CardSection,{title:'⊘ Unmatched containers',onViewAll:function(){setView('shipments');}},
-          ce('div',{style:{fontSize:12,color:'#7a7668',padding:'8px 0',fontStyle:'italic'}},'Loading from shipments…')
-        )
-      ),
-
-      /* Containers from inspections */
-      ce(CardSection,{title:'✓ Containers from inspections',onViewAll:function(){setView('shipments');}},
-        recentInspContainers.length===0
-          ? ce('div',{style:{fontSize:12,color:'#7a7668',padding:'8px 0',fontStyle:'italic'}},'No containers linked yet')
-          : recentInspContainers.map(function(b,i){
-              var ph=(config.packhouses||[]).find(function(x){return x.id===b.packhouse;})||{name:b.packhouse||''};
-              return ce(ContainerRow,{key:b.id,
-                container:b.containerNumber,
-                meta:(b.crop?b.crop.charAt(0).toUpperCase()+b.crop.slice(1):'')+(b.id?' · '+b.id:'')+(ph.name?' · '+ph.name:''),
-                grade:b.grade||null,
-                right:b.updatedAt?timeAgo(b.updatedAt):'',
-                last:i===recentInspContainers.length-1
-              });
-            })
-      ),
-
-      /* Containers from sync */
-      ce(CardSection,{title:'↻ Containers from sync',onViewAll:function(){setView('shipments');}},
-        ce('div',{style:{fontSize:12,color:'#7a7668',padding:'8px 0',fontStyle:'italic'}},'Open shipments to see synced containers')
-      )
-
-    )
-  );
-}
-
-function timeAgo(ts){
-  var diff=Math.floor((Date.now()-new Date(ts).getTime())/60000);
-  if(diff<1) return 'just now';
-  if(diff<60) return diff+'m ago';
-  var h=Math.floor(diff/60);
-  if(h<24) return h+'h ago';
-  return Math.floor(h/24)+'d ago';
-}
-
 function Landing(props){
   var sp=useState(null); var phId=sp[0]; var setPhId=sp[1];
   var config=props.config||INITIAL_CONFIG;
@@ -11468,7 +11191,7 @@ function App(){
   var sUser=useState(null); var currentUser=sUser[0]; var setCurrentUser=sUser[1];
   var sc=useState(null); var cropId=sc[0]; var setCropId=sc[1];
   var sph=useState(null); var phId=sph[0]; var setPhId=sph[1];
-  var sv=useState(function(){var h=window.location.hash.slice(1);return h||'home';}); var view=sv[0]; var setView=sv[1];
+  var sv=useState('fg'); var view=sv[0]; var setView=sv[1];
   var sNavHist=useState(null); var navHistory=sNavHist[0]; var setNavHistory=sNavHist[1];
   var sNavTarget=useState(null); var navTarget=sNavTarget[0]; var setNavTarget=sNavTarget[1];
   var sMob=useState(false); var mobOpen=sMob[0]; var setMobOpen=sMob[1];
@@ -11504,10 +11227,6 @@ function App(){
       events.forEach(function(e){ window.removeEventListener(e, resetTimer); });
     };
   },[currentUser]);
-  /* ── Hash routing — sync view to URL hash for refresh persistence ── */
-  React.useEffect(function(){
-    window.location.hash=view;
-  },[view]);
   var sBatches=useState([]); var batches=sBatches[0]; var setBatchesRaw=sBatches[1];
   var sInsLoading=useState(true); var inspLoading=sInsLoading[0]; var setInspLoading=sInsLoading[1];
   function setBatches(v){var next=typeof v==='function'?v:function(){return v;};setBatchesRaw(function(prev){var n=next(prev);return n;});}
@@ -12616,7 +12335,7 @@ function App(){
   }
   function signOut(){
     supabase.auth.signOut().then(function(){
-      setCurrentUser(null);setCropId(null);setPhId(null);setView('home');
+      setCurrentUser(null);setCropId(null);setPhId(null);setView('fg');
     });
   }
   /* Always read the latest user data from users state so admin edits reflect immediately */
@@ -12664,12 +12383,11 @@ function App(){
     else if(!p.viewFG&&p.viewAnalytics) setView('analytics');
     else if(!p.viewFG&&p.viewExport) setView('export');
     else if(!p.viewFG&&p.viewAdmin) setView('admin');
-    else setView('home');
+    else setView('fg');
   }});
   var role=ROLES[liveCurrentUser.role]||ROLES.inspector;
   var perms=role.perms;
   var availViews=[];
-  availViews.push({id:'home', label:'Home', sub:'Overview'});
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & claims'});
@@ -12682,7 +12400,7 @@ function App(){
   var phInfo=(config.packhouses||[]).find(function(p){return p.id===phId;})||{name:'',color:'#2b5c3f',initials:phId?phId.slice(0,2).toUpperCase():'--'};
   var phLoading=phId&&!phInfo.name;
   var cur=availViews.find(function(v){return v.id===view;})||availViews[0]||{label:'',id:''};
-  var needsCropPH=perms.viewFG&&(!cropId||!phId)&&view!=='admin'&&view!=='analytics'&&view!=='export'&&view!=='clientqc'&&view!=='escalation'&&view!=='shipments'&&view!=='home';
+  var needsCropPH=perms.viewFG&&(!cropId||!phId)&&view!=='admin'&&view!=='analytics'&&view!=='export'&&view!=='clientqc'&&view!=='escalation'&&view!=='shipments';
   var needsCQCLanding=!perms.viewFG&&perms.viewClientQC&&view==='clientqc'&&false; /* handled inside ClientQCMgmt */
 
   function mkSidebar(){
@@ -12809,7 +12527,6 @@ function App(){
         ce('div',{className:'topbar-right'})
       ),
       ce('div',{className:'page'},
-        view==='home'                              &&ce(HomeView,{currentUser:liveCurrentUser,config:config,batches:batches,perms:perms,setView:setView,currentViewSeason:currentViewSeason}),
         view==='fg'         &&perms.viewFG        &&ce(FGView,{packhouse:phInfo,perms:perms,cropId:cropId,config:config,batches:batches,onEscalate:escalateBatch,currentUser:liveCurrentUser,onAddBatch:addBatch,currentUserObj:currentUser,viewSeason:currentViewSeason,inspLoading:inspLoading,onRefreshBatches:refreshBatchesById,
           initialSel:navTarget,
           navBack:navHistory?function(){var h=navHistory;setNavHistory(null);setNavTarget(null);setView(h.view);}:null,
