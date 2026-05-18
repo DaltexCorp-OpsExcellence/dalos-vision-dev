@@ -5314,8 +5314,10 @@ function HomeView(props){
   /* ── Derived stats — filtered by selProd ── */
   var today=new Date(); today.setHours(0,0,0,0);
 
-  /* Filtered batch pool */
-  var filteredBatches=batches.filter(function(b){return b.crop===selProd;});
+  /* Filtered batch pool — season + product */
+  var filteredBatches=batches.filter(function(b){
+    return b.crop===selProd&&(b.season||'2025/26')===currentViewSeason;
+  });
 
   /* Inspections with any activity today for selected product */
   var inspToday=filteredBatches.filter(function(b){
