@@ -1633,8 +1633,7 @@ function InspectionForm(props){
     var inheritedRow={
       packhouse_id:packhouse.id,
       product_id:productId,
-      season_id:config.activeSeasonId||null,
-      lot_number:lot||'',
+      season_id:config.trueActiveSeasonId||config.activeSeasonId||null,
       date:date,
       container_number:containerVal,
       variety_id:lookupId(config.varietiesIdMap,variety),
@@ -8097,7 +8096,7 @@ function ClientQCMgmt(props){
     };
     supabase.auth.getUser().then(function(ur){
       if(ur.data&&ur.data.user) dbRow.created_by=ur.data.user.id;
-      dbRow.season_id=config.activeSeasonId||null;
+      dbRow.season_id=config.trueActiveSeasonId||config.activeSeasonId||null;
       console.log('[DalOS] Saving CQC report:',JSON.stringify(dbRow));
       if(isNew){
         return supabase.from('client_qc_reports').insert([dbRow]).select();
@@ -11477,6 +11476,7 @@ function App(){
           seasons:seasons.map(function(s){return {id:s.id,name:s.name,active:s.active};}),
           activeSeason:activeSeason?activeSeason.name:'2025/26',
           activeSeasonId:activeSeason?activeSeason.id:null,
+          trueActiveSeasonId:activeSeason?activeSeason.id:null, /* never changes — always the DB-active season */
           varietiesIdMap:varietiesIdMap,
           varietiesIdToName:varietiesIdToName,
           clientsIdMap:clientsIdMap,
@@ -11758,7 +11758,7 @@ function App(){
     var isEditMode=batches.some(function(b){return b.id===newBatch.id;});
     supabase.auth.getUser().then(function(userRes){
       var userId=userRes.data&&userRes.data.user?userRes.data.user.id:null;
-      var seasonId=config.activeSeasonId||null;
+      var seasonId=config.trueActiveSeasonId||config.activeSeasonId||null;
       if(isEditMode){
         return Promise.resolve({realId:newBatch.id,userId:userId,seasonId:seasonId});
       }
