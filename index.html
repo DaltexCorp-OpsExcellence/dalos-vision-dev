@@ -12419,7 +12419,7 @@ function App(){
                 setViewSeason(name);
                 /* Also update config.activeSeasonId so shipments and other season-aware components react */
                 var found=(config.seasons||[]).find(function(s){return s.name===name;});
-                if(found) setConfig(function(prev){return Object.assign({},prev,{activeSeasonId:found.id,activeSeason:found.name});});
+                if(found) setConfig(function(prev){return Object.assign({},prev,{activeSeasonId:found.id});});
               }},
               (config.seasons||[{id:'2025/26',name:'2025/26',active:true}]).map(function(s){
                 var isActive=s.name===(config.activeSeason||'2025/26');
