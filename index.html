@@ -12682,7 +12682,7 @@ function App(){
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & claims'});
-  if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'QC Analytics',      sub:'Dashboard'});
+  if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'QC Analytics',      sub:'Dashboard',       inProgress:true});
   if(perms.viewExport)       availViews.push({id:'export',     label:'Export data',       sub:'CSV / Tableau',   comingSoon:true});
   if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Board Review',      sub:'Escalation queue'});
   if(perms.viewAdmin)        availViews.push({id:'admin',      label:'Admin',             sub:'Users & access'});
@@ -12729,12 +12729,16 @@ function App(){
             ce('div',{style:{flex:1}},
               ce('div',{style:{lineHeight:1.2,display:'flex',alignItems:'center',gap:6}},
                 v.label,
-                v.comingSoon&&ce('span',{style:{
+                v.comingSoon?ce('span',{style:{
                   fontSize:8,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',
-                  background:'#e8f0e9',
-                  color:'#2e5d3a',padding:'1px 5px',borderRadius:10,
+                  background:'linear-gradient(135deg,#f59e0b,#ef4444)',
+                  color:'#fff',padding:'1px 5px',borderRadius:10,
                   lineHeight:1.6,flexShrink:0
-                }},'In progress')
+                }},'Soon'):v.inProgress?ce('span',{style:{
+                  fontSize:8,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',
+                  background:'#e8f0e9',color:'#2e5d3a',padding:'1px 5px',borderRadius:10,
+                  lineHeight:1.6,flexShrink:0
+                }},'In progress'):null
               ),
               ce('div',{style:{fontSize:10,opacity:.5,marginTop:1}},v.sub)
             )
