@@ -7884,10 +7884,21 @@ function ClientQCMgmt(props){
   function findMatch(cont){
     if(!cont) return null;
     var n=cont.trim().toUpperCase().replace(/\s+/g,'');
-    var curSeason=config.activeSeason||'2025/26';
+    /* Use activeSeasonId (UUID) for strict season-locked matching.
+       b.seasonId is the raw season_id UUID from the inspections table.
+       Fall back to name comparison if seasonId not present. */
+    var viewedSeasonId=config.activeSeasonId||null;
+    var viewedSeasonName=(function(){
+      if(!viewedSeasonId) return config.activeSeason||'2025/26';
+      var s=(config.seasons||[]).find(function(x){return x.id===viewedSeasonId;});
+      return s?s.name:(config.activeSeason||'2025/26');
+    })();
     return batches.find(function(b){
       var bc=(b.container||'').toUpperCase().replace(/\s+/g,'');
-      return bc&&bc===n&&(b.season||'2025/26')===curSeason;
+      if(!bc||bc!==n) return false;
+      /* Match by UUID if available, otherwise by name */
+      if(viewedSeasonId&&b.seasonId) return b.seasonId===viewedSeasonId;
+      return (b.season||'2025/26')===viewedSeasonName;
     });
   }
   var matchedBatch=findMatch(fContainer);
@@ -11657,7 +11668,7 @@ function App(){
                 defects:{}, time:'', size:'', notes:'',
                 createdBy:row.created_by||null, savedAt:row.updated_at||row.submitted_at||row.created_at||'',
                 hasClientReport:0, clientTotal:null, clientDecision:'', claimedValue:0, gap:null,
-                season:row.seasons?row.seasons.name:(row.season_id||'2025/26'),
+                season:row.seasons?row.seasons.name:(row.season_id||'2025/26'),seasonId:row.season_id||null,
                 category:'', category2:''
               });
             }
@@ -11948,7 +11959,7 @@ function App(){
                   return found&&found.categoryId?(newCfg.categoriesIdToName||{})[found.categoryId]||'':'';
                 })(),
                 cls:clsName,
-                season:r.seasons?r.seasons.name:(r.season_id||'2025/26'),
+                season:r.seasons?r.seasons.name:(r.season_id||'2025/26'),seasonId:r.season_id||null,
                 client:clientName,
                 country:countryName,
                 farm:farmName,
