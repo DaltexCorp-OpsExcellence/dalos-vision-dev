@@ -65,7 +65,6 @@ input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--te
 .nav-item.active .nav-icon{opacity:1}
 .sidebar-bottom{margin-top:auto;padding:10px 8px;border-top:1px solid rgba(255,255,255,.06)}
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-shrink:0;gap:8px}
 .topbar-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
 .topbar-title{font-family:var(--font-display);font-size:17px;white-space:nowrap}
@@ -9848,26 +9847,25 @@ function ClientQCMgmt(props){
             ce('div',{style:{width:1,height:40,background:'var(--border)',flexShrink:0}}),
             /* Stats row */
             ce('div',{style:{display:'flex',gap:32,flex:1,alignItems:'center'}},
-              /* CQC reports are loaded in the useEffect — while loading, reports===[] */
-              count===0&&matched===0&&claims===0&&reports.length===0
-                ?ce('div',{style:{display:'flex',alignItems:'center',gap:8,color:'var(--text3)',fontSize:12}},
-                    ce('span',{style:{fontSize:18,animation:'spin 1.2s linear infinite',display:'inline-block'}},'🍇'),
-                    'Loading…'
+              /* While loading: reports===[] and counts are all 0 — show pulsing dash */
+              (function(){
+                var isLoading=reports.length===0&&count===0&&matched===0&&claims===0;
+                function statVal(val,color){
+                  return ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',
+                    color:isLoading||val===0?'var(--text3)':color,
+                    opacity:isLoading?.4:1,
+                    animation:isLoading?'dalos-pulse 1.4s ease-in-out infinite':'none'
+                  }},isLoading?'—':val>0?val:'—');
+                }
+                return ce(React.Fragment,null,
+                  ce('div',null,statVal(count,'var(--text1)'),ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},isLoading?'loading…':'Total reports')),
+                  ce('div',null,statVal(matched,'var(--green)'),ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Matched')),
+                  !isLoading&&claims>0&&ce('div',null,
+                    ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:'var(--red)'}},claims),
+                    ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Claims')
                   )
-                :ce(React.Fragment,null,
-                    ce('div',null,
-                      ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:'var(--text1)'}},count>0?count:'—'),
-                      ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Total reports')
-                    ),
-                    ce('div',null,
-                      ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:matched>0?'var(--green)':'var(--text3)'}},matched>0?matched:'—'),
-                      ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Matched')
-                    ),
-                    claims>0&&ce('div',null,
-                      ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:'var(--red)'}},claims),
-                      ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Claims')
-                    )
-                  )
+                );
+              })()
             ),
             /* Arrow */
             ce('div',{style:{color:'var(--text3)',fontSize:20,marginLeft:'auto',flexShrink:0}},'\u203a')
@@ -10623,16 +10621,13 @@ function ShipmentsMgmt(props){
                 )
               ),
               ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,marginLeft:8}},
-                prodCounts[p.id]===undefined
-                  ?ce('div',{style:{fontSize:20,animation:'spin 1.2s linear infinite',display:'inline-block'}},'🍇')
-                  :prodCounts[p.id]===0
-                    ?ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:'var(--text3)'}},'—')
-                    :ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:p.color||'var(--accent)',fontWeight:700}},prodCounts[p.id]),
-                prodCounts[p.id]===undefined
-                  ?ce('div',{style:{fontSize:10,color:'var(--text3)'}},'loading…')
-                  :prodCounts[p.id]===0
-                    ?ce('div',{style:{fontSize:10,color:'var(--text3)'}},'no data')
-                    :ce('div',{style:{fontSize:10,color:'var(--text3)'}},prodCounts[p.id]===1?'voyage':'voyages')
+                ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',fontWeight:700,
+                  color:prodCounts[p.id]===undefined||prodCounts[p.id]===0?'var(--text3)':(p.color||'var(--accent)'),
+                  opacity:prodCounts[p.id]===undefined?.4:1,
+                  animation:prodCounts[p.id]===undefined?'dalos-pulse 1.4s ease-in-out infinite':'none'
+                }},prodCounts[p.id]===undefined?'—':prodCounts[p.id]===0?'—':prodCounts[p.id]),
+                ce('div',{style:{fontSize:10,color:'var(--text3)'}},
+                  prodCounts[p.id]===undefined?'loading…':prodCounts[p.id]===0?'no data':prodCounts[p.id]===1?'voyage':'voyages')
               ),
               ce('div',{style:{color:'var(--text3)',fontSize:20,marginLeft:'auto',flexShrink:0}},'\u203a')
             );
