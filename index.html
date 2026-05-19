@@ -7539,6 +7539,36 @@ function AdminCenter(props){
 
 /* ─── CLIENT QC MANAGEMENT VIEW ─── */
 function ClientQCMgmt(props){
+  function grapeLoader(){
+    return ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 0',gap:18}},
+      ce('svg',{width:72,height:83,viewBox:'0 0 90 104'},
+        ce('defs',null,
+          ce('radialGradient',{id:'sggl1',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#c084e8'}),ce('stop',{offset:'100%',stopColor:'#7a3a9a'})),
+          ce('radialGradient',{id:'sggl2',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#b06cd4'}),ce('stop',{offset:'100%',stopColor:'#6b2f88'})),
+          ce('radialGradient',{id:'sggl3',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#9a56be'}),ce('stop',{offset:'100%',stopColor:'#5a2576'})),
+          ce('radialGradient',{id:'sggl4',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#8844ac'}),ce('stop',{offset:'100%',stopColor:'#4a1b64'}))
+        ),
+        ce('path',{d:'M45 6 C45 1 50 -1 52 0',fill:'none',stroke:'#5a3a1a',strokeWidth:2.5,strokeLinecap:'round'}),
+        ce('path',{d:'M45 6 C41 2 37 3 36 6',fill:'none',stroke:'#7a5a2a',strokeWidth:1.5,strokeLinecap:'round',opacity:.7}),
+        ce('path',{d:'M45 6 C47 10 45 14 45 18',fill:'none',stroke:'#5a3a1a',strokeWidth:2,strokeLinecap:'round'}),
+        ce('path',{d:'M45 12 C34 6 26 10 28 18 C30 24 42 22 45 14Z',fill:'#2b5c3f',opacity:.85}),
+        ce('path',{d:'M45 12 C56 6 64 10 62 18 C60 24 48 22 45 14Z',fill:'#3a7a4a',opacity:.65}),
+        ce('circle',{cx:30,cy:34,r:11,fill:'url(#sggl1)',style:{animation:'gp0 1.15s ease-in-out infinite',transformOrigin:'30px 34px'}}),
+        ce('circle',{cx:53,cy:34,r:11,fill:'url(#sggl1)',style:{animation:'gp1 1.15s ease-in-out .14s infinite',transformOrigin:'53px 34px'}}),
+        ce('circle',{cx:26,cy:30,r:3.5,fill:'white',opacity:.22}),ce('circle',{cx:49,cy:30,r:3.5,fill:'white',opacity:.22}),
+        ce('circle',{cx:19,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp2 1.15s ease-in-out .28s infinite',transformOrigin:'19px 54px'}}),
+        ce('circle',{cx:45,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp3 1.15s ease-in-out .42s infinite',transformOrigin:'45px 54px'}}),
+        ce('circle',{cx:71,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp4 1.15s ease-in-out .56s infinite',transformOrigin:'71px 54px'}}),
+        ce('circle',{cx:15,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:41,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:67,cy:50,r:3.5,fill:'white',opacity:.2}),
+        ce('circle',{cx:30,cy:74,r:11,fill:'url(#sggl3)',style:{animation:'gp5 1.15s ease-in-out .7s infinite',transformOrigin:'30px 74px'}}),
+        ce('circle',{cx:60,cy:74,r:11,fill:'url(#sggl3)',style:{animation:'gp5 1.15s ease-in-out .84s infinite',transformOrigin:'60px 74px'}}),
+        ce('circle',{cx:26,cy:70,r:3.5,fill:'white',opacity:.18}),ce('circle',{cx:56,cy:70,r:3.5,fill:'white',opacity:.18}),
+        ce('circle',{cx:45,cy:93,r:11,fill:'url(#sggl4)',style:{animation:'gp6 1.15s ease-in-out .98s infinite',transformOrigin:'45px 93px'}}),
+        ce('circle',{cx:41,cy:89,r:3.5,fill:'white',opacity:.15})
+      ),
+      ce('div',{style:{fontSize:13,fontWeight:500,color:'#7a3a9a',letterSpacing:'.6px'}},'Loading',ce('span',{className:'grape-dots'}))
+    );
+  }
   var batches=props.batches||BATCHES;
   var config=props.config||INITIAL_CONFIG;
   var setConfig=props.setConfig||function(){};
@@ -9807,7 +9837,7 @@ function ClientQCMgmt(props){
       ce('div',{style:{maxWidth:680,margin:'0 auto',padding:'0 16px'}},
         ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6,color:'var(--text)'}},'Client QC'),
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:20}},'Select a product to view reports or log a new client QC report.'),
-        ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+        reports.length===0?grapeLoader():ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
         prodList.map(function(p){
           var seasonReports=config.activeSeasonId?reports.filter(function(r){return r.productId===p.id&&(r.season===config.activeSeasonId||!r.season);}):reports.filter(function(r){return r.productId===p.id;});
           var count=seasonReports.length;
@@ -9846,26 +9876,19 @@ function ClientQCMgmt(props){
             /* Divider */
             ce('div',{style:{width:1,height:40,background:'var(--border)',flexShrink:0}}),
             /* Stats row */
-            ce('div',{style:{display:'flex',gap:32,flex:1,alignItems:'center'}},
-              /* While loading: reports===[] and counts are all 0 — show pulsing dash */
-              (function(){
-                var isLoading=reports.length===0&&count===0&&matched===0&&claims===0;
-                function statVal(val,color){
-                  return ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',
-                    color:isLoading||val===0?'var(--text3)':color,
-                    opacity:isLoading?.4:1,
-                    animation:isLoading?'dalos-pulse 1.4s ease-in-out infinite':'none'
-                  }},isLoading?'—':val>0?val:'—');
-                }
-                return ce(React.Fragment,null,
-                  ce('div',null,statVal(count,'var(--text1)'),ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},isLoading?'loading…':'Total reports')),
-                  ce('div',null,statVal(matched,'var(--green)'),ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Matched')),
-                  !isLoading&&claims>0&&ce('div',null,
-                    ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:'var(--red)'}},claims),
-                    ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Claims')
-                  )
-                );
-              })()
+            ce('div',{style:{display:'flex',gap:32,flex:1}},
+              ce('div',null,
+                ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:'var(--text1)'}},count>0?count:'—'),
+                ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Total reports')
+              ),
+              ce('div',null,
+                ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:matched>0?'var(--green)':'var(--text3)'}},matched>0?matched:'—'),
+                ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Matched')
+              ),
+              claims>0&&ce('div',null,
+                ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:'var(--red)'}},claims),
+                ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Claims')
+              )
             ),
             /* Arrow */
             ce('div',{style:{color:'var(--text3)',fontSize:20,marginLeft:'auto',flexShrink:0}},'\u203a')
@@ -10427,6 +10450,36 @@ function ClientQCMgmt(props){
 
 /* ─── SHIPMENTS MANAGEMENT ─── */
 function ShipmentsMgmt(props){
+  function grapeLoader(){
+    return ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 0',gap:18}},
+      ce('svg',{width:72,height:83,viewBox:'0 0 90 104'},
+        ce('defs',null,
+          ce('radialGradient',{id:'sggl1',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#c084e8'}),ce('stop',{offset:'100%',stopColor:'#7a3a9a'})),
+          ce('radialGradient',{id:'sggl2',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#b06cd4'}),ce('stop',{offset:'100%',stopColor:'#6b2f88'})),
+          ce('radialGradient',{id:'sggl3',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#9a56be'}),ce('stop',{offset:'100%',stopColor:'#5a2576'})),
+          ce('radialGradient',{id:'sggl4',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#8844ac'}),ce('stop',{offset:'100%',stopColor:'#4a1b64'}))
+        ),
+        ce('path',{d:'M45 6 C45 1 50 -1 52 0',fill:'none',stroke:'#5a3a1a',strokeWidth:2.5,strokeLinecap:'round'}),
+        ce('path',{d:'M45 6 C41 2 37 3 36 6',fill:'none',stroke:'#7a5a2a',strokeWidth:1.5,strokeLinecap:'round',opacity:.7}),
+        ce('path',{d:'M45 6 C47 10 45 14 45 18',fill:'none',stroke:'#5a3a1a',strokeWidth:2,strokeLinecap:'round'}),
+        ce('path',{d:'M45 12 C34 6 26 10 28 18 C30 24 42 22 45 14Z',fill:'#2b5c3f',opacity:.85}),
+        ce('path',{d:'M45 12 C56 6 64 10 62 18 C60 24 48 22 45 14Z',fill:'#3a7a4a',opacity:.65}),
+        ce('circle',{cx:30,cy:34,r:11,fill:'url(#sggl1)',style:{animation:'gp0 1.15s ease-in-out infinite',transformOrigin:'30px 34px'}}),
+        ce('circle',{cx:53,cy:34,r:11,fill:'url(#sggl1)',style:{animation:'gp1 1.15s ease-in-out .14s infinite',transformOrigin:'53px 34px'}}),
+        ce('circle',{cx:26,cy:30,r:3.5,fill:'white',opacity:.22}),ce('circle',{cx:49,cy:30,r:3.5,fill:'white',opacity:.22}),
+        ce('circle',{cx:19,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp2 1.15s ease-in-out .28s infinite',transformOrigin:'19px 54px'}}),
+        ce('circle',{cx:45,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp3 1.15s ease-in-out .42s infinite',transformOrigin:'45px 54px'}}),
+        ce('circle',{cx:71,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp4 1.15s ease-in-out .56s infinite',transformOrigin:'71px 54px'}}),
+        ce('circle',{cx:15,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:41,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:67,cy:50,r:3.5,fill:'white',opacity:.2}),
+        ce('circle',{cx:30,cy:74,r:11,fill:'url(#sggl3)',style:{animation:'gp5 1.15s ease-in-out .7s infinite',transformOrigin:'30px 74px'}}),
+        ce('circle',{cx:60,cy:74,r:11,fill:'url(#sggl3)',style:{animation:'gp5 1.15s ease-in-out .84s infinite',transformOrigin:'60px 74px'}}),
+        ce('circle',{cx:26,cy:70,r:3.5,fill:'white',opacity:.18}),ce('circle',{cx:56,cy:70,r:3.5,fill:'white',opacity:.18}),
+        ce('circle',{cx:45,cy:93,r:11,fill:'url(#sggl4)',style:{animation:'gp6 1.15s ease-in-out .98s infinite',transformOrigin:'45px 93px'}}),
+        ce('circle',{cx:41,cy:89,r:3.5,fill:'white',opacity:.15})
+      ),
+      ce('div',{style:{fontSize:13,fontWeight:500,color:'#7a3a9a',letterSpacing:'.6px'}},'Loading',ce('span',{className:'grape-dots'}))
+    );
+  }
   var config=props.config||INITIAL_CONFIG;
   var currentUser=props.currentUser||{};
   var sSelProd=useState(null); var selProd=sSelProd[0]; var setSelProd=sSelProd[1];
@@ -10487,7 +10540,7 @@ function ShipmentsMgmt(props){
       }
       fetchCountPage(0);
     });
-  },[config.activeSeasonId]);
+  },[]);
 
   /* Load shipments + grades + CQC matches */
   React.useEffect(function(){
@@ -10604,7 +10657,7 @@ function ShipmentsMgmt(props){
       ce('div',{style:{maxWidth:680,margin:'0 auto',padding:'0 16px'}},
         ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6,color:'var(--text)'}},'Shipments'),
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:20}},'Select a product to view shipment records, grades and claims.'),
-        ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+        prodList.some(function(p){return prodCounts[p.id]===undefined;})?grapeLoader():ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
           prodList.map(function(p){
             return ce('div',{key:p.id,onClick:function(){setSelProd(p.id);},
               style:{background:'var(--card)',border:'1px solid var(--border)',borderLeft:'5px solid '+(p.color||'var(--accent)'),borderRadius:12,padding:'20px 24px',cursor:'pointer',display:'flex',alignItems:'center',gap:24,transition:'box-shadow 0.15s,transform 0.15s'},
@@ -10621,13 +10674,8 @@ function ShipmentsMgmt(props){
                 )
               ),
               ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,marginLeft:8}},
-                ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',fontWeight:700,
-                  color:prodCounts[p.id]===undefined||prodCounts[p.id]===0?'var(--text3)':(p.color||'var(--accent)'),
-                  opacity:prodCounts[p.id]===undefined?.4:1,
-                  animation:prodCounts[p.id]===undefined?'dalos-pulse 1.4s ease-in-out infinite':'none'
-                }},prodCounts[p.id]===undefined?'—':prodCounts[p.id]===0?'—':prodCounts[p.id]),
-                ce('div',{style:{fontSize:10,color:'var(--text3)'}},
-                  prodCounts[p.id]===undefined?'loading…':prodCounts[p.id]===0?'no data':prodCounts[p.id]===1?'voyage':'voyages')
+                ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',fontWeight:700,color:prodCounts[p.id]===0?'var(--text3)':(p.color||'var(--accent)')}},prodCounts[p.id]===0?'—':prodCounts[p.id]),
+                ce('div',{style:{fontSize:10,color:'var(--text3)'}},prodCounts[p.id]===0?'no data':prodCounts[p.id]===1?'voyage':'voyages')
               ),
               ce('div',{style:{color:'var(--text3)',fontSize:20,marginLeft:'auto',flexShrink:0}},'\u203a')
             );
