@@ -10503,7 +10503,7 @@ function ShipmentsMgmt(props){
   var sClaimCur=useState('USD'); var claimCur=sClaimCur[0]; var setClaimCur=sClaimCur[1];
   /* product container counts for hero */
   var sProdCounts=useState({}); var prodCounts=sProdCounts[0]; var setProdCounts=sProdCounts[1];
-  var sProdCountsLoading=useState(true); var prodCountsLoading=sProdCountsLoading[0]; var setProdCountsLoading=sProdCountsLoading[1];
+  var sProdCountsLoading=useState(false); var prodCountsLoading=sProdCountsLoading[0]; var setProdCountsLoading=sProdCountsLoading[1];
 
   /* Reset product selection when season changes */
   React.useEffect(function(){
@@ -10522,6 +10522,7 @@ function ShipmentsMgmt(props){
     if(!config.activeSeasonId){setProdCountsLoading(false);return;}
     var prods=(config.products||[]).filter(function(p){return p.active!==false;});
     if(!prods.length){setProdCountsLoading(false);return;}
+    setProdCountsLoading(true);
     var remaining={count:prods.length};
     function markDone(){remaining.count--;if(remaining.count<=0)setProdCountsLoading(false);}
     prods.forEach(function(p){
