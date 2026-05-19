@@ -10523,8 +10523,10 @@ function ShipmentsMgmt(props){
     var prods=(config.products||[]).filter(function(p){return p.active!==false;});
     if(!prods.length){setProdCountsLoading(false);return;}
     setProdCountsLoading(true);
-    var remaining={count:prods.length};
-    function markDone(){remaining.count--;if(remaining.count<=0)setProdCountsLoading(false);}
+    var done=0,total=prods.length;
+    function markDone(){done++;if(done>=total){clearTimeout(safetyTimer);setProdCountsLoading(false);}}
+    /* Safety timeout — force loading=false after 8s regardless */
+    var safetyTimer=setTimeout(function(){setProdCountsLoading(false);},8000);
     prods.forEach(function(p){
       /* Fetch container_number+carta to count unique voyages (matches By Container aggregation key) */
       var allKeys=new Set();
