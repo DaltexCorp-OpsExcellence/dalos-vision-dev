@@ -10527,7 +10527,7 @@ function ShipmentsMgmt(props){
           .not('container_number','is',null)
           .range(from,from+999)
           .then(function(r){
-            if(r.error) return;
+            if(r.error){setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:prev[p.id]||0});});return;}
             (r.data||[]).forEach(function(row){
               allKeys.add((row.container_number||'')+'||'+(row.carta||''));
             });
