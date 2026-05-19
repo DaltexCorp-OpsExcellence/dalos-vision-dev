@@ -10503,6 +10503,7 @@ function ShipmentsMgmt(props){
   var sClaimCur=useState('USD'); var claimCur=sClaimCur[0]; var setClaimCur=sClaimCur[1];
   /* product container counts for hero */
   var sProdCounts=useState({}); var prodCounts=sProdCounts[0]; var setProdCounts=sProdCounts[1];
+  var sProdCountsLoading=useState(true); var prodCountsLoading=sProdCountsLoading[0]; var setProdCountsLoading=sProdCountsLoading[1];
 
   /* Reset product selection when season changes */
   React.useEffect(function(){
@@ -10513,12 +10514,17 @@ function ShipmentsMgmt(props){
     setGrades([]);
     setCqcMatches({});
     setProdCounts({});
+    setProdCountsLoading(true);
   },[config.activeSeasonId]);
 
   /* Load container counts per product for hero page */
   React.useEffect(function(){
-    if(!config.activeSeasonId) return;
-    (config.products||[]).filter(function(p){return p.active!==false;}).forEach(function(p){
+    if(!config.activeSeasonId){setProdCountsLoading(false);return;}
+    var prods=(config.products||[]).filter(function(p){return p.active!==false;});
+    if(!prods.length){setProdCountsLoading(false);return;}
+    var remaining={count:prods.length};
+    function markDone(){remaining.count--;if(remaining.count<=0)setProdCountsLoading(false);}
+    prods.forEach(function(p){
       /* Fetch container_number+carta to count unique voyages (matches By Container aggregation key) */
       var allKeys=new Set();
       function fetchCountPage(from){
@@ -10527,14 +10533,14 @@ function ShipmentsMgmt(props){
           .not('container_number','is',null)
           .range(from,from+999)
           .then(function(r){
-            if(r.error){setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:prev[p.id]||0});});return;}
+            if(r.error){setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:prev[p.id]||0});});markDone();return;}
             (r.data||[]).forEach(function(row){
               allKeys.add((row.container_number||'')+'||'+(row.carta||''));
             });
             if((r.data||[]).length===1000){
               fetchCountPage(from+1000);
             } else {
-              setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:allKeys.size});});
+              setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:allKeys.size});});markDone();
             }
           });
       }
@@ -10657,7 +10663,7 @@ function ShipmentsMgmt(props){
       ce('div',{style:{maxWidth:680,margin:'0 auto',padding:'0 16px'}},
         ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6,color:'var(--text)'}},'Shipments'),
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:20}},'Select a product to view shipment records, grades and claims.'),
-        prodList.some(function(p){return prodCounts[p.id]===undefined;})?grapeLoader():ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+        prodCountsLoading?grapeLoader():ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
           prodList.map(function(p){
             return ce('div',{key:p.id,onClick:function(){setSelProd(p.id);},
               style:{background:'var(--card)',border:'1px solid var(--border)',borderLeft:'5px solid '+(p.color||'var(--accent)'),borderRadius:12,padding:'20px 24px',cursor:'pointer',display:'flex',alignItems:'center',gap:24,transition:'box-shadow 0.15s,transform 0.15s'},
