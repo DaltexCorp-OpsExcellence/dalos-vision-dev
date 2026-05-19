@@ -7679,7 +7679,7 @@ function ClientQCMgmt(props){
         if(mapped.length>0) setReportsRaw(mapped);
       })
       .catch(function(e){console.error('[DalOS] CQC load failed:',e);});
-  },[]);
+  },[config.activeSeasonId]);
   var sSel=useState(null); var selRep=sSel[0]; var setSelRep=sSel[1];
   var sEditRep=useState(null); var editRep=sEditRep[0]; var setEditRep=sEditRep[1];
   var sMBDef=useState(null); var matchedBDefects=sMBDef[0]; var setMatchedBDefects=sMBDef[1];
