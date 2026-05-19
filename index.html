@@ -10503,7 +10503,6 @@ function ShipmentsMgmt(props){
   var sClaimCur=useState('USD'); var claimCur=sClaimCur[0]; var setClaimCur=sClaimCur[1];
   /* product container counts for hero */
   var sProdCounts=useState({}); var prodCounts=sProdCounts[0]; var setProdCounts=sProdCounts[1];
-  var sProdCountsLoading=useState(false); var prodCountsLoading=sProdCountsLoading[0]; var setProdCountsLoading=sProdCountsLoading[1];
 
   /* Reset product selection when season changes */
   React.useEffect(function(){
@@ -10514,19 +10513,13 @@ function ShipmentsMgmt(props){
     setGrades([]);
     setCqcMatches({});
     setProdCounts({});
-    setProdCountsLoading(true);
   },[config.activeSeasonId]);
 
   /* Load container counts per product for hero page */
   React.useEffect(function(){
-    if(!config.activeSeasonId){setProdCountsLoading(false);return;}
+    if(!config.activeSeasonId) return;
     var prods=(config.products||[]).filter(function(p){return p.active!==false;});
-    if(!prods.length){setProdCountsLoading(false);return;}
-    setProdCountsLoading(true);
-    var done=0,total=prods.length;
-    function markDone(){done++;if(done>=total){clearTimeout(safetyTimer);setProdCountsLoading(false);}}
-    /* Safety timeout — force loading=false after 8s regardless */
-    var safetyTimer=setTimeout(function(){setProdCountsLoading(false);},8000);
+    if(!prods.length) return;
     prods.forEach(function(p){
       /* Fetch container_number+carta to count unique voyages (matches By Container aggregation key) */
       var allKeys=new Set();
@@ -10536,14 +10529,14 @@ function ShipmentsMgmt(props){
           .not('container_number','is',null)
           .range(from,from+999)
           .then(function(r){
-            if(r.error){setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:prev[p.id]||0});});markDone();return;}
+            if(r.error) return;
             (r.data||[]).forEach(function(row){
               allKeys.add((row.container_number||'')+'||'+(row.carta||''));
             });
             if((r.data||[]).length===1000){
               fetchCountPage(from+1000);
             } else {
-              setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:allKeys.size});});markDone();
+              setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:allKeys.size});});
             }
           });
       }
@@ -10666,7 +10659,7 @@ function ShipmentsMgmt(props){
       ce('div',{style:{maxWidth:680,margin:'0 auto',padding:'0 16px'}},
         ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6,color:'var(--text)'}},'Shipments'),
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:20}},'Select a product to view shipment records, grades and claims.'),
-        prodCountsLoading?grapeLoader():ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+        ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
           prodList.map(function(p){
             return ce('div',{key:p.id,onClick:function(){setSelProd(p.id);},
               style:{background:'var(--card)',border:'1px solid var(--border)',borderLeft:'5px solid '+(p.color||'var(--accent)'),borderRadius:12,padding:'20px 24px',cursor:'pointer',display:'flex',alignItems:'center',gap:24,transition:'box-shadow 0.15s,transform 0.15s'},
@@ -10683,8 +10676,14 @@ function ShipmentsMgmt(props){
                 )
               ),
               ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,marginLeft:8}},
-                ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',fontWeight:700,color:prodCounts[p.id]===0?'var(--text3)':(p.color||'var(--accent)')}},prodCounts[p.id]===0?'—':prodCounts[p.id]),
-                ce('div',{style:{fontSize:10,color:'var(--text3)'}},prodCounts[p.id]===0?'no data':prodCounts[p.id]===1?'voyage':'voyages')
+                ce('div',{style:{
+                  fontSize:22,fontFamily:'var(--font-display)',fontWeight:700,
+                  color:(!prodCounts[p.id])?'var(--text3)':(p.color||'var(--accent)'),
+                  opacity:prodCounts[p.id]===undefined?.4:1,
+                  animation:prodCounts[p.id]===undefined?'dalos-pulse 1.4s ease-in-out infinite':'none'
+                }},prodCounts[p.id]===undefined?'—':prodCounts[p.id]===0?'—':prodCounts[p.id]),
+                ce('div',{style:{fontSize:10,color:'var(--text3)'}},
+                  prodCounts[p.id]===undefined?'loading…':prodCounts[p.id]===0?'no data':prodCounts[p.id]===1?'voyage':'voyages')
               ),
               ce('div',{style:{color:'var(--text3)',fontSize:20,marginLeft:'auto',flexShrink:0}},'\u203a')
             );
