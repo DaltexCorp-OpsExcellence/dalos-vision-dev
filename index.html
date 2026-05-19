@@ -10480,7 +10480,7 @@ function ShipmentsMgmt(props){
       }
       fetchCountPage(0);
     });
-  },[]);
+  },[config.activeSeasonId]);
 
   /* Load shipments + grades + CQC matches */
   React.useEffect(function(){
