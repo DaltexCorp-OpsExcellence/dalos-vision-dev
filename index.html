@@ -7884,7 +7884,11 @@ function ClientQCMgmt(props){
   function findMatch(cont){
     if(!cont) return null;
     var n=cont.trim().toUpperCase().replace(/\s+/g,'');
-    return batches.find(function(b){var bc=(b.container||'').toUpperCase().replace(/\s+/g,'');return bc&&bc===n;});
+    var curSeason=config.activeSeason||'2025/26';
+    return batches.find(function(b){
+      var bc=(b.container||'').toUpperCase().replace(/\s+/g,'');
+      return bc&&bc===n&&(b.season||'2025/26')===curSeason;
+    });
   }
   var matchedBatch=findMatch(fContainer);
 
