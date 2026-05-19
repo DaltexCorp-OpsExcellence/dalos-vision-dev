@@ -9809,9 +9809,10 @@ function ClientQCMgmt(props){
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:20}},'Select a product to view reports or log a new client QC report.'),
         ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
         prodList.map(function(p){
-          var count=reports.filter(function(r){return r.productId===p.id;}).length;
-          var matched=reports.filter(function(r){return r.productId===p.id&&r.matched;}).length;
-          var claims=reports.filter(function(r){return r.productId===p.id&&(r.potentialClaim||r.claimedValue>0);}).length;
+          var seasonReports=config.activeSeasonId?reports.filter(function(r){return r.productId===p.id&&(r.season===config.activeSeasonId||!r.season);}):reports.filter(function(r){return r.productId===p.id;});
+          var count=seasonReports.length;
+          var matched=seasonReports.filter(function(r){return r.matched;}).length;
+          var claims=seasonReports.filter(function(r){return r.potentialClaim||r.claimedValue>0;}).length;
           return ce('div',{
             key:p.id,
             onClick:function(){setSelCqcProd(p.id);setSelRep(null);},
@@ -9869,7 +9870,7 @@ function ClientQCMgmt(props){
   }
 
   /* ── REPORT LIST ── */
-  var prodReports=reports.filter(function(r){return r.productId===selCqcProd;});
+  var prodReports=reports.filter(function(r){return r.productId===selCqcProd&&(config.activeSeasonId?r.season===config.activeSeasonId:true);});
   return ce('div',{className:'page',style:{}},
     ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}},
       ce('div',{style:{display:'flex',alignItems:'center',gap:12}},
