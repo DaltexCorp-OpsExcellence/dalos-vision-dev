@@ -5176,6 +5176,12 @@ function AnalyticsView(props){
     });
   },[seasonId,productId,phFilter,dateMode,rangeStart,rangeEnd]);
 
+  /* ── Auto-swap products ↔ varieties tab when product pill changes ── */
+  React.useEffect(function(){
+    if(productId&&activeTab==='products') setTab('varieties');
+    if(!productId&&activeTab==='varieties') setTab('products');
+  },[productId]);
+
   /* ── Fetch defect readings (lazy — Defects tab or Clients defect sub-tab) ── */
   React.useEffect(function(){
     var need=(activeTab==='defects')||(activeTab==='clients'&&clSubTab==='defects');
@@ -5295,6 +5301,23 @@ function AnalyticsView(props){
     if(i.has_critical||i.live_has_critical) prodGroups[k].crit++;
   });
   var prodRows=Object.values(prodGroups).map(function(g){return Object.assign({},g,{avgDef:mavg(g.defArr)});}).sort(function(a,b){return b.pallets-a.pallets;});
+
+  /* ── Group: varieties (when a product is selected) ── */
+  var vrGroups={};
+  nonDraft.forEach(function(i){
+    var k=i.variety_id||'__none__';
+    if(!vrGroups[k]) vrGroups[k]={id:i.variety_id,forms:0,pallets:0,defArr:[],brixArr:[],crit:0};
+    vrGroups[k].forms++;vrGroups[k].pallets+=getPallets(i);
+    var dp=getDefPct(i);if(dp>0) vrGroups[k].defArr.push(dp);
+    var bx=getBrix(i);if(bx>0) vrGroups[k].brixArr.push(bx);
+    if(i.has_critical||i.live_has_critical) vrGroups[k].crit++;
+  });
+  var vrRows=Object.values(vrGroups).map(function(g){
+    return Object.assign({},g,{
+      name:g.id?(vrIdToName[g.id]||g.id.slice(0,8)+'\u2026'):'\u2014',
+      avgDef:mavg(g.defArr),avgBrix:mavg(g.brixArr)
+    });
+  }).sort(function(a,b){return b.pallets-a.pallets;});
 
   /* ── Group: weekly trend ── */
   var weekMap={};
@@ -5535,6 +5558,7 @@ function AnalyticsView(props){
   /* ── Tab + date mode config ── */
   var TABS=[{id:'overview',label:'Overview'},{id:'trends',label:'Trends'}];
   if(!productId) TABS.push({id:'products',label:'By product'});
+  else TABS.push({id:'varieties',label:'By variety'});
   TABS.push({id:'defects',label:'Defects'},{id:'clients',label:'Clients'},{id:'packhouses',label:'Packhouses'});
   var CL_TABS=[{id:'contribution',label:'Contribution'},{id:'performance',label:'Performance'},{id:'defects',label:'Defect breakdown'}];
   var DATE_MODES=[{id:'season',label:'Full season'},{id:'month',label:'This month'},{id:'week',label:'This week'},{id:'lastweek',label:'Last week'},{id:'custom',label:'Custom\u2026'}];
@@ -5662,6 +5686,40 @@ function AnalyticsView(props){
             }))
           )
         )
+      )
+    ),
+
+    /* ══ BY VARIETY ══ */
+    !loading&&!err&&inspections.length>0&&activeTab==='varieties'&&productId&&ce('div',null,
+      ce('div',{className:'card'},
+        ce('div',{className:'section-title'},
+          ce('div',{className:'section-title-bar',style:{background:prodColor(productId)}}),
+          prodName(productId)+' \u2014 by variety'
+        ),
+        vrRows.length===0
+          ?ce('div',{style:{padding:'16px 0',color:'var(--text3)',fontSize:13,textAlign:'center'}},'No variety data for this selection.')
+          :ce('div',{className:'scroll-card',style:{border:'none'}},
+            ce('table',null,
+              ce('thead',null,ce('tr',null,
+                ce('th',{style:{textAlign:'left'}},'Variety'),
+                ce('th',null,'Forms'),
+                ce('th',null,'Pallets'),
+                ce('th',null,'Avg defect'),
+                ce('th',null,'Avg brix'),
+                ce('th',null,'Critical')
+              )),
+              ce('tbody',null,vrRows.map(function(v,i){
+                return ce('tr',{key:i},
+                  ce('td',{style:{fontWeight:500}},v.name),
+                  ce('td',{style:{textAlign:'center'}},v.forms),
+                  ce('td',{style:{textAlign:'center'}},v.pallets.toLocaleString()),
+                  ce('td',{style:{textAlign:'center',fontWeight:500,color:pctColor(v.avgDef)}},n(v.avgDef)+'%'),
+                  ce('td',{style:{textAlign:'center'}},v.avgBrix>0?n(v.avgBrix,1)+'\u00b0':'\u2014'),
+                  ce('td',{style:{textAlign:'center',color:v.crit>0?'var(--red)':'#0f6e56',fontWeight:v.crit>0?600:400}},v.crit||'\u2014')
+                );
+              }))
+            )
+          )
       )
     ),
 
