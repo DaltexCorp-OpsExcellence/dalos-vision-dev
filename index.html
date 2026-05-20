@@ -5073,11 +5073,6 @@ function FGView(props){
 }
 
 /* ─── ANALYTICS ─── */
-function sevBadgeAn(sev){
-  if(sev==='Critical') return ce('span',{className:'badge badge-fail'},'Critical');
-  if(sev==='Major')    return ce('span',{className:'badge badge-warn'},'Major');
-  return ce('span',{className:'badge',style:{background:'var(--bg2)',color:'var(--text2)',border:'0.5px solid var(--border)'}},'Minor');
-}
 function AnalyticsView(props){
   var config=props.config||{};
 
@@ -5185,37 +5180,53 @@ function AnalyticsView(props){
     setDefLoading(true);
     var inspClientMap={};
     inspections.forEach(function(i){if(i.client_id) inspClientMap[i.id]=i.client_id;});
+
+    function finalize(all){
+      var grouped={};var byClientRaw={};
+      all.forEach(function(row){
+        if(!row.defects) return;
+        var k=row.defects.key;var v=parseFloat(row.value)||0;
+        if(!grouped[k]) grouped[k]={name:row.defects.name_en,sev:row.defects.severity,count:0,sum:0,max:0};
+        grouped[k].count++;grouped[k].sum+=v;grouped[k].max=Math.max(grouped[k].max,v);
+        var cid=srClientMap[row.sample_row_id]||'__none__';
+        var ck=cid+'|'+k;
+        if(!byClientRaw[ck]) byClientRaw[ck]={client_id:cid,key:k,name:row.defects.name_en,sev:row.defects.severity,count:0,sum:0};
+        byClientRaw[ck].count++;byClientRaw[ck].sum+=v;
+      });
+      var overall=Object.values(grouped).map(function(g){return Object.assign({},g,{avg:g.sum/g.count});}).sort(function(a,b){return b.avg-a.avg;});
+      var byClient=Object.values(byClientRaw).map(function(g){return Object.assign({},g,{avg:g.sum/g.count});});
+      setDefectData({overall:overall,byClient:byClient});
+      setDefLoading(false);
+    }
+    var srClientMap={};
+
     supabase.from('sample_rows').select('id,inspection_id').in('inspection_id',nonDraftIds)
       .then(function(sr){
         if(sr.error||!sr.data||sr.data.length===0){setDefectData({overall:[],byClient:[]});setDefLoading(false);return;}
-        var srClientMap={};
         sr.data.forEach(function(row){if(inspClientMap[row.inspection_id]) srClientMap[row.id]=inspClientMap[row.inspection_id];});
         var srIds=sr.data.map(function(r){return r.id;});
-        var CHUNK=400;var chunks=[];
+        /* chunk at 100 to stay well under URL length limits */
+        var CHUNK=100;var chunks=[];
         for(var i=0;i<srIds.length;i+=CHUNK) chunks.push(srIds.slice(i,i+CHUNK));
-        Promise.all(chunks.map(function(c){
-          return supabase.from('sample_defect_readings')
+        /* run chunks sequentially to avoid hammering the API */
+        var all=[];
+        function nextChunk(idx){
+          if(idx>=chunks.length){finalize(all);return;}
+          supabase.from('sample_defect_readings')
             .select('value,sample_row_id,defects(key,name_en,severity)')
-            .in('sample_row_id',c).gt('value',0);
-        })).then(function(results){
-          var all=[];
-          results.forEach(function(r){if(!r.error&&r.data) all=all.concat(r.data);});
-          var grouped={};var byClientRaw={};
-          all.forEach(function(row){
-            if(!row.defects) return;
-            var k=row.defects.key;var v=parseFloat(row.value)||0;
-            if(!grouped[k]) grouped[k]={name:row.defects.name_en,sev:row.defects.severity,count:0,sum:0,max:0};
-            grouped[k].count++;grouped[k].sum+=v;grouped[k].max=Math.max(grouped[k].max,v);
-            var cid=srClientMap[row.sample_row_id]||'__none__';
-            var ck=cid+'|'+k;
-            if(!byClientRaw[ck]) byClientRaw[ck]={client_id:cid,key:k,name:row.defects.name_en,sev:row.defects.severity,count:0,sum:0};
-            byClientRaw[ck].count++;byClientRaw[ck].sum+=v;
-          });
-          var overall=Object.values(grouped).map(function(g){return Object.assign({},g,{avg:g.sum/g.count});}).sort(function(a,b){return b.avg-a.avg;});
-          var byClient=Object.values(byClientRaw).map(function(g){return Object.assign({},g,{avg:g.sum/g.count});});
-          setDefectData({overall:overall,byClient:byClient});
-          setDefLoading(false);
-        });
+            .in('sample_row_id',chunks[idx]).gt('value',0)
+            .then(function(r){
+              if(!r.error&&r.data) all=all.concat(r.data);
+              nextChunk(idx+1);
+            })
+            .catch(function(){nextChunk(idx+1);});
+        }
+        nextChunk(0);
+      })
+      .catch(function(e){
+        console.error('[Analytics] defect fetch error:',e);
+        setDefectData({overall:[],byClient:[]});
+        setDefLoading(false);
       });
   },[activeTab,clSubTab,defectData,inspections]);
 
