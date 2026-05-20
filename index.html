@@ -5587,30 +5587,11 @@ function AnalyticsView(props){
   function renderClVariety(){
     if(clRows.length===0) return ce('div',{style:{color:'var(--text3)',fontSize:12,padding:16}},'No client data.');
 
-    var VR_VIEWS=[{id:'grouped',label:'Grouped table'},{id:'matrix',label:'Defect matrix'},{id:'heatmap',label:'Variety heatmap'}];
-    var VR_ASPECTS=[{id:'pallets',label:'Pallets'},{id:'defect',label:'Avg defect'},{id:'brix',label:'Avg brix'},{id:'containers',label:'Containers'}];
-
     function fmtAsp(v,asp){
       if(asp==='defect') return n(v)+'%';
       if(asp==='brix') return n(v,1)+'\u00b0';
       return ni(v)+'';
     }
-
-    /* ─ View selector ─ */
-    var viewPills=ce('div',{style:{display:'flex',gap:4,flexWrap:'wrap',marginBottom:12}},
-      VR_VIEWS.map(function(v){
-        var on=vrView===v.id;
-        return ce('button',{key:v.id,style:{fontSize:11,padding:'3px 10px',borderRadius:20,border:'0.5px solid var(--border)',background:on?'var(--text)':'var(--bg)',color:on?'var(--bg)':'var(--text2)',cursor:'pointer'},
-          onClick:function(){setVrView(v.id);}},v.label);
-      }),
-      vrView==='matrix'&&ce('div',{style:{display:'flex',gap:3,marginLeft:8}},
-        VR_ASPECTS.map(function(a){
-          var on=vrAspect===a.id;
-          return ce('button',{key:a.id,style:{fontSize:11,padding:'3px 9px',borderRadius:20,border:'0.5px solid '+(on?'#7a3a9a':'var(--border)'),background:on?'#7a3a9a':'var(--bg)',color:on?'#fff':'var(--text2)',cursor:'pointer'},
-            onClick:function(){setVrAspect(a.id);}},a.label);
-        })
-      )
-    );
 
     /* ─── GROUPED TABLE ─── */
     if(vrView==='grouped'){
@@ -5663,7 +5644,7 @@ function AnalyticsView(props){
           });
         }
       });
-      return ce('div',null,viewPills,
+      return ce('div',null,
         ce('div',{className:'card',style:{padding:0,overflow:'hidden'}},
           ce('div',{style:{overflowX:'auto'}},
             ce('table',null,
@@ -5718,7 +5699,7 @@ function AnalyticsView(props){
           )
         ].concat(cells));
       });
-      return ce('div',null,viewPills,
+      return ce('div',null,
         ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:8}},
           'Showing: ',ce('strong',null,VR_ASPECTS.find(function(a){return a.id===asp;}).label),
           ' \u00b7 \u2014 = client does not have this variety this season'
@@ -5768,7 +5749,7 @@ function AnalyticsView(props){
           vrBars
         );
       }).filter(Boolean);
-      return ce('div',null,viewPills,cards);
+      return ce('div',null,cards);
     }
 
     return null;
@@ -5795,32 +5776,36 @@ function AnalyticsView(props){
 
     /* Filter bar */
     ce('div',{style:{background:'var(--bg2)',borderRadius:8,padding:'10px 14px',marginBottom:12}},
-      ce('div',{style:{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginBottom:8}},
-        ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',whiteSpace:'nowrap'}},'Product'),
-        ce('div',{style:{display:'flex',gap:3,flexWrap:'wrap'}},
-          ce('button',{style:{fontSize:11,padding:'3px 11px',borderRadius:20,border:'0.5px solid var(--border)',background:!productId?'#2e5d3a':'var(--bg)',color:!productId?'#fff':'var(--text2)',cursor:'pointer'},onClick:function(){setProductId('');}}, 'All'),
-          prodList.map(function(p){var active=productId===p.id;return ce('button',{key:p.id,style:{fontSize:11,padding:'3px 11px',borderRadius:20,border:'0.5px solid '+(active?p.color:'var(--border)'),background:active?p.color:'var(--bg)',color:active?'#fff':'var(--text2)',cursor:'pointer'},onClick:function(){setProductId(p.id);}},p.name);})
+      ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,flexWrap:'wrap'}},
+        ce('div',{style:{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}},
+          ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',whiteSpace:'nowrap'}},'Product'),
+          ce('div',{style:{display:'flex',gap:3,flexWrap:'wrap'}},
+            ce('button',{style:{fontSize:11,padding:'3px 11px',borderRadius:20,border:'0.5px solid var(--border)',background:!productId?'#2e5d3a':'var(--bg)',color:!productId?'#fff':'var(--text2)',cursor:'pointer'},onClick:function(){setProductId('');}}, 'All'),
+            prodList.map(function(p){var active=productId===p.id;return ce('button',{key:p.id,style:{fontSize:11,padding:'3px 11px',borderRadius:20,border:'0.5px solid '+(active?p.color:'var(--border)'),background:active?p.color:'var(--bg)',color:active?'#fff':'var(--text2)',cursor:'pointer'},onClick:function(){setProductId(p.id);}},p.name);})
+          )
         ),
-        ce('div',{style:{width:'0.5px',height:18,background:'var(--border)'}}),
-        ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',whiteSpace:'nowrap'}},'Season'),
-        ce('select',{style:{fontSize:12},value:seasonId||'',onChange:function(e){setSeasonId(e.target.value);}},
-          seasons.map(function(s){return ce('option',{key:s.id,value:s.id},s.name||s.id);}))
-      ),
-      ce('div',{style:{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}},
-        ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',whiteSpace:'nowrap'}},'Period'),
-        ce('div',{style:{display:'flex',gap:3,flexWrap:'wrap'}},
-          DATE_MODES.map(function(dm){return ce('button',{key:dm.id,style:{fontSize:11,padding:'3px 9px',borderRadius:20,border:'0.5px solid var(--border)',background:dateMode===dm.id?'var(--text)':'var(--bg)',color:dateMode===dm.id?'var(--bg)':'var(--text2)',cursor:'pointer'},onClick:function(){setDateMode(dm.id);}},dm.label);})
-        ),
-        dateMode==='custom'&&ce('div',{style:{display:'flex',gap:4,alignItems:'center'}},
-          ce('input',{type:'date',style:{fontSize:11,padding:'2px 6px'},value:customStart,onChange:function(e){setCustomStart(e.target.value);}}),
-          ce('span',{style:{fontSize:11,color:'var(--text3)'}},' \u2192 '),
-          ce('input',{type:'date',style:{fontSize:11,padding:'2px 6px'},value:customEnd,onChange:function(e){setCustomEnd(e.target.value);}})
-        ),
-        ce('div',{style:{width:'0.5px',height:18,background:'var(--border)'}}),
-        ce('select',{style:{fontSize:12},value:phFilter,onChange:function(e){setPhFilter(e.target.value);}},
-          ce('option',{value:''},'All packhouses'),
-          uniquePH.map(function(id){return ce('option',{key:id,value:id},phName(id));})),
-        phFilter&&ce('button',{className:'btn-secondary',style:{fontSize:11},onClick:function(){setPhFilter('');}},'\u00d7 Clear')
+        ce('div',{style:{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',flexShrink:0}},
+          ce('select',{style:{fontSize:12},value:phFilter,onChange:function(e){setPhFilter(e.target.value);}},
+            ce('option',{value:''},'All packhouses'),
+            uniquePH.map(function(id){return ce('option',{key:id,value:id},phName(id));})),
+          phFilter&&ce('button',{className:'btn-secondary',style:{fontSize:11},onClick:function(){setPhFilter('');}},'\u00d7 Clear'),
+          ce('div',{style:{width:'0.5px',height:18,background:'var(--border)'}}),
+          ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',whiteSpace:'nowrap'}},'Period'),
+          ce('div',{style:{display:'flex',border:'0.5px solid var(--border)',borderRadius:7,overflow:'hidden',background:'var(--bg2)'}},
+            DATE_MODES.map(function(dm){
+              var on=dateMode===dm.id;
+              return ce('button',{key:dm.id,style:{fontSize:11,padding:'4px 10px',background:on?'var(--bg)':'transparent',color:on?'var(--text)':'var(--text3)',fontWeight:on?500:400,border:'none',borderRight:'0.5px solid var(--border)',cursor:'pointer',whiteSpace:'nowrap'},onClick:function(){setDateMode(dm.id);}},dm.label);
+            })
+          ),
+          dateMode==='custom'&&ce('div',{style:{display:'flex',gap:4,alignItems:'center'}},
+            ce('input',{type:'date',style:{fontSize:11,padding:'2px 6px'},value:customStart,onChange:function(e){setCustomStart(e.target.value);}}),
+            ce('span',{style:{fontSize:11,color:'var(--text3)'}},' \u2192 '),
+            ce('input',{type:'date',style:{fontSize:11,padding:'2px 6px'},value:customEnd,onChange:function(e){setCustomEnd(e.target.value);}})
+          ),
+          ce('div',{style:{width:'0.5px',height:18,background:'var(--border)'}}),
+          ce('select',{style:{fontSize:12},value:seasonId||'',onChange:function(e){setSeasonId(e.target.value);}},
+            seasons.map(function(s){return ce('option',{key:s.id,value:s.id},s.name||s.id);}))
+        )
       )
     ),
 
@@ -5996,8 +5981,42 @@ function AnalyticsView(props){
 
     /* ══ CLIENTS ══ */
     !loading&&!err&&inspections.length>0&&activeTab==='clients'&&ce('div',null,
-      ce('div',{style:{display:'flex',gap:2,marginBottom:12,borderBottom:'0.5px solid var(--border)'}},
-        CL_TABS.map(function(t){return ce('div',{key:t.id,onClick:function(){setClSubTab(t.id);},style:{fontSize:11,padding:'4px 12px',cursor:'pointer',marginBottom:'-0.5px',borderBottom:clSubTab===t.id?'2px solid #7a3a9a':'2px solid transparent',color:clSubTab===t.id?'#7a3a9a':'var(--text3)',fontWeight:clSubTab===t.id?600:400}},t.label);})
+      ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:14,flexWrap:'wrap'}},
+        ce('div',{style:{display:'flex',gap:4,background:'var(--bg2)',padding:4,borderRadius:10,border:'0.5px solid var(--border)'}},
+          CL_TABS.map(function(t){
+            var icons={contribution:'ti-chart-donut',performance:'ti-award',defects:'ti-bug',variety:'ti-plant-2'};
+            var on=clSubTab===t.id;
+            return ce('div',{key:t.id,onClick:function(){setClSubTab(t.id);},
+              style:{display:'flex',alignItems:'center',gap:5,fontSize:12,padding:'5px 12px',cursor:'pointer',borderRadius:7,
+                background:on?'var(--bg)':'transparent',
+                color:on?'var(--text)':'var(--text3)',
+                fontWeight:on?500:400,
+                border:on?'0.5px solid var(--border)':'0.5px solid transparent',
+                whiteSpace:'nowrap'}},
+              ce('i',{className:'ti '+(icons[t.id]||'ti-circle'),style:{fontSize:14},['aria-hidden']:'true'}),
+              t.label
+            );
+          })
+        ),
+        clSubTab==='variety'&&ce('div',{style:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
+          ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em'}},'View'),
+          ce('div',{style:{display:'flex',border:'0.5px solid var(--border)',borderRadius:7,overflow:'hidden',background:'var(--bg2)'}},
+            [{id:'grouped',label:'Grouped'},{id:'matrix',label:'Matrix'},{id:'heatmap',label:'Heatmap'}].map(function(v){
+              var on=vrView===v.id;
+              return ce('button',{key:v.id,style:{fontSize:11,padding:'4px 10px',background:on?'var(--bg)':'transparent',color:on?'var(--text)':'var(--text3)',fontWeight:on?500:400,border:'none',borderRight:'0.5px solid var(--border)',cursor:'pointer'},
+                onClick:function(){setVrView(v.id);}},v.label);
+            })
+          ),
+          vrView==='matrix'&&ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
+            ce('div',{style:{width:'0.5px',height:16,background:'var(--border)'}}),
+            ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em'}},'Show'),
+            [{id:'pallets',label:'Pallets'},{id:'defect',label:'Avg defect'},{id:'brix',label:'Avg brix'},{id:'containers',label:'Containers'}].map(function(a){
+              var on=vrAspect===a.id;
+              return ce('button',{key:a.id,style:{fontSize:11,padding:'3px 10px',borderRadius:20,border:'0.5px solid '+(on?'#7a3a9a':'transparent'),background:on?'#7a3a9a':'transparent',color:on?'#fff':'var(--text3)',cursor:'pointer'},
+                onClick:function(){setVrAspect(a.id);}},a.label);
+            })
+          )
+        )
       ),
       clSubTab==='contribution'&&renderClContribution(),
       clSubTab==='performance'&&renderClPerformance(),
