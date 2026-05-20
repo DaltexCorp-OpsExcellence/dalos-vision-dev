@@ -5432,23 +5432,27 @@ function AnalyticsView(props){
         ce('table',null,
           ce('thead',null,ce('tr',null,
             ce('th',{style:{textAlign:'left'}},'Client'),
-            ce('th',null,'Forms'),ce('th',null,'Containers'),ce('th',null,'Pallets'),ce('th',null,'Share'),
-            ce('th',null,'Avg defect'),ce('th',null,'CQC rate'),ce('th',null,'Signal')
+            ce('th',{style:{textAlign:'center'}},'Forms\u00a0/\u00a0Cont.'),
+            ce('th',{style:{textAlign:'center'}},'Pallets\u00a0(share)'),
+            ce('th',{style:{textAlign:'center'}},'Avg defect'),
+            ce('th',{style:{textAlign:'center'}},'CQC rate'),
+            ce('th',{style:{textAlign:'center'}},'Signal')
           )),
           ce('tbody',null,clRows.map(function(r,idx){
             var sig=r.avgDef>=2.5?ce('span',{className:'badge badge-fail'},'High'):r.avgDef>=2.0?ce('span',{className:'badge badge-warn'},'Watch'):ce('span',{className:'badge badge-pass'},'Good');
             return ce('tr',{key:idx},
-              ce('td',null,ce('span',{style:{display:'inline-flex',alignItems:'center',gap:6}},ce('span',{style:{width:7,height:7,borderRadius:'50%',background:r.color,display:'inline-block'}}),ce('span',{style:{fontWeight:500}},r.name))),
-              ce('td',{style:{textAlign:'center'}},r.forms),
-              ce('td',{style:{textAlign:'center',fontWeight:500}},r.containerCount),
-              ce('td',{style:{textAlign:'center'}},r.pallets.toLocaleString()),
+              ce('td',null,ce('span',{style:{display:'inline-flex',alignItems:'center',gap:6}},
+                ce('span',{style:{width:7,height:7,borderRadius:'50%',background:r.color,display:'inline-block',flexShrink:0}}),
+                ce('span',{style:{fontWeight:500}},r.name)
+              )),
+              ce('td',{style:{textAlign:'center',color:'var(--text2)'}},
+                ce('span',{style:{fontWeight:500}},r.forms),
+                ce('span',{style:{color:'var(--text3)'}},' / '),
+                ce('span',null,r.containerCount)
+              ),
               ce('td',{style:{textAlign:'center'}},
-                ce('div',{style:{display:'flex',alignItems:'center',gap:5,justifyContent:'center'}},
-                  ce('div',{style:{width:52,background:'var(--bg2)',borderRadius:3,height:5,overflow:'hidden'}},
-                    ce('div',{style:{width:r.share.toFixed(0)+'%',background:r.color,height:'100%',opacity:.75}})
-                  ),
-                  ce('span',{style:{fontWeight:500,color:r.color,minWidth:30}},r.share.toFixed(1)+'%')
-                )
+                ce('span',{style:{fontWeight:500}},r.pallets.toLocaleString()),
+                ce('span',{style:{color:r.color,fontSize:11,marginLeft:4}},r.share.toFixed(1)+'%')
               ),
               ce('td',{style:{textAlign:'center',fontWeight:500,color:pctColor(r.avgDef)}},n(r.avgDef)+'%'),
               ce('td',{style:{textAlign:'center',color:r.cqcRate>=85?'#0f6e56':'var(--amber)'}},r.cqcRate+'%'),
@@ -5457,7 +5461,7 @@ function AnalyticsView(props){
           }))
         )
       ),
-      ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:8}},'Containers = unique container numbers \u00b7 CQC rate = % of containers with a report received')
+      ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:8}},'Forms\u00a0/\u00a0Cont. = inspection forms\u00a0/\u00a0unique containers \u00b7 CQC rate = % of containers with a report received')
     );
   }
 
@@ -5467,34 +5471,55 @@ function AnalyticsView(props){
     var byClientArr=defectData&&defectData.byClient?defectData.byClient:[];
     var overall=defectData&&defectData.overall?defectData.overall:[];
     if(overall.length===0) return ce('div',{style:{textAlign:'center',padding:32,color:'var(--text3)',fontSize:13}},'No defect readings found.');
-    var topKeys=overall.slice(0,7).map(function(d){return d.name;});
+    /* top 5 defects only to keep table manageable */
+    var topKeys=overall.slice(0,5).map(function(d){return d.name;});
     var clDefLookup={};
     byClientArr.forEach(function(row){
-      var k=(row.client_id||'__none__')+'|'+row.name;
-      clDefLookup[k]=row.avg;
+      clDefLookup[(row.client_id||'__none__')+'|'+row.name]=row.avg;
     });
+    function defCell(v){
+      if(!v||v<=0) return ce('td',{style:{textAlign:'center',color:'var(--text3)',fontSize:11}},'\u2014');
+      var bg=v>=2?'#fcebeb':v>=1?'#faeeda':'var(--bg2)';
+      var col=v>=2?'#a32d2d':v>=1?'#633806':'var(--text2)';
+      return ce('td',{style:{textAlign:'center'}},
+        ce('span',{style:{display:'inline-block',padding:'1px 6px',borderRadius:4,background:bg,color:col,fontSize:11,fontWeight:500}},n(v)+'%')
+      );
+    }
     var thHeaders=topKeys.map(function(name,i){
-      return ce('th',{key:i,style:{textAlign:'center',fontSize:9}},name.split(' / ')[0].split(' ').slice(0,3).join(' '));
+      /* shorten: take first meaningful word(s) */
+      var short=name.replace(' / ',' / ').split(' ').slice(0,2).join(' ');
+      return ce('th',{key:i,style:{textAlign:'center',fontSize:10,whiteSpace:'nowrap'}},short);
     });
     var rows=clRows.map(function(r,idx){
       return ce('tr',{key:idx},
-        ce('td',null,ce('span',{style:{display:'inline-flex',alignItems:'center',gap:5}},ce('span',{style:{width:7,height:7,borderRadius:'50%',background:r.color,display:'inline-block',flexShrink:0}}),ce('span',{style:{fontWeight:500,whiteSpace:'nowrap'}},r.name))),
-        ce('td',{style:{textAlign:'center',color:'var(--text3)'}},r.containerCount),
+        ce('td',null,ce('span',{style:{display:'inline-flex',alignItems:'center',gap:5}},
+          ce('span',{style:{width:7,height:7,borderRadius:'50%',background:r.color,display:'inline-block',flexShrink:0}}),
+          ce('span',{style:{fontWeight:500,whiteSpace:'nowrap'}},r.name)
+        )),
+        ce('td',{style:{textAlign:'center',color:'var(--text3)',fontSize:11}},r.containerCount),
         ce('td',{style:{textAlign:'center',fontWeight:500,color:pctColor(r.avgDef)}},n(r.avgDef)+'%'),
         topKeys.map(function(name,di){
-          var v=clDefLookup[(r.id||'__none__')+'|'+name]||0;
-          return ce('td',{key:di,style:{textAlign:'center'}},
-            v>0?ce('span',{style:{fontSize:11,fontWeight:500,color:v>=2?'var(--red)':v>=1?'var(--amber)':'var(--text2)'}},''+n(v)+'%'):ce('span',{style:{color:'var(--text3)',fontSize:11}},'\u2014')
-          );
+          return defCell(clDefLookup[(r.id||'__none__')+'|'+name]||0,di);
         })
       );
     });
     return ce('div',{className:'card'},
       ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#d4620a'}}),'Defect breakdown by client'),
-      ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:8}},'Top 7 defects from internal inspections (first 120 forms). Red \u2265 2% \u00b7 Amber \u2265 1%.'),
+      ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:8}},
+        'Top 5 defects from internal inspections. ',
+        ce('span',{style:{background:'#fcebeb',color:'#a32d2d',padding:'1px 5px',borderRadius:3,fontSize:10}},'\u22652%'),
+        ' high \u00b7 ',
+        ce('span',{style:{background:'#faeeda',color:'#633806',padding:'1px 5px',borderRadius:3,fontSize:10}},'\u22651%'),
+        ' watch'
+      ),
       ce('div',{className:'scroll-card',style:{border:'none'}},
         ce('table',null,
-          ce('thead',null,ce('tr',null,ce('th',{style:{textAlign:'left'}},'Client'),ce('th',null,'Containers'),ce('th',null,'Avg defect'),thHeaders)),
+          ce('thead',null,ce('tr',null,
+            ce('th',{style:{textAlign:'left'}},'Client'),
+            ce('th',{style:{textAlign:'center',fontSize:10}},'Cont.'),
+            ce('th',{style:{textAlign:'center',fontSize:10}},'Avg'),
+            thHeaders
+          )),
           ce('tbody',null,rows)
         )
       )
@@ -5665,13 +5690,25 @@ function AnalyticsView(props){
         ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:8}},'From first '+Math.min(nonDraft.length,120)+' non-draft inspections. Non-zero readings only.'),
         ce('div',{className:'scroll-card',style:{border:'none'}},
           ce('table',null,
-            ce('thead',null,ce('tr',null,ce('th',{style:{textAlign:'left'}},'Defect'),ce('th',null,'Severity'),ce('th',null,'Readings'),ce('th',null,'Avg %'),ce('th',null,'Max %'))),
+            ce('thead',null,ce('tr',null,
+              ce('th',{style:{textAlign:'left'}},'Defect'),
+              ce('th',{style:{textAlign:'center'}},'Severity'),
+              ce('th',{style:{textAlign:'center'}},'Readings'),
+              ce('th',{style:{textAlign:'left',minWidth:140}},'Avg %')
+            )),
             ce('tbody',null,defectData.overall.slice(0,25).map(function(d,i){
+              var maxAvg=defectData.overall[0]?defectData.overall[0].avg:1;
+              var barW=maxAvg>0?Math.round(d.avg/maxAvg*80):0;
               return ce('tr',{key:i},
-                ce('td',null,d.name),ce('td',{style:{textAlign:'center'}},sevBadgeAn(d.sev||d.severity)),
+                ce('td',null,d.name),
+                ce('td',{style:{textAlign:'center'}},sevBadgeAn(d.sev||d.severity)),
                 ce('td',{style:{textAlign:'center',color:'var(--text3)'}},ni(d.count)),
-                ce('td',{style:{textAlign:'center',fontWeight:500,color:pctColor(d.avg)}},n(d.avg)+'%'),
-                ce('td',{style:{textAlign:'center',color:'var(--text3)'}},n(d.max)+'%')
+                ce('td',null,
+                  ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
+                    ce('div',{style:{width:barW,height:4,borderRadius:2,background:pctColor(d.avg),flexShrink:0}}),
+                    ce('span',{style:{fontWeight:500,color:pctColor(d.avg),fontSize:12}},n(d.avg)+'%')
+                  )
+                )
               );
             }))
           )
