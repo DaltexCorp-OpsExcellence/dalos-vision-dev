@@ -5701,7 +5701,7 @@ function AnalyticsView(props){
       });
       return ce('div',null,
         ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:8}},
-          'Showing: ',ce('strong',null,VR_ASPECTS.find(function(a){return a.id===asp;}).label),
+          'Showing: ',ce('strong',null,({pallets:'Pallets',defect:'Avg defect',brix:'Avg brix',containers:'Containers'})[asp]||asp),
           ' \u00b7 \u2014 = client does not have this variety this season'
         ),
         ce('div',{className:'card',style:{padding:0,overflow:'hidden'}},
