@@ -5174,8 +5174,7 @@ function AnalyticsView(props){
   /* ── Fetch defect readings (lazy — Defects tab or Clients defect sub-tab) ── */
   React.useEffect(function(){
     var need=(activeTab==='defects')||(activeTab==='clients'&&clSubTab==='defects');
-    if(!need||defectData!==null) return;
-    if(loading) return; /* wait for main inspections fetch to complete first */
+    if(!need||defectData!==null||loading) return;
     var nonDraftIds=inspections.filter(function(i){return i.status!=='Draft';}).map(function(i){return i.id;}).slice(0,120);
     if(nonDraftIds.length===0){setDefectData({overall:[],byClient:[]});return;}
     setDefLoading(true);
@@ -5478,11 +5477,11 @@ function AnalyticsView(props){
     byClientArr.forEach(function(row){
       clDefLookup[(row.client_id||'__none__')+'|'+row.name]=row.avg;
     });
-    function defCell(v){
-      if(!v||v<=0) return ce('td',{style:{textAlign:'center',color:'var(--text3)',fontSize:11}},'\u2014');
+    function defCell(v,k){
+      if(!v||v<=0) return ce('td',{key:k,style:{textAlign:'center',color:'var(--text3)',fontSize:11}},'\u2014');
       var bg=v>=2?'#fcebeb':v>=1?'#faeeda':'var(--bg2)';
       var col=v>=2?'#a32d2d':v>=1?'#633806':'var(--text2)';
-      return ce('td',{style:{textAlign:'center'}},
+      return ce('td',{key:k,style:{textAlign:'center'}},
         ce('span',{style:{display:'inline-block',padding:'1px 6px',borderRadius:4,background:bg,color:col,fontSize:11,fontWeight:500}},n(v)+'%')
       );
     }
@@ -5492,17 +5491,18 @@ function AnalyticsView(props){
       return ce('th',{key:i,style:{textAlign:'center',fontSize:10,whiteSpace:'nowrap'}},short);
     });
     var rows=clRows.map(function(r,idx){
-      return ce('tr',{key:idx},
-        ce('td',null,ce('span',{style:{display:'inline-flex',alignItems:'center',gap:5}},
+      var baseCells=[
+        ce('td',{key:'n'},ce('span',{style:{display:'inline-flex',alignItems:'center',gap:5}},
           ce('span',{style:{width:7,height:7,borderRadius:'50%',background:r.color,display:'inline-block',flexShrink:0}}),
           ce('span',{style:{fontWeight:500,whiteSpace:'nowrap'}},r.name)
         )),
-        ce('td',{style:{textAlign:'center',color:'var(--text3)',fontSize:11}},r.containerCount),
-        ce('td',{style:{textAlign:'center',fontWeight:500,color:pctColor(r.avgDef)}},n(r.avgDef)+'%'),
-        topKeys.map(function(name,di){
-          return defCell(clDefLookup[(r.id||'__none__')+'|'+name]||0,di);
-        })
-      );
+        ce('td',{key:'c',style:{textAlign:'center',color:'var(--text3)',fontSize:11}},r.containerCount),
+        ce('td',{key:'a',style:{textAlign:'center',fontWeight:500,color:pctColor(r.avgDef)}},n(r.avgDef)+'%')
+      ];
+      var defCells=topKeys.map(function(name,di){
+        return defCell(clDefLookup[(r.id||'__none__')+'|'+name]||0,'d'+di);
+      });
+      return React.createElement.apply(React,['tr',{key:idx}].concat(baseCells).concat(defCells));
     });
     return ce('div',{className:'card'},
       ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#d4620a'}}),'Defect breakdown by client'),
@@ -5533,21 +5533,6 @@ function AnalyticsView(props){
   TABS.push({id:'defects',label:'Defects'},{id:'clients',label:'Clients'},{id:'packhouses',label:'Packhouses'});
   var CL_TABS=[{id:'contribution',label:'Contribution'},{id:'performance',label:'Performance'},{id:'defects',label:'Defect breakdown'}];
   var DATE_MODES=[{id:'season',label:'Full season'},{id:'month',label:'This month'},{id:'week',label:'This week'},{id:'lastweek',label:'Last week'},{id:'custom',label:'Custom\u2026'}];
-
-  /* ── Date range label ── */
-  function fmtRange(){
-    var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    function fmt(iso){var p=iso.split('-');return parseInt(p[2])+' '+MONTHS[parseInt(p[1])-1]+' '+p[0];}
-    if(dateMode==='season') return null;
-    if(dateMode==='custom'){
-      if(!customStart&&!customEnd) return 'Select dates';
-      if(customStart&&customEnd) return fmt(customStart)+' \u2013 '+fmt(customEnd);
-      return customStart?'From '+fmt(customStart):'Until '+fmt(customEnd);
-    }
-    if(rangeStart&&rangeEnd) return fmt(rangeStart)+' \u2013 '+fmt(rangeEnd);
-    return null;
-  }
-  var rangeLabel=fmtRange();
 
   /* ════════════════════ RENDER ════════════════════ */
   return ce('div',null,
@@ -5583,7 +5568,6 @@ function AnalyticsView(props){
         ce('div',{style:{display:'flex',gap:3,flexWrap:'wrap'}},
           DATE_MODES.map(function(dm){return ce('button',{key:dm.id,style:{fontSize:11,padding:'3px 9px',borderRadius:20,border:'0.5px solid var(--border)',background:dateMode===dm.id?'var(--text)':'var(--bg)',color:dateMode===dm.id?'var(--bg)':'var(--text2)',cursor:'pointer'},onClick:function(){setDateMode(dm.id);}},dm.label);})
         ),
-        rangeLabel&&ce('span',{style:{fontSize:11,color:'var(--text3)',background:'var(--bg2)',border:'0.5px solid var(--border)',borderRadius:20,padding:'2px 10px',whiteSpace:'nowrap'}},rangeLabel),
         dateMode==='custom'&&ce('div',{style:{display:'flex',gap:4,alignItems:'center'}},
           ce('input',{type:'date',style:{fontSize:11,padding:'2px 6px'},value:customStart,onChange:function(e){setCustomStart(e.target.value);}}),
           ce('span',{style:{fontSize:11,color:'var(--text3)'}},' \u2192 '),
@@ -5701,10 +5685,7 @@ function AnalyticsView(props){
     /* ══ DEFECTS ══ */
     !loading&&!err&&inspections.length>0&&activeTab==='defects'&&ce('div',null,
       defLoading&&ce('div',{style:{textAlign:'center',padding:32,color:'var(--text3)',fontSize:13}},'Loading defect data\u2026'),
-      !defLoading&&(!defectData||!defectData.overall||defectData.overall.length===0)&&ce('div',{style:{textAlign:'center',padding:'32px 0',color:'var(--text3)',fontSize:13}},
-        ce('div',null,'No defect readings found for this selection.'),
-        ce('div',{style:{fontSize:11,marginTop:6}},'Defect readings are entered during active inspections. If inspections are in Draft or have no sample readings, this tab will be empty.')
-      ),
+      !defLoading&&(!defectData||!defectData.overall||defectData.overall.length===0)&&ce('div',{style:{textAlign:'center',padding:32,color:'var(--text3)',fontSize:13}},'No defect readings found.'),
       !defLoading&&defectData&&defectData.overall&&defectData.overall.length>0&&ce('div',{className:'card'},
         ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#d4620a'}}),'Top defects by average %'),
         ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:8}},'From first '+Math.min(nonDraft.length,120)+' non-draft inspections. Non-zero readings only.'),
