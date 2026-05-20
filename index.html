@@ -5780,11 +5780,9 @@ function AnalyticsView(props){
               ce('div',{style:{width:barPct+'%',height:'100%',background:cl.color,opacity:.65}})
             ),
             ce('span',{style:{fontSize:11,color:'var(--text3)',minWidth:50,textAlign:'right',flexShrink:0}},vr.pallets.toLocaleString()+' pal'),
-            ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2,flexShrink:0}},
+            ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3,flexShrink:0}},
               ce('div',{style:{background:defBg,color:pctColor(vr.avgDef),borderRadius:4,padding:'1px 6px',fontSize:11,fontWeight:500,minWidth:44,textAlign:'center'}},n(vr.avgDef)+'%'),
-              vr.sev&&ce('div',{style:{display:'flex',gap:2,justifyContent:'flex-end',flexWrap:'wrap'}},
-                [{k:'c',label:'C',col:'#a32d2d',bg:'#fcebeb'},{k:'mj',label:'Mj',col:'#633806',bg:'#faeeda'},{k:'mn',label:'Mn',col:'#0f6e56',bg:'#e1f5ee'},{k:'us',label:'Us',col:'#185fa5',bg:'#e6f1fb'}].map(function(s){return vr.sev[s.k]>0?ce('span',{key:s.k,style:{fontSize:9,padding:'1px 4px',borderRadius:3,background:s.bg,color:s.col,fontWeight:500}},s.label+' '+n(vr.sev[s.k])+'%'):null;})
-              )
+              vr.sev&&sevGrid(vr.sev)
             ),
             ce('span',{style:{fontSize:11,color:'var(--text3)',minWidth:36,textAlign:'right',flexShrink:0}},vr.avgBrix>0?n(vr.avgBrix,1)+'\u00b0':'\u2014')
           );
@@ -5878,12 +5876,8 @@ function AnalyticsView(props){
         ce('div',{className:'kpi-label'},'Avg total defect'),
         ce('div',{className:'kpi-value',style:{color:pctColor(avgDefect)}},n(avgDefect)+'%'),
         ce('div',{className:'kpi-sub'},defPcts.length+' readings'),
-        defBySev&&ce('div',{style:{display:'flex',gap:3,marginTop:6,flexWrap:'wrap'}},
-          (function(){var s=avgSev(nonDraft.map(function(i){return i.id;}));if(!s) return null;
-            return [{k:'c',label:'Critical',col:'#a32d2d',bg:'#fcebeb'},{k:'mj',label:'Major',col:'#633806',bg:'#faeeda'},{k:'mn',label:'Minor',col:'#0f6e56',bg:'#e1f5ee'},{k:'us',label:'Undersize',col:'#185fa5',bg:'#e6f1fb'}].map(function(sv){
-              return s[sv.k]>0?ce('span',{key:sv.k,style:{fontSize:10,padding:'2px 6px',borderRadius:4,background:sv.bg,color:sv.col,fontWeight:500}},sv.label+' '+n(s[sv.k])+'%'):null;
-            });
-          })()
+        defBySev&&ce('div',{style:{marginTop:6}},
+          (function(){var s=avgSev(nonDraft.map(function(i){return i.id;}));return s?sevGrid(s):null;})()
         )
       ),
         ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Acceptance rate'),ce('div',{className:'kpi-value',style:{color:'#0f6e56'}},acceptRate+'%'),ce('div',{className:'kpi-sub'},accepted+' / '+totalInsp+' forms')),
