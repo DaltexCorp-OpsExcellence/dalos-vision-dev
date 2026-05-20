@@ -5092,7 +5092,7 @@ function AnalyticsView(props){
   function clColor(idx){return CL_COLORS[idx%CL_COLORS.length];}
 
   /* ── State: filters ── */
-  var sProd=useState('');         var productId=sProd[0];    var setProductId=sProd[1];
+  var sProd=useState('grapes');   var productId=sProd[0];    var setProductId=sProd[1];
   var sSeas=useState(config.trueActiveSeasonId||config.activeSeasonId||null);
   var seasonId=sSeas[0]; var setSeasonId=sSeas[1];
   var sDM=useState('season');     var dateMode=sDM[0];       var setDateMode=sDM[1];
