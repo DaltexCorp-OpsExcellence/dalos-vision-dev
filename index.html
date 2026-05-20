@@ -5128,23 +5128,25 @@ function AnalyticsView(props){
     inspIds.forEach(function(id){var s=defBySev[id];if(!s) return;if(s.c>0)c.push(s.c);if(s.mj>0)mj.push(s.mj);if(s.mn>0)mn.push(s.mn);if(s.us>0)us.push(s.us);});
     return {c:mavg(c),mj:mavg(mj),mn:mavg(mn),us:mavg(us)};
   }
-  /* render compact severity breakdown cells — 4 coloured mini-pills in one td */
-  function sevCell(sev,style){
-    if(!sev) return ce('td',{style:Object.assign({textAlign:'center',fontSize:11,color:'var(--text3)'},style||{})},'\u2014');
-    var SEV_DEF=[{k:'c',label:'C',col:'#a32d2d',bg:'#fcebeb'},{k:'mj',label:'Mj',col:'#633806',bg:'#faeeda'},{k:'mn',label:'Mn',col:'#0f6e56',bg:'#e1f5ee'},{k:'us',label:'Us',col:'#185fa5',bg:'#e6f1fb'}];
-    return ce('td',{style:Object.assign({padding:'3px 6px'},style||{})},
-      ce('div',{style:{display:'flex',gap:3,justifyContent:'center',flexWrap:'wrap'}},
-        SEV_DEF.map(function(s){
-          var v=sev[s.k];
-          if(v<=0) return null;
-          return ce('span',{key:s.k,style:{fontSize:10,padding:'1px 5px',borderRadius:4,background:s.bg,color:s.col,fontWeight:500,whiteSpace:'nowrap'}},
-            s.label+' '+n(v)+'%'
-          );
-        }).filter(Boolean)
-      )
+  var SEV_DEF=[{k:'c',label:'C',col:'#a32d2d',bg:'#fcebeb'},{k:'mj',label:'Mj',col:'#633806',bg:'#faeeda'},{k:'mn',label:'Mn',col:'#0f6e56',bg:'#e1f5ee'},{k:'us',label:'Us',col:'#185fa5',bg:'#e6f1fb'}];
+  function sevGrid(sev){
+    if(!sev) return null;
+    function pill(s){
+      var v=sev[s.k];if(!(v>0)) return null;
+      return ce('span',{key:s.k,style:{fontSize:9,padding:'1px 5px',borderRadius:3,background:s.bg,color:s.col,fontWeight:500,whiteSpace:'nowrap'}},s.label+' '+n(v)+'%');
+    }
+    var p0=pill(SEV_DEF[0]),p1=pill(SEV_DEF[1]),p2=pill(SEV_DEF[2]),p3=pill(SEV_DEF[3]);
+    if(!p0&&!p1&&!p2&&!p3) return null;
+    return ce('div',{style:{display:'inline-flex',flexDirection:'column',gap:2,alignItems:'flex-start'}},
+      (p0||p1)?ce('div',{style:{display:'flex',gap:2}},[p0,p1].filter(Boolean)):null,
+      (p2||p3)?ce('div',{style:{display:'flex',gap:2}},[p2,p3].filter(Boolean)):null
     );
   }
-  function getPallets(i){return ni(i.live_pallet_count)||0;}
+  function sevCell(sev,style){
+    if(!sev) return ce('td',{style:Object.assign({textAlign:'center',fontSize:11,color:'var(--text3)'},style||{})},'—');
+    return ce('td',{style:Object.assign({padding:'3px 8px'},style||{})},sevGrid(sev));
+  }
+    function getPallets(i){return ni(i.live_pallet_count)||0;}
   function phName(id){var p=phMap[id];return p?p.name:(id||'\u2014');}
   function prodColor(id){var p=prodList.find(function(x){return x.id===id;});return p?p.color:'#888';}
   function prodName(id){var p=prodList.find(function(x){return x.id===id;});return p?p.name:(id||'\u2014');}
@@ -5593,7 +5595,10 @@ function AnalyticsView(props){
           ce('span',{style:{fontWeight:500,whiteSpace:'nowrap'}},r.name)
         )),
         ce('td',{key:'c',style:{textAlign:'center',color:'var(--text3)',fontSize:11}},r.containerCount),
-        ce('td',{key:'a',style:{textAlign:'center',fontWeight:500,color:pctColor(r.avgDef)}},n(r.avgDef)+'%'),sevCell(r.sev,{key:'sev'})
+        ce('td',{key:'a',style:{padding:'3px 8px'}},
+          ce('div',{style:{fontWeight:500,color:pctColor(r.avgDef),textAlign:'center',marginBottom:2}},n(r.avgDef)+'%'),
+          sevGrid(r.sev)
+        )
       ];
       var defCells=topKeys.map(function(name,di){
         return defCell(clDefLookup[(r.id||'__none__')+'|'+name]||0,'d'+di);
