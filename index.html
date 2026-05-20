@@ -5967,6 +5967,7 @@ function AnalyticsView(props){
                 ce('th',null,'Forms'),
                 ce('th',null,'Pallets'),
                 ce('th',null,'Avg defect'),
+                ce('th',{style:{textAlign:'center',fontSize:9,color:'var(--text3)'}},'Breakdown'),
                 ce('th',null,'Avg brix'),
                 ce('th',null,'Critical')
               )),
@@ -5976,6 +5977,7 @@ function AnalyticsView(props){
                   ce('td',{style:{textAlign:'center'}},v.forms),
                   ce('td',{style:{textAlign:'center'}},v.pallets.toLocaleString()),
                   ce('td',{style:{textAlign:'center',fontWeight:500,color:pctColor(v.avgDef)}},n(v.avgDef)+'%'),
+                  sevCell(v.sev),
                   ce('td',{style:{textAlign:'center'}},v.avgBrix>0?n(v.avgBrix,1)+'\u00b0':'\u2014'),
                   ce('td',{style:{textAlign:'center',color:v.crit>0?'var(--red)':'#0f6e56',fontWeight:v.crit>0?600:400}},v.crit||'\u2014')
                 );
