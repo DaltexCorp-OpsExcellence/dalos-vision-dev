@@ -5111,6 +5111,7 @@ function AnalyticsView(props){
   var sCqc=useState([]);    var cqcByClient=sCqc[0];   var setCqcByClient=sCqc[1];
   var sLoad=useState(true); var loading=sLoad[0];      var setLoading=sLoad[1];
   var sDL=useState(false);  var defLoading=sDL[0];     var setDefLoading=sDL[1];
+  var sBs=useState(null);   var defBySev=sBs[0];       var setDefBySev=sBs[1];
   var sErr=useState(null);  var err=sErr[0];           var setErr=sErr[1];
 
   /* ── Helpers ── */
@@ -5120,6 +5121,29 @@ function AnalyticsView(props){
   function pctColor(p){return p>=2.5?'var(--red)':p>=2.0?'var(--amber)':'#0f6e56';}
   function getDefPct(i){var v=i.live_avg_total_defect!=null?i.live_avg_total_defect:i.avg_total_defect;return parseFloat(v)||0;}
   function getBrix(i){var v=i.live_avg_brix!=null?i.live_avg_brix:i.avg_brix;return parseFloat(v)||0;}
+  /* compute avg severity breakdown across an array of inspection ids */
+  function avgSev(inspIds){
+    if(!defBySev) return null;
+    var c=[],mj=[],mn=[],us=[];
+    inspIds.forEach(function(id){var s=defBySev[id];if(!s) return;if(s.c>0)c.push(s.c);if(s.mj>0)mj.push(s.mj);if(s.mn>0)mn.push(s.mn);if(s.us>0)us.push(s.us);});
+    return {c:mavg(c),mj:mavg(mj),mn:mavg(mn),us:mavg(us)};
+  }
+  /* render compact severity breakdown cells — 4 coloured mini-pills in one td */
+  function sevCell(sev,style){
+    if(!sev) return ce('td',{style:Object.assign({textAlign:'center',fontSize:11,color:'var(--text3)'},style||{})},'\u2014');
+    var SEV_DEF=[{k:'c',label:'C',col:'#a32d2d',bg:'#fcebeb'},{k:'mj',label:'Mj',col:'#633806',bg:'#faeeda'},{k:'mn',label:'Mn',col:'#0f6e56',bg:'#e1f5ee'},{k:'us',label:'Us',col:'#185fa5',bg:'#e6f1fb'}];
+    return ce('td',{style:Object.assign({padding:'3px 6px'},style||{})},
+      ce('div',{style:{display:'flex',gap:3,justifyContent:'center',flexWrap:'wrap'}},
+        SEV_DEF.map(function(s){
+          var v=sev[s.k];
+          if(v<=0) return null;
+          return ce('span',{key:s.k,style:{fontSize:10,padding:'1px 5px',borderRadius:4,background:s.bg,color:s.col,fontWeight:500,whiteSpace:'nowrap'}},
+            s.label+' '+n(v)+'%'
+          );
+        }).filter(Boolean)
+      )
+    );
+  }
   function getPallets(i){return ni(i.live_pallet_count)||0;}
   function phName(id){var p=phMap[id];return p?p.name:(id||'\u2014');}
   function prodColor(id){var p=prodList.find(function(x){return x.id===id;});return p?p.color:'#888';}
@@ -5185,18 +5209,23 @@ function AnalyticsView(props){
     if(!productId&&activeTab==='varieties') setTab('products');
   },[productId]);
 
-  /* ── Fetch defect readings (lazy — Defects tab or Clients defect sub-tab) ── */
+  /* ── Fetch defect readings (eager — loads with inspections) ── */
   React.useEffect(function(){
-    var need=(activeTab==='defects')||(activeTab==='clients'&&clSubTab==='defects');
-    if(!need||defectData!==null||loading) return;
+    if(defectData!==null||loading||inspections.length===0) return;
     var nonDraftIds=inspections.filter(function(i){return i.status!=='Draft';}).map(function(i){return i.id;}).slice(0,120);
-    if(nonDraftIds.length===0){setDefectData({overall:[],byClient:[]});return;}
+    if(nonDraftIds.length===0){setDefectData({overall:[],byClient:[]});setDefBySev({});return;}
     setDefLoading(true);
-    var inspClientMap={};
-    inspections.forEach(function(i){if(i.client_id) inspClientMap[i.id]=i.client_id;});
+    var inspClientMap={};var inspVrMap={};var inspPhMap={};
+    inspections.forEach(function(i){
+      if(i.client_id) inspClientMap[i.id]=i.client_id;
+      if(i.variety_id) inspVrMap[i.id]=i.variety_id;
+      if(i.packhouse_id) inspPhMap[i.id]=i.packhouse_id;
+    });
 
-    function finalize(all){
+    function finalize(all,srInspMap){
       var grouped={};var byClientRaw={};
+      /* severity per inspection */
+      var inspSevRaw={};
       all.forEach(function(row){
         if(!row.defects) return;
         var k=row.defects.key;var v=parseFloat(row.value)||0;
@@ -5206,26 +5235,41 @@ function AnalyticsView(props){
         var ck=cid+'|'+k;
         if(!byClientRaw[ck]) byClientRaw[ck]={client_id:cid,key:k,name:row.defects.name_en,sev:row.defects.severity,count:0,sum:0};
         byClientRaw[ck].count++;byClientRaw[ck].sum+=v;
+        /* accumulate per-inspection severity */
+        var inspId=srInspMap[row.sample_row_id];
+        if(!inspId) return;
+        if(!inspSevRaw[inspId]) inspSevRaw[inspId]={c:{s:0,n:0},mj:{s:0,n:0},mn:{s:0,n:0},us:{s:0,n:0}};
+        var bucket=k==='under_size'?'us':row.defects.severity==='Critical'?'c':row.defects.severity==='Major'?'mj':'mn';
+        inspSevRaw[inspId][bucket].s+=v;
+        inspSevRaw[inspId][bucket].n+=1;
       });
       var overall=Object.values(grouped).map(function(g){return Object.assign({},g,{avg:g.sum/g.count});}).sort(function(a,b){return b.avg-a.avg;});
       var byClient=Object.values(byClientRaw).map(function(g){return Object.assign({},g,{avg:g.sum/g.count});});
+      /* compute per-inspection severity averages */
+      var inspSev={};
+      Object.keys(inspSevRaw).forEach(function(id){
+        var r=inspSevRaw[id];
+        inspSev[id]={c:r.c.n>0?r.c.s/r.c.n:0,mj:r.mj.n>0?r.mj.s/r.mj.n:0,mn:r.mn.n>0?r.mn.s/r.mn.n:0,us:r.us.n>0?r.us.s/r.us.n:0};
+      });
       setDefectData({overall:overall,byClient:byClient});
+      setDefBySev(inspSev);
       setDefLoading(false);
     }
-    var srClientMap={};
+    var srClientMap={};var srInspMap={};
 
     supabase.from('sample_rows').select('id,inspection_id').in('inspection_id',nonDraftIds)
       .then(function(sr){
-        if(sr.error||!sr.data||sr.data.length===0){setDefectData({overall:[],byClient:[]});setDefLoading(false);return;}
-        sr.data.forEach(function(row){if(inspClientMap[row.inspection_id]) srClientMap[row.id]=inspClientMap[row.inspection_id];});
+        if(sr.error||!sr.data||sr.data.length===0){setDefectData({overall:[],byClient:[]});setDefBySev({});setDefLoading(false);return;}
+        sr.data.forEach(function(row){
+          if(inspClientMap[row.inspection_id]) srClientMap[row.id]=inspClientMap[row.inspection_id];
+          srInspMap[row.id]=row.inspection_id;
+        });
         var srIds=sr.data.map(function(r){return r.id;});
-        /* chunk at 100 to stay well under URL length limits */
         var CHUNK=100;var chunks=[];
         for(var i=0;i<srIds.length;i+=CHUNK) chunks.push(srIds.slice(i,i+CHUNK));
-        /* run chunks sequentially to avoid hammering the API */
         var all=[];
         function nextChunk(idx){
-          if(idx>=chunks.length){finalize(all);return;}
+          if(idx>=chunks.length){finalize(all,srInspMap);return;}
           supabase.from('sample_defect_readings')
             .select('value,sample_row_id,defects(key,name_en,severity)')
             .in('sample_row_id',chunks[idx]).gt('value',0)
@@ -5240,9 +5284,10 @@ function AnalyticsView(props){
       .catch(function(e){
         console.error('[Analytics] defect fetch error:',e);
         setDefectData({overall:[],byClient:[]});
+        setDefBySev({});
         setDefLoading(false);
       });
-  },[activeTab,clSubTab,defectData,inspections]);
+  },[defectData,loading,inspections]);
 
   /* ── Computed: non-draft base ── */
   var nonDraft=inspections.filter(function(i){return i.status!=='Draft';});
@@ -5279,8 +5324,8 @@ function AnalyticsView(props){
   var clGroups={};
   nonDraft.forEach(function(i){
     var k=i.client_id||'__none__';
-    if(!clGroups[k]) clGroups[k]={id:i.client_id,forms:0,pallets:0,defArr:[],brixArr:[],crit:0,containers:new Set()};
-    clGroups[k].forms++;clGroups[k].pallets+=getPallets(i);
+    if(!clGroups[k]) clGroups[k]={id:i.client_id,forms:0,pallets:0,defArr:[],brixArr:[],crit:0,containers:new Set(),inspIds:[]};
+    clGroups[k].forms++;clGroups[k].pallets+=getPallets(i);clGroups[k].inspIds.push(i.id);
     var dp=getDefPct(i);if(dp>0) clGroups[k].defArr.push(dp);
     var bx=getBrix(i);if(bx>0) clGroups[k].brixArr.push(bx);
     if(i.has_critical||i.live_has_critical) clGroups[k].crit++;
@@ -5288,7 +5333,7 @@ function AnalyticsView(props){
   });
   var clRowsBase=Object.values(clGroups).map(function(g){
     var cnt=g.containers.size;var cqcCnt=cqcClientMap[g.id]||0;
-    return Object.assign({},g,{name:g.id?(clIdToName[g.id]||g.id.slice(0,8)+'\u2026'):'\u2014',avgDef:mavg(g.defArr),avgBrix:mavg(g.brixArr),containerCount:cnt,cqcRate:cnt>0?Math.round(cqcCnt/cnt*100):0});
+    return Object.assign({},g,{name:g.id?(clIdToName[g.id]||g.id.slice(0,8)+'\u2026'):'\u2014',avgDef:mavg(g.defArr),avgBrix:mavg(g.brixArr),containerCount:cnt,cqcRate:cnt>0?Math.round(cqcCnt/cnt*100):0,sev:avgSev(g.inspIds)});
   }).sort(function(a,b){return b.pallets-a.pallets;});
   var totalClPallets=clRowsBase.reduce(function(s,r){return s+r.pallets;},0);
   var totalClContainers=clRowsBase.reduce(function(s,r){return s+r.containerCount;},0);
@@ -5298,8 +5343,8 @@ function AnalyticsView(props){
   var clVrMap={};
   nonDraft.forEach(function(i){
     var ck=(i.client_id||'__none__')+'|'+(i.variety_id||'__none__');
-    if(!clVrMap[ck]) clVrMap[ck]={client_id:i.client_id,variety_id:i.variety_id,forms:0,pallets:0,defArr:[],brixArr:[],containers:new Set()};
-    clVrMap[ck].forms++;clVrMap[ck].pallets+=getPallets(i);
+    if(!clVrMap[ck]) clVrMap[ck]={client_id:i.client_id,variety_id:i.variety_id,forms:0,pallets:0,defArr:[],brixArr:[],containers:new Set(),inspIds:[]};
+    clVrMap[ck].forms++;clVrMap[ck].pallets+=getPallets(i);clVrMap[ck].inspIds.push(i.id);
     var dp=getDefPct(i);if(dp>0) clVrMap[ck].defArr.push(dp);
     var bx=getBrix(i);if(bx>0) clVrMap[ck].brixArr.push(bx);
     if(i.container_number) clVrMap[ck].containers.add(i.container_number);
@@ -5308,7 +5353,7 @@ function AnalyticsView(props){
     return Object.assign({},g,{
       vrName:g.variety_id?(vrIdToName[g.variety_id]||g.variety_id.slice(0,8)+'\u2026'):'\u2014',
       clName:g.client_id?(clIdToName[g.client_id]||g.client_id.slice(0,8)+'\u2026'):'\u2014',
-      avgDef:mavg(g.defArr),avgBrix:mavg(g.brixArr),containerCount:g.containers.size
+      avgDef:mavg(g.defArr),avgBrix:mavg(g.brixArr),containerCount:g.containers.size,sev:avgSev(g.inspIds)
     });
   });
   /* Unique varieties in current data for matrix */
@@ -5329,8 +5374,8 @@ function AnalyticsView(props){
   var vrGroups={};
   nonDraft.forEach(function(i){
     var k=i.variety_id||'__none__';
-    if(!vrGroups[k]) vrGroups[k]={id:i.variety_id,forms:0,pallets:0,defArr:[],brixArr:[],crit:0};
-    vrGroups[k].forms++;vrGroups[k].pallets+=getPallets(i);
+    if(!vrGroups[k]) vrGroups[k]={id:i.variety_id,forms:0,pallets:0,defArr:[],brixArr:[],crit:0,inspIds:[]};
+    vrGroups[k].forms++;vrGroups[k].pallets+=getPallets(i);vrGroups[k].inspIds.push(i.id);
     var dp=getDefPct(i);if(dp>0) vrGroups[k].defArr.push(dp);
     var bx=getBrix(i);if(bx>0) vrGroups[k].brixArr.push(bx);
     if(i.has_critical||i.live_has_critical) vrGroups[k].crit++;
@@ -5338,7 +5383,7 @@ function AnalyticsView(props){
   var vrRows=Object.values(vrGroups).map(function(g){
     return Object.assign({},g,{
       name:g.id?(vrIdToName[g.id]||g.id.slice(0,8)+'\u2026'):'\u2014',
-      avgDef:mavg(g.defArr),avgBrix:mavg(g.brixArr)
+      avgDef:mavg(g.defArr),avgBrix:mavg(g.brixArr),sev:avgSev(g.inspIds)
     });
   }).sort(function(a,b){return b.pallets-a.pallets;});
 
@@ -5548,7 +5593,7 @@ function AnalyticsView(props){
           ce('span',{style:{fontWeight:500,whiteSpace:'nowrap'}},r.name)
         )),
         ce('td',{key:'c',style:{textAlign:'center',color:'var(--text3)',fontSize:11}},r.containerCount),
-        ce('td',{key:'a',style:{textAlign:'center',fontWeight:500,color:pctColor(r.avgDef)}},n(r.avgDef)+'%')
+        ce('td',{key:'a',style:{textAlign:'center',fontWeight:500,color:pctColor(r.avgDef)}},n(r.avgDef)+'%'),sevCell(r.sev,{key:'sev'})
       ];
       var defCells=topKeys.map(function(name,di){
         return defCell(clDefLookup[(r.id||'__none__')+'|'+name]||0,'d'+di);
@@ -5615,6 +5660,7 @@ function AnalyticsView(props){
           ce('td',{style:{textAlign:'center',padding:'7px 8px'}},myVr.reduce(function(s,r){return s+r.forms;},0)),
           ce('td',{style:{textAlign:'center',fontWeight:500,padding:'7px 8px'}},myVr.reduce(function(s,r){return s+r.pallets;},0).toLocaleString()),
           ce('td',{style:{textAlign:'center',fontWeight:500,color:pctColor(cl.avgDef),padding:'7px 8px'}},n(cl.avgDef)+'%'),
+          sevCell(cl.sev,{padding:'5px 6px'}),
           ce('td',{style:{textAlign:'center',padding:'7px 8px'}},cl.avgBrix>0?n(cl.avgBrix,1)+'\u00b0':'\u2014'),
           ce('td',{style:{textAlign:'center',padding:'7px 8px'}},cl.containerCount)
         ));
@@ -5638,6 +5684,7 @@ function AnalyticsView(props){
                 )
               ),
               ce('td',{style:{textAlign:'center',fontWeight:500,color:pctColor(vr.avgDef),fontSize:11}},n(vr.avgDef)+'%'),
+              sevCell(vr.sev,{fontSize:10}),
               ce('td',{style:{textAlign:'center',color:'var(--text3)',fontSize:11}},vr.avgBrix>0?n(vr.avgBrix,1)+'\u00b0':'\u2014'),
               ce('td',{style:{textAlign:'center',color:'var(--text3)',fontSize:11}},vr.containerCount)
             ));
@@ -5651,7 +5698,7 @@ function AnalyticsView(props){
               ce('thead',null,ce('tr',null,
                 ce('th',{style:{textAlign:'left'}},'Client / Variety'),
                 ce('th',null,'Forms'),ce('th',null,'Pallets'),
-                ce('th',null,'Avg defect'),ce('th',null,'Avg brix'),ce('th',null,'Containers')
+                ce('th',null,'Avg defect'),ce('th',{style:{textAlign:'center',fontSize:9,color:'var(--text3)'}},'Breakdown'),ce('th',null,'Avg brix'),ce('th',null,'Containers')
               )),
               ce('tbody',null,rows)
             )
@@ -5733,7 +5780,12 @@ function AnalyticsView(props){
               ce('div',{style:{width:barPct+'%',height:'100%',background:cl.color,opacity:.65}})
             ),
             ce('span',{style:{fontSize:11,color:'var(--text3)',minWidth:50,textAlign:'right',flexShrink:0}},vr.pallets.toLocaleString()+' pal'),
-            ce('div',{style:{background:defBg,color:pctColor(vr.avgDef),borderRadius:4,padding:'1px 6px',fontSize:11,fontWeight:500,minWidth:44,textAlign:'center',flexShrink:0}},n(vr.avgDef)+'%'),
+            ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2,flexShrink:0}},
+              ce('div',{style:{background:defBg,color:pctColor(vr.avgDef),borderRadius:4,padding:'1px 6px',fontSize:11,fontWeight:500,minWidth:44,textAlign:'center'}},n(vr.avgDef)+'%'),
+              vr.sev&&ce('div',{style:{display:'flex',gap:2,justifyContent:'flex-end',flexWrap:'wrap'}},
+                [{k:'c',label:'C',col:'#a32d2d',bg:'#fcebeb'},{k:'mj',label:'Mj',col:'#633806',bg:'#faeeda'},{k:'mn',label:'Mn',col:'#0f6e56',bg:'#e1f5ee'},{k:'us',label:'Us',col:'#185fa5',bg:'#e6f1fb'}].map(function(s){return vr.sev[s.k]>0?ce('span',{key:s.k,style:{fontSize:9,padding:'1px 4px',borderRadius:3,background:s.bg,color:s.col,fontWeight:500}},s.label+' '+n(vr.sev[s.k])+'%'):null;})
+              )
+            ),
             ce('span',{style:{fontSize:11,color:'var(--text3)',minWidth:36,textAlign:'right',flexShrink:0}},vr.avgBrix>0?n(vr.avgBrix,1)+'\u00b0':'\u2014')
           );
         });
@@ -5822,7 +5874,18 @@ function AnalyticsView(props){
       ce('div',{className:'kpi-grid'},
         ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Inspections'),ce('div',{className:'kpi-value'},totalInsp),ce('div',{className:'kpi-sub'},'Drafts excluded')),
         ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Total pallets'),ce('div',{className:'kpi-value'},totalPallets.toLocaleString()),ce('div',{className:'kpi-sub'},'From non-draft forms')),
-        ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Avg total defect'),ce('div',{className:'kpi-value',style:{color:pctColor(avgDefect)}},n(avgDefect)+'%'),ce('div',{className:'kpi-sub'},defPcts.length+' readings')),
+        ce('div',{className:'kpi'},
+        ce('div',{className:'kpi-label'},'Avg total defect'),
+        ce('div',{className:'kpi-value',style:{color:pctColor(avgDefect)}},n(avgDefect)+'%'),
+        ce('div',{className:'kpi-sub'},defPcts.length+' readings'),
+        defBySev&&ce('div',{style:{display:'flex',gap:3,marginTop:6,flexWrap:'wrap'}},
+          (function(){var s=avgSev(nonDraft.map(function(i){return i.id;}));if(!s) return null;
+            return [{k:'c',label:'Critical',col:'#a32d2d',bg:'#fcebeb'},{k:'mj',label:'Major',col:'#633806',bg:'#faeeda'},{k:'mn',label:'Minor',col:'#0f6e56',bg:'#e1f5ee'},{k:'us',label:'Undersize',col:'#185fa5',bg:'#e6f1fb'}].map(function(sv){
+              return s[sv.k]>0?ce('span',{key:sv.k,style:{fontSize:10,padding:'2px 6px',borderRadius:4,background:sv.bg,color:sv.col,fontWeight:500}},sv.label+' '+n(s[sv.k])+'%'):null;
+            });
+          })()
+        )
+      ),
         ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Acceptance rate'),ce('div',{className:'kpi-value',style:{color:'#0f6e56'}},acceptRate+'%'),ce('div',{className:'kpi-sub'},accepted+' / '+totalInsp+' forms')),
         avgBrix>0&&ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Avg brix'),ce('div',{className:'kpi-value'},n(avgBrix,1)+'\u00b0'),ce('div',{className:'kpi-sub'},'From '+brixVals.length+' readings')),
         ce('div',{className:'kpi'},ce('div',{className:'kpi-label'},'Critical flags'),ce('div',{className:'kpi-value',style:{color:critCount>0?'var(--red)':'#0f6e56'}},critCount),ce('div',{className:'kpi-sub'},critCount>0?critCount+' form(s)':'None')),
@@ -6029,11 +6092,12 @@ function AnalyticsView(props){
         ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#8a3a1a'}}),'Packhouse performance'),
         ce('div',{className:'scroll-card',style:{border:'none'}},
           ce('table',null,
-            ce('thead',null,ce('tr',null,ce('th',{style:{textAlign:'left'}},'Packhouse'),ce('th',null,'Forms'),ce('th',null,'Pallets'),ce('th',null,'Avg defect'),ce('th',null,'Avg brix'),ce('th',null,'Critical'))),
+            ce('thead',null,ce('tr',null,ce('th',{style:{textAlign:'left'}},'Packhouse'),ce('th',null,'Forms'),ce('th',null,'Pallets'),ce('th',null,'Avg defect'),ce('th',{style:{textAlign:'center',fontSize:9,color:'var(--text3)'}},'Breakdown'),ce('th',null,'Avg brix'),ce('th',null,'Critical'))),
             ce('tbody',null,phRows.map(function(p,i){
               return ce('tr',{key:i},
                 ce('td',null,phName(p.id)),ce('td',{style:{textAlign:'center'}},p.forms),ce('td',{style:{textAlign:'center'}},p.pallets.toLocaleString()),
                 ce('td',{style:{textAlign:'center',fontWeight:500,color:pctColor(p.avgDef)}},n(p.avgDef)+'%'),
+                sevCell(p.sev),
                 ce('td',{style:{textAlign:'center'}},p.avgBrix>0?n(p.avgBrix,1)+'\u00b0':'\u2014'),
                 ce('td',{style:{textAlign:'center',color:p.crit>0?'var(--red)':'#0f6e56',fontWeight:p.crit>0?600:400}},p.crit||'\u2014')
               );
