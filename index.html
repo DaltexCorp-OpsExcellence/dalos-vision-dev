@@ -5073,16 +5073,6 @@ function FGView(props){
 }
 
 /* ─── ANALYTICS ─── */
-var AnalyticsBoundary=function(props){
-  var sErr=React.useState(null);var boundErr=sErr[0];var setBoundErr=sErr[1];
-  React.useEffect(function(){setBoundErr(null);},[]);
-  if(boundErr) return ce('div',{style:{padding:24,color:'var(--red)',fontSize:13}},
-    ce('div',{style:{fontWeight:600,marginBottom:8}},'Analytics error (please report):'),
-    ce('pre',{style:{fontSize:11,background:'var(--bg2)',padding:12,borderRadius:6,overflowX:'auto',whiteSpace:'pre-wrap'}},boundErr)
-  );
-  try{ return ce(AnalyticsView,props); }
-  catch(e){ setBoundErr(e&&e.message?e.message:String(e)); return null; }
-};
 function AnalyticsView(props){
   var config=props.config||{};
 
@@ -5238,7 +5228,7 @@ function AnalyticsView(props){
         setDefectData({overall:[],byClient:[]});
         setDefLoading(false);
       });
-  },[activeTab,clSubTab,defectData,inspections,loading]);
+  },[activeTab,clSubTab,defectData,inspections]);
 
   /* ── Computed: non-draft base ── */
   var nonDraft=inspections.filter(function(i){return i.status!=='Draft';});
@@ -13239,7 +13229,7 @@ function App(){
           initialSel:navTarget,
           navBack:navHistory?function(){var h=navHistory;setNavHistory(null);setNavTarget(null);setView(h.view);}:null,
           navBackLabel:navHistory?'Back to CQC report':null}),
-        view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsBoundary,{config:config}),
+        view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
