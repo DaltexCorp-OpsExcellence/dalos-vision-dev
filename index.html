@@ -742,7 +742,7 @@ function InspectionForm(props){
     if(!isDirty) return;
     var timer=setInterval(function(){
       try{
-        var snap={lot:lot,date:date,variety:variety,category:category,varietyType:varietyType,variety2:variety2,category2:category2,client:client,country:country,farm:farm,farm2:farm2,farm3:farm3,farm4:farm4,plot:plot,plot2:plot2,plot3:plot3,plot4:plot4,container:container,cls:cls,wax:wax,packing:packing,labelling:labelling,cartonCompany:cartonCompany,cartonCompany2:cartonCompany2,cartonColor:cartonColor,pallets:pallets,decision:decision,ts:Date.now()};
+        var snap={lot:lot,date:date,variety:variety,category:category,varietyType:varietyType,variety2:variety2,category2:category2,client:client,country:country,farm:farm,farm2:farm2,farm3:farm3,farm4:farm4,additionalFarms:additionalFarms,plot:plot,plot2:plot2,plot3:plot3,plot4:plot4,container:container,cls:cls,wax:wax,packing:packing,labelling:labelling,cartonCompany:cartonCompany,cartonCompany2:cartonCompany2,cartonColor:cartonColor,pallets:pallets,decision:decision,ts:Date.now()};
         localStorage.setItem(draftKey,JSON.stringify(snap));
       }catch(e){}
     },30000);
@@ -769,6 +769,8 @@ function InspectionForm(props){
   var sPlot3=useState(batch?batch.plot3||'':(_d.plot3||'')); var plot3=sPlot3[0]; var setPlot3=sPlot3[1];
   var sFarm4=useState(batch?batch.farm4||'':(_d.farm4||'')); var farm4=sFarm4[0]; var setFarm4=sFarm4[1];
   var sPlot4=useState(batch?batch.plot4||'':(_d.plot4||'')); var plot4=sPlot4[0]; var setPlot4=sPlot4[1];
+  /* additional_farms: [{farmId:'uuid', farmName:'...', plot:'...'}, ...] */
+  var sAddFarms=useState(batch?batch.additionalFarms||[]:(_d.additionalFarms||[])); var additionalFarms=sAddFarms[0]; var setAdditionalFarms=sAddFarms[1];
   var spk=useState(batch?batch.packing:(_d.packing||'')); var packing=spk[0]; var setPacking=spk[1];
   var slb=useState(batch?batch.labelling:(_d.labelling||'')); var labelling=slb[0]; var setLabelling=slb[1];
   var swx=useState(batch?batch.wax:(_d.wax||'')); var wax=swx[0]; var setWax=swx[1];
@@ -843,6 +845,7 @@ function InspectionForm(props){
     setPlot3(src.plot3||'');
     setFarm4(src.farm4||'');
     setPlot4(src.plot4||'');
+    setAdditionalFarms(src.additionalFarms||[]);
     setClient(src.client||'');
     setCountry(src.country||'');
     setWax(src.wax||'CR');
@@ -1111,6 +1114,7 @@ function InspectionForm(props){
       plot3:plot3,
       farm4:farm4,
       plot4:plot4,
+      additionalFarms:additionalFarms,
       packhouse:packhouse.id,crop:cropId,palletPrefix:packhouse.palletPrefix||'',
       brix:avgField('brix')||0,cartonWt:avgField('cartonWt')||0,wax:wax,
       packing:packing,labelling:labelling,traceCodes:traceCodes,traceCode:traceCodes.map(function(tc){return typeof tc==='string'?tc:(tc&&tc.code)||'';}).filter(Boolean).join(','),ggn:ggn,phCode:phCode,
@@ -1723,7 +1727,7 @@ function InspectionForm(props){
     setVariety((config.varieties[cropId]||[''])[0]||'');setVarietyType('single');setVariety2('');
     setCls((config.classes||['Class 1'])[0]||'');
     /* Client / origin / farms */
-    setClient('');setCountry('');setFarm('');setFarm2('');setFarm3('');setFarm4('');
+    setClient('');setCountry('');setFarm('');setFarm2('');setFarm3('');setFarm4('');setAdditionalFarms([]);
     setPlot('');setPlot2('');setPlot3('');setPlot4('');
     /* Packing & labelling — wax only applies to citrus */
     setWax(cropId==='grapes'?'':'CR');
@@ -2248,6 +2252,46 @@ function InspectionForm(props){
                   ce('input',{className:'form-input',value:plot4,placeholder:'Plot no.',onChange:function(e){setPlot4(e.target.value);}})
                 )
               )
+          ),
+          /* Additional farms 5+ — unlimited, only when farm4 is filled */
+          cropId==='grapes'&&farm4&&farm4!=='__selecting__'&&ce('div',null,
+            additionalFarms.map(function(af,aidx){
+              return ce('div',{key:aidx,className:'grid4',style:{marginBottom:10}},
+                ce('div',{className:'form-field'},
+                  ce('label',{className:'form-label',style:{display:'flex',alignItems:'center',justifyContent:'space-between'}},
+                    ce('span',null,'Farm '+(5+aidx)),
+                    ce('button',{type:'button',style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:11,padding:0},
+                      onClick:function(i){return function(){
+                        setAdditionalFarms(function(prev){return prev.filter(function(_,idx){return idx!==i;});});
+                      };}(aidx)
+                    },'× Remove')
+                  ),
+                  ce('select',{className:'form-select',value:af.farmId||'',
+                    onChange:function(i){return function(e){
+                      var fid=e.target.value;
+                      var fname=(config.farmsIdToName&&config.farmsIdToName[fid])||'';
+                      setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{farmId:fid,farmName:fname}):x;});});
+                    };}(aidx)
+                  },
+                    ce('option',{value:''},'— Select farm —'),
+                    (config.farmsFull||[]).map(function(f){return ce('option',{key:f.id,value:f.id},f.name);})
+                  )
+                ),
+                ce('div',{className:'form-field'},
+                  ce('label',{className:'form-label'},'Plot '+(5+aidx)),
+                  ce('input',{className:'form-input',value:af.plot||'',placeholder:'Plot no.',
+                    onChange:function(i){return function(e){
+                      setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{plot:e.target.value}):x;});});
+                    };}(aidx)
+                  })
+                )
+              );
+            }),
+            ce('div',{style:{marginBottom:10}},
+              ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
+                onClick:function(){setAdditionalFarms(function(prev){return prev.concat([{farmId:'',farmName:'',plot:''}]);});}
+              },'+ Add Farm '+(5+additionalFarms.length))
+            )
           ),
           /* Spacer div to close the previous grid */
           !true&&ce('div',null),
@@ -2803,7 +2847,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                               farm&&ce('option',{value:farm},farm),
                               farm2&&farm2!=='__selecting__'&&farm2!=='__other__'&&ce('option',{value:farm2},farm2),
                               farm3&&farm3!=='__selecting__'&&farm3!=='__other__'&&ce('option',{value:farm3},farm3),
-                              farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4)
+                              farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4),
+                              additionalFarms.filter(function(af){return af.farmName;}).map(function(af,ai){return ce('option',{key:'af'+ai,value:af.farmName},af.farmName);})
                             )
                           ),
                           ce('span',{style:{fontSize:9,color:'var(--text3)',paddingBottom:4,flexShrink:0}},' /'),
@@ -2822,7 +2867,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                               farm&&ce('option',{value:farm},farm),
                               farm2&&farm2!=='__selecting__'&&farm2!=='__other__'&&ce('option',{value:farm2},farm2),
                               farm3&&farm3!=='__selecting__'&&farm3!=='__other__'&&ce('option',{value:farm3},farm3),
-                              farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4)
+                              farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4),
+                              additionalFarms.filter(function(af){return af.farmName;}).map(function(af,ai){return ce('option',{key:'af'+ai,value:af.farmName},af.farmName);})
                             )
                           )
                         )
@@ -2838,7 +2884,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           farm&&ce('option',{value:farm},farm),
                           farm2&&farm2!=='__selecting__'&&farm2!=='__other__'&&ce('option',{value:farm2},farm2),
                           farm3&&farm3!=='__selecting__'&&farm3!=='__other__'&&ce('option',{value:farm3},farm3),
-                          farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4)
+                          farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4),
+                          additionalFarms.filter(function(af){return af.farmName;}).map(function(af,ai){return ce('option',{key:'af'+ai,value:af.farmName},af.farmName);})
                         ),
                       /* Plot — single dropdown for single variety, split V1/V2 for mixed */
                       (function(){
@@ -2850,7 +2897,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           if(selFarm1===farm2&&plot2) plotOpts1.push(plot2);
                           if(selFarm1===farm3&&plot3) plotOpts1.push(plot3);
                           if(selFarm1===farm4&&plot4) plotOpts1.push(plot4);
-                          if(!selFarm1){if(plot)plotOpts1.push(plot);if(plot2)plotOpts1.push(plot2);if(plot3)plotOpts1.push(plot3);if(plot4)plotOpts1.push(plot4);}
+                          additionalFarms.forEach(function(af){if(selFarm1===af.farmName&&af.plot)plotOpts1.push(af.plot);});
+                          if(!selFarm1){if(plot)plotOpts1.push(plot);if(plot2)plotOpts1.push(plot2);if(plot3)plotOpts1.push(plot3);if(plot4)plotOpts1.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts1.push(af.plot);});}
                           /* V2 plot */
                           var selFarm2=ef.sampleFarm2||'';
                           var plotOpts2=[];
@@ -2858,7 +2906,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           if(selFarm2===farm2&&plot2) plotOpts2.push(plot2);
                           if(selFarm2===farm3&&plot3) plotOpts2.push(plot3);
                           if(selFarm2===farm4&&plot4) plotOpts2.push(plot4);
-                          if(!selFarm2){if(plot)plotOpts2.push(plot);if(plot2)plotOpts2.push(plot2);if(plot3)plotOpts2.push(plot3);if(plot4)plotOpts2.push(plot4);}
+                          additionalFarms.forEach(function(af){if(selFarm2===af.farmName&&af.plot)plotOpts2.push(af.plot);});
+                          if(!selFarm2){if(plot)plotOpts2.push(plot);if(plot2)plotOpts2.push(plot2);if(plot3)plotOpts2.push(plot3);if(plot4)plotOpts2.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts2.push(af.plot);});}
                           return ce('div',{style:{display:'flex',gap:2,alignItems:'flex-end',width:'100%'}},
                             ce('div',{style:{display:'flex',flexDirection:'column',gap:1,flex:1}},
                               ce('span',{style:{fontSize:7.5,fontWeight:600,color:'#3b6d11',textAlign:'center',lineHeight:1}},(variety||'V1').slice(0,6)),
@@ -2894,7 +2943,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         if(selFarm===farm2&&plot2) plotOpts.push(plot2);
                         if(selFarm===farm3&&plot3) plotOpts.push(plot3);
                         if(selFarm===farm4&&plot4) plotOpts.push(plot4);
-                        if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);}
+                        additionalFarms.forEach(function(af){if(selFarm===af.farmName&&af.plot)plotOpts.push(af.plot);});
+                        if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts.push(af.plot);});}
                         var curPlot=ef.samplePlot||'';
                         return ce('select',{style:{padding:'3px 4px',border:(pfTried[row.id]&&!curPlot)?'1.5px solid var(--red)':'1px solid var(--border2)',borderRadius:4,fontSize:11,background:(pfTried[row.id]&&!curPlot)?'var(--red-bg)':'var(--card)',width:'100%'},
                           value:curPlot,
@@ -3383,7 +3433,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           farm&&ce('option',{value:farm},farm),
                           farm2&&farm2!=='__selecting__'&&farm2!=='__other__'&&ce('option',{value:farm2},farm2),
                           farm3&&farm3!=='__selecting__'&&farm3!=='__other__'&&ce('option',{value:farm3},farm3),
-                          farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4)
+                          farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4),
+                          additionalFarms.filter(function(af){return af.farmName;}).map(function(af,ai){return ce('option',{key:'af'+ai,value:af.farmName},af.farmName);})
                         )
                       ),
                       ce('div',null,
@@ -3396,7 +3447,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           if(selFarm===farm2&&plot2)plotOpts.push(plot2);
                           if(selFarm===farm3&&plot3)plotOpts.push(plot3);
                           if(selFarm===farm4&&plot4)plotOpts.push(plot4);
-                          if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);}
+                          additionalFarms.forEach(function(af){if(selFarm===af.farmName&&af.plot)plotOpts.push(af.plot);});
+                          if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts.push(af.plot);});}
                           return ce('select',{style:{width:'100%',padding:'8px 10px',border:(pfTried[row.id]&&!ef.samplePlot)?'1.5px solid var(--red)':'1px solid '+(isMixed?'#97c459':'var(--border2)'),borderRadius:6,fontSize:15,background:(pfTried[row.id]&&!ef.samplePlot)?'var(--red-bg)':(isMixed?'#f5fbf0':'var(--card)'),minHeight:44},
                             value:ef.samplePlot||'',
                             onChange:function(i,id){return function(e){
@@ -3423,7 +3475,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           farm&&ce('option',{value:farm},farm),
                           farm2&&farm2!=='__selecting__'&&farm2!=='__other__'&&ce('option',{value:farm2},farm2),
                           farm3&&farm3!=='__selecting__'&&farm3!=='__other__'&&ce('option',{value:farm3},farm3),
-                          farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4)
+                          farm4&&farm4!=='__selecting__'&&farm4!=='__other__'&&ce('option',{value:farm4},farm4),
+                          additionalFarms.filter(function(af){return af.farmName;}).map(function(af,ai){return ce('option',{key:'af'+ai,value:af.farmName},af.farmName);})
                         )
                       ),
                       ce('div',null,
@@ -12302,7 +12355,7 @@ function App(){
       }catch(e){}
     }
     supabase.from('inspections_with_aggregates')
-      .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,variety2_id,variety_type,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count, seasons(name), inspection_clearance(item_index,item_label,status), inspection_escalations(escalation_note,escalated_at,resolution,resolution_comment,escalated_by,users!escalated_by(full_name)), inspection_sticker_checks(field_key,confirmed)')
+      .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count, seasons(name), inspection_clearance(item_index,item_label,status), inspection_escalations(escalation_note,escalated_at,resolution,resolution_comment,escalated_by,users!escalated_by(full_name)), inspection_sticker_checks(field_key,confirmed)')
       .in('id',ids)
       .then(function(r){
         if(r.error){console.error('[DalOS] refreshBatchesById error:',r.error.message);return;}
@@ -12331,6 +12384,7 @@ function App(){
                 cls:kn[row.class_id]||'', client:cn[row.client_id]||'', country:con[row.country_id]||'',
                 farm:fn[row.farm_id]||'', plot:row.plot||'', farm2:fn[row.farm2_id]||'', plot2:row.plot2||'',
                 farm3:fn[row.farm3_id]||'', plot3:row.plot3||'', farm4:fn[row.farm4_id]||'', plot4:row.plot4||'',
+                additionalFarms:(row.additional_farms||[]).map(function(af){return {farmId:af.farm_id||'',farmName:fn[af.farm_id]||'',plot:af.plot||''};}),
                 packhouse:row.packhouse_id||'', crop:row.product_id||'citrus',
                 brix:row.live_avg_brix||row.avg_brix||0, cartonWt:row.live_avg_carton_weight||row.avg_carton_weight||0,
                 cartonType:ctn[row.carton_type_id]||'', wax:row.wax||'', packing:row.packing||'', labelling:row.labelling||'',
@@ -12569,7 +12623,7 @@ function App(){
 
         /* ── Load inspections from Supabase + pallet index for grapes pallet search ── */
         var inspQ=supabase.from('inspections_with_aggregates')
-          .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,variety2_id,variety_type,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count,seasons(name)')
+          .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count,seasons(name)')
           .order('date', {ascending:false})
           .limit(500);
         /* No season filter — all seasons load, sidebar switcher filters client-side */
@@ -12650,6 +12704,7 @@ function App(){
                 plot3:r.plot3||'',
                 farm4:farmsIdToName[r.farm4_id]||r.farm4_id||'',
                 plot4:r.plot4||'',
+                additionalFarms:(r.additional_farms||[]).map(function(af){return {farmId:af.farm_id||'',farmName:farmsIdToName[af.farm_id]||'',plot:af.plot||''};}),
                 packhouse:r.packhouse_id||'',
                 crop:r.product_id||'citrus',
                 brix:r.live_avg_brix||r.avg_brix||0,
@@ -12897,6 +12952,7 @@ function App(){
     if(newBatch.plot3!==undefined) inspectionRow.plot3=newBatch.plot3||null;
     if(newBatch.farm4) inspectionRow.farm4_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm4])||null;
     if(newBatch.plot4!==undefined) inspectionRow.plot4=newBatch.plot4||null;
+    inspectionRow.additional_farms=(newBatch.additionalFarms||[]).map(function(af){return {farm_id:af.farmId||null,plot:af.plot||null};});
     if(newBatch.cartonCompany2!==undefined) inspectionRow.carton_company2=newBatch.cartonCompany2||null;
     /* ── Audit timestamps ── */
     if(!isEditMode){
