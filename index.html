@@ -2274,7 +2274,7 @@ function InspectionForm(props){
                     };}(aidx)
                   },
                     ce('option',{value:''},'— Select farm —'),
-                    (config.farmsFull||[]).map(function(f){return ce('option',{key:f.id,value:f.id},f.name);})
+                    Object.keys(config.farmsIdToName||{}).map(function(fid){return ce('option',{key:fid,value:fid},(config.farmsIdToName||{})[fid]);})
                   )
                 ),
                 ce('div',{className:'form-field'},
