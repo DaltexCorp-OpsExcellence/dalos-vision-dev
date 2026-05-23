@@ -736,9 +736,13 @@ function InspectionForm(props){
   /* Stable UUID for this form instance — used to upsert a single Supabase draft row.
      Stored in sessionStorage so "Add more pallets" continuation reuses the same row. */
   var sDraftSavedAt=useState(null); var draftSavedAt=sDraftSavedAt[0]; var setDraftSavedAt=sDraftSavedAt[1];
+  /* draftId is unique per form instance:
+     - Edit mode: keyed by batch.id → each inspection gets its own draft row, even across tabs
+     - New inspection: keyed by tabId → each tab gets its own draft row, never overwrites another tab */
   var draftIdRef=React.useRef((function(){
     try{
-      var k='dalos_draftid_'+(packhouse.id||'')+'_'+(cropId||'grapes');
+      var suffix=isEdit&&batch?('_edit_'+batch.id):('_new_'+tabId);
+      var k='dalos_draftid_'+(packhouse.id||'')+'_'+(cropId||'grapes')+suffix;
       var t=sessionStorage.getItem(k);
       if(!t){
         t=typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2));
@@ -747,6 +751,40 @@ function InspectionForm(props){
       return t;
     }catch(e){return Math.random().toString(36).slice(2);}
   })());
+  /* FIX 1+2: When restoring a draft in edit mode, apply header fields from the snapshot.
+     Pallets are handled by initPallets above. Header fields need a useEffect since
+     they're initialized from batch (DB state) which takes priority in useState. */
+  React.useEffect(function(){
+    var rd=props.recoveryDraft;
+    if(!rd||!isEdit) return; /* only needed for edit-mode recovery */
+    /* Apply draft header overrides — snapshot values replace DB-loaded batch values */
+    if(rd.variety!==undefined) setVariety(rd.variety);
+    if(rd.variety2!==undefined) setVariety2(rd.variety2);
+    if(rd.varietyType) setVarietyType(rd.varietyType);
+    if(rd.category!==undefined) setCategory(rd.category);
+    if(rd.category2!==undefined) setCategory2(rd.category2);
+    if(rd.client!==undefined) setClient(rd.client);
+    if(rd.country!==undefined) setCountry(rd.country);
+    if(rd.farm!==undefined) setFarm(rd.farm);
+    if(rd.farm2!==undefined) setFarm2(rd.farm2);
+    if(rd.plot!==undefined) setPlot(rd.plot);
+    if(rd.plot2!==undefined) setPlot2(rd.plot2);
+    if(rd.container!==undefined) setContainer(rd.container);
+    if(rd.cls!==undefined) setCls(rd.cls);
+    if(rd.wax!==undefined) setWax(rd.wax);
+    if(rd.packing!==undefined) setPacking(rd.packing);
+    if(rd.labelling!==undefined) setLabelling(rd.labelling);
+    if(rd.cartonType!==undefined) setCartonType(rd.cartonType);
+    if(rd.cartonColor!==undefined) setCartonColor(rd.cartonColor);
+    if(rd.cartonCompany!==undefined) setCartonCompany(rd.cartonCompany);
+    if(rd.traceCodes&&rd.traceCodes.length) setTraceCodes(rd.traceCodes);
+    if(rd.ggn!==undefined) setGGN(rd.ggn);
+    if(rd.phCode!==undefined) setPHCode(rd.phCode);
+    if(rd.farmCode!==undefined) setFarmCode(rd.farmCode);
+    if(rd.netWt!==undefined) setNetWt(rd.netWt);
+    if(rd.decision) setDecision(rd.decision);
+    console.log('[DalOS] Draft applied to edit-mode form —',Object.keys(rd).length,'fields restored');
+  },[]); /* empty deps: run once on mount */
   function safeClose(){
     if(isDirty&&!window.confirm('You have unsaved changes. Leave without saving?')) return;
     try{localStorage.removeItem(draftKey);}catch(e){}
@@ -929,9 +967,10 @@ function InspectionForm(props){
   /* pallets: [{palletId, palletNo, rows:[{id,palletNo,time,size,cartonWt,brix,defects,notes}]}] */
   /* ── Draft restore — recover unsaved data after crash or failed save ── */
   var restoredDraft=(function(){
-    /* Priority 1: Supabase draft passed from FGView recovery banner */
-    if(props.recoveryDraft&&!isEdit) return props.recoveryDraft;
-    if(isEdit) return null; /* edit mode: DB is source of truth, never restore drafts */
+    /* Priority 1: Explicit recovery via banner — works for BOTH new and edit mode.
+       For edit mode, additional fields are applied via a mount useEffect below. */
+    if(props.recoveryDraft) return props.recoveryDraft;
+    if(isEdit) return null; /* edit mode without explicit recovery: DB is source of truth */
     try{
       var raw=localStorage.getItem(draftKey);
       if(!raw) return null;
@@ -940,7 +979,10 @@ function InspectionForm(props){
       return d;
     }catch(e){return null;}
   })();
-  var initPallets=batch
+  /* initPallets: recoveryDraft takes priority over batch in edit mode when explicitly restoring */
+  var initPallets=(props.recoveryDraft&&restoredDraft&&restoredDraft.pallets&&restoredDraft.pallets.length>0)
+    ?restoredDraft.pallets
+    :batch
     ?[{palletId:1,palletNo:1,rows:batch.samples&&batch.samples.length
         ?batch.samples.map(function(s,i){return Object.assign({},s,{id:s.id||i+1,palletNo:s.palletNo||1});})
         :[{id:1,palletNo:1,time:batch.time||nowTime(),size:batch.size||'48',cartonWt:String(batch.cartonWt||''),brix:String(batch.brix||''),defects:batch.defects||emptyDefects(),notes:batch.notes||''}]
@@ -1261,17 +1303,32 @@ function InspectionForm(props){
         bc.postMessage({type:'session_saved',id:realId,packhouse:packhouse.id,crop:cropId});
         bc.close();
       }catch(e){}
-      /* Delete the Supabase draft — real save succeeded, no recovery needed */
+      /* Delete the Supabase draft — real save succeeded, no recovery needed.
+         Strategy: stamp save_confirmed_at FIRST (immediate, prevents banner re-appearing
+         even if delete fails), then delete. If delete fails, retry once after 3s. */
       try{
         if(draftIdRef.current){
-          supabase.from('save_drafts').delete().eq('id',draftIdRef.current).then(function(r){
-            if(r.error) console.warn('[DalOS] Draft deletion failed:',r.error.message);
-            else{
-              console.log('[DalOS] Supabase draft cleaned up after save');
-              /* Also clear sessionStorage draftId so next form instance gets a fresh one */
-              try{sessionStorage.removeItem('dalos_draftid_'+(packhouse.id||'')+'_'+(cropId||'grapes'));}catch(e){}
-            }
+          var _did=draftIdRef.current;
+          var _now=new Date().toISOString();
+          /* Step 1: stamp confirmed — query excludes confirmed rows so banner won't reappear */
+          supabase.from('save_drafts').update({save_confirmed_at:_now}).eq('id',_did).then(function(){
+            /* Step 2: delete — retry once on failure */
+            supabase.from('save_drafts').delete().eq('id',_did).then(function(r){
+              if(r.error){
+                console.warn('[DalOS] Draft delete failed, retrying in 3s:',r.error.message);
+                setTimeout(function(){
+                  supabase.from('save_drafts').delete().eq('id',_did).then(function(){});
+                },3000);
+              } else {
+                console.log('[DalOS] Draft cleaned up after save');
+              }
+            });
           });
+          /* Clear sessionStorage key so next form gets a fresh draftId */
+          try{
+            var suffix=isEdit&&batch?('_edit_'+batch.id):('_new_'+tabId);
+            sessionStorage.removeItem('dalos_draftid_'+(packhouse.id||'')+'_'+(cropId||'grapes')+suffix);
+          }catch(e){}
         }
         localStorage.removeItem(draftKey);
       }catch(e){}
@@ -1558,14 +1615,14 @@ function InspectionForm(props){
   /* pallet + row helpers */
   function addRowToPallet(pIdx){setPallets(function(prev){return prev.map(function(p,i){return i!==pIdx?p:Object.assign({},p,{rows:p.rows.concat([newRow(p.palletNo)])});});});}
   function updateRowField(pIdx,rId,field,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;var o=Object.assign({},r);o[field]=val;return o;})});});});}
-  function updateRowDefect(pIdx,rId,key,val){setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;return Object.assign({},r,{defects:Object.assign({},r.defects,function(){var o={};o[key]=val;return o;}())});})});});});}
-  function updateRowExtra(pIdx,rId,key,val){setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;return Object.assign({},r,{extraFields:Object.assign({},r.extraFields||{},function(){var o={};o[key]=val;return o;}())});})});});});}
+  function updateRowDefect(pIdx,rId,key,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;return Object.assign({},r,{defects:Object.assign({},r.defects,function(){var o={};o[key]=val;return o;}())});})});});});}
+  function updateRowExtra(pIdx,rId,key,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;return Object.assign({},r,{extraFields:Object.assign({},r.extraFields||{},function(){var o={};o[key]=val;return o;}())});})});});});}
   function removeRow(pIdx,rId){setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;var nr=p.rows.filter(function(r){return r.id!==rId;});return Object.assign({},p,{rows:nr.length?nr:[newRow(p.palletNo)]});});});}
   /* ── Grapes pallet helpers ── */
-  function updatePalletLabel(pIdx,val){setPallets(function(prev){return prev.map(function(p,i){return i!==pIdx?p:Object.assign({},p,{palletLabel:val});});});}
-  function updatePalletTraceCodes(pIdx,val){setPallets(function(prev){return prev.map(function(p,i){return i!==pIdx?p:Object.assign({},p,{palletTraceCodes:val});});});}
-  function updatePalletContainer(pIdx,val){setPallets(function(prev){return prev.map(function(p,i){return i!==pIdx?p:Object.assign({},p,{palletContainer:val});});});}
-  function updatePalletField(pIdx,field,val){setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;var u={};u[field]=val;return Object.assign({},p,u);});});}
+  function updatePalletLabel(pIdx,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){return i!==pIdx?p:Object.assign({},p,{palletLabel:val});});});}
+  function updatePalletTraceCodes(pIdx,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){return i!==pIdx?p:Object.assign({},p,{palletTraceCodes:val});});});}
+  function updatePalletContainer(pIdx,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){return i!==pIdx?p:Object.assign({},p,{palletContainer:val});});});}
+  function updatePalletField(pIdx,field,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;var u={};u[field]=val;return Object.assign({},p,u);});});}
   function handleGrapesPalletSet(pIdx,pallet){
     var val=(pallet.palletContainer||'').trim().toUpperCase();
     if(!val) return;
@@ -1774,7 +1831,7 @@ function InspectionForm(props){
   var avgTotal=0;defSections.forEach(function(sec){sec.items.forEach(function(d){avgTotal+=avgDefect(d.key);});});avgTotal=Math.round(avgTotal*100)/100;
   var hasCrit=defSections.some(function(sec){return sec.items.some(function(d){return d.sev==='Critical'&&avgDefect(d.key)>0;});});
   var autoDec=hasCrit||avgTotal>10?'R':'A';
-  function addPalletSameLOT(){var nextNo=pallets.length+1;setPallets(function(prev){return prev.concat([newPallet(nextNo,'',container)]);});setActivePalletIdx(pallets.length);setDecision('');setShowNP(false);}
+  function addPalletSameLOT(){setIsDirty(true);var nextNo=pallets.length+1;setPallets(function(prev){return prev.concat([newPallet(nextNo,'',container)]);});setActivePalletIdx(pallets.length);setDecision('');setShowNP(false);}
   function startNewLOT(){
     /* Comprehensive reset — clears ALL form state when inspector chooses "New session/LOT".
        Previously called setTraceCode() (singular, undefined) which threw and aborted the rest of
@@ -2364,7 +2421,7 @@ function InspectionForm(props){
           /* Spacer div to close the previous grid */
           !true&&ce('div',null),
           ce('div',{className:'grid4',style:{marginBottom:10}},
-            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Category'),ce('select',{className:'form-select',value:category,onChange:function(e){setCategory(e.target.value);setVariety('');}},
+            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Category'),ce('select',{className:'form-select',value:category,onChange:function(e){setCategory(e.target.value);setVariety('');setIsDirty(true);}},
               ce('option',{value:''},'— All —'),
               ((config.categories||{})[cropId]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);}))),
             ce('div',{className:'form-field','data-field':'variety'},
@@ -3929,9 +3986,9 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
         ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#1e2d22'}}),'Decision — القرار'),
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:10}},'Auto-suggested: ',ce('strong',{style:{color:autoDec==='A'?'var(--green)':'var(--red)'}},autoDec==='A'?'Accept (A)':'Reject (R)')),
         ce('div',{className:'decision-bar'},
-          ce('button',{className:'decision-btn decision-a'+(decision==='A'?' sel':''),onClick:function(){setDecision('A');}},
+          ce('button',{className:'decision-btn decision-a'+(decision==='A'?' sel':''),onClick:function(){setDecision('A');setIsDirty(true);}},
             'A — Accept',ce('div',{style:{fontSize:11,fontWeight:400,marginTop:2,opacity:.8}},'Average totals within limits')),
-          ce('button',{className:'decision-btn decision-r'+(decision==='R'?' sel':''),onClick:function(){setDecision('R');}},
+          ce('button',{className:'decision-btn decision-r'+(decision==='R'?' sel':''),onClick:function(){setDecision('R');setIsDirty(true);}},
             'R — Reject',ce('div',{style:{fontSize:11,fontWeight:400,marginTop:2,opacity:.8}},'Threshold exceeded or critical found'))
         )
       ),
@@ -4773,7 +4830,26 @@ function FGView(props){
             )
           ),
           ce('button',{
-            onClick:function(){setRecoveryDraft(dr);setShowNew(true);setDraftRecoveries(function(prev){return prev.filter(function(d){return d.id!==dr.id;});});},
+            onClick:function(){
+              /* If draft has an inspection_id, restore into that edit session.
+                 Otherwise open as a new inspection. */
+              if(dr.inspection_id){
+                var existingBatch=batches.find(function(b){return b.id===dr.inspection_id;});
+                if(existingBatch){
+                  setRecoveryDraft(dr);
+                  setEditBatch(existingBatch);
+                  setSel(null);
+                } else {
+                  /* Batch not in local state (may not be in this season view) — open as new */
+                  setRecoveryDraft(dr);
+                  setShowNew(true);
+                }
+              } else {
+                setRecoveryDraft(dr);
+                setShowNew(true);
+              }
+              setDraftRecoveries(function(prev){return prev.filter(function(d){return d.id!==dr.id;});});
+            },
             style:{background:'#F9A825',color:'#fff',border:'none',borderRadius:6,padding:'6px 14px',cursor:'pointer',fontWeight:600,fontSize:12,flexShrink:0}
           },'Restore'),
           ce('button',{
