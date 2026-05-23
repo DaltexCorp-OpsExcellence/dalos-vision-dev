@@ -4746,8 +4746,18 @@ function FGView(props){
       draftRecoveries.map(function(dr){
         var snap=dr.snapshot||{};
         var savedTime=new Date(dr.last_autosaved_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-        var palletCount=(snap.pallets&&snap.pallets.length)||0;
-        var inspLabel=dr.inspection_id||'New session';
+        var snapPallets=snap.pallets||[];
+        var palletCount=snapPallets.length;
+        /* Build pallet label list — show up to 3, then "+N more" */
+        var prefix=packhouse&&packhouse.initials?packhouse.initials+'-':'';
+        var labelledPallets=snapPallets.filter(function(p){return (p.palletLabel||'').toString().trim();});
+        var palletTagStr=(function(){
+          if(!labelledPallets.length) return palletCount?palletCount+' pallet'+(palletCount!==1?'s':''):'—';
+          var show=labelledPallets.slice(0,3).map(function(p){return prefix+(p.palletLabel||'').toString().trim();});
+          var rest=labelledPallets.length-show.length;
+          return show.join(', ')+(rest>0?' +'+rest+' more':'');
+        })();
+        var variety=snap.variety||snap.variety2||'';
         return ce('div',{key:dr.id,style:{
           display:'flex',alignItems:'center',gap:10,padding:'10px 14px',
           background:'#FFF8E1',border:'1px solid #F9A825',borderRadius:8,
@@ -4757,7 +4767,9 @@ function FGView(props){
           ce('div',{style:{flex:1,lineHeight:1.5}},
             ce('strong',null,'Unsaved draft found'),
             ce('span',{style:{color:'#8D6E00'}},
-              ' — '+inspLabel+(palletCount?' · '+palletCount+' pallet'+(palletCount!==1?'s':'')+' · ':' · ')+'last saved '+savedTime
+              (variety?' — '+variety:''),
+              ' · ',palletTagStr,
+              ' · last saved ',savedTime
             )
           ),
           ce('button',{
