@@ -4794,7 +4794,7 @@ function FGView(props){
     /* Refresh row — sits above the sticky filter bar, clearly separate */
     ce('div',{style:{display:'flex',justifyContent:'flex-end',alignItems:'center',marginBottom:4}},
       ce('button',{
-        onClick:function(){if(props.onReloadAll) props.onReloadAll();},
+        onClick:function(){setLastRefreshedAt(new Date());if(props.onReloadAll) props.onReloadAll();},
         disabled:!!props.inspLoading,
         title:'Refresh listing from server',
         style:{background:'none',border:'none',cursor:props.inspLoading?'default':'pointer',
@@ -12699,6 +12699,7 @@ function App(){
   /* ── Load config from Supabase (called after auth confirmed) ── */
   function loadConfigFromDB(){
     console.log('[DalOS] loadConfigFromDB starting...');
+    setInspLoading(true);
     Promise.all([
       supabase.from('packhouses').select('*').eq('active',true).order('name'),
       supabase.from('products').select('*').eq('active',true).order('name'),
