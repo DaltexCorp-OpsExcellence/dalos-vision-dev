@@ -1871,7 +1871,7 @@ function InspectionForm(props){
         :(!isEdit&&ce('button',{className:'btn btn-sm form-topbar-newpallet',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap'},onClick:function(){setShowNP(true);}}, 'New pallet')),
         ce('button',{className:'btn btn-primary btn-sm',style:{flexShrink:0,opacity:(isSaving||!isOnline&&!isReconnecting)?.7:1,display:'inline-flex',alignItems:'center',gap:6},
           onClick:function(){
-            if(!isOnline||isReconnecting){setSaveStatus('error');setSaveErrMsg('You\u2019re offline \u2014 your data is safe in this form. Do not close this tab. Save will unlock once you\u2019re reconnected.');return;}
+            if(!isOnline||isReconnecting) return; /* offline banner already communicates this — no need for a second amber banner */
             handleSave();
           },
           disabled:isSaving},
