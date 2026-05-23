@@ -4791,6 +4791,21 @@ function FGView(props){
         })
       )
     ),
+    /* Refresh row — sits above the sticky filter bar, clearly separate */
+    ce('div',{style:{display:'flex',justifyContent:'flex-end',alignItems:'center',marginBottom:4}},
+      ce('button',{
+        onClick:function(){if(props.onReloadAll) props.onReloadAll();},
+        disabled:!!props.inspLoading,
+        title:'Refresh listing from server',
+        style:{background:'none',border:'none',cursor:props.inspLoading?'default':'pointer',
+               color:'var(--text3)',fontSize:11,display:'inline-flex',alignItems:'center',
+               gap:4,padding:'4px 8px',borderRadius:6,userSelect:'none',
+               opacity:props.inspLoading?0.5:1}
+      },
+        props.inspLoading?ce('span',{className:'dalos-spinner'}):ce('span',{style:{fontSize:13}},'\u21BA'),
+        props.inspLoading?'Refreshing...':('Updated '+refreshAgoText())
+      )
+    ),
     ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,position:'sticky',top:50,zIndex:15,background:'var(--bg)',padding:'8px 0',marginTop:0}},
       ce('div',{className:'tabs',style:{marginBottom:0,flex:1}},
         tabs.map(function(t){return ce('div',{key:t,className:'tab'+(filter===t?' active':''),onClick:function(){setFilter(t);}},t,t!=='All'&&ce('span',{style:{marginLeft:5,background:t==='Accepted'?'#e8f5ec':t==='Rejected'?'#fdecea':'#fff3e0',color:t==='Accepted'?'#1e6b3a':t==='Rejected'?'#b01010':'#b06010',padding:'1px 5px',borderRadius:8,fontSize:10}},seasonBatches.filter(function(b){return b.status===t;}).length));})
@@ -4816,16 +4831,6 @@ function FGView(props){
               );
             })
           )
-        ),
-        ce('button',{
-          className:'btn btn-sm',
-          title:'Refresh listing',
-          onClick:function(){if(props.onReloadAll) props.onReloadAll();},
-          disabled:props.inspLoading,
-          style:{background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text2)',fontSize:11,display:'inline-flex',alignItems:'center',gap:4,flexShrink:0,whiteSpace:'nowrap'}
-        },
-          props.inspLoading?ce('span',{className:'dalos-spinner'}):null,
-          props.inspLoading?'Refreshing...':('\u21BA Updated '+refreshAgoText())
         ),
         perms.createFG&&isActiveSeason&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowNew(true);}},'+ New inspection')
       )
@@ -12304,9 +12309,9 @@ var supabase = window.supabase.createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmeWp2Z2p3dnR3a3JucXJ2cXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzIxNjYsImV4cCI6MjA5MDQ0ODE2Nn0.FjA75XZsp0Kx5Xam_rrnYoAHX4JHKey6vEFCH_zlMuQ'
 );
 
-var DALOS_VERSION='v8'; /* bump to clear stale localStorage */
+var DALOS_VERSION='v9'; /* bump to clear stale localStorage */
 /* User-visible version shown under "Sign out" in the sidebar. Bump on each user-facing release. */
-var DALOS_BUILD='v1.4.0 (2026.05.17)';
+var DALOS_BUILD='v1.5.0 (2026.05.24)';
 (function(){
   try{
     if(localStorage.getItem('dalos_version')!==DALOS_VERSION){
