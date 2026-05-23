@@ -12378,7 +12378,10 @@ function App(){
                 sampleCount:row.live_sample_count||0,
                 brix:row.live_avg_brix||row.avg_brix||0,
                 traceCodes:(function(){var r2=normTC(row.trace_codes&&row.trace_codes.length?row.trace_codes:(row.trace_code?[row.trace_code]:[]));return r2.length?r2:[{code:'',variety:null}];})(),
-                savedAt:row.updated_at||updated[idx].savedAt||''
+                savedAt:row.updated_at||updated[idx].savedAt||'',
+                /* Keep decision/status in sync so Edit always opens with the correct pre-selection */
+                decision:row.decision||updated[idx].decision||'',
+                status:row.status||updated[idx].status||'Pending'
               });
             } else {
               /* New row not yet in state — normalize and prepend */
@@ -12914,7 +12917,15 @@ function App(){
       /* Update local state with real ID */
       var batchWithRealId=Object.assign({},newBatch,{id:realId,savedAt:new Date().toISOString()});
       setBatches(function(prev){
-        if(isEditMode) return prev.map(function(b){return b.id===realId?batchWithRealId:b;});
+        if(isEditMode) return prev.map(function(b){
+          if(b.id!==realId) return b;
+          /* Preserve decision/status from the existing batch entry if the new save has
+             an empty decision — prevents the "Add more pallets" continuation flow
+             (which calls setDecision('')) from wiping the prior accepted/rejected decision. */
+          var mergedDecision=batchWithRealId.decision||b.decision||'';
+          var mergedStatus=batchWithRealId.decision?batchWithRealId.status:(b.status||'Pending');
+          return Object.assign({},batchWithRealId,{decision:mergedDecision,status:mergedStatus});
+        });
         return prev.concat([batchWithRealId]);
       });
       setSideAlerts(function(prev){
@@ -12998,6 +13009,10 @@ function App(){
            The live view (inspections_with_aggregates) always recomputes from sample_rows. */
         delete updateRow.avg_total_defect;
         delete updateRow.has_critical;
+        /* Never wipe a previously-set decision when the form has an empty decision.
+           This happens in the "Add more pallets" continuation flow where setDecision('')
+           resets local state — we preserve whatever decision is already in the DB. */
+        if(!newBatch.decision) delete updateRow.decision;
         /* Optimistic lock: only update if updated_at matches what we loaded.
            If another device saved first, this returns 0 rows → we catch it below. */
         var q=supabase.from('inspections').update(updateRow).eq('id',realId);
