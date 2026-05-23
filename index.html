@@ -12364,7 +12364,12 @@ function App(){
           (r.data||[]).forEach(function(row){
             var idx=updated.findIndex(function(b){return b.id===row.id;});
             if(idx>=0){
-              /* Existing row — patch live aggregates + traceCodes */
+              /* Existing row — patch live aggregates + traceCodes + savedAt.
+                 savedAt must stay in sync with DB updated_at so that loadedVersionRef
+                 initialises correctly the next time the user opens Edit mode.
+                 Without this, any save that advances updated_at (e.g. "Add more pallets"
+                 continuation saves) leaves savedAt stale, causing every subsequent
+                 Edit save to immediately fire a false optimistic-lock conflict. */
               updated[idx]=Object.assign({},updated[idx],{
                 container:row.container_number||updated[idx].container||'',
                 totalDefect:row.live_avg_total_defect!=null?row.live_avg_total_defect:(row.avg_total_defect||0),
@@ -12372,7 +12377,8 @@ function App(){
                 palletCount:row.live_pallet_count||0,
                 sampleCount:row.live_sample_count||0,
                 brix:row.live_avg_brix||row.avg_brix||0,
-                traceCodes:(function(){var r2=normTC(row.trace_codes&&row.trace_codes.length?row.trace_codes:(row.trace_code?[row.trace_code]:[]));return r2.length?r2:[{code:'',variety:null}];})()
+                traceCodes:(function(){var r2=normTC(row.trace_codes&&row.trace_codes.length?row.trace_codes:(row.trace_code?[row.trace_code]:[]));return r2.length?r2:[{code:'',variety:null}];})(),
+                savedAt:row.updated_at||updated[idx].savedAt||''
               });
             } else {
               /* New row not yet in state — normalize and prepend */
