@@ -12297,6 +12297,7 @@ var IPATHS={
 
 function App(){
   var sUser=useState(null); var currentUser=sUser[0]; var setCurrentUser=sUser[1];
+  var sSessionExp=useState(false); var sessionExpired=sSessionExp[0]; var setSessionExpired=sSessionExp[1];
   var sc=useState(null); var cropId=sc[0]; var setCropId=sc[1];
   var sph=useState(null); var phId=sph[0]; var setPhId=sph[1];
   var sv=useState('fg'); var view=sv[0]; var setView=sv[1];
@@ -12783,6 +12784,8 @@ function App(){
         history.replaceState(null,'',window.location.pathname);
         setShowPasswordRecovery(true);
       }
+      /* Clear the session-expired banner whenever the user successfully signs back in */
+      if(event==='SIGNED_IN') setSessionExpired(false);
       if((event==='SIGNED_IN'||event==='INITIAL_SESSION')&&DALOS_IS_INVITE){
         history.replaceState(null,'',window.location.pathname);
         setShowInvite(true);
@@ -12817,8 +12820,8 @@ function App(){
               console.warn('[DalOS] Recovery attempt '+_recoveryAttempt+' failed — retrying in '+_recoveryDelays[_recoveryAttempt]+'ms');
               setTimeout(_attemptRecovery,_recoveryDelays[_recoveryAttempt]);
             } else {
-              console.warn('[DalOS] Session could not be recovered after '+_maxRecoveryAttempts+' attempts — reloading to login');
-              window.location.reload();
+              console.warn('[DalOS] Session could not be recovered after '+_maxRecoveryAttempts+' attempts — showing session-expired banner');
+              setSessionExpired(true);
             }
           });
         }
@@ -13659,7 +13662,44 @@ function App(){
   }
 
   if(needsCropPH){
-    return ce('div',{className:'layout'},mkSidebar(),
+    /* Session-expired overlay — shown when recovery fails after SIGNED_OUT.
+     The tab is kept alive so no form data is lost. User signs in on a new tab. */
+  var sessionExpiredOverlay=sessionExpired&&ce('div',{style:{
+    position:'fixed',top:0,left:0,right:0,bottom:0,
+    background:'rgba(10,20,14,0.82)',zIndex:9999,
+    display:'flex',alignItems:'center',justifyContent:'center',padding:24
+  }},
+    ce('div',{style:{
+      background:'var(--card)',borderRadius:14,padding:'36px 32px',
+      maxWidth:440,width:'100%',textAlign:'center',
+      boxShadow:'0 8px 40px rgba(0,0,0,0.45)',border:'1px solid var(--border2)'
+    }},
+      ce('div',{style:{fontSize:32,marginBottom:12}},'\uD83D\uDD10'),
+      ce('div',{style:{fontSize:18,fontWeight:700,color:'var(--text)',marginBottom:10}},'Session expired'),
+      ce('div',{style:{fontSize:13,color:'var(--text2)',lineHeight:1.6,marginBottom:8}},
+        'Your session timed out, but ',ce('strong',null,'your data is safe in this tab.'),
+        ' Clicking the button below will open a sign-in page in a ',ce('strong',null,'new tab.'),
+        ' Come back here once you\u2019ve signed in and you can continue working.'
+      ),
+      ce('div',{style:{
+        fontSize:12,fontWeight:600,color:'var(--red)',
+        background:'var(--red-bg)',border:'1px solid var(--red-border)',
+        borderRadius:7,padding:'8px 14px',marginBottom:20
+      }},
+        '\u26A0\uFE0F  Do not close this tab \u2014 your unsaved work is here'
+      ),
+      ce('button',{
+        onClick:function(){window.open(window.location.origin+window.location.pathname,'_blank');},
+        style:{
+          background:'var(--accent)',color:'#fff',border:'none',
+          borderRadius:8,padding:'12px 28px',fontSize:14,
+          fontWeight:600,cursor:'pointer',width:'100%',marginBottom:10
+        }
+      },'Sign in (opens new tab)'),
+      ce('div',{style:{fontSize:11,color:'var(--text3)'}},'After signing in, return to this tab to continue.')
+    )
+  );
+  return ce('div',{className:'layout'},sessionExpiredOverlay,mkSidebar(),
       ce('div',{className:'main'},ce(Landing,{currentUser:liveCurrentUser,config:config,setConfig:setConfig,batches:batches,perms:perms,inspLoading:inspLoading,currentViewSeason:currentViewSeason,onMobOpen:function(){setMobOpen(true);},onSelectCQC:function(){setView('clientqc');},onSelect:function(pid,cid){
         var phs=currentUser.packhouses||[currentUser.packhouse||'All'];
         var finalPh=(phs.indexOf('All')<0&&phs.length===1)?phs[0]:pid;
