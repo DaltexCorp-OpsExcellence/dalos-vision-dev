@@ -12785,21 +12785,35 @@ function App(){
       /* SIGNED_OUT: try to recover session from localStorage before logging user out.
          This handles the refresh token rotation conflict between multiple tabs —
          Supabase fires SIGNED_OUT when it detects token reuse, but the new token
-         is often already stored in localStorage by the tab that won the race. */
+         is often already stored in localStorage by the tab that won the race.
+         Also handles flaky-network false sign-outs: if the device is offline,
+         defer indefinitely instead of reloading to the login screen. */
       if(event==='SIGNED_OUT'){
         console.warn('[DalOS] SIGNED_OUT event received — attempting session recovery');
-        setTimeout(function(){
+        var _recoveryAttempt=0;
+        var _maxRecoveryAttempts=3;
+        var _recoveryDelays=[2000,4000,8000];
+        function _attemptRecovery(){
+          /* If device is offline, don't reload — wait silently until network returns */
+          if(typeof navigator!=='undefined'&&!navigator.onLine){
+            console.warn('[DalOS] Device offline — deferring sign-out recovery, retrying in 10s');
+            setTimeout(_attemptRecovery,10000);
+            return;
+          }
           supabase.auth.getSession().then(function(res){
             if(res.data&&res.data.session&&res.data.session.user){
-              console.log('[DalOS] Session recovered after SIGNED_OUT — staying logged in');
-              /* Session recovered — do nothing, user stays logged in */
+              console.log('[DalOS] Session recovered after SIGNED_OUT (attempt '+(_recoveryAttempt+1)+') — staying logged in');
+            } else if(_recoveryAttempt<_maxRecoveryAttempts-1){
+              _recoveryAttempt++;
+              console.warn('[DalOS] Recovery attempt '+_recoveryAttempt+' failed — retrying in '+_recoveryDelays[_recoveryAttempt]+'ms');
+              setTimeout(_attemptRecovery,_recoveryDelays[_recoveryAttempt]);
             } else {
-              /* Truly signed out — reload so login screen appears cleanly */
-              console.warn('[DalOS] Session could not be recovered — reloading to login');
+              console.warn('[DalOS] Session could not be recovered after '+_maxRecoveryAttempts+' attempts — reloading to login');
               window.location.reload();
             }
           });
-        }, 2000); /* Wait 2s for localStorage to sync from winning tab */
+        }
+        setTimeout(_attemptRecovery,_recoveryDelays[0]);
       }
     });
     supabase.auth.getSession().then(function(res){
@@ -13117,6 +13131,8 @@ function App(){
           });
         }
         /* INSERT new rows if any */
+        /* Fix 1: declare tracked promise outside the if-block so Promise.all always sees it */
+        var newRowsChainPromise=Promise.resolve();
         if(newSampleRows.length>0){
           var isCropGrapesEdit=(newBatch&&(newBatch.crop||'').toLowerCase()==='grapes');
           /* Detect pallets that are new (temp numeric ID) and need to be inserted first */
@@ -13154,15 +13170,23 @@ function App(){
                   return r.data;
                 })
             :Promise.resolve([]);
-          insertNewPalletsPromise.then(function(insertedPallets){
+          /* Fix 1: assign to newRowsChainPromise and return at every step so the
+             chain propagates all the way to Promise.all — onDone now waits for
+             pallets + sample rows + defects before closing the form */
+          newRowsChainPromise=insertNewPalletsPromise.then(function(insertedPallets){
           /* Get all pallet IDs from DB (existing + newly inserted) */
-          supabase.from('pallets').select('id,pallet_number').eq('inspection_id',realId).then(function(pr){
+          return supabase.from('pallets').select('id,pallet_number').eq('inspection_id',realId).then(function(pr){
             if(pr.error||!pr.data) return;
             /* Pre-compute per-pallet max sample_number from existing rows so new rows
                get a fresh sequence. The bug: this branch previously assigned
                sample_number = item.row.palletNo (the pallet's text label, not an integer),
                which fails the integer column type and silently dropped all new sample rows. */
             var inserts=[];
+            /* Fix 2: build defect map keyed by pallet_id+'_'+sample_number while
+               building inserts — replaces the fragile positional editNewDefects[i]
+               approach that caused defects to drop when Supabase returned rows out
+               of insert order (confirmed: S-7952, S-7958, S-7963) */
+            var editNewDefectsMap={};
             /* Track per-pallet row index — start from existing rows count + 1 */
             var perPalletNextNum={};
             palletsData.forEach(function(p){
@@ -13194,6 +13218,8 @@ function App(){
               var palletKey=item.pallet.palletLabel||String(item.pallet.palletNo);
               var nextNum=perPalletNextNum[palletKey]||1;
               perPalletNextNum[palletKey]=nextNum+1;
+              /* Fix 2: store defects by the same key that will appear in the DB row */
+              editNewDefectsMap[savedPallet.id+'_'+nextNum]=item.row.defects||{};
               inserts.push({
                 pallet_id:savedPallet.id,
                 inspection_id:realId,
@@ -13212,34 +13238,36 @@ function App(){
               });
             });
             if(inserts.length===0) return;
-            var editNewDefects=newSampleRows.map(function(item){return item.row.defects||{};});
-            supabase.from('sample_rows').insert(inserts).select().then(function(r){
+            return supabase.from('sample_rows').insert(inserts).select().then(function(r){
               if(r.error){console.error('[DalOS] new sample rows insert error:',r.error.message);return;}
               console.log('[DalOS] New sample rows inserted:',inserts.length);
-              supabase.from('defects').select('id,key').then(function(defRes){
+              return supabase.from('defects').select('id,key').then(function(defRes){
                 if(defRes.error||!defRes.data) return;
                 var defMap={};
                 defRes.data.forEach(function(d){defMap[d.key]=d.id;});
                 var readings=[];
-                r.data.forEach(function(savedRow,i){
-                  var defects=editNewDefects[i]||{};
+                /* Fix 2: look up defects by pallet_id+'_'+sample_number key, not position */
+                r.data.forEach(function(savedRow){
+                  var defects=editNewDefectsMap[savedRow.pallet_id+'_'+savedRow.sample_number]||{};
                   Object.keys(defects).forEach(function(key){
                     var val=parseFloat(defects[key])||0;
                     if(val>0&&defMap[key]) readings.push({sample_row_id:savedRow.id,defect_id:defMap[key],value:val});
                   });
                 });
                 if(readings.length===0) return;
-                supabase.from('sample_defect_readings').insert(readings).then(function(dr){
+                return supabase.from('sample_defect_readings').insert(readings).then(function(dr){
                   if(dr.error){console.error('[DalOS] edit new defect readings error:',dr.error.message);logError('defect_readings_insert_edit_new',dr.error,{inspection_id:realId,count:readings.length});}
                   else console.log('[DalOS] Edit new defect readings saved:',readings.length);
                 });
               });
             });
           });
-          }); /* end insertNewPalletsPromise.then */
+          }); /* end newRowsChainPromise chain */
         }
-        /* Wait for all edit operations then close form */
-        Promise.all(palletUpdatePromises||[]).then(function(){
+        /* Fix 1: wait for BOTH pallet label updates AND the full new-rows chain
+           before closing the form — previously only palletUpdatePromises was tracked,
+           so the form closed while new sample rows were still inserting in the background */
+        Promise.all((palletUpdatePromises||[]).concat([newRowsChainPromise])).then(function(){
           if(onDone){onDone(null,realId);onDone=null;}
         });
         return;
@@ -13317,7 +13345,7 @@ function App(){
       return supabase.from('sample_rows').insert(sampleRows).select();
     }).then(function(sampleRes){
       if(!sampleRes) return;
-      if(sampleRes.error){console.error('[DalOS] Sample rows error:',sampleRes.error.message);return;}
+      if(sampleRes.error){console.error('[DalOS] Sample rows error:',sampleRes.error.message);if(onDone){onDone('Sample rows failed to save: '+(sampleRes.error.message||'unknown error'));onDone=null;}return;}
       console.log('[DalOS] Sample rows saved:',sampleRes.data.length);
       var savedSamples=sampleRes.data;
       /* Build a lookup map (pallet_id + '_' + sample_number) → defects object.
@@ -13331,7 +13359,7 @@ function App(){
         sampleDefectsMap[key]=_rowDefects[i]||{};
       });
       supabase.from('defects').select('id,key').then(function(defRes){
-        if(defRes.error||!defRes.data) return;
+        if(defRes.error||!defRes.data){console.error('[DalOS] Defects fetch error — skipping defect readings');if(onDone){onDone(null,realId);onDone=null;}return;}
         var defMap={};
         defRes.data.forEach(function(d){defMap[d.key]=d.id;});
         var readings=[];
