@@ -735,6 +735,7 @@ function InspectionForm(props){
   var draftKey='dalos_draft_'+(packhouse.id||'')+'_'+cropId+(isEdit&&batch?'_'+batch.id:'_new')+'_'+tabId;
   /* Stable UUID for this form instance — used to upsert a single Supabase draft row.
      Stored in sessionStorage so "Add more pallets" continuation reuses the same row. */
+  var sDraftSavedAt=useState(null); var draftSavedAt=sDraftSavedAt[0]; var setDraftSavedAt=sDraftSavedAt[1];
   var draftIdRef=React.useRef((function(){
     try{
       var k='dalos_draftid_'+(packhouse.id||'')+'_'+(cropId||'grapes');
@@ -780,7 +781,12 @@ function InspectionForm(props){
             last_autosaved_at:new Date().toISOString()
           },{onConflict:'id'}).then(function(r){
             if(r.error) console.warn('[DalOS] Autosave to Supabase failed:',r.error.message);
-            else console.log('[DalOS] Autosave OK —',new Date().toLocaleTimeString());
+            else{
+              var t=new Date();
+              var ts=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+              setDraftSavedAt(ts);
+              console.log('[DalOS] Autosave OK —',ts);
+            }
           });
         }
       }catch(e){console.warn('[DalOS] Autosave error:',e);}
@@ -1918,6 +1924,13 @@ function InspectionForm(props){
       ce('div',{className:'form-topbar-right',style:{display:'flex',alignItems:'center',gap:6,flexShrink:0}},
         ce('span',{className:'form-topbar-avg',style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:700,color:avgTotal>10?'var(--red)':avgTotal>5?'var(--amber)':'var(--green)',whiteSpace:'nowrap'}},avgTotal.toFixed(1)+'%'),
         hasCrit&&ce('span',{className:'badge badge-fail',style:{flexShrink:0,fontSize:10}},'Crit'),
+        /* Draft autosave indicator — "Autosaved HH:MM" updates silently after each 30s write */
+        draftSavedAt
+          ?ce('span',{style:{fontSize:10,color:'var(--text3)',whiteSpace:'nowrap',flexShrink:0,display:'inline-flex',alignItems:'center',gap:3}},
+              ce('span',{style:{fontSize:11}},'\uD83D\uDCBE'),
+              'Autosaved '+draftSavedAt
+            )
+          :isDirty&&ce('span',{style:{fontSize:10,color:'var(--text3)',whiteSpace:'nowrap',flexShrink:0}},'⋯ Saving draft…'),
         /* PDF download buttons — show in edit mode or after save */
         (isEdit||savedLot)&&ce('button',{className:'btn btn-sm',title:'Download client-facing PDF report',style:{background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text2)',fontSize:11,flexShrink:0,display:'inline-flex',alignItems:'center',gap:4},onClick:function(){generatePDF('client');}},'\u2193 Client PDF'),
         (isEdit||savedLot)&&ce('button',{className:'btn btn-sm',title:'Download internal inspection record PDF',style:{background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text2)',fontSize:11,flexShrink:0,display:'inline-flex',alignItems:'center',gap:4},onClick:function(){generatePDF('internal');}},'\u2193 Internal PDF'),
