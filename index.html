@@ -6590,7 +6590,7 @@ function EidSheepEgg(props){
     var cv=canvasRef.current;
     if(!cv) return;
     var ctx=cv.getContext('2d');
-    var W=88,H=72,t=0,legP=0,sx=44,tx=44,dir=1,GY=58,raf;
+    var W=116,H=94,t=0,legP=0,sx=58,tx=58,dir=1,GY=78,raf;
     function draw(){
       ctx.clearRect(0,0,W,H);
       ctx.fillStyle='#c8e0a8';ctx.fillRect(0,GY,W,H-GY);
@@ -6627,7 +6627,7 @@ function EidSheepEgg(props){
         ctx.globalAlpha=1;ctx.textAlign='left';
       }
       t++;
-      if(t%200===0){tx=14+Math.random()*60;dir=tx>sx?1:-1;}
+      if(t%200===0){tx=18+Math.random()*80;dir=tx>sx?1:-1;}
       raf=requestAnimationFrame(draw);
     }
     draw();
@@ -6635,7 +6635,7 @@ function EidSheepEgg(props){
   },[]);
   return ce('div',{onClick:onOpen,title:'لعبة العيد 🐑',
     style:{cursor:'pointer',userSelect:'none',WebkitUserSelect:'none'}},
-    ce('canvas',{ref:canvasRef,width:88,height:72,style:{display:'block'}}),
+    ce('canvas',{ref:canvasRef,width:116,height:94,style:{display:'block'}}),
     ce('div',{style:{fontSize:8,color:'var(--text3)',textAlign:'center',marginTop:1,letterSpacing:'.04em'}},'لعبة العيد 🐑')
   );
 }
@@ -6945,7 +6945,7 @@ function Landing(props){
     /* ── BRANDED HERO ── */
     ce('div',{style:{padding:'24px 24px 28px',borderBottom:'1px solid var(--border)',marginBottom:32,position:'relative',width:'100%'}},
       (window.location.href.indexOf('dalos-vision-dev')>-1||window.location.href.indexOf('localhost')>-1)&&ce('div',{style:{
-        position:'absolute',top:18,right:20,
+        position:'fixed',top:14,right:16,zIndex:200,
         display:'inline-flex',alignItems:'center',gap:7,
         background:'linear-gradient(135deg,#ff6b35 0%,#f7c948 100%)',
         color:'#fff',padding:'5px 16px 5px 11px',borderRadius:20,
