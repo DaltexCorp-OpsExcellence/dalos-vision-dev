@@ -6568,7 +6568,7 @@ var isEidPeriod=_eidNow>=new Date('2026-05-24').getTime()&&_eidNow<=new Date('20
 /* B — Greeting, top-left of hero */
 function EidGreeting(){
   if(!isEidPeriod) return null;
-  return ce('div',{style:{position:'absolute',top:14,left:16,textAlign:'left',pointerEvents:'none',zIndex:1}},
+  return ce('div',{style:{textAlign:'left',pointerEvents:'none'}},
     ce('div',{style:{fontSize:15,fontWeight:700,color:'var(--accent)',fontFamily:'var(--font-display)',lineHeight:1.35,direction:'rtl'}},'عيد الأضحى',ce('br',null),'مبارك'),
     ce('div',{style:{fontSize:8,color:'var(--text3)',letterSpacing:'.08em',marginTop:3,textTransform:'uppercase'}},'Eid Al-Adha Mubarak'),
     ce('svg',{width:46,height:18,viewBox:'0 0 46 18',fill:'none',style:{marginTop:4,display:'block'}},
@@ -6634,7 +6634,7 @@ function EidSheepEgg(props){
     return function(){cancelAnimationFrame(raf);};
   },[]);
   return ce('div',{onClick:onOpen,title:'لعبة العيد 🐑',
-    style:{position:'absolute',top:10,right:10,cursor:'pointer',userSelect:'none',zIndex:1,WebkitUserSelect:'none'}},
+    style:{cursor:'pointer',userSelect:'none',WebkitUserSelect:'none',textAlign:'center'}},
     ce('canvas',{ref:canvasRef,width:88,height:72,style:{display:'block'}}),
     ce('div',{style:{fontSize:8,color:'var(--text3)',textAlign:'center',marginTop:1,letterSpacing:'.04em'}},'لعبة العيد 🐑')
   );
@@ -6943,7 +6943,7 @@ function Landing(props){
     ),
 
     /* ── BRANDED HERO ── */
-    ce('div',{style:{textAlign:'center',padding:(isEidPeriod?'100px':'24px')+' 24px 28px',borderBottom:'1px solid var(--border)',marginBottom:32,position:'relative'}},
+    ce('div',{style:{textAlign:'center',padding:'24px 24px 28px',borderBottom:'1px solid var(--border)',marginBottom:32,position:'relative'}},
       (window.location.href.indexOf('dalos-vision-dev')>-1||window.location.href.indexOf('localhost')>-1)&&ce('div',{style:{
         position:'absolute',top:18,right:20,
         display:'inline-flex',alignItems:'center',gap:7,
@@ -6956,8 +6956,10 @@ function Landing(props){
         ce('span',{style:{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.9)',display:'inline-block',flexShrink:0,animation:'pulse 1.4s ease-in-out infinite'}}),
         'Staging'
       ),
-      ce(EidGreeting,null),
-      ce(EidSheepEgg,{onOpen:function(){setShowEidGame(true);}}),
+      isEidPeriod&&ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',width:'100%',marginBottom:16}},
+        ce(EidGreeting,null),
+        ce(EidSheepEgg,{onOpen:function(){setShowEidGame(true);}})
+      ),
       ce('div',{style:{marginBottom:16}},
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:42,color:'var(--text)'}},'Dal'),
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:42,color:'var(--accent)'}},'OS'),
