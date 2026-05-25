@@ -6575,14 +6575,25 @@ function EidGreeting(){
     textAlign:'right',direction:'rtl',userSelect:'none',
     display:'flex',flexDirection:'column',alignItems:'flex-end'
   }},
-    ce('svg',{width:130,height:22,viewBox:'0 0 130 22',fill:'none',style:{display:'block',marginBottom:4}},
-      ce('circle',{cx:116,cy:11,r:10,fill:'var(--accent)',opacity:'.12'}),
-      ce('circle',{cx:120,cy:7,r:8.5,fill:'var(--bg)',opacity:'.95'}),
-      ce('polygon',{points:'26,2 27.4,6.2 31.8,6.2 28.4,8.8 29.8,13 26,10.4 22.2,13 23.6,8.8 20.2,6.2 24.6,6.2',fill:'#c8a840',opacity:'.65'}),
-      ce('circle',{cx:38,cy:5,r:1.1,fill:'#c8a840',opacity:'.4'}),
-      ce('circle',{cx:46,cy:14,r:.8,fill:'#c8a840',opacity:'.3'}),
-      ce('circle',{cx:12,cy:7,r:.9,fill:'#c8a840',opacity:'.3'}),
-      ce('circle',{cx:6,cy:17,r:.7,fill:'#c8a840',opacity:'.25'})
+    ce('svg',{width:130,height:38,viewBox:'0 0 130 38',fill:'none',style:{display:'block',marginBottom:4}},
+      ce('polygon',{points:'110,4 111.4,8.2 115.8,8.2 112.4,10.8 113.8,15 110,12.4 106.2,15 107.6,10.8 104.2,8.2 108.6,8.2',fill:'#c8a840',opacity:'.7'}),
+      ce('circle',{cx:122,cy:6,r:1.2,fill:'#c8a840',opacity:'.45'}),
+      ce('circle',{cx:128,cy:14,r:.8,fill:'#c8a840',opacity:'.35'}),
+      ce('circle',{cx:98,cy:10,r:.9,fill:'#c8a840',opacity:'.3'}),
+      ce('ellipse',{cx:22,cy:22,rx:14,ry:10,fill:'#e8dfc8'}),
+      ce('circle',{cx:13,cy:15,r:7,fill:'#e8dfc8'}),
+      ce('circle',{cx:22,cy:13,r:7.5,fill:'#e8dfc8'}),
+      ce('circle',{cx:31,cy:15,r:7,fill:'#e8dfc8'}),
+      ce('circle',{cx:17,cy:24,r:6.5,fill:'#e8dfc8'}),
+      ce('circle',{cx:27,cy:24,r:6.5,fill:'#e8dfc8'}),
+      ce('ellipse',{cx:37,cy:14,rx:5.5,ry:5,fill:'#c8aa80'}),
+      ce('circle',{cx:39,cy:13,r:1,fill:'#3a2a18'}),
+      ce('ellipse',{cx:35,cy:9,rx:2.2,ry:1.2,fill:'#c8aa80',transform:'rotate(-20 35 9)'}),
+      ce('rect',{x:13,y:31,width:3.5,height:6,rx:1.8,fill:'#c8aa80'}),
+      ce('rect',{x:19,y:32,width:3.5,height:5,rx:1.8,fill:'#c8aa80'}),
+      ce('rect',{x:25,y:32,width:3.5,height:5,rx:1.8,fill:'#c8aa80'}),
+      ce('rect',{x:31,y:31,width:3.5,height:6,rx:1.8,fill:'#c8aa80'}),
+      ce('rect',{x:33,y:16,width:6,height:2.5,rx:1.2,fill:'#d4a800',opacity:'.9'})
     ),
     ce('div',{style:{
       fontSize:30,fontWeight:700,color:'var(--accent)',
@@ -6612,7 +6623,7 @@ function EidSheepEgg(props){
     var cv=canvasRef.current;
     if(!cv) return;
     var ctx=cv.getContext('2d');
-    var W=116,H=94,t=0,legP=0,sx=58,tx=58,dir=1,GY=78,raf;
+    var W=150,H=122,t=0,legP=0,sx=75,tx=75,dir=1,GY=100,raf;
     function draw(){
       ctx.clearRect(0,0,W,H);
       ctx.fillStyle='#c8e0a8';ctx.fillRect(0,GY,W,H-GY);
@@ -6622,10 +6633,10 @@ function EidSheepEgg(props){
       var mv=Math.abs(sx-tx)>1;
       var la=mv?Math.sin(legP)*4:0,lb=mv?-Math.sin(legP)*4:0;
       if(mv) legP+=0.18;
-      ctx.fillStyle='#b8a888';
+      ctx.fillStyle='#b09060';
       ctx.fillRect(-10+la,-10,3,10);ctx.fillRect(-5+lb,-10,3,10);
       ctx.fillRect(1+lb,-10,3,10);ctx.fillRect(6+la,-10,3,10);
-      ctx.fillStyle='#f0e8d8';
+      ctx.fillStyle='#ffffff';
       ctx.beginPath();ctx.ellipse(0,-20,13,9,0,0,Math.PI*2);ctx.fill();
       ctx.beginPath();ctx.ellipse(-8,-27,7,6,0,0,Math.PI*2);ctx.fill();
       ctx.beginPath();ctx.ellipse(0,-29,8,7,0,0,Math.PI*2);ctx.fill();
@@ -6638,8 +6649,8 @@ function EidSheepEgg(props){
       ctx.fillStyle='#ede0c8';
       ctx.beginPath();ctx.ellipse(13,-27,1.8,1,-.3,0,Math.PI*2);ctx.fill();
       ctx.beginPath();ctx.ellipse(18,-27,1.8,1,.3,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#d4a800';ctx.fillRect(-4,-23,8,2);
-      ctx.fillStyle='#a07800';ctx.beginPath();ctx.arc(0,-22,1.5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#f0c000';ctx.fillRect(-4,-23,8,2);
+      ctx.fillStyle='#d4a000';ctx.beginPath();ctx.arc(0,-22,1.5,0,Math.PI*2);ctx.fill();
       ctx.restore();
       if(Math.floor(t/120)%3===0){
         var ba=Math.max(0,Math.sin(t*.018)*.6+.1);
@@ -6649,7 +6660,7 @@ function EidSheepEgg(props){
         ctx.globalAlpha=1;ctx.textAlign='left';
       }
       t++;
-      if(t%200===0){tx=18+Math.random()*80;dir=tx>sx?1:-1;}
+      if(t%200===0){tx=22+Math.random()*106;dir=tx>sx?1:-1;}
       raf=requestAnimationFrame(draw);
     }
     draw();
@@ -6657,7 +6668,7 @@ function EidSheepEgg(props){
   },[]);
   return ce('div',{onClick:onOpen,title:'لعبة العيد 🐑',className:'eid-desktop-only',
     style:{cursor:'pointer',userSelect:'none',WebkitUserSelect:'none'}},
-    ce('canvas',{ref:canvasRef,width:116,height:94,style:{display:'block'}}),
+    ce('canvas',{ref:canvasRef,width:150,height:122,style:{display:'block'}}),
     ce('div',{style:{fontSize:8,color:'var(--text3)',textAlign:'center',marginTop:1,letterSpacing:'.04em'}},'لعبة العيد 🐑')
   );
 }
