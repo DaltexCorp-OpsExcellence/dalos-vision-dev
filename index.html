@@ -765,6 +765,7 @@ function InspectionForm(props){
     if(rd.variety!==undefined) setVariety(rd.variety);
     if(rd.variety2!==undefined) setVariety2(rd.variety2);
     if(rd.varietyType) setVarietyType(rd.varietyType);
+    if(rd.additionalVarieties) setAdditionalVarieties(rd.additionalVarieties);
     if(rd.category!==undefined) setCategory(rd.category);
     if(rd.category2!==undefined) setCategory2(rd.category2);
     if(rd.client!==undefined) setClient(rd.client);
@@ -799,7 +800,7 @@ function InspectionForm(props){
     var timer=setInterval(function(){
       /* ── localStorage snapshot (existing) ── */
       try{
-        var snap={lot:lot,date:date,variety:variety,category:category,varietyType:varietyType,variety2:variety2,category2:category2,client:client,country:country,farm:farm,farm2:farm2,farm3:farm3,farm4:farm4,additionalFarms:additionalFarms,plot:plot,plot2:plot2,plot3:plot3,plot4:plot4,container:container,cls:cls,wax:wax,packing:packing,labelling:labelling,cartonCompany:cartonCompany,cartonCompany2:cartonCompany2,cartonColor:cartonColor,pallets:pallets,decision:decision,
+        var snap={lot:lot,date:date,variety:variety,category:category,varietyType:varietyType,variety2:variety2,category2:category2,additionalVarieties:additionalVarieties,client:client,country:country,farm:farm,farm2:farm2,farm3:farm3,farm4:farm4,additionalFarms:additionalFarms,plot:plot,plot2:plot2,plot3:plot3,plot4:plot4,container:container,cls:cls,wax:wax,packing:packing,labelling:labelling,cartonCompany:cartonCompany,cartonCompany2:cartonCompany2,cartonColor:cartonColor,pallets:pallets,decision:decision,
           /* Extended fields for Supabase snapshot completeness */
           traceCodes:traceCodes,ggn:ggn,phCode:phCode,farmCode:farmCode,netWt:netWt,
           importer:importer,importerAddr:importerAddr,stickerImg:stickerImg,
@@ -845,6 +846,8 @@ function InspectionForm(props){
   var sVT=useState(batch?batch.varietyType||'single':(_d.varietyType||'single')); var varietyType=sVT[0]; var setVarietyType=sVT[1];
   var sCat2=useState(batch?batch.category2||'':(_d.category2||'')); var category2=sCat2[0]; var setCategory2=sCat2[1];
   var sV2=useState(batch?batch.variety2||'':(_d.variety2||'')); var variety2=sV2[0]; var setVariety2=sV2[1];
+  /* additionalVarieties: array of variety names for varieties 3+ in the session header */
+  var sAV=useState(batch&&batch.additionalVarieties?batch.additionalVarieties:(_d&&_d.additionalVarieties?_d.additionalVarieties:[])); var additionalVarieties=sAV[0]; var setAdditionalVarieties=sAV[1];
   var sc=useState(batch?batch.container:(_d.container||'')); var container=sc[0]; var setContainer=sc[1];
   var sl=useState(batch?batch.lot:(_d.lot||'')); var lot=sl[0]; var setLotRaw=sl[1];
   function setLot(v){setLotRaw(v);setIsDirty(true);}
@@ -1766,8 +1769,9 @@ function InspectionForm(props){
       date:date,
       container_number:containerVal,
       variety_id:lookupId(config.varietiesIdMap,variety),
-      variety2_id:lookupId(config.varietiesIdMap,variety2),
+      variety2_id:lookupId(config.varietiesIdMap,variety2&&variety2!=='__selecting__'?variety2:''),
       variety_type:varietyType||'single',
+      additional_variety_ids:(additionalVarieties||[]).filter(Boolean).map(function(av){return (config.varietiesIdMap&&config.varietiesIdMap[av])||null;}).filter(Boolean),
       class_id:lookupId(config.classesIdMap,cls),
       client_id:lookupId(config.clientsIdMap,client),
       country_id:lookupId(config.countriesIdMap,country),
@@ -2479,11 +2483,17 @@ function InspectionForm(props){
                     style:{padding:'5px 16px',borderRadius:20,border:'1.5px solid '+(varietyType===t?'var(--accent)':'var(--border2)'),
                       background:varietyType===t?'var(--accent)':'transparent',color:varietyType===t?'#fff':'var(--text2)',
                       fontSize:12,fontWeight:600,cursor:'pointer'},
-                    onClick:function(){setVarietyType(t);if(t==='single'){setVariety2('');setCategory2('');}}
+                    onClick:function(){setVarietyType(t);if(t==='single'){setVariety2('');setCategory2('');setAdditionalVarieties([]);}}
                   },t==='single'?'Single variety':'Mixed varieties');
                 })
               ),
-              varietyType==='mixed'&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,padding:'10px',background:'var(--bg2)',borderRadius:8,border:'1px solid var(--border)'}},
+              /* Single mode: show +Add Variety button OR variety2 section */
+              varietyType==='single'&&!variety2&&ce('button',{type:'button',
+                style:{fontSize:11,color:'var(--accent)',background:'transparent',border:'1px dashed var(--green-border,#8ecba4)',borderRadius:6,padding:'4px 12px',cursor:'pointer',marginTop:2},
+                onClick:function(){/* reveal variety2 fields */setVariety2('__selecting__');}
+              },'+ Add Variety'),
+              /* Variety 2 section — mixed mode always, single mode when variety2 is being added */
+              (varietyType==='mixed'||(varietyType==='single'&&!!variety2))&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,padding:'10px',background:'var(--bg2)',borderRadius:8,border:'1px solid var(--border)'}},
                 ce('div',{className:'form-field',style:{marginBottom:0}},
                   ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2 — Category'),
                   ce('select',{className:'form-select',value:category2,onChange:function(e){setCategory2(e.target.value);setVariety2('');}},
@@ -2506,6 +2516,39 @@ function InspectionForm(props){
                       var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
                       return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});
                     })()
+                  )
+                ),
+                /* Single mode: remove variety2 button + additional varieties (3+) */
+                varietyType==='single'&&ce('div',{style:{gridColumn:'span 2'}},
+                  ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}},
+                    /* Additional varieties list */
+                    ce('div',{style:{flex:1}},
+                      additionalVarieties.map(function(av,ai){
+                        return ce('div',{key:ai,style:{display:'flex',gap:6,alignItems:'center',marginTop:6}},
+                          ce('select',{className:'form-select',style:{flex:1,fontSize:11},value:av,
+                            onChange:function(idx){return function(e){
+                              setAdditionalVarieties(function(prev){var n=prev.slice();n[idx]=e.target.value;return n;});
+                            };}(ai)},
+                            ce('option',{value:''},'— Select —'),
+                            ((config.varietiesFull||{})[cropId]||[]).map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
+                          ),
+                          ce('button',{type:'button',style:{fontSize:11,color:'var(--text3)',background:'transparent',border:'none',cursor:'pointer',padding:'0 4px',flexShrink:0},
+                            onClick:function(idx){return function(){setAdditionalVarieties(function(prev){return prev.filter(function(_,i){return i!==idx;});});};}(ai)
+                          },'×')
+                        );
+                      })
+                    ),
+                    ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4,marginLeft:8,flexShrink:0}},
+                      /* Add another variety button */
+                      ce('button',{type:'button',
+                        style:{fontSize:10,color:'var(--accent)',background:'transparent',border:'1px dashed var(--green-border,#8ecba4)',borderRadius:5,padding:'3px 10px',cursor:'pointer',whiteSpace:'nowrap'},
+                        onClick:function(){setAdditionalVarieties(function(prev){return prev.concat(['']);});}
+                      },'+ Add Another'),
+                      /* Remove variety 2 button */
+                      ce('button',{type:'button',style:{fontSize:10,color:'var(--text3)',background:'transparent',border:'none',cursor:'pointer',padding:'2px 4px',textDecoration:'underline',whiteSpace:'nowrap'},
+                        onClick:function(){setVariety2('');setCategory2('');setAdditionalVarieties([]);}
+                      },'× Remove all')
+                    )
                   )
                 )
               )
@@ -2968,18 +3011,25 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           ce('span',{style:{fontSize:9,color:'var(--text3)'}},'·'),
                           ce('span',{style:{fontSize:9.5,fontWeight:500,background:'#e6f1fb',color:'#185fa5',borderRadius:3,padding:'2px 5px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'48%'}},variety2||'V2')
                         )
-                      :ce('select',{
-                          style:{padding:'2px 4px',border:'1px solid var(--border2)',borderRadius:4,fontSize:10,background:'var(--card)',width:'100%',color:'var(--text2)'},
-                          value:row.sampleVariety||variety||'',
-                          title:'Variety for this sample row',
-                          onChange:function(i,id){return function(e){updateRowField(i,id,'sampleVariety',e.target.value);};}(pIdx,row.id)
-                        },
-                        ((config.varietiesFull||{})[cropId]||[]).map(function(v){
-                          return ce('option',{key:v.id,value:v.name},v.name);
-                        }),
-                        row.sampleVariety&&!((config.varietiesFull||{})[cropId]||[]).find(function(v){return v.name===row.sampleVariety;})&&
-                          ce('option',{value:row.sampleVariety,style:{color:'var(--text3)'}},row.sampleVariety+' (inactive)')
-                      ),
+                      :(function(){
+                          /* Session varieties = variety1 + variety2 (if set) + additional varieties */
+                          var sessionVars=[variety].filter(Boolean);
+                          if(variety2&&variety2!=='__selecting__') sessionVars=sessionVars.concat([variety2]);
+                          (additionalVarieties||[]).forEach(function(av){if(av&&av.trim()) sessionVars.push(av);});
+                          /* Deduplicate */
+                          sessionVars=sessionVars.filter(function(v,i){return sessionVars.indexOf(v)===i;});
+                          return ce('select',{
+                            style:{padding:'2px 4px',border:'1px solid var(--border2)',borderRadius:4,fontSize:10,background:'var(--card)',width:'100%',color:'var(--text2)'},
+                            value:row.sampleVariety||(sessionVars[0]||''),
+                            title:'Variety for this sample row — choose from session varieties',
+                            onChange:function(i,id){return function(e){updateRowField(i,id,'sampleVariety',e.target.value);};}(pIdx,row.id)
+                          },
+                          sessionVars.map(function(v){return ce('option',{key:v,value:v},v);}),
+                          /* Include sampleVariety if it's not in session list (data from before this change) */
+                          row.sampleVariety&&sessionVars.indexOf(row.sampleVariety)<0&&
+                            ce('option',{value:row.sampleVariety,style:{color:'var(--text3)'}},row.sampleVariety+' (old)')
+                          );
+                        })(),
                       /* Farm — single dropdown for single variety, split V1/V2 for mixed */
                       isMixed
                       ?ce('div',{style:{display:'flex',gap:2,alignItems:'flex-end',width:'100%'}},
@@ -9043,6 +9093,7 @@ function ClientQCMgmt(props){
             traceCode:r.trace_code||'', packhouse:(config.packhouses&&r.packhouse_id&&config.packhouses.find(function(p){return p.id===r.packhouse_id;})&&config.packhouses.find(function(p){return p.id===r.packhouse_id;}).name)||r.packhouse_id||'', cropCategory:r.product_id||'',
             variety:(config.varietiesIdToName&&r.variety_id&&config.varietiesIdToName[r.variety_id])||r.variety_id||'',
             variety2:(config.varietiesIdToName&&r.variety2_id&&config.varietiesIdToName[r.variety2_id])||'',
+            additionalVarieties:(r.additional_variety_ids||[]).map(function(id){return (config.varietiesIdToName&&config.varietiesIdToName[id])||'';}).filter(Boolean),
             varietyType:r.variety_type||'single',category2:(function(){if(!r.variety2_id)return '';var pid=r.product_id||selCqcProd||'grapes';var found=((config.varietiesFull||{})[pid]||[]).find(function(v){return v.id===r.variety2_id;});return found&&found.categoryId?(config.categoriesIdToName||{})[found.categoryId]||'':'';})(),
             loadDate:r.load_date||'', packDate:r.pack_date||'',
             harvestDate:r.harvest_date||'', phCover:r.ph_cover||'', farm1:r.farm_1||'', plot1:r.plot_1||'', farm2:r.farm_2||'', plot2:r.plot_2||'', cqcExtraFields:r.cqc_extra_fields||{},
@@ -13041,7 +13092,7 @@ function App(){
       }catch(e){}
     }
     supabase.from('inspections_with_aggregates')
-      .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count, seasons(name), inspection_clearance(item_index,item_label,status), inspection_escalations(escalation_note,escalated_at,resolution,resolution_comment,escalated_by,users!escalated_by(full_name)), inspection_sticker_checks(field_key,confirmed)')
+      .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,additional_variety_ids,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count, seasons(name), inspection_clearance(item_index,item_label,status), inspection_escalations(escalation_note,escalated_at,resolution,resolution_comment,escalated_by,users!escalated_by(full_name)), inspection_sticker_checks(field_key,confirmed)')
       .in('id',ids)
       .then(function(r){
         if(r.error){console.error('[DalOS] refreshBatchesById error:',r.error.message);return;}
@@ -13319,7 +13370,7 @@ function App(){
 
         /* ── Load inspections from Supabase + pallet index for grapes pallet search ── */
         var inspQ=supabase.from('inspections_with_aggregates')
-          .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count,seasons(name)')
+          .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,additional_variety_ids,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count,seasons(name)')
           .order('date', {ascending:false})
           .limit(500);
         /* No season filter — all seasons load, sidebar switcher filters client-side */
