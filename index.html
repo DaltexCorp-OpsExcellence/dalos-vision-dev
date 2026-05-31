@@ -2468,8 +2468,11 @@ function InspectionForm(props){
               )
             ),
             /* ── Grapes only: variety type toggle + second variety ── */
-            cropId==='grapes'&&ce('div',{className:'form-field',style:{gridColumn:'span 2'}},
+            cropId==='grapes'&&ce('div',{className:'form-field',style:{gridColumn:'span 2',background:'var(--green-bg,#e8f5ec)',border:'1px solid var(--green-border,#8ecba4)',borderRadius:8,padding:'10px 12px',marginTop:2}},
               ce('label',{className:'form-label'},'Variety type'),
+              hdrLocked&&ce('div',{style:{fontSize:10,color:'var(--amber-dark,#8a6a1a)',background:'#fff8e1',border:'1px solid #e8c97a',borderRadius:5,padding:'3px 8px',marginBottom:4,display:'inline-block'}},
+                '\uD83D\uDD13 Unlock header to change'
+              ),
               ce('div',{style:{display:'flex',gap:8,marginBottom:8}},
                 ['single','mixed'].map(function(t){
                   return ce('button',{key:t,type:'button',
@@ -4448,7 +4451,7 @@ function FGView(props){
           if(pr.error){setPalletData(function(prev){var u={};u[newId]=Object.assign({},prev[newId],{loading:false,error:pr.error.message});return Object.assign({},prev,u);});return;}
           var pals=pr.data||[];
           /* Fetch sample rows for all pallets in one query */
-          supabase.from('sample_rows').select('id,pallet_id,sample_number,brix,sample_result,extra_fields').eq('inspection_id',newId)
+          supabase.from('sample_rows').select('id,pallet_id,sample_number,brix,brix_v2,sample_result,extra_fields').eq('inspection_id',newId)
             .then(function(sr){
               var samplesMap={};
               (sr.data||[]).forEach(function(s){if(!samplesMap[s.pallet_id])samplesMap[s.pallet_id]=[];samplesMap[s.pallet_id].push(s);});
