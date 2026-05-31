@@ -845,6 +845,8 @@ function InspectionForm(props){
   var sVT=useState(batch?batch.varietyType||'single':(_d.varietyType||'single')); var varietyType=sVT[0]; var setVarietyType=sVT[1];
   var sCat2=useState(batch?batch.category2||'':(_d.category2||'')); var category2=sCat2[0]; var setCategory2=sCat2[1];
   var sV2=useState(batch?batch.variety2||'':(_d.variety2||'')); var variety2=sV2[0]; var setVariety2=sV2[1];
+  /* showV2: true when variety2 already has a value (editing) or user clicked +Add Variety 2 in single mode */
+  var sShowV2=useState(!!(batch&&batch.variety2)||!!(_d&&_d.variety2)); var showV2=sShowV2[0]; var setShowV2=sShowV2[1];
   var sc=useState(batch?batch.container:(_d.container||'')); var container=sc[0]; var setContainer=sc[1];
   var sl=useState(batch?batch.lot:(_d.lot||'')); var lot=sl[0]; var setLotRaw=sl[1];
   function setLot(v){setLotRaw(v);setIsDirty(true);}
@@ -2479,11 +2481,17 @@ function InspectionForm(props){
                     style:{padding:'5px 16px',borderRadius:20,border:'1.5px solid '+(varietyType===t?'var(--accent)':'var(--border2)'),
                       background:varietyType===t?'var(--accent)':'transparent',color:varietyType===t?'#fff':'var(--text2)',
                       fontSize:12,fontWeight:600,cursor:'pointer'},
-                    onClick:function(){setVarietyType(t);if(t==='single'){setVariety2('');setCategory2('');}}
+                    onClick:function(){setVarietyType(t);if(t==='single'){setVariety2('');setCategory2('');setShowV2(false);}}
                   },t==='single'?'Single variety':'Mixed varieties');
                 })
               ),
-              varietyType==='mixed'&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,padding:'10px',background:'var(--bg2)',borderRadius:8,border:'1px solid var(--border)'}},
+              /* +Add Variety 2 button in single mode */
+              varietyType==='single'&&!showV2&&ce('button',{type:'button',
+                style:{fontSize:11,color:'var(--accent)',background:'transparent',border:'1px dashed var(--green-border,#8ecba4)',borderRadius:6,padding:'4px 12px',cursor:'pointer',marginTop:2},
+                onClick:function(){setShowV2(true);}
+              },'+ Add Variety 2'),
+              /* Variety 2 fields — shown in mixed mode always, in single mode when showV2 is true */
+              (varietyType==='mixed'||(varietyType==='single'&&showV2))&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,padding:'10px',background:'var(--bg2)',borderRadius:8,border:'1px solid var(--border)'}},
                 ce('div',{className:'form-field',style:{marginBottom:0}},
                   ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2 — Category'),
                   ce('select',{className:'form-select',value:category2,onChange:function(e){setCategory2(e.target.value);setVariety2('');}},
@@ -2507,6 +2515,13 @@ function InspectionForm(props){
                       return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});
                     })()
                   )
+                ),
+                /* Remove Variety 2 button — only in single mode */
+                varietyType==='single'&&showV2&&ce('div',{style:{gridColumn:'span 2',display:'flex',justifyContent:'flex-end',marginTop:4}},
+                  ce('button',{type:'button',
+                    style:{fontSize:10,color:'var(--text3)',background:'transparent',border:'none',cursor:'pointer',padding:'2px 4px',textDecoration:'underline'},
+                    onClick:function(){setVariety2('');setCategory2('');setShowV2(false);}
+                  },'× Remove Variety 2')
                 )
               )
             ),
