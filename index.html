@@ -2471,86 +2471,101 @@ function InspectionForm(props){
                 })()
               )
             ),
-            /* ── Grapes only: variety type toggle + second variety ── */
+            /* ── Grapes only: Variety type toggle + Session varieties ── */
             cropId==='grapes'&&ce('div',{className:'form-field',style:{gridColumn:'span 2',background:'var(--green-bg,#e8f5ec)',border:'1px solid var(--green-border,#8ecba4)',borderRadius:8,padding:'10px 12px',marginTop:2}},
-              ce('label',{className:'form-label'},'Variety type'),
+
+              /* ── Part 1: Single / Mixed toggle ─────────────────────── */
+              ce('label',{className:'form-label',style:{marginBottom:4}},'Variety type'),
               hdrLocked&&ce('div',{style:{fontSize:10,color:'var(--amber-dark,#8a6a1a)',background:'#fff8e1',border:'1px solid #e8c97a',borderRadius:5,padding:'3px 8px',marginBottom:4,display:'inline-block'}},
                 '\uD83D\uDD13 Unlock header to change'
               ),
-              ce('div',{style:{display:'flex',gap:8,marginBottom:8}},
+              ce('div',{style:{display:'flex',gap:8,marginBottom:12}},
                 ['single','mixed'].map(function(t){
                   return ce('button',{key:t,type:'button',
                     style:{padding:'5px 16px',borderRadius:20,border:'1.5px solid '+(varietyType===t?'var(--accent)':'var(--border2)'),
                       background:varietyType===t?'var(--accent)':'transparent',color:varietyType===t?'#fff':'var(--text2)',
                       fontSize:12,fontWeight:600,cursor:'pointer'},
-                    onClick:function(){setVarietyType(t);if(t==='single'){setVariety2('');setCategory2('');setAdditionalVarieties([]);}}
+                    onClick:function(){setVarietyType(t);}
                   },t==='single'?'Single variety':'Mixed varieties');
                 })
               ),
-              /* Single mode: show +Add Variety button OR variety2 section */
-              varietyType==='single'&&!variety2&&ce('button',{type:'button',
-                style:{fontSize:11,color:'var(--accent)',background:'transparent',border:'1px dashed var(--green-border,#8ecba4)',borderRadius:6,padding:'4px 12px',cursor:'pointer',marginTop:2},
-                onClick:function(){/* reveal variety2 fields */setVariety2('__selecting__');}
-              },'+ Add Variety'),
-              /* Variety 2 section — mixed mode always, single mode when variety2 is being added */
-              (varietyType==='mixed'||(varietyType==='single'&&!!variety2))&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,padding:'10px',background:'var(--bg2)',borderRadius:8,border:'1px solid var(--border)'}},
-                ce('div',{className:'form-field',style:{marginBottom:0}},
-                  ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2 — Category'),
-                  ce('select',{className:'form-select',value:category2,onChange:function(e){setCategory2(e.target.value);setVariety2('');}},
-                    ce('option',{value:''},'— All —'),
-                    ((config.categories||{})[cropId]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
-                  )
+
+              /* ── Part 2: Session varieties — independent of toggle ─── */
+              ce('div',{style:{borderTop:'1px solid var(--green-border,#8ecba4)',paddingTop:10}},
+                ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}},
+                  ce('label',{className:'form-label',style:{marginBottom:0}},'Session varieties'),
+                  /* +Add Variety button — always visible, independent of single/mixed */
+                  !hdrLocked&&ce('button',{type:'button',
+                    style:{fontSize:11,color:'var(--accent)',background:'transparent',border:'1px dashed var(--green-border,#8ecba4)',borderRadius:6,padding:'3px 10px',cursor:'pointer'},
+                    onClick:function(){
+                      if(!variety2||variety2==='__selecting__') setVariety2('__selecting__');
+                      else setAdditionalVarieties(function(prev){return prev.concat(['__selecting__']);});
+                    }
+                  },'+ Add Variety')
                 ),
-                ce('div',{className:'form-field',style:{marginBottom:0}},
-                  ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2'),
-                  ce('select',{className:'form-select',value:variety2,onChange:function(e){
-                    var name=e.target.value; setVariety2(name);
-                    var allVars=(config.varietiesFull||{})[cropId]||[];
-                    var found=allVars.find(function(v){return v.name===name;});
-                    if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setCategory2(cn);}
-                  }},
-                    ce('option',{value:''},'— Select —'),
-                    (function(){
-                      var allVars=(config.varietiesFull||{})[cropId]||[];
-                      var catId=category2?(config.categoriesIdMap||{})[category2]:null;
-                      var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
-                      return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});
-                    })()
-                  )
+
+                /* Variety 1 — always shown, read-only label */
+                variety&&ce('div',{style:{display:'flex',alignItems:'center',gap:6,padding:'4px 8px',background:'var(--card)',border:'1px solid var(--border)',borderRadius:6,marginBottom:4}},
+                  ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',minWidth:16}},'V1'),
+                  ce('span',{style:{fontSize:12,color:'var(--text)',flex:1}},variety)
                 ),
-                /* Single mode: remove variety2 button + additional varieties (3+) */
-                varietyType==='single'&&ce('div',{style:{gridColumn:'span 2'}},
-                  ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}},
-                    /* Additional varieties list */
-                    ce('div',{style:{flex:1}},
-                      additionalVarieties.map(function(av,ai){
-                        return ce('div',{key:ai,style:{display:'flex',gap:6,alignItems:'center',marginTop:6}},
-                          ce('select',{className:'form-select',style:{flex:1,fontSize:11},value:av,
-                            onChange:function(idx){return function(e){
-                              setAdditionalVarieties(function(prev){var n=prev.slice();n[idx]=e.target.value;return n;});
-                            };}(ai)},
-                            ce('option',{value:''},'— Select —'),
-                            ((config.varietiesFull||{})[cropId]||[]).map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
-                          ),
-                          ce('button',{type:'button',style:{fontSize:11,color:'var(--text3)',background:'transparent',border:'none',cursor:'pointer',padding:'0 4px',flexShrink:0},
-                            onClick:function(idx){return function(){setAdditionalVarieties(function(prev){return prev.filter(function(_,i){return i!==idx;});});};}(ai)
-                          },'×')
-                        );
-                      })
+
+                /* Variety 2 — shown when being added or already set */
+                (!!variety2)&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:6,alignItems:'end',marginBottom:4}},
+                  ce('div',{className:'form-field',style:{marginBottom:0}},
+                    ce('label',{className:'form-label',style:{fontSize:10}},
+                      ce('span',{style:{fontWeight:700,color:'var(--text3)',marginRight:4}},'V2'),
+                      'Category'
                     ),
-                    ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4,marginLeft:8,flexShrink:0}},
-                      /* Add another variety button */
-                      ce('button',{type:'button',
-                        style:{fontSize:10,color:'var(--accent)',background:'transparent',border:'1px dashed var(--green-border,#8ecba4)',borderRadius:5,padding:'3px 10px',cursor:'pointer',whiteSpace:'nowrap'},
-                        onClick:function(){setAdditionalVarieties(function(prev){return prev.concat(['']);});}
-                      },'+ Add Another'),
-                      /* Remove variety 2 button */
-                      ce('button',{type:'button',style:{fontSize:10,color:'var(--text3)',background:'transparent',border:'none',cursor:'pointer',padding:'2px 4px',textDecoration:'underline',whiteSpace:'nowrap'},
-                        onClick:function(){setVariety2('');setCategory2('');setAdditionalVarieties([]);}
-                      },'× Remove all')
+                    ce('select',{className:'form-select',value:category2,onChange:function(e){setCategory2(e.target.value);setVariety2('__selecting__');}},
+                      ce('option',{value:''},'— All —'),
+                      ((config.categories||{})[cropId]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
                     )
-                  )
-                )
+                  ),
+                  ce('div',{className:'form-field',style:{marginBottom:0}},
+                    ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2'),
+                    ce('select',{className:'form-select',value:variety2==='__selecting__'?'':variety2,onChange:function(e){
+                      var name=e.target.value; setVariety2(name);
+                      var allVars=(config.varietiesFull||{})[cropId]||[];
+                      var found=allVars.find(function(v){return v.name===name;});
+                      if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setCategory2(cn);}
+                    }},
+                      ce('option',{value:''},'— Select —'),
+                      (function(){
+                        var allVars=(config.varietiesFull||{})[cropId]||[];
+                        var catId=category2?(config.categoriesIdMap||{})[category2]:null;
+                        var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
+                        return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});
+                      })()
+                    )
+                  ),
+                  /* × Remove variety 2 */
+                  !hdrLocked&&ce('button',{type:'button',
+                    style:{fontSize:16,color:'var(--text3)',background:'transparent',border:'none',cursor:'pointer',padding:'0 4px',lineHeight:1,alignSelf:'center',marginBottom:2},
+                    onClick:function(){setVariety2('');setCategory2('');}
+                  },'×')
+                ),
+
+                /* Additional varieties (3, 4, ...) */
+                (additionalVarieties||[]).map(function(av,ai){
+                  return ce('div',{key:ai,style:{display:'grid',gridTemplateColumns:'auto 1fr auto',gap:6,alignItems:'end',marginBottom:4}},
+                    ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',paddingBottom:8,minWidth:24}},
+                      'V'+(ai+3)
+                    ),
+                    ce('select',{className:'form-select',value:av==='__selecting__'?'':av,
+                      onChange:function(idx){return function(e){
+                        setAdditionalVarieties(function(prev){var n=prev.slice();n[idx]=e.target.value;return n;});
+                      };}(ai)
+                    },
+                      ce('option',{value:''},'— Select —'),
+                      ((config.varietiesFull||{})[cropId]||[]).map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
+                    ),
+                    !hdrLocked&&ce('button',{type:'button',
+                      style:{fontSize:16,color:'var(--text3)',background:'transparent',border:'none',cursor:'pointer',padding:'0 4px',lineHeight:1,alignSelf:'center',marginBottom:2},
+                      onClick:function(idx){return function(){setAdditionalVarieties(function(prev){return prev.filter(function(_,i){return i!==idx;});});};}(ai)
+                    },'×')
+                  );
+                })
               )
             ),
             ce('div',{className:'form-field'},
