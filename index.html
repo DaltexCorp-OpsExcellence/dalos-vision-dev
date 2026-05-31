@@ -1784,7 +1784,10 @@ function InspectionForm(props){
       variety_id:lookupId(config.varietiesIdMap,variety),
       variety2_id:lookupId(config.varietiesIdMap,variety2&&variety2!=='__selecting__'?variety2:''),
       variety_type:varietyType||'single',
-      additional_variety_ids:(additionalVarieties||[]).filter(Boolean).map(function(av){return (config.varietiesIdMap&&config.varietiesIdMap[av])||null;}).filter(Boolean),
+      additional_variety_ids:(additionalVarieties||[]).filter(function(av){return av&&av.variety;}).map(function(av){
+        return {type:av.type||'single',variety_id:(config.varietiesIdMap&&config.varietiesIdMap[av.variety])||null,
+          mix_variety_id:av.mixVariety?((config.varietiesIdMap&&config.varietiesIdMap[av.mixVariety])||null):null};
+      }).filter(function(av){return av.variety_id;}),
       class_id:lookupId(config.classesIdMap,cls),
       client_id:lookupId(config.clientsIdMap,client),
       country_id:lookupId(config.countriesIdMap,country),
@@ -3667,6 +3670,16 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               ce('button',{className:'btn btn-primary btn-sm',style:{fontSize:13},onClick:function(i){return function(e){e.stopPropagation();addRowToPallet(i);};}(pIdx)},'+ Sample')
             ),
             pRows.map(function(row,ri){
+              var ef2m=row.extraFields||{};
+              /* rowIsMixed per row — look up selected variety in session options */
+              var _mSessOpts=[{value:variety,isMixed:false,v1:variety,v2:''}];
+              if(variety2&&variety2!=='__selecting__'){if(varietyType==='mixed'&&variety2){_mSessOpts.push({value:variety+' / '+variety2,isMixed:true,v1:variety,v2:variety2});}else{_mSessOpts.push({value:variety2,isMixed:false,v1:variety2,v2:''});}}
+              (additionalVarieties||[]).forEach(function(av){if(!av||!av.variety)return;if(av.type==='mixed'&&av.mixVariety){_mSessOpts.push({value:av.variety+' / '+av.mixVariety,isMixed:true,v1:av.variety,v2:av.mixVariety});}else{_mSessOpts.push({value:av.variety,isMixed:false,v1:av.variety,v2:''});}});
+              var _mCurSV=row.sampleVariety||(_mSessOpts[0]&&_mSessOpts[0].value)||'';
+              var _mRowOpt=_mSessOpts.find(function(o){return o.value===_mCurSV;})||_mSessOpts[0]||{isMixed:false,v1:variety,v2:''};
+              var rowIsMixed=_mRowOpt.isMixed;
+              var rowV1=_mRowOpt.v1||variety;
+              var rowV2=_mRowOpt.v2||variety2||'';
               var rowCrit=defSections.some(function(sec){return sec.items.some(function(d){return d.sev==='Critical'&&(parseFloat(row.defects[d.key])||0)>0;});});
               var isExp=expandedRow===row.id;
               return ce('div',{key:row.id,style:{background:rowCrit?'#fff8f8':'var(--card)',border:'1px solid '+(rowCrit?'var(--red-border)':'var(--border)'),borderRadius:10,marginBottom:8,overflow:'hidden'}},
@@ -9177,7 +9190,14 @@ function ClientQCMgmt(props){
             traceCode:r.trace_code||'', packhouse:(config.packhouses&&r.packhouse_id&&config.packhouses.find(function(p){return p.id===r.packhouse_id;})&&config.packhouses.find(function(p){return p.id===r.packhouse_id;}).name)||r.packhouse_id||'', cropCategory:r.product_id||'',
             variety:(config.varietiesIdToName&&r.variety_id&&config.varietiesIdToName[r.variety_id])||r.variety_id||'',
             variety2:(config.varietiesIdToName&&r.variety2_id&&config.varietiesIdToName[r.variety2_id])||'',
-            additionalVarieties:(r.additional_variety_ids||[]).map(function(id){return (config.varietiesIdToName&&config.varietiesIdToName[id])||'';}).filter(Boolean),
+            additionalVarietyObjs:(r.additional_variety_ids||[]).filter(function(item){return item&&item.variety_id;}).map(function(item){
+              return {type:item.type||'single',
+                variety:(config.varietiesIdToName&&config.varietiesIdToName[item.variety_id])||'',
+                category:'',
+                mixVariety:item.mix_variety_id?(config.varietiesIdToName&&config.varietiesIdToName[item.mix_variety_id])||'':'',
+                mixCategory:''
+              };
+            }),
             varietyType:r.variety_type||'single',category2:(function(){if(!r.variety2_id)return '';var pid=r.product_id||selCqcProd||'grapes';var found=((config.varietiesFull||{})[pid]||[]).find(function(v){return v.id===r.variety2_id;});return found&&found.categoryId?(config.categoriesIdToName||{})[found.categoryId]||'':'';})(),
             loadDate:r.load_date||'', packDate:r.pack_date||'',
             harvestDate:r.harvest_date||'', phCover:r.ph_cover||'', farm1:r.farm_1||'', plot1:r.plot_1||'', farm2:r.farm_2||'', plot2:r.plot_2||'', cqcExtraFields:r.cqc_extra_fields||{},
