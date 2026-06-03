@@ -57,13 +57,13 @@ input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--te
 .sidebar-logo-mark{font-family:var(--font-display);font-size:19px;color:#fff}
 .sidebar-logo-crop{font-size:10px;color:var(--sidebar-muted);letter-spacing:.08em;text-transform:uppercase;margin-top:3px;display:flex;align-items:center;gap:5px}
 .sidebar-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.sidebar-sec{padding:16px 12px 5px;font-size:10px;color:var(--sidebar-muted);letter-spacing:.1em;text-transform:uppercase}
-.nav-item{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:6px;margin:1px 8px;color:var(--sidebar-text);font-size:13px;cursor:pointer;transition:background .15s,color .15s}
+.sidebar-sec{padding:10px 12px 4px;font-size:10px;color:var(--sidebar-muted);letter-spacing:.1em;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:6px;margin:1px 8px;color:var(--sidebar-text);font-size:13px;cursor:pointer;transition:background .15s,color .15s}
 .nav-item:hover{background:var(--sidebar2);color:#fff}
 .nav-item.active{background:var(--accent);color:#fff;font-weight:500}
 .nav-icon{width:14px;height:14px;flex-shrink:0;opacity:.65}
 .nav-item.active .nav-icon{opacity:1}
-.sidebar-bottom{margin-top:auto;padding:10px 8px;border-top:1px solid rgba(255,255,255,.06)}
+.sidebar-bottom{margin-top:auto;padding:7px 8px 6px;border-top:1px solid rgba(255,255,255,.06)}
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
 .topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-shrink:0;gap:8px}
 .topbar-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
@@ -13040,7 +13040,7 @@ var supabase = window.supabase.createClient(
 
 var DALOS_VERSION='v9'; /* bump to clear stale localStorage */
 /* User-visible version shown under "Sign out" in the sidebar. Bump on each user-facing release. */
-var DALOS_BUILD='v1.5.0 (2026.05.24)';
+var DALOS_BUILD='v1.6.0 (2026.06.04)';
 (function(){
   try{
     if(localStorage.getItem('dalos_version')!==DALOS_VERSION){
@@ -14649,7 +14649,7 @@ function App(){
               );
             }),
         ce('div',{className:'sidebar-bottom'},
-          ce('div',{style:{margin:'2px 8px 8px',padding:'7px 10px',borderRadius:6,background:'rgba(255,255,255,.07)',display:'flex',alignItems:'center',gap:8}},
+          ce('div',{style:{margin:'2px 8px 8px',padding:'7px 10px',borderRadius:6,background:'rgba(255,255,255,.07)',display:'flex',alignItems:'center',gap:8,marginBottom:2}},
             ce('div',{style:{width:26,height:26,borderRadius:'50%',background:role.badge,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0}},
               liveCurrentUser.name.split(' ').map(function(n){return n[0];}).slice(0,2).join('')),
             ce('div',{style:{overflow:'hidden'}},
@@ -14665,7 +14665,7 @@ function App(){
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z'})),
             ce('div',null,'Sign out')
           ),
-          ce('div',{style:{padding:'6px 16px 10px',fontSize:10,color:'var(--sidebar-muted)',opacity:.6,letterSpacing:'.04em',userSelect:'none'}},'DalOS Vision · '+DALOS_BUILD)
+          ce('div',{style:{padding:'5px 16px 7px',fontSize:10,color:'var(--sidebar-muted)',opacity:.6,letterSpacing:'.04em',userSelect:'none'}},'DalOS Vision · '+DALOS_BUILD)
         )
       ),
       /* mobile bottom nav */
