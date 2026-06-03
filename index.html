@@ -6980,6 +6980,8 @@ function HomeView(props){
   var setViewSeason=props.setViewSeason||function(){};
   var setConfig=props.setConfig||function(){};
   var signOut=props.signOut||function(){};
+  var loading=!!props.loading;
+  function shim(w,h){return ce('span',{className:'dh-shim',style:{width:w,height:h}});}
   var sMenu=useState(false); var menuOpen=sMenu[0]; var setMenuOpen=sMenu[1];
   var userInitials=(currentUser.name||currentUser.full_name||'').split(' ').map(function(n){return n[0];}).slice(0,2).join('');
   var roleLabel=(currentUser.role||'').charAt(0).toUpperCase()+(currentUser.role||'').slice(1);
@@ -7015,11 +7017,11 @@ function HomeView(props){
 
   /* tile spec — only those the user can access */
   var tiles=[];
-  if(perms.viewFG)        tiles.push({key:'fg',       view:'fg',         eyebrow:'Inspections',label:'Export Inspection',icon:'\u2713', hint:palletsToday+' pallets packed today', primary:true, glow:'#6fc191', eyebrowColor:'#8fe0ad', big:activeToday.length, bigLabel:'active today'});
+  if(perms.viewFG)        tiles.push({key:'fg',       view:'fg',         eyebrow:'Inspections',label:'Export Inspection',icon:'\u2713', hint:palletsToday+' pallets packed today', dynamicHint:true, primary:true, glow:'#6fc191', eyebrowColor:'#8fe0ad', big:activeToday.length, bigLabel:'active today'});
   if(perms.viewClientQC)  tiles.push({key:'clientqc', view:'clientqc',   eyebrow:'Reports',    label:'Client QC',        icon:'\uD83D\uDCCB', hint:'Reports & matching', glow:'#8079d4', eyebrowColor:'#b7b0f0'});
   if(perms.viewShipments) tiles.push({key:'shipments',view:'shipments',  eyebrow:'Logistics',  label:'Shipments',        icon:'\uD83D\uDEA2', hint:'Records & claims', glow:'#d98a1f', eyebrowColor:'#e8c489'});
   if(perms.viewAnalytics) tiles.push({key:'analytics',view:'analytics',  eyebrow:'Insights',   label:'QC Analytics',     icon:'\uD83D\uDCCA', hint:'Season trends', glow:'#3d9e6b', eyebrowColor:'#8fe0ad', badge:'In progress'});
-  if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Board Review',     icon:'\u2691', hint:escalated.length+' escalated', glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:escalated.length>0});
+  if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Board Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
 
   function tileEl(t){
     return ce('div',{key:t.key,className:'dh-tile'+(t.primary?' dh-primary':''),onClick:function(){setView(t.view);},
@@ -7032,8 +7034,8 @@ function HomeView(props){
       ce('div',null,
         ce('div',{className:'dh-icon'},t.icon),
         ce('div',{className:'dh-title'},t.label),
-        t.primary?ce('div',{className:'dh-big'},t.big,ce('small',null,t.bigLabel)):null,
-        ce('div',{className:'dh-hint'},t.hint)
+        t.primary?ce('div',{className:'dh-big'},loading?shim(58,46):t.big,ce('small',null,t.bigLabel)):null,
+        ce('div',{className:'dh-hint'},(loading&&t.dynamicHint)?shim(118,11):t.hint)
       )
     );
   }
@@ -7104,9 +7106,9 @@ function HomeView(props){
 
       /* ribbon */
       ce('div',{className:'dh-ribbon'},
-        ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv'},palletsToday),ce('span',{className:'dh-rl'},'pallets today')),
-        ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv'},palletsSTD.toLocaleString()),ce('span',{className:'dh-rl'},'pallets \u00b7 season')),
-        ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv dh-gold'},drafts.length),ce('span',{className:'dh-rl'},'open drafts')),
+        ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv'},loading?shim(40,20):palletsToday),ce('span',{className:'dh-rl'},'pallets today')),
+        ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv'},loading?shim(56,20):palletsSTD.toLocaleString()),ce('span',{className:'dh-rl'},'pallets \u00b7 season')),
+        ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv dh-gold'},loading?shim(26,20):drafts.length),ce('span',{className:'dh-rl'},'open drafts')),
         ce('div',{style:{flex:1}}),
         ce('div',{className:'dh-rtime'},ce('span',{className:'dh-live'}),'Season '+currentViewSeason)
       )
@@ -7197,6 +7199,8 @@ var DH_CSS=[
 '.dh-rtime{font-size:11px;color:#7c9785;display:flex;align-items:center;gap:7px}',
 '.dh-live{width:6px;height:6px;border-radius:50%;background:#6fc191;position:relative;box-shadow:0 0 8px #6fc191;display:inline-block}',
 '.dh-live::after{content:"";position:absolute;inset:0;border-radius:50%;background:#6fc191;animation:dh-pulseRing 2.2s ease-in-out infinite}',
+'@keyframes dh-shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}',
+'.dh-shim{display:inline-block;border-radius:6px;background:linear-gradient(90deg,rgba(143,224,173,.07) 0%,rgba(143,224,173,.28) 50%,rgba(143,224,173,.07) 100%);background-size:200% 100%;animation:dh-shimmer 1.25s ease-in-out infinite;vertical-align:middle;box-shadow:0 0 12px rgba(143,224,173,.12)}',
 '@media(max-width:760px){.dh-page{position:relative;min-height:100vh}.dh-body{padding:22px 16px 28px;justify-content:flex-start;overflow:visible}.dh-aurora{position:fixed}.dh-bento{grid-template-columns:1fr 1fr;grid-template-rows:auto;height:auto;min-height:0;gap:10px}.dh-tile{padding:14px 15px;min-height:0;justify-content:flex-start;gap:10px}.dh-primary{grid-row:auto;grid-column:span 2;min-height:0}.dh-icon{margin-bottom:0}.dh-primary .dh-icon{margin-bottom:4px}.dh-big{font-size:40px;margin-top:6px}.dh-primary .dh-title{font-size:20px}.dh-crest{display:none}.dh-fruit{display:none}.dh-headline{font-size:24px}.dh-hero{margin-bottom:20px}.dh-ribbon{position:relative;left:auto;right:auto;bottom:auto;flex-wrap:wrap;gap:12px 0;margin-top:20px;padding:16px 0 0;border-top:1px solid rgba(255,255,255,.08)}.dh-ri{padding-right:16px;margin-right:16px}.dh-tb{padding:0 14px}.dh-ver{display:none}.dh-pill{padding:0 10px}.dh-season-lbl{display:none}}',
 '@media(max-width:430px){.dh-bento{grid-template-columns:1fr;gap:9px}.dh-primary{grid-column:auto}.dh-tile{flex-direction:row;align-items:center;gap:13px}.dh-tile>div:last-child{flex:1}.dh-icon{margin-bottom:0;font-size:22px}.dh-eyebrow-t{position:absolute;top:13px;right:14px;font-size:9px;opacity:.7}.dh-primary{flex-direction:column;align-items:stretch}.dh-primary .dh-eyebrow-t{position:relative;top:auto;right:auto}.dh-headline{font-size:22px}.dh-badge{top:auto;bottom:13px;right:14px}.dh-tb-r .dh-pill span{display:none}}'
 ].join('\n');
@@ -14574,7 +14578,7 @@ function App(){
   }
 
   if(view==='home'){
-    return ce(HomeView,{currentUser:liveCurrentUser,config:config,batches:batches,perms:perms,setView:setView,currentViewSeason:currentViewSeason,setViewSeason:setViewSeason,setConfig:setConfig,signOut:signOut});
+    return ce(HomeView,{currentUser:liveCurrentUser,config:config,batches:batches,perms:perms,setView:setView,currentViewSeason:currentViewSeason,setViewSeason:setViewSeason,setConfig:setConfig,signOut:signOut,loading:inspLoading});
   }
 
   if(needsCropPH){
