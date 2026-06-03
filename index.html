@@ -408,6 +408,24 @@ input,select,textarea{font-size:16px!important}
 .cqc-grid-head .cqc-grid td,.cqc-grid-head .cqc-grid th{border-top:none;}
 .cqc-grid-body .cqc-grid thead{display:none;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
+/* God-mode login */
+@keyframes dlogin-aurora{0%{transform:translate(0,0) scale(1)}50%{transform:translate(3%,-2%) scale(1.06)}100%{transform:translate(0,0) scale(1)}}
+@keyframes dlogin-cardin{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes dlogin-cardout{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-10px) scale(.94)}}
+@keyframes dlogin-welcome{0%{opacity:0;transform:translateY(14px) scale(.96)}22%{opacity:1;transform:translateY(0) scale(1)}80%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-8px) scale(1.02)}}
+@keyframes dlogin-crest{0%{opacity:0;transform:scale(.7) rotate(-8deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+.dlogin{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;overflow:hidden;background:#0a120c;color:#eef0ea;}
+.dlogin::before{content:'';position:absolute;inset:-25%;z-index:0;background:radial-gradient(circle at 18% 22%,rgba(43,92,63,.85),transparent 42%),radial-gradient(circle at 82% 28%,rgba(29,107,72,.7),transparent 40%),radial-gradient(circle at 32% 82%,rgba(127,90,212,.55),transparent 42%),radial-gradient(circle at 72% 78%,rgba(154,111,216,.4),transparent 40%),radial-gradient(circle at 50% 50%,rgba(202,168,106,.22),transparent 45%);filter:blur(64px);animation:dlogin-aurora 22s ease-in-out infinite;}
+.dlogin::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 85% 80% at 50% 42%,transparent 38%,rgba(5,9,6,.62) 100%);}
+.dlogin>*{position:relative;z-index:5;}
+.dlogin .form-input{background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.13);color:#f4f1e8;}
+.dlogin .form-input:focus{border-color:#6fc191;background:rgba(0,0,0,.36);box-shadow:0 0 0 3px rgba(111,193,145,.16);}
+.dlogin .form-input::placeholder{color:rgba(244,241,232,.32);}
+.dlogin .form-label{color:rgba(244,241,232,.5);}
+.dlogin .btn-primary{background:linear-gradient(135deg,#d9b86a,#f0d68a)!important;color:#3a2c0a!important;border:none!important;box-shadow:0 6px 22px rgba(217,184,106,.32);font-weight:700;}
+.dlogin .btn-primary:hover{background:linear-gradient(135deg,#e0c074,#f5dd96)!important;box-shadow:0 10px 30px rgba(217,184,106,.46);}
+.dlogin-card-exit{animation:dlogin-cardout .4s ease forwards!important;}
+.dlogin-card-in{animation:dlogin-cardin .55s cubic-bezier(.2,.8,.2,1) both;}
 .eid-desktop-only{}
 .eid-mobile-strip{display:none}
 @media(max-width:767px){.eid-desktop-only{display:none!important}.eid-mobile-strip{display:flex!important}}
@@ -13045,6 +13063,8 @@ function LoginScreen(props){
   var sResetDone=useState(false); var resetDone=sResetDone[0]; var setResetDone=sResetDone[1];
   var sResetErr=useState(''); var resetErr=sResetErr[0]; var setResetErr=sResetErr[1];
   var sLoading=useState(false); var loading=sLoading[0]; var setLoading=sLoading[1];
+  var sPhase=useState(0); var exitPhase=sPhase[0]; var setExitPhase=sPhase[1];
+  var sWName=useState(''); var welcomeName=sWName[0]; var setWelcomeName=sWName[1];
 
   /* ── Password recovery flow ── */
   var sRecovery=useState(function(){
@@ -13120,6 +13140,12 @@ function LoginScreen(props){
       },2000);
     });
   }
+  function beginEnter(u){
+    setWelcomeName(((u&&u.name)||'').trim().split(' ')[0]||'');
+    setExitPhase(1);
+    setTimeout(function(){setExitPhase(2);},420);
+    setTimeout(function(){props.onLogin(u);},1850);
+  }
   function tryLogin(){
     if(!email.trim()||!pw){setErr('Please enter your email and password.');return;}
     setLoading(true);setErr('');
@@ -13140,10 +13166,10 @@ function LoginScreen(props){
         if(!isAllAccess){
           supabase.from('user_packhouse_access').select('packhouse_id').eq('user_id',pr.data.id).then(function(phr){
             if(phr.data&&phr.data.length>0) userObj.packhouses=phr.data.map(function(p){return p.packhouse_id;});
-            props.onLogin(userObj);
+            beginEnter(userObj);
           });
         } else {
-          props.onLogin(userObj);
+          beginEnter(userObj);
         }
       });
     }).catch(function(){setLoading(false);setErr('Network error. Please try again.');});
@@ -13156,12 +13182,12 @@ function LoginScreen(props){
       .catch(function(){setLoading(false);setResetErr('Network error.');});
   }
   var ls={minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'var(--bg)',padding:'20px'};
-  var cs={width:'100%',maxWidth:420,background:'var(--card)',borderRadius:16,boxShadow:'0 4px 32px rgba(0,0,0,0.10)',padding:'40px 36px'};
-  var logo=ce('div',null,
-    ce('div',{style:{fontFamily:'var(--font-display)',fontSize:42,marginBottom:8,letterSpacing:-1}},'Dal',ce('span',{style:{color:'var(--accent)'}},'OS'),' Vision'),
-    ce('div',{style:{fontSize:11,letterSpacing:3,color:'var(--text3)',marginBottom:40}},'QUALITY MANAGEMENT SYSTEM')
+  var cs={width:'100%',maxWidth:400,background:'rgba(255,255,255,.055)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,.12)',borderRadius:20,boxShadow:'0 30px 80px rgba(0,0,0,0.5)',padding:'34px 32px'};
+  var logo=ce('div',{style:{textAlign:'center'}},
+    ce('div',{style:{fontFamily:'var(--font-display)',fontSize:40,marginBottom:6,letterSpacing:-1,color:'#f4f1e8'}},'Dal',ce('span',{style:{color:'#6fc191'}},'OS'),' ',ce('span',{style:{color:'#7d9d88',fontSize:30}},'Vision')),
+    ce('div',{style:{fontSize:10,fontWeight:600,letterSpacing:'.18em',color:'#caa86a',textTransform:'uppercase',marginBottom:34}},'Agricultural Quality Management')
   );
-  if(invite) return ce('div',{style:ls},logo,
+  if(invite) return ce('div',{className:'dlogin'},logo,
     ce('div',{style:cs},
       ce('div',{style:{fontFamily:'var(--font-display)',fontSize:28,marginBottom:4}},'Welcome to DalOS Vision'),
       ce('div',{style:{fontSize:14,color:'var(--text3)',marginBottom:24}},'Set a password to activate your account.'),
@@ -13187,7 +13213,7 @@ function LoginScreen(props){
         )
     )
   );
-  if(recovery) return ce('div',{style:ls},logo,
+  if(recovery) return ce('div',{className:'dlogin'},logo,
     ce('div',{style:cs},
       ce('div',{style:{fontSize:12,color:'var(--accent)',cursor:'pointer',marginBottom:20},onClick:function(){setRecovery(null);}},'← Back to sign in'),
       recovery.error
@@ -13223,7 +13249,7 @@ function LoginScreen(props){
         )
     )
   );
-  if(showReset) return ce('div',{style:ls},logo,
+  if(showReset) return ce('div',{className:'dlogin'},logo,
     ce('div',{style:cs},
       ce('div',{style:{fontSize:12,color:'var(--accent)',cursor:'pointer',marginBottom:20},onClick:function(){setShowReset(false);setResetErr('');setResetDone(false);}},'\u2190 Back to sign in'),
       ce('div',{style:{fontFamily:'var(--font-display)',fontSize:28,marginBottom:8}},'Reset password'),
@@ -13237,8 +13263,15 @@ function LoginScreen(props){
       )
     )
   );
-  return ce('div',{style:ls},logo,
-    ce('div',{style:cs},
+  return ce('div',{className:'dlogin'},
+    exitPhase===2
+    ?ce('div',{style:{textAlign:'center'}},
+        ce('div',{style:{width:84,height:84,margin:'0 auto 16px',animation:'dlogin-crest .5s cubic-bezier(.2,.9,.3,1.3) both'}},ce('svg',{viewBox:'0 0 200 200',width:84,height:84},ce('defs',null,ce('linearGradient',{id:'dlwg',x1:'0',y1:'0',x2:'1',y2:'1'},ce('stop',{offset:'0',stopColor:'#e0bd7a'}),ce('stop',{offset:'1',stopColor:'#8fe0ad'}))),ce('circle',{cx:100,cy:100,r:74,fill:'none',stroke:'url(#dlwg)',strokeWidth:2}),ce('circle',{cx:100,cy:74,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:82,cy:90,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:118,cy:90,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:90,cy:108,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:110,cy:108,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:100,cy:126,r:11,fill:'url(#dlwg)'}),ce('path',{d:'M100 63 L100 48 M100 48 Q114 44 120 54',fill:'none',stroke:'url(#dlwg)',strokeWidth:2.5,strokeLinecap:'round'}))),
+        ce('div',{style:{fontFamily:'var(--font-display)',fontSize:30,color:'#f4f1e8',animation:'dlogin-welcome 1.5s ease forwards'}},'Welcome back',welcomeName?ce('span',null,', ',ce('span',{style:{background:'linear-gradient(120deg,#8fe0ad,#b18cf0)',WebkitBackgroundClip:'text',backgroundClip:'text',WebkitTextFillColor:'transparent',fontStyle:'italic'}},welcomeName)):null),
+        ce('div',{style:{fontSize:11,letterSpacing:'.16em',textTransform:'uppercase',color:'#caa86a',marginTop:10}},'Opening your workspace')
+      )
+    :ce(React.Fragment,null,logo,
+    ce('div',{style:cs,className:exitPhase===1?'dlogin-card-exit':'dlogin-card-in'},
       ce('div',{style:{marginBottom:16}},ce('label',{className:'form-label',style:{fontSize:10,letterSpacing:2}},'EMAIL ADDRESS'),
         ce('input',{className:'form-input',type:'email',value:email,onChange:function(e){setEmail(e.target.value);},onKeyDown:function(e){if(e.key==='Enter')tryLogin();},autoFocus:true,placeholder:'your@email.com'})),
       ce('div',{style:{marginBottom:8,position:'relative'}},ce('label',{className:'form-label',style:{fontSize:10,letterSpacing:2}},'PASSWORD'),
@@ -13248,7 +13281,7 @@ function LoginScreen(props){
         ce('button',{onClick:function(){setShowReset(true);setResetEmail(email);setResetErr('');setResetDone(false);},style:{background:'none',border:'none',cursor:'pointer',fontSize:12,color:'var(--accent)',padding:0}},'Forgot password?')),
       err&&ce('div',{style:{background:'var(--red-bg)',border:'1px solid var(--red-border)',borderRadius:6,padding:'8px 12px',fontSize:12,color:'var(--red)',marginBottom:14}},err),
       ce('button',{className:'btn btn-primary',style:{width:'100%',justifyContent:'center',fontSize:14,padding:'10px',opacity:loading?.7:1},onClick:tryLogin,disabled:loading},loading?'Signing in...':'Sign in')
-    )
+    ))
   );
 }
 /* ── Navigation icon paths ── */
