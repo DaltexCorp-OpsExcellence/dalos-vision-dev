@@ -14595,7 +14595,7 @@ function App(){
       ce('div',{className:'sidebar-overlay'+(mobOpen?' open':''),onClick:function(){setMobOpen(false);}}),
       ce('div',{className:'sidebar'+(mobOpen?' open':'')},
         ce('div',{className:'sidebar-logo'},
-          ce('div',{className:'sidebar-logo-mark'},ce('span',{style:{color:'#fff'}},'Dal'),ce('span',{style:{color:'var(--accent2)'}},'OS'),ce('span',{style:{color:'var(--sidebar-muted)',fontFamily:'var(--font-body)',fontSize:14,fontWeight:500,marginLeft:4}},'Vision')),
+          ce('div',{className:'sidebar-logo-mark',style:{cursor:'pointer'},title:'Go to home',onClick:function(){setView('home');setMobOpen(false);}},ce('span',{style:{color:'#fff'}},'Dal'),ce('span',{style:{color:'var(--accent2)'}},'OS'),ce('span',{style:{color:'var(--sidebar-muted)',fontFamily:'var(--font-body)',fontSize:14,fontWeight:500,marginLeft:4}},'Vision')),
           ce('div',{style:{marginTop:8,background:'rgba(255,255,255,.08)',borderRadius:6,padding:'6px 10px',border:'1px solid rgba(255,255,255,.12)'}},
             ce('div',{style:{fontSize:9,color:'var(--sidebar-muted)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:3}},'Season'),
             ce('select',{style:{fontSize:12,fontWeight:700,color:'#fff',background:'transparent',border:'none',outline:'none',cursor:'pointer',fontFamily:'var(--font-body)',padding:0,width:'100%'},
