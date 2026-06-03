@@ -13215,7 +13215,7 @@ function LoginScreen(props){
   );
   if(recovery) return ce('div',{className:'dlogin'},logo,
     ce('div',{style:cs},
-      ce('div',{style:{fontSize:12,color:'var(--accent)',cursor:'pointer',marginBottom:20},onClick:function(){setRecovery(null);}},'← Back to sign in'),
+      ce('div',{style:{fontSize:12,color:'#8fbf9f',fontWeight:600,cursor:'pointer',marginBottom:20},onClick:function(){setRecovery(null);}},'← Back to sign in'),
       recovery.error
         ?ce('div',null,
           ce('div',{style:{fontFamily:'var(--font-display)',fontSize:28,marginBottom:8}},'Link expired'),
@@ -13251,7 +13251,7 @@ function LoginScreen(props){
   );
   if(showReset) return ce('div',{className:'dlogin'},logo,
     ce('div',{style:cs},
-      ce('div',{style:{fontSize:12,color:'var(--accent)',cursor:'pointer',marginBottom:20},onClick:function(){setShowReset(false);setResetErr('');setResetDone(false);}},'\u2190 Back to sign in'),
+      ce('div',{style:{fontSize:12,color:'#8fbf9f',fontWeight:600,cursor:'pointer',marginBottom:20},onClick:function(){setShowReset(false);setResetErr('');setResetDone(false);}},'\u2190 Back to sign in'),
       ce('div',{style:{fontFamily:'var(--font-display)',fontSize:28,marginBottom:8}},'Reset password'),
       ce('div',{style:{fontSize:15,color:'var(--text3)',marginBottom:24}},"Enter your email and we\u2019ll send you reset instructions."),
       resetDone?ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:8,padding:'14px 16px',fontSize:13,color:'var(--green)',textAlign:'center'}},'Reset link sent. Check your inbox.')
@@ -13278,7 +13278,7 @@ function LoginScreen(props){
         ce('input',{className:'form-input',type:showPw?'text':'password',value:pw,onChange:function(e){setPw(e.target.value);},onKeyDown:function(e){if(e.key==='Enter')tryLogin();}}),
         ce('button',{onClick:function(){setShowPw(!showPw);},style:{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:11}},showPw?'Hide':'Show')),
       ce('div',{style:{textAlign:'right',marginBottom:16}},
-        ce('button',{onClick:function(){setShowReset(true);setResetEmail(email);setResetErr('');setResetDone(false);},style:{background:'none',border:'none',cursor:'pointer',fontSize:12,color:'var(--accent)',padding:0}},'Forgot password?')),
+        ce('button',{onClick:function(){setShowReset(true);setResetEmail(email);setResetErr('');setResetDone(false);},style:{background:'none',border:'none',cursor:'pointer',fontSize:12,color:'#8fbf9f',fontWeight:600,padding:0}},'Forgot password?')),
       err&&ce('div',{style:{background:'var(--red-bg)',border:'1px solid var(--red-border)',borderRadius:6,padding:'8px 12px',fontSize:12,color:'var(--red)',marginBottom:14}},err),
       ce('button',{className:'btn btn-primary',style:{width:'100%',justifyContent:'center',fontSize:14,padding:'10px',opacity:loading?.7:1},onClick:tryLogin,disabled:loading},loading?'Signing in...':'Sign in')
     ))
