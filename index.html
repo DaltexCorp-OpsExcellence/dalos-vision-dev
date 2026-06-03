@@ -11825,18 +11825,28 @@ function ClientQCMgmt(props){
                   ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelRep(null);},style:{fontSize:12}},'× Close')
                 )
               ),
-              ce('div',{className:'cqc-stat-grid'},
-                ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Total defect'),ce('div',{style:{fontSize:20,fontWeight:500,color:r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)'}},r.totalDefect||r.totalDefect===0?r.totalDefect.toFixed(1)+'%':'—')),
-                ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Samples'),ce('div',{style:{fontSize:20,fontWeight:500}},(r.sampleRows||[]).length)),
-                ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},
-                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Major avg'),
-                  ce('div',{style:{fontSize:20,fontWeight:500,color:'var(--red)'}},r.sectionAvgs&&r.sectionAvgs.Major!=null?r.sectionAvgs.Major.toFixed(2)+'%':'—')
-                ),
-                ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px',textAlign:'center'}},
-                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:3}},'Minor avg'),
-                  ce('div',{style:{fontSize:20,fontWeight:500,color:'var(--amber)'}},r.sectionAvgs&&r.sectionAvgs.Minor!=null?r.sectionAvgs.Minor.toFixed(2)+'%':'—')
-                )
-              ),
+              (function(){
+                var hasTD=(r.totalDefect||r.totalDefect===0);
+                var tdCol=r.totalDefect>10?'var(--red)':r.totalDefect>5?'var(--amber)':'var(--green)';
+                var pos=hasTD?Math.min(r.totalDefect/20*100,100):0;
+                return ce('div',{style:{display:'flex',gap:16,marginBottom:16,flexWrap:'wrap',alignItems:'stretch'}},
+                  ce('div',{style:{flex:'2 1 260px',background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'14px 16px'}},
+                    ce('div',{style:{fontSize:11,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)',fontWeight:600,marginBottom:4}},'Total defect'),
+                    ce('div',{style:{display:'flex',alignItems:'baseline',gap:10,flexWrap:'wrap'}},
+                      ce('div',{style:{fontSize:38,fontWeight:600,lineHeight:1,color:tdCol,fontFamily:'var(--font-display)'}},hasTD?r.totalDefect.toFixed(1)+'%':'—'),
+                      (hasTD&&r.totalDefect>10)?ce('span',{style:{fontSize:11,fontWeight:600,color:'var(--red)',background:'#fff0f0',padding:'2px 8px',borderRadius:6}},'Above 10% limit'):null
+                    ),
+                    hasTD?ce('div',{style:{marginTop:12,position:'relative',height:8,borderRadius:5,background:'linear-gradient(90deg,#3d9e6b 0%,#3d9e6b 40%,#e0a127 40%,#e0a127 62%,#c0432e 62%,#c0432e 100%)'}},
+                      ce('div',{style:{position:'absolute',left:pos+'%',top:-4,width:3,height:16,background:'var(--text)',borderRadius:2,boxShadow:'0 0 0 2px var(--card)'}})
+                    ):null
+                  ),
+                  ce('div',{style:{flex:'1 1 190px',display:'flex',flexDirection:'column',justifyContent:'center',gap:8,background:'var(--bg2)',borderRadius:'var(--r2)',padding:'12px 16px'}},
+                    ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline'}},ce('span',{style:{fontSize:12,color:'var(--text3)'}},'Samples'),ce('span',{style:{fontSize:17,fontWeight:600}},(r.sampleRows||[]).length)),
+                    ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline'}},ce('span',{style:{fontSize:12,color:'var(--text3)'}},'Major avg'),ce('span',{style:{fontSize:17,fontWeight:600,color:'var(--red)'}},r.sectionAvgs&&r.sectionAvgs.Major!=null?r.sectionAvgs.Major.toFixed(2)+'%':'—')),
+                    ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline'}},ce('span',{style:{fontSize:12,color:'var(--text3)'}},'Minor avg'),ce('span',{style:{fontSize:17,fontWeight:600,color:'var(--amber)'}},r.sectionAvgs&&r.sectionAvgs.Minor!=null?r.sectionAvgs.Minor.toFixed(2)+'%':'—'))
+                  )
+                );
+              })(),
               ce('div',{className:'cqc-two-col'},
                 ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
                   ce('div',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}},'Shipment info'),
@@ -11891,7 +11901,19 @@ function ClientQCMgmt(props){
               r.sampleRows&&r.sampleRows.length>0&&ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px',marginBottom:14}},
                 ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
                   ce('span',{style:{fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em'}},'Sample readings'),
-                  ce('span',{style:{fontSize:12,color:'var(--text3)'}},r.sampleRows.length+' samples')
+                  (function(){
+                    var rows=r.sampleRows||[];
+                    var g=0,a=0,rd=0,pend=0,majs=[],disp=0;
+                    rows.forEach(function(s){var sc=(s.score||'').toUpperCase();if(sc==='GREEN')g++;else if(sc==='AMBER')a++;else if(sc==='RED')rd++;else pend++;if(s.major>0)majs.push(s.major);if(s.disputed)disp++;});
+                    var tot=Math.max(rows.length,1);
+                    var seg=function(n,c){return n>0?ce('div',{style:{width:(n/tot*100)+'%',background:c}}):null;};
+                    return ce('div',{style:{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
+                      ce('div',{style:{display:'flex',height:9,width:120,borderRadius:4,overflow:'hidden',border:'0.5px solid var(--border)'}},seg(g,'#3d9e6b'),seg(a,'#e0a127'),seg(rd,'#c0432e'),seg(pend,'#d3cdbf')),
+                      ce('span',{style:{fontSize:11,color:'var(--text3)'}},majs.length?'Major '+Math.min.apply(null,majs).toFixed(2)+'–'+Math.max.apply(null,majs).toFixed(2)+'%':'No majors'),
+                      disp>0?ce('span',{style:{fontSize:11,fontWeight:600,color:'var(--red)'}},disp+' disputed'):null,
+                      ce('span',{style:{fontSize:12,color:'var(--text3)',marginLeft:'auto'}},rows.length+' samples')
+                    );
+                  })()
                 ),
                 ce('div',{style:{overflowX:'auto',border:'1px solid var(--border)',borderRadius:8}},
                   ce('table',{style:{width:'100%',minWidth:520,fontSize:11,borderCollapse:'collapse'}},
@@ -11908,7 +11930,7 @@ function ClientQCMgmt(props){
                         ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)'}},s.brix||'—'),
                         ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.major>0?'var(--red)':'var(--text3)'}},s.major>0?s.major.toFixed(2)+'%':'—'),
                         ce('td',{style:{padding:'5px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.minor>0?'var(--amber)':'var(--text3)'}},s.minor>0?s.minor.toFixed(2)+'%':'—'),
-                        ce('td',{style:{padding:'5px 10px'}},s.score?ce('span',{style:{fontSize:10,fontWeight:500,color:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}},s.score):'—'),
+                        ce('td',{style:{padding:'5px 10px'}},s.score?ce('span',{style:{display:'inline-flex',alignItems:'center',gap:5,fontSize:10,fontWeight:600,color:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}},ce('span',{style:{width:7,height:7,borderRadius:'50%',background:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}}),s.score):'—'),
                         ce('td',{style:{padding:'5px 10px',color:'var(--text3)',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.notes||'—'),
                         ce('td',{style:{padding:'5px 10px',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},
                           s.disputed
@@ -12073,7 +12095,7 @@ function ClientQCMgmt(props){
                           ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)'}},s.brix||'—'),
                           ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)',color:s.major>0?'var(--red)':'var(--text3)'}},s.major>0?s.major.toFixed(2)+'%':'—'),
                           ce('td',{style:{padding:'4px 8px',fontFamily:'var(--font-mono)',color:s.minor>0?'var(--amber)':'var(--text3)'}},s.minor>0?s.minor.toFixed(2)+'%':'—'),
-                          ce('td',{style:{padding:'4px 8px'}},s.score?ce('span',{style:{fontSize:10,fontWeight:500,color:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}},s.score):'—'),
+                          ce('td',{style:{padding:'4px 8px'}},s.score?ce('span',{style:{display:'inline-flex',alignItems:'center',gap:4,fontSize:10,fontWeight:600,color:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}},ce('span',{style:{width:6,height:6,borderRadius:'50%',background:s.score==='GREEN'?'var(--green)':s.score==='RED'?'var(--red)':'var(--amber)'}}),s.score):'—'),
                           ce('td',{style:{padding:'4px 8px',color:'var(--text3)',fontSize:11,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.notes||(s.disputed?'':'\u2014'),s.disputed?ce('span',{style:{display:'inline-flex',alignItems:'center',gap:3,background:'#fff0f0',color:'var(--red)',borderRadius:3,padding:'1px 5px',fontSize:9,fontWeight:600,marginLeft:s.notes?5:0}},'\u25cf Disputed'):null)
                         );
                       }))
