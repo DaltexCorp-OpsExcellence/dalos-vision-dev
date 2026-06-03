@@ -414,9 +414,7 @@ input,select,textarea{font-size:16px!important}
 @keyframes dlogin-cardout{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-10px) scale(.94)}}
 @keyframes dlogin-welcome{0%{opacity:0;transform:translateY(14px) scale(.96)}22%{opacity:1;transform:translateY(0) scale(1)}80%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-8px) scale(1.02)}}
 @keyframes dlogin-crest{0%{opacity:0;transform:scale(.7) rotate(-8deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
-.dlogin{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;overflow:hidden;background:#0a120c;color:#eef0ea;}
-.dlogin::before{content:'';position:absolute;inset:-20%;z-index:0;background:radial-gradient(circle at 20% 20%,rgba(43,92,63,.85),transparent 42%),radial-gradient(circle at 82% 40%,rgba(29,107,72,.72),transparent 40%),radial-gradient(circle at 40% 85%,rgba(127,90,212,.55),transparent 42%),radial-gradient(circle at 68% 76%,rgba(154,111,216,.42),transparent 40%),radial-gradient(circle at 52% 18%,rgba(202,168,106,.28),transparent 45%);filter:blur(70px);animation:dlogin-aurora 22s ease-in-out infinite;}
-.dlogin::after{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse 90% 80% at 50% 35%,transparent 40%,rgba(5,9,6,.55) 100%);}
+.dlogin{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;overflow:hidden;background:transparent;color:#eef0ea;}
 .dlogin>*{position:relative;z-index:5;}
 .dlogin-crest{position:absolute;right:-60px;top:50%;transform:translateY(-50%);width:min(42vw,520px);height:min(42vw,520px);z-index:1;opacity:.8;pointer-events:none}
 @media(max-width:760px){.dlogin-crest{display:none}}
@@ -428,6 +426,19 @@ input,select,textarea{font-size:16px!important}
 .dlogin .btn-primary:hover{background:linear-gradient(135deg,#e0c074,#f5dd96)!important;box-shadow:0 10px 30px rgba(217,184,106,.46);}
 .dlogin-card-exit{animation:dlogin-cardout .4s ease forwards!important;}
 .dlogin-card-in{animation:dlogin-cardin .55s cubic-bezier(.2,.8,.2,1) both;}
+/* Shared persistent backdrop (login + home) */
+@keyframes dbd-aurora{0%{transform:translate(0,0) scale(1)}33%{transform:translate(4%,-3%) scale(1.08)}66%{transform:translate(-3%,4%) scale(.96)}100%{transform:translate(0,0) scale(1)}}
+@keyframes dbd-breathe{0%,100%{opacity:.08;transform:translateY(-50%) scale(1) rotate(0deg)}50%{opacity:.12;transform:translateY(-50%) scale(1.04) rotate(3deg)}}
+@keyframes dbd-drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes dbd-twinkle{0%,100%{opacity:.15}50%{opacity:.6}}
+.dbd{position:fixed;inset:0;z-index:0;overflow:hidden;background:#0a120c;pointer-events:none}
+.dbd-aur{position:absolute;inset:-20%;filter:blur(70px);animation:dbd-aurora 22s ease-in-out infinite}
+.dbd-aur b{position:absolute;border-radius:50%;display:block}
+.dbd-vignette{position:absolute;inset:0;background:radial-gradient(ellipse 90% 80% at 50% 35%,transparent 40%,rgba(5,9,6,.55) 100%)}
+.dbd-spark{position:absolute;width:3px;height:3px;border-radius:50%;background:#cde7d8;animation:dbd-twinkle 4s ease-in-out infinite}
+.dbd-crest{position:absolute;right:-40px;top:50%;transform:translateY(-50%);width:min(46vw,560px);height:min(46vw,560px);animation:dbd-breathe 14s ease-in-out infinite}
+.dbd-fruit{position:absolute;animation:dbd-drift 10s ease-in-out infinite;filter:drop-shadow(0 6px 14px rgba(0,0,0,.3))}
+@media(max-width:760px){.dbd-crest{display:none}.dbd-fruit{display:none}}
 .eid-desktop-only{}
 .eid-mobile-strip{display:none}
 @media(max-width:767px){.eid-desktop-only{display:none!important}.eid-mobile-strip{display:flex!important}}
@@ -7075,19 +7086,6 @@ function HomeView(props){
       ce('div',{className:'dh-veil-sub'},'Opening\u2026')
     ):null,
 
-    /* aurora */
-    ce('div',{className:'dh-aurora'},
-      ce('b',{style:{width:420,height:420,background:'#2b5c3f',top:'5%',left:'8%'}}),
-      ce('b',{style:{width:360,height:360,background:'#1d6b48',top:'30%',right:'5%'}}),
-      ce('b',{style:{width:300,height:300,background:'#7f5ad4',bottom:'5%',left:'30%',opacity:.55}}),
-      ce('b',{style:{width:280,height:280,background:'#9a6fd8',bottom:'14%',right:'22%',opacity:.42}}),
-      ce('b',{style:{width:240,height:240,background:'#caa86a',top:'10%',left:'45%',opacity:.28}})
-    ),
-    ce('div',{className:'dh-vignette'}),
-    ce('div',{className:'dh-spark',style:{top:'18%',left:'30%',animationDelay:'0s'}}),
-    ce('div',{className:'dh-spark',style:{top:'60%',left:'18%',animationDelay:'1.2s'}}),
-    ce('div',{className:'dh-spark',style:{top:'40%',left:'55%',animationDelay:'2.4s'}}),
-    ce('div',{className:'dh-spark',style:{top:'72%',left:'46%',animationDelay:'.6s'}}),
 
     /* topbar */
     ce('div',{className:'dh-tb'},
@@ -7122,10 +7120,6 @@ function HomeView(props){
 
     /* body */
     ce('div',{className:'dh-body'},
-      /* gilded grape crest */
-      ce('div',{className:'dh-crest',dangerouslySetInnerHTML:{__html:DH_CREST_SVG}}),
-      ce('div',{className:'dh-fruit',style:{width:42,top:'13%',right:'31%',opacity:.9,animationDelay:'1s'},dangerouslySetInnerHTML:{__html:DH_GRAPE_SVG('#a98fe8')}}),
-      ce('div',{className:'dh-fruit',style:{width:30,top:'62%',right:'42%',opacity:.8,animationDelay:'3s'},dangerouslySetInnerHTML:{__html:DH_GRAPE_SVG('#8fe0ad')}}),
 
       /* hero */
       ce('div',{className:'dh-hero'},
@@ -7172,7 +7166,7 @@ var DH_CSS=[
 '@keyframes dh-breathe{0%,100%{opacity:.08;transform:translateY(-50%) scale(1) rotate(0deg)}50%{opacity:.12;transform:translateY(-50%) scale(1.04) rotate(3deg)}}',
 '@keyframes dh-sheen{0%{transform:translateX(-130%) skewX(-18deg)}55%,100%{transform:translateX(320%) skewX(-18deg)}}',
 '@keyframes dh-twinkle{0%,100%{opacity:.15}50%{opacity:.6}}',
-'.dh-page{position:fixed;inset:0;background:#0a120c;overflow:hidden;display:flex;flex-direction:column;font-family:var(--font-body)}',
+'.dh-page{position:fixed;inset:0;background:transparent;overflow:hidden;display:flex;flex-direction:column;font-family:var(--font-body)}',
 '.dh-aurora{position:absolute;inset:-20%;z-index:0;filter:blur(70px);animation:dh-aurora 22s ease-in-out infinite}',
 '.dh-aurora b{position:absolute;border-radius:50%;display:block}',
 '.dh-vignette{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse 90% 80% at 50% 35%,transparent 40%,rgba(5,9,6,.55) 100%)}',
@@ -13055,6 +13049,25 @@ var DALOS_BUILD='v1.5.0 (2026.05.24)';
     }
   }catch(e){}
 })();
+function DalosBackdrop(){
+  return ce('div',{className:'dbd'},
+    ce('div',{className:'dbd-aur'},
+      ce('b',{style:{width:420,height:420,background:'#2b5c3f',top:'5%',left:'8%'}}),
+      ce('b',{style:{width:360,height:360,background:'#1d6b48',top:'30%',right:'5%'}}),
+      ce('b',{style:{width:300,height:300,background:'#7f5ad4',bottom:'5%',left:'30%',opacity:.55}}),
+      ce('b',{style:{width:280,height:280,background:'#9a6fd8',bottom:'14%',right:'22%',opacity:.42}}),
+      ce('b',{style:{width:240,height:240,background:'#caa86a',top:'10%',left:'45%',opacity:.28}})
+    ),
+    ce('div',{className:'dbd-crest',dangerouslySetInnerHTML:{__html:DH_CREST_SVG}}),
+    ce('div',{className:'dbd-fruit',style:{width:42,top:'13%',right:'31%',opacity:.9,animationDelay:'1s'},dangerouslySetInnerHTML:{__html:DH_GRAPE_SVG('#a98fe8')}}),
+    ce('div',{className:'dbd-fruit',style:{width:30,top:'62%',right:'42%',opacity:.8,animationDelay:'3s'},dangerouslySetInnerHTML:{__html:DH_GRAPE_SVG('#8fe0ad')}}),
+    ce('div',{className:'dbd-vignette'}),
+    ce('div',{className:'dbd-spark',style:{top:'18%',left:'30%',animationDelay:'0s'}}),
+    ce('div',{className:'dbd-spark',style:{top:'60%',left:'18%',animationDelay:'1.2s'}}),
+    ce('div',{className:'dbd-spark',style:{top:'40%',left:'55%',animationDelay:'2.4s'}}),
+    ce('div',{className:'dbd-spark',style:{top:'72%',left:'46%',animationDelay:'.6s'}})
+  );
+}
 function LoginScreen(props){
   var se=useState(''); var email=se[0]; var setEmail=se[1];
   var sp=useState(''); var pw=sp[0]; var setPw=sp[1];
@@ -13189,8 +13202,7 @@ function LoginScreen(props){
     ce('div',{style:{fontFamily:'var(--font-display)',fontSize:40,marginBottom:6,letterSpacing:-1,color:'#f4f1e8'}},'Dal',ce('span',{style:{color:'#6fc191'}},'OS'),' ',ce('span',{style:{color:'#7d9d88',fontSize:30}},'Vision')),
     ce('div',{style:{fontSize:10,fontWeight:600,letterSpacing:'.18em',color:'#caa86a',textTransform:'uppercase',marginBottom:34}},'Agricultural Quality Management')
   );
-  var dloginBg=ce('div',{className:'dlogin-crest',dangerouslySetInnerHTML:{__html:DH_CREST_SVG}});
-  if(invite) return ce('div',{className:'dlogin'},dloginBg,logo,
+  if(invite) return ce('div',{className:'dlogin'},logo,
     ce('div',{style:cs},
       ce('div',{style:{fontFamily:'var(--font-display)',fontSize:28,marginBottom:4}},'Welcome to DalOS Vision'),
       ce('div',{style:{fontSize:14,color:'var(--text3)',marginBottom:24}},'Set a password to activate your account.'),
@@ -13216,7 +13228,7 @@ function LoginScreen(props){
         )
     )
   );
-  if(recovery) return ce('div',{className:'dlogin'},dloginBg,logo,
+  if(recovery) return ce('div',{className:'dlogin'},logo,
     ce('div',{style:cs},
       ce('div',{style:{fontSize:12,color:'#8fbf9f',fontWeight:600,cursor:'pointer',marginBottom:20},onClick:function(){setRecovery(null);}},'← Back to sign in'),
       recovery.error
@@ -13252,7 +13264,7 @@ function LoginScreen(props){
         )
     )
   );
-  if(showReset) return ce('div',{className:'dlogin'},dloginBg,logo,
+  if(showReset) return ce('div',{className:'dlogin'},logo,
     ce('div',{style:cs},
       ce('div',{style:{fontSize:12,color:'#8fbf9f',fontWeight:600,cursor:'pointer',marginBottom:20},onClick:function(){setShowReset(false);setResetErr('');setResetDone(false);}},'\u2190 Back to sign in'),
       ce('div',{style:{fontFamily:'var(--font-display)',fontSize:28,marginBottom:8}},'Reset password'),
@@ -13266,7 +13278,7 @@ function LoginScreen(props){
       )
     )
   );
-  return ce('div',{className:'dlogin'},dloginBg,
+  return ce('div',{className:'dlogin'},
     exitPhase===2
     ?ce('div',{style:{textAlign:'center'}},
         ce('div',{style:{width:84,height:84,margin:'0 auto 16px',animation:'dlogin-crest .5s cubic-bezier(.2,.9,.3,1.3) both'}},ce('svg',{viewBox:'0 0 200 200',width:84,height:84},ce('defs',null,ce('linearGradient',{id:'dlwg',x1:'0',y1:'0',x2:'1',y2:'1'},ce('stop',{offset:'0',stopColor:'#e0bd7a'}),ce('stop',{offset:'1',stopColor:'#8fe0ad'}))),ce('circle',{cx:100,cy:100,r:74,fill:'none',stroke:'url(#dlwg)',strokeWidth:2}),ce('circle',{cx:100,cy:74,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:82,cy:90,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:118,cy:90,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:90,cy:108,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:110,cy:108,r:11,fill:'url(#dlwg)'}),ce('circle',{cx:100,cy:126,r:11,fill:'url(#dlwg)'}),ce('path',{d:'M100 63 L100 48 M100 48 Q114 44 120 54',fill:'none',stroke:'url(#dlwg)',strokeWidth:2.5,strokeLinecap:'round'}))),
@@ -14544,7 +14556,7 @@ function App(){
     ce('div',{style:{fontSize:13,fontWeight:500,color:'#7a3a9a',letterSpacing:'.6px'}},"Loading",ce('span',{className:'grape-dots'}))
   );
 
-  if(!liveCurrentUser) return ce(LoginScreen,{users:users,forceRecovery:showPasswordRecovery,forceInvite:showInvite,onRecoveryDone:function(){setShowPasswordRecovery(false);},onInviteDone:function(){setShowInvite(false);},onLogin:function(u){
+  if(!liveCurrentUser) return ce(React.Fragment,null,ce(DalosBackdrop,{key:'dalos-backdrop'}),ce(LoginScreen,{users:users,forceRecovery:showPasswordRecovery,forceInvite:showInvite,onRecoveryDone:function(){setShowPasswordRecovery(false);},onInviteDone:function(){setShowInvite(false);},onLogin:function(u){
     setCurrentUser(u);
     /* Load config from DB now that we have an authenticated session */
     loadConfigFromDB();
@@ -14557,7 +14569,7 @@ function App(){
     else if(!p.viewFG&&p.viewExport) setView('export');
     else if(!p.viewFG&&p.viewAdmin) setView('admin');
     else setView('home');
-  }});
+  }}));
   var role=ROLES[liveCurrentUser.role]||ROLES.inspector;
   var perms=role.perms;
   var availViews=[];
@@ -14673,7 +14685,7 @@ function App(){
   }
 
   if(view==='home'){
-    return ce(HomeView,{currentUser:liveCurrentUser,config:config,batches:batches,perms:perms,setView:setView,currentViewSeason:currentViewSeason,setViewSeason:setViewSeason,setConfig:setConfig,signOut:signOut,loading:inspLoading});
+    return ce(React.Fragment,null,ce(DalosBackdrop,{key:'dalos-backdrop'}),ce(HomeView,{currentUser:liveCurrentUser,config:config,batches:batches,perms:perms,setView:setView,currentViewSeason:currentViewSeason,setViewSeason:setViewSeason,setConfig:setConfig,signOut:signOut,loading:inspLoading}));
   }
 
   if(needsCropPH){
