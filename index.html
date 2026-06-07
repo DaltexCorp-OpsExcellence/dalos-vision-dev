@@ -14203,7 +14203,7 @@ function App(){
             }
           });
           var insertNewPalletsPromise=newPalletObjs.length>0
-            ?supabase.from('pallets').insert(newPalletObjs.map(function(x){return x.row;})).select()
+            ?supabase.from('pallets').upsert(newPalletObjs.map(function(x){return x.row;}),{onConflict:'inspection_id,pallet_number'}).select()
                 .then(function(r){
                   if(r.error){
                   console.error('[DalOS] new pallet insert error:',r.error.message);
@@ -14328,7 +14328,13 @@ function App(){
         if(p.palletCartonCompany) row.carton_company=p.palletCartonCompany;
         return row;
       });
-      return supabase.from('pallets').insert(palletRows).select();
+      /* Deduplicate by pallet_number within the batch — keeps last occurrence.
+         Prevents duplicate key errors when two UI pallets resolve to the same name,
+         and handles re-save races where a prior partial save already wrote some rows. */
+      var palletRowsMap={};
+      palletRows.forEach(function(r){palletRowsMap[r.pallet_number]=r;});
+      palletRows=Object.values(palletRowsMap);
+      return supabase.from('pallets').upsert(palletRows,{onConflict:'inspection_id,pallet_number'}).select();
     }).then(function(palletRes){
       if(!palletRes) return; /* edit mode already handled onDone via Promise.all */
       if(palletRes.error){
