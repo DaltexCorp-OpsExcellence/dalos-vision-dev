@@ -7090,9 +7090,9 @@ function HomeView(props){
     /* topbar */
     ce('div',{className:'dh-tb'},
       ce('div',{className:'dh-tb-l'},
-        ce('a',{className:'dh-pill',href:'https://daltexcorp-opsexcellence.github.io/dalos-analytics-dev/workspace.html',title:'Back to DalOS Workspace',style:{textDecoration:'none'}},ce('span',{style:{display:'inline-flex',alignItems:'center',marginRight:1},dangerouslySetInnerHTML:{__html:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>'}}),'Workspace'),
+        
         ce('div',{className:'dh-logo'},ce('span',{style:{color:'#fff'}},'Dal'),ce('span',{style:{color:'#6fc191'}},'OS'),ce('span',{style:{color:'#5d8a6d',fontFamily:'var(--font-body)',fontSize:14,fontWeight:500,marginLeft:4}},'Vision')),
-        ce('div',{className:'dh-ver'},DALOS_BUILD.split(' ')[0])
+        ce('div',{className:'dh-ver'},DALOS_BUILD.split(' ')[0]),ce('a',{className:'dh-pill',href:'https://daltexcorp-opsexcellence.github.io/dalos-analytics-dev/workspace.html',title:'Back to DalOS Workspace',style:{textDecoration:'none',height:28,padding:'0 11px',fontSize:11,marginLeft:4}},ce('span',{style:{display:'inline-flex',alignItems:'center',marginRight:1},dangerouslySetInnerHTML:{__html:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>'}}),'Workspace')
       ),
       ce('div',{className:'dh-tb-r'},
         ce('div',{className:'dh-pill dh-season-pill'},
@@ -14534,34 +14534,7 @@ function App(){
   var liveCurrentUser=currentUser?(function(){var found=users.find(function(u){return u.id===currentUser.id;});return found?Object.assign({},found,{packhouses:currentUser.packhouses}):currentUser;}()):null;
 
   /* Show loading spinner while checking auth session */
-  if(!authChecked) return ce('div',{style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',flexDirection:'column',gap:18}},
-    ce('svg',{width:90,height:104,viewBox:'0 0 90 104'},
-      ce('defs',null,
-        ce('radialGradient',{id:'gg1',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#c084e8'}),ce('stop',{offset:'100%',stopColor:'#7a3a9a'})),
-        ce('radialGradient',{id:'gg2',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#b06cd4'}),ce('stop',{offset:'100%',stopColor:'#6b2f88'})),
-        ce('radialGradient',{id:'gg3',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#9a56be'}),ce('stop',{offset:'100%',stopColor:'#5a2576'})),
-        ce('radialGradient',{id:'gg4',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#8844ac'}),ce('stop',{offset:'100%',stopColor:'#4a1b64'}))
-      ),
-      ce('path',{d:'M45 6 C45 1 50 -1 52 0',fill:'none',stroke:'#5a3a1a',strokeWidth:2.5,strokeLinecap:'round'}),
-      ce('path',{d:'M45 6 C41 2 37 3 36 6',fill:'none',stroke:'#7a5a2a',strokeWidth:1.5,strokeLinecap:'round',opacity:.7}),
-      ce('path',{d:'M45 6 C47 10 45 14 45 18',fill:'none',stroke:'#5a3a1a',strokeWidth:2,strokeLinecap:'round'}),
-      ce('path',{d:'M45 12 C34 6 26 10 28 18 C30 24 42 22 45 14Z',fill:'#2b5c3f',opacity:.85}),
-      ce('path',{d:'M45 12 C56 6 64 10 62 18 C60 24 48 22 45 14Z',fill:'#3a7a4a',opacity:.65}),
-      ce('circle',{cx:30,cy:34,r:11,fill:'url(#gg1)',style:{animation:'gp0 1.15s ease-in-out infinite',transformOrigin:'30px 34px'}}),
-      ce('circle',{cx:53,cy:34,r:11,fill:'url(#gg1)',style:{animation:'gp1 1.15s ease-in-out .14s infinite',transformOrigin:'53px 34px'}}),
-      ce('circle',{cx:26,cy:30,r:3.5,fill:'white',opacity:.22}),ce('circle',{cx:49,cy:30,r:3.5,fill:'white',opacity:.22}),
-      ce('circle',{cx:19,cy:54,r:11,fill:'url(#gg2)',style:{animation:'gp2 1.15s ease-in-out .28s infinite',transformOrigin:'19px 54px'}}),
-      ce('circle',{cx:45,cy:54,r:11,fill:'url(#gg2)',style:{animation:'gp3 1.15s ease-in-out .42s infinite',transformOrigin:'45px 54px'}}),
-      ce('circle',{cx:71,cy:54,r:11,fill:'url(#gg2)',style:{animation:'gp4 1.15s ease-in-out .56s infinite',transformOrigin:'71px 54px'}}),
-      ce('circle',{cx:15,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:41,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:67,cy:50,r:3.5,fill:'white',opacity:.2}),
-      ce('circle',{cx:30,cy:74,r:11,fill:'url(#gg3)',style:{animation:'gp5 1.15s ease-in-out .7s infinite',transformOrigin:'30px 74px'}}),
-      ce('circle',{cx:60,cy:74,r:11,fill:'url(#gg3)',style:{animation:'gp5 1.15s ease-in-out .84s infinite',transformOrigin:'60px 74px'}}),
-      ce('circle',{cx:26,cy:70,r:3.5,fill:'white',opacity:.18}),ce('circle',{cx:56,cy:70,r:3.5,fill:'white',opacity:.18}),
-      ce('circle',{cx:45,cy:93,r:11,fill:'url(#gg4)',style:{animation:'gp6 1.15s ease-in-out .98s infinite',transformOrigin:'45px 93px'}}),
-      ce('circle',{cx:41,cy:89,r:3.5,fill:'white',opacity:.15})
-    ),
-    ce('div',{style:{fontSize:13,fontWeight:500,color:'#7a3a9a',letterSpacing:'.6px'}},"Loading",ce('span',{className:'grape-dots'}))
-  );
+  if(!authChecked) return ce(DalosBackdrop,{key:'dalos-backdrop'});
 
   if(!liveCurrentUser) return ce(React.Fragment,null,ce(DalosBackdrop,{key:'dalos-backdrop'}),ce(LoginScreen,{users:users,forceRecovery:showPasswordRecovery,forceInvite:showInvite,onRecoveryDone:function(){setShowPasswordRecovery(false);},onInviteDone:function(){setShowInvite(false);},onLogin:function(u){
     setCurrentUser(u);
