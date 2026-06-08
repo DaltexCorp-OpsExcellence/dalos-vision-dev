@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DalOS</title>
+<link rel="stylesheet" href="dalos-theme.css" />
+</head>
+<body>
+  <svg class="grape-mark" viewBox="0 0 200 200" fill="none" stroke="#5dcaa5" stroke-width="1.2" aria-hidden="true">
+    <circle cx="100" cy="100" r="92" stroke-opacity="0.5" />
+    <path d="M100 40 v18" stroke-opacity="0.8" />
+    <path d="M100 58 q14 -10 24 -4" stroke-opacity="0.6" />
+    <g stroke-opacity="0.85">
+      <circle cx="100" cy="78" r="13" /><circle cx="84" cy="92" r="13" /><circle cx="116" cy="92" r="13" />
+      <circle cx="100" cy="106" r="13" /><circle cx="84" cy="120" r="13" /><circle cx="116" cy="120" r="13" />
+      <circle cx="100" cy="134" r="13" />
+    </g>
+  </svg>
+
+  <header class="topbar">
+    <div>
+      <span class="wordmark">Dal<span class="os">OS</span></span>
+      <span class="pill">v1.6.0</span>
+    </div>
+    <div class="topbar-right">
+      <div class="season">Season <b>2025/26</b></div>
+      <div class="avatar" id="avatar">··</div>
+      <a href="#" id="signout" style="color:var(--ink-muted);font-size:13px;text-decoration:none;">Sign out</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="eyebrow" id="eyebrow">Loading</div>
+    <h1 class="display" id="greeting">Welcome back.<br>Where to <span class="accent">today</span>?</h1>
+
+    <section class="cards" style="grid-template-columns: repeat(2, 1fr); margin-top: 44px;">
+      <a class="card green" id="card-vision" href="#">
+        <div class="tint"></div>
+        <div class="card-body">
+          <span class="label">Operations</span>
+          <span class="icon">🍇</span>
+          <h3>Vision</h3>
+          <div class="desc">Inspections, QC capture &amp; logistics</div>
+          <div class="go">Enter &rarr;</div>
+        </div>
+      </a>
+
+      <a class="card blue" id="card-analytics" href="#">
+        <span class="badge">Dev</span>
+        <div class="tint"></div>
+        <div class="card-body">
+          <span class="label">Insights</span>
+          <span class="icon">📊</span>
+          <h3>Analytics</h3>
+          <div class="desc">Dashboards, trends &amp; reports</div>
+          <div class="go">Enter &rarr;</div>
+        </div>
+      </a>
+    </section>
+  </main>
+
+  <footer class="footbar">
+    <span class="stat"><b id="today-count">—</b>where you left off</span>
+    <span class="right"><span class="dot"></span> Season 2025/26</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js"></script>
+  <script>
+    /* ---- destinations (same origin, so the session carries over) ---- */
+    var VISION_URL    = "https://daltexcorp-opsexcellence.github.io/dalos-vision-dev/#home";
+    var ANALYTICS_URL = "https://daltexcorp-opsexcellence.github.io/dalos-analytics-dev/";
+
+    document.getElementById("card-vision").addEventListener("click", function (e) {
+      e.preventDefault(); window.location.href = VISION_URL;
+    });
+    document.getElementById("card-analytics").addEventListener("click", function (e) {
+      e.preventDefault(); window.location.href = ANALYTICS_URL;
+    });
+    document.getElementById("signout").addEventListener("click", function (e) {
+      e.preventDefault();
+      DalOSAuth.signOut().then(function () { window.location.replace("login.html"); });
+    });
+
+    function firstName(user) {
+      var m = user && user.user_metadata || {};
+      var n = m.full_name || m.name || (user && user.email ? user.email.split("@")[0] : "");
+      n = (n || "").replace(/[._]/g, " ").trim();
+      if (!n) return "";
+      return n.charAt(0).toUpperCase() + n.slice(1).split(" ")[0].slice(1);
+    }
+    function partOfDay() {
+      var h = new Date().getHours();
+      return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    }
+    function dateLine() {
+      var d = new Date();
+      return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+        .toUpperCase() + " · GRAPES IN SEASON";
+    }
+
+    // Chooser is always shown — it never auto-forwards into an app.
+    DalOSAuth.requireAuth().then(function (session) {
+      if (!session) return; // requireAuth already redirected to login
+      var user = session.user;
+      var name = firstName(user);
+      document.getElementById("eyebrow").textContent = dateLine();
+      document.getElementById("greeting").innerHTML =
+        partOfDay() + (name ? ", " + name : "") + ".<br>Where to <span class=\"accent\">today</span>?";
+      var initials = (name ? name[0] : (user.email || "?")[0]).toUpperCase();
+      document.getElementById("avatar").textContent = initials;
+      document.getElementById("today-count").textContent = "Pick up";
+    });
+  </script>
+</body>
+</html>

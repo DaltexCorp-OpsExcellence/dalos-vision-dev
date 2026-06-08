@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sign in · DalOS</title>
+<link rel="stylesheet" href="dalos-theme.css" />
+<style>
+  .login-shell { position: relative; z-index: 2; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .login-card {
+    width: 100%; max-width: 380px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+    border-radius: 18px; padding: 34px 32px 26px; backdrop-filter: blur(6px);
+  }
+  .login-card .eyebrow { margin: 0 0 16px; }
+  .login-card .display { font-size: 34px; line-height: 1.08; margin-bottom: 26px; }
+  .login-card label { display: block; font-size: 12px; color: var(--ink-muted); margin: 0 0 6px; letter-spacing: .3px; }
+  .login-card input {
+    width: 100%; height: 44px; padding: 0 14px; margin-bottom: 16px;
+    background: rgba(0,0,0,0.25); border: 1px solid var(--line); border-radius: 11px;
+    color: var(--ink); font-family: var(--font-sans); font-size: 15px; outline: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .login-card input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(93,202,165,.15); }
+  .login-card button {
+    width: 100%; height: 46px; border: none; border-radius: 11px; cursor: pointer;
+    background: var(--teal-deep); color: #06140e; font-family: var(--font-sans);
+    font-size: 15px; font-weight: 600; letter-spacing: .2px;
+  }
+  .login-card button:hover { background: var(--teal); }
+  .login-card button:disabled { opacity: .6; cursor: default; }
+  .login-error { display: none; font-size: 13px; color: var(--danger); border: 1px solid rgba(224,138,138,.35); background: rgba(224,138,138,.08); border-radius: 10px; padding: 10px 12px; margin-bottom: 16px; }
+  .login-foot { text-align: center; font-size: 12px; color: var(--ink-faint); border-top: 1px solid var(--line); padding-top: 16px; margin-top: 20px; letter-spacing: .4px; }
+</style>
+</head>
+<body>
+  <svg class="grape-mark" viewBox="0 0 200 200" fill="none" stroke="#5dcaa5" stroke-width="1.2" aria-hidden="true">
+    <circle cx="100" cy="100" r="92" stroke-opacity="0.5" />
+    <path d="M100 40 v18" stroke-opacity="0.8" />
+    <path d="M100 58 q14 -10 24 -4" stroke-opacity="0.6" />
+    <g stroke-opacity="0.85">
+      <circle cx="100" cy="78" r="13" /><circle cx="84" cy="92" r="13" /><circle cx="116" cy="92" r="13" />
+      <circle cx="100" cy="106" r="13" /><circle cx="84" cy="120" r="13" /><circle cx="116" cy="120" r="13" />
+      <circle cx="100" cy="134" r="13" />
+    </g>
+  </svg>
+
+  <div class="login-shell">
+    <div class="login-card">
+      <div style="margin-bottom:22px;">
+        <span class="wordmark" style="font-size:24px;">Dal<span class="os">OS</span></span>
+      </div>
+      <div class="eyebrow">Quality operations</div>
+      <h1 class="display">Welcome <span class="accent">back</span>.</h1>
+
+      <div class="login-error" id="error"></div>
+
+      <form id="form" autocomplete="on">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="username" required />
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+        <button type="submit" id="submit">Sign in</button>
+      </form>
+
+      <div class="login-foot">SEASON 2025/26 · GRAPES</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js"></script>
+  <script>
+    var DEFAULT_AFTER_LOGIN = "home.html";  // the chooser
+
+    var form = document.getElementById("form");
+    var emailEl = document.getElementById("email");
+    var passEl = document.getElementById("password");
+    var submitEl = document.getElementById("submit");
+    var errorEl = document.getElementById("error");
+
+    function showError(msg) { errorEl.textContent = msg; errorEl.style.display = "block"; }
+
+    // If already signed in (shared session), go straight to the chooser.
+    DalOSAuth.getSession().then(function (session) {
+      if (session) DalOSAuth.redirectAfterLogin(DEFAULT_AFTER_LOGIN);
+    });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      errorEl.style.display = "none";
+      submitEl.disabled = true; submitEl.textContent = "Signing in\u2026";
+      DalOSAuth.signIn(emailEl.value.trim(), passEl.value).then(function (res) {
+        if (res.error) {
+          showError(res.error.message || "Sign-in failed. Check your details.");
+          submitEl.disabled = false; submitEl.textContent = "Sign in"; return;
+        }
+        DalOSAuth.redirectAfterLogin(DEFAULT_AFTER_LOGIN);
+      }).catch(function () {
+        showError("Network error. Please try again.");
+        submitEl.disabled = false; submitEl.textContent = "Sign in";
+      });
+    });
+  </script>
+</body>
+</html>
