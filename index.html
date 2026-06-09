@@ -10840,28 +10840,59 @@ function ClientQCMgmt(props){
         ),
         /* ── CQC SAMPLE READINGS ── */
         ce('div',{className:'card',style:{marginBottom:12,padding:0,overflow:'visible'}},
-          ce('div',{style:{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--bg2)'}},
-            ce('div',{className:'section-title',style:{marginBottom:0}},
-              ce('div',{className:'section-title-bar',style:{background:'#3a7a4a'}}),
-              'Client sample readings'
+          ce('div',{style:{padding:'10px 16px',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},
+            /* Row 1 — title + controls */
+            ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:cqcSamples.length>0?8:0}},
+              ce('div',{className:'section-title',style:{marginBottom:0}},
+                ce('div',{className:'section-title-bar',style:{background:'#3a7a4a'}}),
+                'Client sample readings'
+              ),
+              ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
+                  ['grid','card'].map(function(mode){
+                    var active=cqcViewMode===mode;
+                    return ce('button',{key:mode,
+                      style:{padding:'4px 12px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
+                        background:active?'var(--accent)':'var(--bg2)',
+                        color:active?'#fff':'var(--text3)'},
+                      onClick:function(){setCqcViewMode(mode);}
+                    },mode==='grid'?'\u22ee Grid':'Card');
+                  })
+                ),
+                ce('button',{className:'btn btn-primary btn-sm',onClick:addCqcSample},'+ Add sample')
+              )
             ),
-            ce('div',{style:{display:'flex',alignItems:'center',gap:10}},
-              cqcSamples.length>0&&ce('span',{style:{fontSize:13,color:cqcSamplesReportTotal>10?'var(--red)':cqcSamplesReportTotal>5?'var(--amber)':'var(--green)',fontFamily:'var(--font-mono)',fontWeight:700}},
-                'Total defect: '+cqcSamplesReportTotal.toFixed(2)+'%'
+            /* Row 2 — live stats pills (only when samples exist) */
+            cqcSamples.length>0&&ce('div',{style:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
+              ce('div',{style:{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',borderRadius:20,
+                background:cqcAvgTotalDefect>10?'#fdf0ee':cqcAvgTotalDefect>5?'#fef6e8':'#eef6ef',
+                border:'1.5px solid '+(cqcAvgTotalDefect>10?'#e8c2bc':cqcAvgTotalDefect>5?'#f0d8a0':'#b8d8bc')}},
+                ce('span',{style:{fontSize:10,letterSpacing:'.06em',textTransform:'uppercase',fontWeight:600,
+                  color:cqcAvgTotalDefect>10?'#8a2020':cqcAvgTotalDefect>5?'#7a4a10':'#1a4a22'}},'Avg Total'),
+                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:15,
+                  color:cqcAvgTotalDefect>10?'var(--red)':cqcAvgTotalDefect>5?'var(--amber)':'var(--green)'}},
+                  cqcAvgTotalDefect.toFixed(2)+'%')
               ),
-              /* View toggle */
-              ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
-                ['grid','card'].map(function(mode){
-                  var active=cqcViewMode===mode;
-                  return ce('button',{key:mode,
-                    style:{padding:'4px 12px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
-                      background:active?'var(--accent)':'var(--bg2)',
-                      color:active?'#fff':'var(--text3)'},
-                    onClick:function(){setCqcViewMode(mode);}
-                  },mode==='grid'?'\u22ee Grid':'Card');
-                })
+              ce('div',{style:{width:1,height:22,background:'var(--border2)'}}),
+              ce('div',{style:{display:'flex',alignItems:'center',gap:5,padding:'4px 10px',borderRadius:20,
+                background:cqcAvgMajor>5?'#fdf0ee':'#f8f0f0',
+                border:'1px solid '+(cqcAvgMajor>5?'#e8c2bc':'#e0d0d0')}},
+                ce('span',{style:{fontSize:10,letterSpacing:'.05em',textTransform:'uppercase',fontWeight:600,color:'#8a2020'}},'Major'),
+                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:13,color:cqcAvgMajor>5?'var(--red)':'#b52828'}},
+                  cqcAvgMajor.toFixed(2)+'%')
               ),
-              ce('button',{className:'btn btn-primary btn-sm',onClick:addCqcSample},'+ Add sample')
+              ce('div',{style:{display:'flex',alignItems:'center',gap:5,padding:'4px 10px',borderRadius:20,
+                background:cqcAvgMinor>5?'#fef6e8':'#f8f5e8',
+                border:'1px solid '+(cqcAvgMinor>5?'#f0d8a0':'#e0d8a0')}},
+                ce('span',{style:{fontSize:10,letterSpacing:'.05em',textTransform:'uppercase',fontWeight:600,color:'#7a4a10'}},'Minor'),
+                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:13,color:cqcAvgMinor>5?'var(--amber)':'#8a6010'}},
+                  cqcAvgMinor.toFixed(2)+'%')
+              ),
+              ce('div',{style:{display:'flex',alignItems:'center',gap:5,marginLeft:'auto',padding:'4px 10px',borderRadius:20,
+                background:'#f0f4f8',border:'1px solid #d0d8e0'}},
+                ce('span',{style:{fontSize:10,letterSpacing:'.05em',textTransform:'uppercase',fontWeight:600,color:'#4a5a6a'}},'Samples'),
+                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:13,color:'#2a4a6a'}},cqcSamples.length)
+              )
             )
           ),
           cqcSamples.length===0
