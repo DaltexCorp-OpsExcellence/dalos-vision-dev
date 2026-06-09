@@ -10540,222 +10540,263 @@ function ClientQCMgmt(props){
             fi('Client class',fClientCls,setClientCls,null)
           ),
           /* ── Grapes: variety slots ── */
-          selCqcProd==='grapes'&&ce('div',{style:{marginBottom:10}},
-            /* Slot 1 — always present */
-            ce('div',{style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',marginBottom:6}},
-              ce('div',{style:{background:'var(--bg2)',padding:'7px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}},
-                ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
-                  ce('div',{style:{width:22,height:22,borderRadius:'50%',background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600,color:'#fff',flexShrink:0}},'1'),
-                  ce('span',{style:{fontSize:12,fontWeight:600,color:'var(--text)'}},'Variety 1')
+          selCqcProd==='grapes'&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:10}},
+
+            /* ══ LEFT: PACKHOUSES ══ */
+            ce('div',null,
+              ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+                ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
+                  ce('div',{style:{width:3,height:13,background:'var(--accent)',borderRadius:2,flexShrink:0}}),
+                  ce('span',{style:{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--text3)'}},
+                    'Packhouses')
                 ),
-                ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
-                  ['single','mixed'].map(function(t){
-                    return ce('button',{key:t,type:'button',
-                      style:{padding:'3px 12px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
-                        background:fVarType===t?'var(--accent)':'transparent',
-                        color:fVarType===t?'#fff':'var(--text3)'},
-                      onClick:function(){setVarType(t);if(t==='single'){setVar2('');setFCat2('');}}
-                    },t==='single'?'Single':'Mixed');
-                  })
-                )
+                ce('button',{className:'btn btn-secondary btn-sm',style:{fontSize:11},onClick:addPHExtra},'+ Packhouse')
               ),
-              ce('div',{style:{padding:'10px 12px'}},
-                ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:fVarType==='mixed'?8:0}},
+              /* Slot 1 — primary */
+              ce('div',{style:{border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:6,background:'var(--bg2)'}},
+                ce('div',{style:{fontSize:9,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text3)',marginBottom:8}},'Slot 1 — primary'),
+                ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
                   ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Category'),
-                    ce('select',{className:'form-select',value:fCat,onChange:function(e){setFCat(e.target.value);setVar('');}},
-                      ce('option',{value:''},'— All —'),
-                      ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
+                    ce('label',{className:'form-label',style:{fontSize:10}},'Actual'),
+                    ce('select',{className:'form-select',value:fPH,onChange:function(e){setPH(e.target.value);}},
+                      ce('option',{value:''},'— Select —'),
+                      (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
                     )
                   ),
                   ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Variety'),
-                    ce('select',{className:'form-select',value:fVar,onChange:function(e){
-                      var name=e.target.value;setVar(name);
-                      var allVars=(config.varietiesFull||{})[selCqcProd]||[];
-                      var found=allVars.find(function(v){return v.name===name;});
-                      if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat(cn);}
-                    }},
+                    ce('label',{className:'form-label',style:{fontSize:10}},'Cover'),
+                    ce('select',{className:'form-select',value:fPhCover,onChange:function(e){setPhCover(e.target.value);}},
                       ce('option',{value:''},'— Select —'),
-                      (function(){var allVars=(config.varietiesFull||{})[selCqcProd]||[];var catId=fCat?(config.categoriesIdMap||{})[fCat]:null;var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});})()
+                      (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
                     )
                   )
-                ),
-                fVarType==='mixed'&&ce('div',{style:{padding:'8px 10px',background:'var(--bg2)',borderRadius:6,border:'1px solid var(--border)'}},
-                  ce('div',{style:{fontSize:10,fontWeight:500,color:'#0F6E56',marginBottom:6}},'⊕ Mixed with'),
+                )
+              ),
+              /* Extra packhouse pairs */
+              fPHExtra.map(function(ph,i){
+                return ce('div',{key:'ph'+i,style:{border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:6,position:'relative'}},
+                  ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+                    ce('span',{style:{fontSize:9,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text3)'}},'Slot '+(i+2)),
+                    ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:16,lineHeight:1,padding:0},onClick:function(idx){return function(){removePHExtra(idx);};}(i)},'×')
+                  ),
                   ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
                     ce('div',{className:'form-field',style:{marginBottom:0}},
-                      ce('label',{className:'form-label',style:{fontSize:10}},'Category'),
-                      ce('select',{className:'form-select',value:fCat2,onChange:function(e){setFCat2(e.target.value);setVar2('');}},
-                        ce('option',{value:''},'— All —'),
-                        ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
+                      ce('label',{className:'form-label',style:{fontSize:10}},'Actual'),
+                      ce('select',{className:'form-select',value:ph.actual||'',onChange:function(idx){return function(e){updatePHExtra(idx,'actual',e.target.value);};}(i)},
+                        ce('option',{value:''},'— Select —'),
+                        (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
                       )
                     ),
                     ce('div',{className:'form-field',style:{marginBottom:0}},
-                      ce('label',{className:'form-label',style:{fontSize:10}},'Variety'),
-                      ce('select',{className:'form-select',value:fVar2,onChange:function(e){
-                        var name=e.target.value;setVar2(name);
-                        var allVars=(config.varietiesFull||{})[selCqcProd]||[];
-                        var found=allVars.find(function(v){return v.name===name;});
-                        if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat2(cn);}
-                      }},
+                      ce('label',{className:'form-label',style:{fontSize:10}},'Cover'),
+                      ce('select',{className:'form-select',value:ph.cover||'',onChange:function(idx){return function(e){updatePHExtra(idx,'cover',e.target.value);};}(i)},
                         ce('option',{value:''},'— Select —'),
-                        (function(){var allVars=(config.varietiesFull||{})[selCqcProd]||[];var catId=fCat2?(config.categoriesIdMap||{})[fCat2]:null;var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});})()
+                        (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
                       )
                     )
-                  ),
-                  ce('div',{style:{marginTop:5,fontSize:10,color:'var(--text3)'}},'Sampled together — readings averaged across the mix')
-                )
-              )
+                  )
+                );
+              })
             ),
-            /* Extra variety slots (2+) */
-            fVarsExtra.map(function(ve,i){
-              var allVars=(config.varietiesFull||{})[selCqcProd]||[];
-              var catId=ve.cat?(config.categoriesIdMap||{})[ve.cat]:null;
-              var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
-              var catId2=ve.cat2?(config.categoriesIdMap||{})[ve.cat2]:null;
-              var filtered2=catId2?allVars.filter(function(v){return v.categoryId===catId2;}):allVars;
-              return ce('div',{key:'ve'+i,style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',marginBottom:6}},
-                ce('div',{style:{background:'var(--bg2)',padding:'7px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}},
-                  ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
-                    ce('div',{style:{width:22,height:22,borderRadius:'50%',background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600,color:'#fff',flexShrink:0}},i+2),
-                    ce('span',{style:{fontSize:12,fontWeight:600,color:'var(--text)'}},'Variety '+(i+2))
+
+            /* ══ RIGHT: VARIETY + FARM/PLOT ══ */
+            ce('div',null,
+              /* ─ Varieties ─ */
+              ce('div',{style:{marginBottom:10}},
+                ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+                  ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
+                    ce('div',{style:{width:3,height:13,background:'#7a3a9a',borderRadius:2,flexShrink:0}}),
+                    ce('span',{style:{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--text3)'}},'Varieties')
                   ),
-                  ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                  ce('button',{className:'btn btn-secondary btn-sm',style:{fontSize:11},onClick:addVarExtra},'+ Add variety')
+                ),
+                /* Slot 1 */
+                ce('div',{style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',marginBottom:6}},
+                  ce('div',{style:{background:'var(--bg2)',padding:'7px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}},
+                    ce('span',{style:{fontSize:10,fontWeight:500,color:'var(--text3)'}},'Slot 1 — primary'),
                     ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
                       ['single','mixed'].map(function(t){
                         return ce('button',{key:t,type:'button',
-                          style:{padding:'3px 12px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
-                            background:ve.type===t?'var(--accent)':'transparent',
-                            color:ve.type===t?'#fff':'var(--text3)'},
-                          onClick:function(idx,type){return function(){updateVarExtra(idx,'type',type);if(type==='single'){updateVarExtra(idx,'cat2','');updateVarExtra(idx,'var2','');}};}(i,t)
+                          style:{padding:'2px 10px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
+                            background:fVarType===t?'var(--accent)':'transparent',
+                            color:fVarType===t?'#fff':'var(--text3)'},
+                          onClick:function(){setVarType(t);if(t==='single'){setVar2('');setFCat2('');}}
                         },t==='single'?'Single':'Mixed');
                       })
-                    ),
-                    ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,lineHeight:1,padding:'0 2px'},onClick:function(idx){return function(){removeVarExtra(idx);};}(i)},'×')
-                  )
-                ),
-                ce('div',{style:{padding:'10px 12px'}},
-                  ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:ve.type==='mixed'?8:0}},
-                    ce('div',{className:'form-field',style:{marginBottom:0}},
-                      ce('label',{className:'form-label'},'Category'),
-                      ce('select',{className:'form-select',value:ve.cat||'',onChange:function(idx){return function(e){updateVarExtra(idx,'cat',e.target.value);};}(i)},
-                        ce('option',{value:''},'— All —'),
-                        ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
-                      )
-                    ),
-                    ce('div',{className:'form-field',style:{marginBottom:0}},
-                      ce('label',{className:'form-label'},'Variety'),
-                      ce('select',{className:'form-select',value:ve.var||'',onChange:function(idx,allV,catIdToName){return function(e){
-                          var name=e.target.value;
-                          var f=name?allV.find(function(v){return v.name===name;}):null;
-                          var cn=f&&f.categoryId?(catIdToName||{})[f.categoryId]||'':'';
-                          setVarsExtra(function(p){return p.map(function(x,j){if(j!==idx)return x;var n=Object.assign({},x,{'var':name});if(cn)n['cat']=cn;return n;});});
-                        };}(i,allVars,config.categoriesIdToName)},
-                        ce('option',{value:''},'— Select —'),
-                        filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
-                      )
                     )
                   ),
-                  ve.type==='mixed'&&ce('div',{style:{padding:'8px 10px',background:'var(--bg2)',borderRadius:6,border:'1px solid var(--border)'}},
-                    ce('div',{style:{fontSize:10,fontWeight:500,color:'#0F6E56',marginBottom:6}},'⊕ Mixed with'),
-                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+                  ce('div',{style:{padding:'10px 12px'}},
+                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:fVarType==='mixed'?8:0}},
                       ce('div',{className:'form-field',style:{marginBottom:0}},
                         ce('label',{className:'form-label',style:{fontSize:10}},'Category'),
-                        ce('select',{className:'form-select',value:ve.cat2||'',onChange:function(idx){return function(e){updateVarExtra(idx,'cat2',e.target.value);};}(i)},
+                        ce('select',{className:'form-select',value:fCat,onChange:function(e){setFCat(e.target.value);setVar('');}},
                           ce('option',{value:''},'— All —'),
                           ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
                         )
                       ),
                       ce('div',{className:'form-field',style:{marginBottom:0}},
                         ce('label',{className:'form-label',style:{fontSize:10}},'Variety'),
-                        ce('select',{className:'form-select',value:ve.var2||'',onChange:function(idx,allV,catIdToName){return function(e){
-                            var name=e.target.value;
-                            var f=name?allV.find(function(v){return v.name===name;}):null;
-                            var cn=f&&f.categoryId?(catIdToName||{})[f.categoryId]||'':'';
-                            setVarsExtra(function(p){return p.map(function(x,j){if(j!==idx)return x;var n=Object.assign({},x,{'var2':name});if(cn)n['cat2']=cn;return n;});});
-                          };}(i,allVars,config.categoriesIdToName)},
+                        ce('select',{className:'form-select',value:fVar,onChange:function(e){
+                          var name=e.target.value;setVar(name);
+                          var allVars=(config.varietiesFull||{})[selCqcProd]||[];
+                          var found=allVars.find(function(v){return v.name===name;});
+                          if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat(cn);}
+                        }},
                           ce('option',{value:''},'— Select —'),
-                          filtered2.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
+                          (function(){var allVars=(config.varietiesFull||{})[selCqcProd]||[];var catId=fCat?(config.categoriesIdMap||{})[fCat]:null;var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});})()
                         )
                       )
                     ),
-                    ce('div',{style:{marginTop:5,fontSize:10,color:'var(--text3)'}},'Sampled together — readings averaged across the mix')
+                    fVarType==='mixed'&&ce('div',{style:{padding:'8px 10px',background:'var(--bg2)',borderRadius:6,border:'1px solid var(--border)'}},
+                      ce('div',{style:{fontSize:10,fontWeight:500,color:'#0F6E56',marginBottom:6}},'\u2295 Mixed with'),
+                      ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+                        ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label',style:{fontSize:10}},'Category'),
+                          ce('select',{className:'form-select',value:fCat2,onChange:function(e){setFCat2(e.target.value);setVar2('');}},
+                            ce('option',{value:''},'— All —'),
+                            ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
+                          )
+                        ),
+                        ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label',style:{fontSize:10}},'Variety'),
+                          ce('select',{className:'form-select',value:fVar2,onChange:function(e){
+                            var name=e.target.value;setVar2(name);
+                            var allVars=(config.varietiesFull||{})[selCqcProd]||[];
+                            var found=allVars.find(function(v){return v.name===name;});
+                            if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setFCat2(cn);}
+                          }},
+                            ce('option',{value:''},'— Select —'),
+                            (function(){var allVars=(config.varietiesFull||{})[selCqcProd]||[];var catId=fCat2?(config.categoriesIdMap||{})[fCat2]:null;var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;return filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);});})()
+                          )
+                        )
+                      ),
+                      ce('div',{style:{marginTop:5,fontSize:10,color:'var(--text3)'}},'Sampled together \u2014 readings averaged across the mix')
+                    )
                   )
-                )
-              );
-            }),
-            ce('button',{className:'btn btn-secondary btn-sm',style:{width:'100%',marginTop:2},onClick:addVarExtra},'+ Add variety')
-          ),
-                    /* Packhouses + Farms */
-          ce('div',{style:{marginBottom:10}},
-            ce('div',{className:'grid4',style:{marginBottom:6}},
-              fi('Packhouse (actual)',fPH,setPH,(config.packhouses||[]).map(function(p){return p.name;}),true),
-              fi('Packhouse (cover)',fPhCover,setPhCover,(config.packhouses||[]).map(function(p){return p.name;}),true),
-              /* Farm 1 + Plot 1 */
-              ce('div',{className:'form-field'},
-                ce('label',{className:'form-label'},'Farm / Raw source 1'),
-                ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}},
-                  ce('select',{className:'form-select',value:fFarm1,onChange:function(e){setFarm1(e.target.value);}},
-                    ce('option',{value:''},'— Select —'),
-                    (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
-                  ),
-                  ce('input',{className:'form-input',value:fPlot1,onChange:function(e){setPlot1(e.target.value);},placeholder:'Plot'})
-                )
+                ),
+                /* Extra variety slots */
+                fVarsExtra.map(function(ve,i){
+                  var allVars=(config.varietiesFull||{})[selCqcProd]||[];
+                  var catId=ve.cat?(config.categoriesIdMap||{})[ve.cat]:null;
+                  var filtered=catId?allVars.filter(function(v){return v.categoryId===catId;}):allVars;
+                  var catId2=ve.cat2?(config.categoriesIdMap||{})[ve.cat2]:null;
+                  var filtered2=catId2?allVars.filter(function(v){return v.categoryId===catId2;}):allVars;
+                  return ce('div',{key:'ve'+i,style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',marginBottom:6}},
+                    ce('div',{style:{background:'var(--bg2)',padding:'7px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}},
+                      ce('span',{style:{fontSize:10,fontWeight:500,color:'var(--text3)'}},'Slot '+(i+2)),
+                      ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                        ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
+                          ['single','mixed'].map(function(t){
+                            return ce('button',{key:t,type:'button',
+                              style:{padding:'2px 10px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
+                                background:ve.type===t?'var(--accent)':'transparent',
+                                color:ve.type===t?'#fff':'var(--text3)'},
+                              onClick:function(idx,type){return function(){updateVarExtra(idx,'type',type);if(type==='single'){updateVarExtra(idx,'cat2','');updateVarExtra(idx,'var2','');}};}(i,t)
+                            },t==='single'?'Single':'Mixed');
+                          })
+                        ),
+                        ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,lineHeight:1,padding:'0 2px'},onClick:function(idx){return function(){removeVarExtra(idx);};}(i)},'\u00d7')
+                      )
+                    ),
+                    ce('div',{style:{padding:'10px 12px'}},
+                      ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:ve.type==='mixed'?8:0}},
+                        ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label',style:{fontSize:10}},'Category'),
+                          ce('select',{className:'form-select',value:ve.cat||'',onChange:function(idx){return function(e){updateVarExtra(idx,'cat',e.target.value);};}(i)},
+                            ce('option',{value:''},'— All —'),
+                            ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
+                          )
+                        ),
+                        ce('div',{className:'form-field',style:{marginBottom:0}},
+                          ce('label',{className:'form-label',style:{fontSize:10}},'Variety'),
+                          ce('select',{className:'form-select',value:ve.var||'',onChange:function(idx,allV,catIdToName){return function(e){
+                            var name=e.target.value;
+                            var f=name?allV.find(function(v){return v.name===name;}):null;
+                            var cn=f&&f.categoryId?(catIdToName||{})[f.categoryId]||'':'';
+                            setVarsExtra(function(p){return p.map(function(x,j){if(j!==idx)return x;var n=Object.assign({},x,{'var':name});if(cn)n['cat']=cn;return n;});});
+                          };}(i,allVars,config.categoriesIdToName)},
+                            ce('option',{value:''},'— Select —'),
+                            filtered.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
+                          )
+                        )
+                      ),
+                      ve.type==='mixed'&&ce('div',{style:{padding:'8px 10px',background:'var(--bg2)',borderRadius:6,border:'1px solid var(--border)'}},
+                        ce('div',{style:{fontSize:10,fontWeight:500,color:'#0F6E56',marginBottom:6}},'\u2295 Mixed with'),
+                        ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+                          ce('div',{className:'form-field',style:{marginBottom:0}},
+                            ce('label',{className:'form-label',style:{fontSize:10}},'Category'),
+                            ce('select',{className:'form-select',value:ve.cat2||'',onChange:function(idx){return function(e){updateVarExtra(idx,'cat2',e.target.value);};}(i)},
+                              ce('option',{value:''},'— All —'),
+                              ((config.categories||{})[selCqcProd]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
+                            )
+                          ),
+                          ce('div',{className:'form-field',style:{marginBottom:0}},
+                            ce('label',{className:'form-label',style:{fontSize:10}},'Variety'),
+                            ce('select',{className:'form-select',value:ve.var2||'',onChange:function(idx,allV,catIdToName){return function(e){
+                              var name=e.target.value;
+                              var f=name?allV.find(function(v){return v.name===name;}):null;
+                              var cn=f&&f.categoryId?(catIdToName||{})[f.categoryId]||'':'';
+                              setVarsExtra(function(p){return p.map(function(x,j){if(j!==idx)return x;var n=Object.assign({},x,{'var2':name});if(cn)n['cat2']=cn;return n;});});
+                            };}(i,allVars,config.categoriesIdToName)},
+                              ce('option',{value:''},'— Select —'),
+                              filtered2.map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})
+                            )
+                          )
+                        ),
+                        ce('div',{style:{marginTop:5,fontSize:10,color:'var(--text3)'}},'Sampled together \u2014 readings averaged across the mix')
+                      )
+                    )
+                  );
+                })
               ),
-              /* Farm 2 + Plot 2 */
-              ce('div',{className:'form-field'},
-                ce('label',{className:'form-label'},'Farm / Raw source 2'),
-                ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}},
-                  ce('select',{className:'form-select',value:fFarm2,onChange:function(e){setFarm2(e.target.value);}},
-                    ce('option',{value:''},'— Select —'),
-                    (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
+              /* ─ Farms / Raw Sources ─ */
+              ce('div',null,
+                ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+                  ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
+                    ce('div',{style:{width:3,height:13,background:'#ba7517',borderRadius:2,flexShrink:0}}),
+                    ce('span',{style:{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--text3)'}},'Farms / Raw sources')
                   ),
-                  ce('input',{className:'form-input',value:fPlot2,onChange:function(e){setPlot2(e.target.value);},placeholder:'Plot'})
-                )
-              )
-            ),
-            /* Grapes: extra packhouses and farms */
-            selCqcProd==='grapes'&&ce('div',null,
-              /* Extra packhouses — actual + cover per row */
-              fPHExtra.map(function(ph,i){
-                return ce('div',{key:'ph'+i,style:{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:6,marginBottom:6,alignItems:'end'}},
+                  ce('button',{className:'btn btn-secondary btn-sm',style:{fontSize:11},onClick:addFarmExtra},'+ Farm')
+                ),
+                /* Farm 1 + 2 always visible */
+                ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:6}},
                   ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Packhouse actual '+(i+2)),
-                    ce('select',{className:'form-select',value:ph.actual||'',onChange:function(idx){return function(e){updatePHExtra(idx,'actual',e.target.value);};}(i)},
-                      ce('option',{value:''},'— Select —'),
-                      (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
-                    )
-                  ),
-                  ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Packhouse cover '+(i+2)),
-                    ce('select',{className:'form-select',value:ph.cover||'',onChange:function(idx){return function(e){updatePHExtra(idx,'cover',e.target.value);};}(i)},
-                      ce('option',{value:''},'— Select —'),
-                      (config.packhouses||[]).map(function(p){return ce('option',{key:p.id||p,value:p.name||p},p.name||p);})
-                    )
-                  ),
-                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removePHExtra(idx);};}(i)},'×')
-                );
-              }),
-              /* Extra farms */
-              fFarmsExtra.map(function(fe,i){
-                return ce('div',{key:'frm'+i,style:{display:'grid',gridTemplateColumns:'1fr auto',gap:6,marginBottom:6,alignItems:'end'}},
-                  ce('div',{className:'form-field',style:{marginBottom:0}},
-                    ce('label',{className:'form-label'},'Farm / Raw source '+(i+3)),
-                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}},
-                      ce('select',{className:'form-select',value:fe.farm||'',onChange:function(idx){return function(e){updateFarmExtra(idx,'farm',e.target.value);};}(i)},
+                    ce('label',{className:'form-label',style:{fontSize:10}},'Farm 1'),
+                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr auto',gap:4}},
+                      ce('select',{className:'form-select',value:fFarm1,onChange:function(e){setFarm1(e.target.value);}},
                         ce('option',{value:''},'— Select —'),
                         (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
                       ),
-                      ce('input',{className:'form-input',value:fe.plot||'',onChange:function(idx){return function(e){updateFarmExtra(idx,'plot',e.target.value);};}(i),placeholder:'Plot'})
+                      ce('input',{className:'form-input',value:fPlot1,onChange:function(e){setPlot1(e.target.value);},placeholder:'Plot',style:{width:54}})
                     )
                   ),
-                  ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removeFarmExtra(idx);};}(i)},'×')
-                );
-              }),
-              ce('div',{style:{display:'flex',gap:8,marginTop:4}},
-                ce('button',{className:'btn btn-secondary btn-sm',onClick:addPHExtra},'+ Packhouse'),
-                ce('button',{className:'btn btn-secondary btn-sm',onClick:addFarmExtra},'+ Farm')
+                  ce('div',{className:'form-field',style:{marginBottom:0}},
+                    ce('label',{className:'form-label',style:{fontSize:10}},'Farm 2'),
+                    ce('div',{style:{display:'grid',gridTemplateColumns:'1fr auto',gap:4}},
+                      ce('select',{className:'form-select',value:fFarm2,onChange:function(e){setFarm2(e.target.value);}},
+                        ce('option',{value:''},'— Select —'),
+                        (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
+                      ),
+                      ce('input',{className:'form-input',value:fPlot2,onChange:function(e){setPlot2(e.target.value);},placeholder:'Plot',style:{width:54}})
+                    )
+                  )
+                ),
+                /* Extra farms */
+                fFarmsExtra.map(function(fe,i){
+                  return ce('div',{key:'frm'+i,style:{display:'grid',gridTemplateColumns:'1fr auto',gap:6,marginBottom:6,alignItems:'end'}},
+                    ce('div',{className:'form-field',style:{marginBottom:0}},
+                      ce('label',{className:'form-label',style:{fontSize:10}},'Farm '+(i+3)),
+                      ce('div',{style:{display:'grid',gridTemplateColumns:'1fr auto',gap:4}},
+                        ce('select',{className:'form-select',value:fe.farm||'',onChange:function(idx){return function(e){updateFarmExtra(idx,'farm',e.target.value);};}(i)},
+                          ce('option',{value:''},'— Select —'),
+                          (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
+                        ),
+                        ce('input',{className:'form-input',value:fe.plot||'',onChange:function(idx){return function(e){updateFarmExtra(idx,'plot',e.target.value);};}(i),placeholder:'Plot',style:{width:54}})
+                      )
+                    ),
+                    ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removeFarmExtra(idx);};}(i)},'\u00d7')
+                  );
+                })
               )
             )
           ),
