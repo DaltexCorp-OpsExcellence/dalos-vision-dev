@@ -10840,14 +10840,51 @@ function ClientQCMgmt(props){
         ),
         /* ── CQC SAMPLE READINGS ── */
         ce('div',{className:'card',style:{marginBottom:12,padding:0,overflow:'visible'}},
-          ce('div',{style:{padding:'10px 16px',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},
-            /* Row 1 — title + controls */
-            ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:cqcSamples.length>0?8:0}},
-              ce('div',{className:'section-title',style:{marginBottom:0}},
+          ce('div',{style:{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',background:'var(--bg2)'}},
+            /* Single row: title + live pills + controls */
+            ce('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},
+              ce('div',{className:'section-title',style:{marginBottom:0,flexShrink:0}},
                 ce('div',{className:'section-title-bar',style:{background:'#3a7a4a'}}),
                 'Client sample readings'
               ),
-              ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
+              /* Live stat pills — appear once samples exist */
+              cqcSamples.length>0&&ce('div',{style:{display:'flex',alignItems:'center',gap:6,flex:1,flexWrap:'nowrap',overflow:'hidden'}},
+                /* Avg Total */
+                ce('div',{style:{display:'flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:20,flexShrink:0,
+                  background:cqcAvgTotalDefect>10?'#fdf0ee':cqcAvgTotalDefect>5?'#fef6e8':'#eef6ef',
+                  border:'1.5px solid '+(cqcAvgTotalDefect>10?'#e8c2bc':cqcAvgTotalDefect>5?'#f0d8a0':'#b8d8bc')}},
+                  ce('span',{style:{fontSize:9,letterSpacing:'.07em',textTransform:'uppercase',fontWeight:700,
+                    color:cqcAvgTotalDefect>10?'#8a2020':cqcAvgTotalDefect>5?'#7a4a10':'#1a4a22'}},'Avg'),
+                  ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:13,
+                    color:cqcAvgTotalDefect>10?'var(--red)':cqcAvgTotalDefect>5?'var(--amber)':'var(--green)'}},
+                    cqcAvgTotalDefect.toFixed(2)+'%')
+                ),
+                /* Divider */
+                ce('div',{style:{width:1,height:16,background:'var(--border2)',flexShrink:0}}),
+                /* Major */
+                ce('div',{style:{display:'flex',alignItems:'center',gap:4,padding:'3px 9px',borderRadius:20,flexShrink:0,
+                  background:cqcAvgMajor>5?'#fdf0ee':'#f5efef',
+                  border:'1px solid '+(cqcAvgMajor>5?'#e8c2bc':'#ddd0d0')}},
+                  ce('span',{style:{fontSize:9,letterSpacing:'.06em',textTransform:'uppercase',fontWeight:700,color:'#8a2020'}},'Maj'),
+                  ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,fontSize:12,
+                    color:cqcAvgMajor>5?'var(--red)':'#b52828'}},
+                    cqcAvgMajor.toFixed(2)+'%')
+                ),
+                /* Minor */
+                ce('div',{style:{display:'flex',alignItems:'center',gap:4,padding:'3px 9px',borderRadius:20,flexShrink:0,
+                  background:cqcAvgMinor>5?'#fef6e8':'#f5f2e8',
+                  border:'1px solid '+(cqcAvgMinor>5?'#f0d8a0':'#ddd4a0')}},
+                  ce('span',{style:{fontSize:9,letterSpacing:'.06em',textTransform:'uppercase',fontWeight:700,color:'#7a4a10'}},'Min'),
+                  ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,fontSize:12,
+                    color:cqcAvgMinor>5?'var(--amber)':'#8a6010'}},
+                    cqcAvgMinor.toFixed(2)+'%')
+                ),
+                /* Samples count */
+                ce('span',{style:{fontSize:11,color:'var(--text3)',fontFamily:'var(--font-mono)',flexShrink:0}},
+                  cqcSamples.length+' sample'+(cqcSamples.length===1?'':'s'))
+              ),
+              /* Controls pushed to right */
+              ce('div',{style:{display:'flex',alignItems:'center',gap:8,marginLeft:'auto',flexShrink:0}},
                 ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
                   ['grid','card'].map(function(mode){
                     var active=cqcViewMode===mode;
@@ -10860,38 +10897,6 @@ function ClientQCMgmt(props){
                   })
                 ),
                 ce('button',{className:'btn btn-primary btn-sm',onClick:addCqcSample},'+ Add sample')
-              )
-            ),
-            /* Row 2 — live stats pills (only when samples exist) */
-            cqcSamples.length>0&&ce('div',{style:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
-              ce('div',{style:{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',borderRadius:20,
-                background:cqcAvgTotalDefect>10?'#fdf0ee':cqcAvgTotalDefect>5?'#fef6e8':'#eef6ef',
-                border:'1.5px solid '+(cqcAvgTotalDefect>10?'#e8c2bc':cqcAvgTotalDefect>5?'#f0d8a0':'#b8d8bc')}},
-                ce('span',{style:{fontSize:10,letterSpacing:'.06em',textTransform:'uppercase',fontWeight:600,
-                  color:cqcAvgTotalDefect>10?'#8a2020':cqcAvgTotalDefect>5?'#7a4a10':'#1a4a22'}},'Avg Total'),
-                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:15,
-                  color:cqcAvgTotalDefect>10?'var(--red)':cqcAvgTotalDefect>5?'var(--amber)':'var(--green)'}},
-                  cqcAvgTotalDefect.toFixed(2)+'%')
-              ),
-              ce('div',{style:{width:1,height:22,background:'var(--border2)'}}),
-              ce('div',{style:{display:'flex',alignItems:'center',gap:5,padding:'4px 10px',borderRadius:20,
-                background:cqcAvgMajor>5?'#fdf0ee':'#f8f0f0',
-                border:'1px solid '+(cqcAvgMajor>5?'#e8c2bc':'#e0d0d0')}},
-                ce('span',{style:{fontSize:10,letterSpacing:'.05em',textTransform:'uppercase',fontWeight:600,color:'#8a2020'}},'Major'),
-                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:13,color:cqcAvgMajor>5?'var(--red)':'#b52828'}},
-                  cqcAvgMajor.toFixed(2)+'%')
-              ),
-              ce('div',{style:{display:'flex',alignItems:'center',gap:5,padding:'4px 10px',borderRadius:20,
-                background:cqcAvgMinor>5?'#fef6e8':'#f8f5e8',
-                border:'1px solid '+(cqcAvgMinor>5?'#f0d8a0':'#e0d8a0')}},
-                ce('span',{style:{fontSize:10,letterSpacing:'.05em',textTransform:'uppercase',fontWeight:600,color:'#7a4a10'}},'Minor'),
-                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:13,color:cqcAvgMinor>5?'var(--amber)':'#8a6010'}},
-                  cqcAvgMinor.toFixed(2)+'%')
-              ),
-              ce('div',{style:{display:'flex',alignItems:'center',gap:5,marginLeft:'auto',padding:'4px 10px',borderRadius:20,
-                background:'#f0f4f8',border:'1px solid #d0d8e0'}},
-                ce('span',{style:{fontSize:10,letterSpacing:'.05em',textTransform:'uppercase',fontWeight:600,color:'#4a5a6a'}},'Samples'),
-                ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:13,color:'#2a4a6a'}},cqcSamples.length)
               )
             )
           ),
@@ -11304,33 +11309,13 @@ function ClientQCMgmt(props){
                         avg>0?avg.toFixed(1):'—'
                       );
                     }),
-                    /* Avg Total */
-                    ce('td',{style:{padding:'5px 8px',border:'1px solid var(--border)',borderTop:'2px solid '+(cqcAvgTotalDefect>10?'var(--red)':cqcAvgTotalDefect>5?'var(--amber)':'var(--green)'),textAlign:'center',fontFamily:'var(--font-mono)',fontWeight:700,fontSize:12,
+                    ce('td',{style:{padding:'5px 8px',border:'1px solid var(--border)',textAlign:'center',fontFamily:'var(--font-mono)',fontWeight:700,fontSize:12,
                       color:cqcAvgTotalDefect>10?'var(--red)':cqcAvgTotalDefect>5?'var(--amber)':'var(--green)'}},
                       cqcSamples.length>0?cqcAvgTotalDefect.toFixed(2)+'%':'—'
                     ),
-                    ce('td',{colSpan:99,style:{border:'1px solid var(--border)'}}),
+                    ce('td',{colSpan:99,style:{border:'1px solid var(--border)'}})
                   ),
-                  /* Summary stats row — Avg Total / Avg Major / Avg Minor */
-                  cqcSamples.length>0&&ce('tr',{style:{background:'#f8f4ff'}},
-                    ce('td',{colSpan:allDefs.length+1,style:{padding:'6px 10px',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',textAlign:'right',fontWeight:600}},'Sample averages:'),
-                    ce('td',{style:{padding:'6px 10px',border:'1px solid var(--border)',textAlign:'center',whiteSpace:'nowrap'}},
-                      ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:13,
-                        color:cqcAvgTotalDefect>10?'var(--red)':cqcAvgTotalDefect>5?'var(--amber)':'var(--green)'}},
-                        cqcAvgTotalDefect.toFixed(2)+'%'),
-                      ce('span',{style:{fontSize:10,color:'var(--text3)',marginLeft:4}},'total')
-                    ),
-                    ce('td',{colSpan:99,style:{padding:'6px 10px',border:'1px solid var(--border)',display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}},
-                      ce('span',null,
-                        ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,fontSize:12,color:'#b52828'}},cqcAvgMajor.toFixed(2)+'%'),
-                        ce('span',{style:{fontSize:10,color:'var(--text3)',marginLeft:4}},'major')
-                      ),
-                      ce('span',null,
-                        ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,fontSize:12,color:'#7a5a00'}},cqcAvgMinor.toFixed(2)+'%'),
-                        ce('span',{style:{fontSize:10,color:'var(--text3)',marginLeft:4}},'minor')
-                      )
-                    )
-                  )
+
                 )
               )
               ) /* close body div */
