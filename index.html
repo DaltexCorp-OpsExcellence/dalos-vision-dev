@@ -11260,40 +11260,55 @@ function ClientQCMgmt(props){
                       })(),
                       /* Brix reading */
                       ce('td',{style:tdMeta},
-                        ce('input',{style:Object.assign({},inSt,{width:58,textAlign:'right',fontFamily:'var(--font-mono)'}),type:'number',step:'0.1',min:'0',value:sample.brix||'',placeholder:'—',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brix',e.target.value);};}(si)})
+                        ce('input',{style:Object.assign({},inSt,{width:58,textAlign:'right',fontFamily:'var(--font-mono)'}),'data-meta-row':si,'data-meta-col':0,type:'number',step:'0.1',min:'0',value:sample.brix||'',placeholder:'—',
+                          onChange:function(idx){return function(e){updateCqcSampleField(idx,'brix',e.target.value);};}(si),
+                          onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
+                        })
                       ),
                       /* Brix issue */
                       ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.brixIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si)},
-                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                        )
+                        ce('select',{style:selSt,'data-meta-row':si,'data-meta-col':1,value:sample.brixIssue?'Yes':'No',
+                          onChange:function(idx){return function(e){updateCqcSampleField(idx,'brixIssue',e.target.value==='Yes');};}(si),
+                          onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
+                        },ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes'))
                       ),
                       /* Avg size */
                       ce('td',{style:tdMeta},
-                        ce('input',{style:inSt,type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'—',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
+                        ce('input',{style:inSt,'data-meta-row':si,'data-meta-col':2,type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'—',
+                          onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si),
+                          onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
+                        })
                       ),
                       /* Size issue */
                       ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
-                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                        )
+                        ce('select',{style:selSt,'data-meta-row':si,'data-meta-col':3,value:sample.sizeIssue?'Yes':'No',
+                          onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si),
+                          onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
+                        },ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes'))
                       ),
                       /* Carton issue */
                       ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.cartonIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'cartonIssue',e.target.value==='Yes');};}(si)},
-                          ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
-                        )
+                        ce('select',{style:selSt,'data-meta-row':si,'data-meta-col':4,value:sample.cartonIssue?'Yes':'No',
+                          onChange:function(idx){return function(e){updateCqcSampleField(idx,'cartonIssue',e.target.value==='Yes');};}(si),
+                          onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
+                        },ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes'))
                       ),
                       /* Score */
                       ce('td',{style:tdMeta},
-                        ce('select',{style:selSt,value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
+                        ce('select',{style:selSt,'data-meta-row':si,'data-meta-col':5,value:sample.score||'',
+                          onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si),
+                          onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
+                        },
                           ce('option',{value:''},'—'),
                           ['GREEN','AMBER','RED','BLUE','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
                         )
                       ),
                       /* Notes */
                       ce('td',{style:tdMeta},
-                        ce('input',{style:Object.assign({},inSt,{minWidth:140}),value:sample.notes||'',placeholder:'Notes...',onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si)})
+                        ce('input',{style:Object.assign({},inSt,{minWidth:140}),'data-meta-row':si,'data-meta-col':6,value:sample.notes||'',placeholder:'Notes...',
+                          onChange:function(idx){return function(e){updateCqcSampleField(idx,'notes',e.target.value);};}(si),
+                          onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
+                        })
                       ),
                       /* Dispute */
                       ce('td',{style:{border:'1px solid var(--border)',padding:'3px 5px',background:sample.disputed?'#fffbe0':'var(--card)',width:80,whiteSpace:'nowrap',verticalAlign:'middle',position:'relative'}},
