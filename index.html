@@ -201,7 +201,7 @@ tr.click:hover td{background:var(--bg)}
 .cqc-list-pane{flex:1;min-width:0;transition:flex .2s}
 .cqc-list-pane.has-detail{flex:0 0 42%}
 .cqc-detail-pane{flex:1;min-width:0;position:sticky;top:16px}
-.cqc-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.cqc-stat-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .cqc-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .cqc-two-col-bot{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cqc-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
@@ -210,11 +210,11 @@ tr.click:hover td{background:var(--bg)}
 @media(max-width:900px){
   .cqc-list-pane.has-detail{flex:1}
   .cqc-detail-pane{display:none}
-  .cqc-stat-grid{grid-template-columns:repeat(2,1fr)}
+  .cqc-stat-grid{grid-template-columns:repeat(3,1fr)}
   .cqc-two-col,.cqc-two-col-bot{grid-template-columns:1fr}
 }
 @media(max-width:767px){
-  .cqc-stat-grid{grid-template-columns:repeat(2,1fr)}
+  .cqc-stat-grid{grid-template-columns:repeat(3,1fr)}
   .cqc-toolbar{flex-wrap:nowrap;gap:6px}
   .cqc-th-hide{display:none!important}
   .cqc-td-hide{display:none!important}
@@ -11751,31 +11751,31 @@ function ClientQCMgmt(props){
       var kpiMinor=rWithMin.length>0?Math.round(rWithMin.reduce(function(s,r){return s+r.sectionAvgs.Minor;},0)/rWithMin.length*100)/100:null;
       var kpiDef=prodReports.length>0?Math.round(prodReports.reduce(function(s,r){return s+((r.sampleAvgTotal!=null?r.sampleAvgTotal:r.totalDefect)||0);},0)/prodReports.length*10)/10:null;
       return ce('div',{className:'cqc-stat-grid',style:{marginBottom:16}},
-        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
-          ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Reports'),
-          ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--accent)'}},prodReports.length)
+        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'8px 10px'}},
+          ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Reports'),
+          ce('div',{style:{fontSize:18,fontWeight:500,color:'var(--accent)'}},prodReports.length)
         ),
-        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
-          ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Matched'),
-          ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--green)'}},prodReports.filter(function(r){return r.matched;}).length)
+        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'8px 10px'}},
+          ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Matched'),
+          ce('div',{style:{fontSize:18,fontWeight:500,color:'var(--green)'}},prodReports.filter(function(r){return r.matched;}).length)
         ),
-        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
-          ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Claims'),
-          ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--red)'}},prodReports.filter(function(r){return r.claimedValue>0||r.potentialClaim;}).length)
+        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'8px 10px'}},
+          ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Claims'),
+          ce('div',{style:{fontSize:18,fontWeight:500,color:'var(--red)'}},prodReports.filter(function(r){return r.claimedValue>0||r.potentialClaim;}).length)
         ),
-        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
-          ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Avg defect'),
-          ce('div',{style:{fontSize:22,fontWeight:500,color:kpiDef==null?'var(--text3)':kpiDef>10?'var(--red)':kpiDef>5?'var(--amber)':'var(--green)'}},
+        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'8px 10px'}},
+          ce('div',{style:{fontSize:10,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Avg defect'),
+          ce('div',{style:{fontSize:18,fontWeight:500,color:kpiDef==null?'var(--text3)':kpiDef>10?'var(--red)':kpiDef>5?'var(--amber)':'var(--green)'}},
             kpiDef!=null?kpiDef.toFixed(1)+'%':'—')
         ),
-        ce('div',{style:{background:'#fdf0ee',borderRadius:'var(--r1)',padding:'10px 14px',border:'1px solid #f0c8c0'}},
-          ce('div',{style:{fontSize:11,color:'#8a2020',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Avg major'),
-          ce('div',{style:{fontSize:22,fontWeight:500,color:kpiMajor==null?'var(--text3)':kpiMajor>5?'var(--red)':'#b52828'}},
+        ce('div',{style:{background:'#fdf0ee',borderRadius:'var(--r1)',padding:'8px 10px',border:'1px solid #f0c8c0'}},
+          ce('div',{style:{fontSize:10,color:'#8a2020',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Avg major'),
+          ce('div',{style:{fontSize:18,fontWeight:500,color:kpiMajor==null?'var(--text3)':kpiMajor>5?'var(--red)':'#b52828'}},
             kpiMajor!=null?kpiMajor.toFixed(2)+'%':'—')
         ),
-        ce('div',{style:{background:'#fef6e8',borderRadius:'var(--r1)',padding:'10px 14px',border:'1px solid #f0d8a0'}},
-          ce('div',{style:{fontSize:11,color:'#7a4a10',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Avg minor'),
-          ce('div',{style:{fontSize:22,fontWeight:500,color:kpiMinor==null?'var(--text3)':kpiMinor>5?'var(--amber)':'#8a6010'}},
+        ce('div',{style:{background:'#fef6e8',borderRadius:'var(--r1)',padding:'8px 10px',border:'1px solid #f0d8a0'}},
+          ce('div',{style:{fontSize:10,color:'#7a4a10',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Avg minor'),
+          ce('div',{style:{fontSize:18,fontWeight:500,color:kpiMinor==null?'var(--text3)':kpiMinor>5?'var(--amber)':'#8a6010'}},
             kpiMinor!=null?kpiMinor.toFixed(2)+'%':'—')
         )
       );
