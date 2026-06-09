@@ -10540,15 +10540,14 @@ function ClientQCMgmt(props){
             fi('Client class',fClientCls,setClientCls,null)
           ),
           /* ── Grapes: variety slots ── */
-          selCqcProd==='grapes'&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:10}},
+          selCqcProd==='grapes'&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,marginBottom:10,border:'1px solid var(--border)',borderRadius:10,overflow:'hidden'}},
 
             /* ══ LEFT: PACKHOUSES ══ */
-            ce('div',null,
-              ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
-                ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
-                  ce('div',{style:{width:3,height:13,background:'var(--accent)',borderRadius:2,flexShrink:0}}),
-                  ce('span',{style:{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--text3)'}},
-                    'Packhouses')
+            ce('div',{style:{background:'#f2f7f3',borderRight:'2px solid #b8d8bc',padding:'14px'}},
+              ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
+                ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                  ce('div',{style:{width:4,height:16,background:'var(--accent)',borderRadius:2,flexShrink:0}}),
+                  ce('span',{style:{fontSize:12,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'#2e5d3a'}},'Packhouses')
                 ),
                 ce('button',{className:'btn btn-secondary btn-sm',style:{fontSize:11},onClick:addPHExtra},'+ Packhouse')
               ),
@@ -10600,7 +10599,7 @@ function ClientQCMgmt(props){
             ),
 
             /* ══ RIGHT: VARIETY + FARM/PLOT ══ */
-            ce('div',null,
+            ce('div',{style:{background:'var(--bg)',padding:'14px'}},
               /* ─ Varieties ─ */
               ce('div',{style:{marginBottom:10}},
                 ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
