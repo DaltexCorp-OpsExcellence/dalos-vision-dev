@@ -11895,16 +11895,14 @@ function ClientQCMgmt(props){
               ce('thead',null,ce('tr',null,
                 (function(){
                   /* Shared th helpers */
-                  var thBase={fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.08em',background:'var(--bg2)',padding:'10px 12px',whiteSpace:'nowrap',userSelect:'none'};
+                  var thBase={fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.08em',background:'var(--bg2)',padding:'10px 12px',whiteSpace:'nowrap',userSelect:'none',textAlign:'center'};
                   function th(label,opts){
-                    var align=opts&&opts.align||'left';
                     var accent=opts&&opts.accent||null;
                     var labelColor=opts&&opts.labelColor||'var(--text3)';
                     var cls=opts&&opts.cls||'';
                     return ce('th',{
                       className:cls,
                       style:Object.assign({},thBase,{
-                        textAlign:align,
                         color:labelColor,
                         borderBottom:accent?'2px solid '+accent:'1px solid var(--border)',
                         background:opts&&opts.bg||'var(--bg2)',
@@ -11917,8 +11915,8 @@ function ClientQCMgmt(props){
                     th('Variety',{cls:'cqc-th-hide'}),
                     th(sortBtn('packDate','Pack date'),{cls:'cqc-th-hide'}),
                     th(sortBtn('defect','Defect'),{accent:'var(--amber)',labelColor:'var(--text2)'}),
-                    th('Major',{cls:'cqc-th-hide',align:'right',accent:'#c0392b',labelColor:'#8a2020',bg:'#fdf8f8'}),
-                    th('Minor',{cls:'cqc-th-hide',align:'right',accent:'#ba7517',labelColor:'#7a4a10',bg:'#fefcf4'}),
+                    th('Major',{cls:'cqc-th-hide',accent:'#c0392b',labelColor:'#8a2020',bg:'#fdf8f8'}),
+                    th('Minor',{cls:'cqc-th-hide',accent:'#ba7517',labelColor:'#7a4a10',bg:'#fefcf4'}),
                     th('Score',{}),
                     th('Status',{}),
                   ];
@@ -11933,11 +11931,11 @@ function ClientQCMgmt(props){
                       style:{borderBottom:'0.5px solid var(--border)',background:isSelected?'var(--bg2)':'var(--card)',cursor:'pointer'},
                       onClick:function(){setSelRep(isSelected?null:r.id);}
                     },
-                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},
                         ce('div',{style:{fontWeight:500,fontSize:13,fontFamily:'var(--font-mono)'}},r.container||'—'),
                         ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},r.qcReportNumber||'—')
                       ),
-                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},
                         ce('div',{style:{display:'flex',alignItems:'center',gap:7}},
                           ce('div',{style:{width:26,height:26,borderRadius:'50%',background:'var(--bg2)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:500,flexShrink:0,color:'var(--text2)'}},(r.client||'?').slice(0,2).toUpperCase()),
                           ce('span',{style:{fontSize:13}},r.client||'—')
@@ -11945,26 +11943,26 @@ function ClientQCMgmt(props){
                       ),
                       ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle'}},varietyBadge(r)),
                       ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',fontSize:12,color:'var(--text3)',whiteSpace:'nowrap'}},r.packDate||'—'),
-                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',minWidth:120}},
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',minWidth:120,textAlign:'center'}},
                         (function(){var d=r.sampleAvgTotal!=null?r.sampleAvgTotal:r.totalDefect;return d!=null?defectBar(d):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—');})()
                       ),
-                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'right',whiteSpace:'nowrap'}},
+                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center',whiteSpace:'nowrap'}},
                         r.sectionAvgs&&r.sectionAvgs.Major!=null
                           ?ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:r.sectionAvgs.Major>5?'var(--red)':'#b52828'}},r.sectionAvgs.Major.toFixed(2)+'%')
                           :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                       ),
-                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'right',whiteSpace:'nowrap'}},
+                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center',whiteSpace:'nowrap'}},
                         r.sectionAvgs&&r.sectionAvgs.Minor!=null
                           ?ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:r.sectionAvgs.Minor>5?'var(--amber)':'#8a6010'}},r.sectionAvgs.Minor.toFixed(2)+'%')
                           :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                       ),
-                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},
                         r.score?ce('span',{style:{display:'inline-block',padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
                           background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',
                           color:r.score==='GREEN'?'var(--green)':r.score==='RED'?'var(--red)':'var(--amber)'}},r.score)
                           :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                       ),
-                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},statusCell(r))
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},statusCell(r))
                     );
                   })
               )
