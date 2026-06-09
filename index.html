@@ -11906,11 +11906,12 @@ function ClientQCMgmt(props){
                         color:labelColor,
                         borderBottom:accent?'2px solid '+accent:'1px solid var(--border)',
                         background:opts&&opts.bg||'var(--bg2)',
+                        textAlign:opts&&opts.align||'center',
                       })
                     },label);
                   }
                   return [
-                    th(sortBtn('container','Container'),{accent:'var(--accent)'}),
+                    th(sortBtn('container','Container'),{accent:'var(--accent)',align:'left'}),
                     th(sortBtn('client','Client'),{}),
                     th('Variety',{cls:'cqc-th-hide'}),
                     th(sortBtn('packDate','Pack date'),{cls:'cqc-th-hide'}),
@@ -11931,7 +11932,7 @@ function ClientQCMgmt(props){
                       style:{borderBottom:'0.5px solid var(--border)',background:isSelected?'var(--bg2)':'var(--card)',cursor:'pointer'},
                       onClick:function(){setSelRep(isSelected?null:r.id);}
                     },
-                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'left'}},
                         ce('div',{style:{fontWeight:500,fontSize:13,fontFamily:'var(--font-mono)'}},r.container||'—'),
                         ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},r.qcReportNumber||'—')
                       ),
