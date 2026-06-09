@@ -9521,6 +9521,26 @@ function ClientQCMgmt(props){
   }
   /* Compute report total from samples (sum of sample totals) */
   var cqcSamplesReportTotal=Math.round(cqcSamples.reduce(function(sum,s){return sum+cqcSampleTotal(s);},0)*100)/100;
+  /* Avg total defect, avg major, avg minor across all samples */
+  var cqcAvgTotalDefect=cqcSamples.length>0?Math.round(cqcSamplesReportTotal/cqcSamples.length*100)/100:0;
+  var cqcAvgMajor=(function(){
+    if(!cqcSamples.length) return 0;
+    var pid=selCqcProd||'citrus';
+    var secs=(config.cqcDefectSections||{})[pid]||[];
+    var majorKeys=[];
+    secs.forEach(function(sec){(sec.items||[]).forEach(function(d){if(d.sev==='Major'||d.sev==='Critical')majorKeys.push(d.key);});});
+    var sum=cqcSamples.reduce(function(s,samp){return s+majorKeys.reduce(function(t,k){return t+(parseFloat((samp.defects||{})[k])||0);},0);},0);
+    return Math.round(sum/cqcSamples.length*100)/100;
+  })();
+  var cqcAvgMinor=(function(){
+    if(!cqcSamples.length) return 0;
+    var pid=selCqcProd||'citrus';
+    var secs=(config.cqcDefectSections||{})[pid]||[];
+    var minorKeys=[];
+    secs.forEach(function(sec){(sec.items||[]).forEach(function(d){if(d.sev==='Minor')minorKeys.push(d.key);});});
+    var sum=cqcSamples.reduce(function(s,samp){return s+minorKeys.reduce(function(t,k){return t+(parseFloat((samp.defects||{})[k])||0);},0);},0);
+    return Math.round(sum/cqcSamples.length*100)/100;
+  })();
   /* Auto-sync total defect field from samples */
   React.useEffect(function(){
     if(cqcSamples.length>0) setTotalDef(String(cqcSamplesReportTotal));
@@ -11253,11 +11273,32 @@ function ClientQCMgmt(props){
                         avg>0?avg.toFixed(1):'—'
                       );
                     }),
-                    ce('td',{style:{padding:'5px 8px',border:'1px solid var(--border)',textAlign:'center',fontFamily:'var(--font-mono)',fontWeight:700,fontSize:12,
-                      color:(cqcSamplesReportTotal/Math.max(cqcSamples.length,1))>10?'var(--red)':(cqcSamplesReportTotal/Math.max(cqcSamples.length,1))>5?'var(--amber)':'var(--green)'}},
-                      cqcSamples.length>0?(cqcSamplesReportTotal/cqcSamples.length).toFixed(2)+'%':'—'
+                    /* Avg Total */
+                    ce('td',{style:{padding:'5px 8px',border:'1px solid var(--border)',borderTop:'2px solid '+(cqcAvgTotalDefect>10?'var(--red)':cqcAvgTotalDefect>5?'var(--amber)':'var(--green)'),textAlign:'center',fontFamily:'var(--font-mono)',fontWeight:700,fontSize:12,
+                      color:cqcAvgTotalDefect>10?'var(--red)':cqcAvgTotalDefect>5?'var(--amber)':'var(--green)'}},
+                      cqcSamples.length>0?cqcAvgTotalDefect.toFixed(2)+'%':'—'
                     ),
-                    ce('td',{colSpan:99,style:{border:'1px solid var(--border)'}})
+                    ce('td',{colSpan:99,style:{border:'1px solid var(--border)'}}),
+                  ),
+                  /* Summary stats row — Avg Total / Avg Major / Avg Minor */
+                  cqcSamples.length>0&&ce('tr',{style:{background:'#f8f4ff'}},
+                    ce('td',{colSpan:allDefs.length+1,style:{padding:'6px 10px',border:'1px solid var(--border)',fontSize:11,color:'var(--text3)',textAlign:'right',fontWeight:600}},'Sample averages:'),
+                    ce('td',{style:{padding:'6px 10px',border:'1px solid var(--border)',textAlign:'center',whiteSpace:'nowrap'}},
+                      ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:13,
+                        color:cqcAvgTotalDefect>10?'var(--red)':cqcAvgTotalDefect>5?'var(--amber)':'var(--green)'}},
+                        cqcAvgTotalDefect.toFixed(2)+'%'),
+                      ce('span',{style:{fontSize:10,color:'var(--text3)',marginLeft:4}},'total')
+                    ),
+                    ce('td',{colSpan:99,style:{padding:'6px 10px',border:'1px solid var(--border)',display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}},
+                      ce('span',null,
+                        ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,fontSize:12,color:'#b52828'}},cqcAvgMajor.toFixed(2)+'%'),
+                        ce('span',{style:{fontSize:10,color:'var(--text3)',marginLeft:4}},'major')
+                      ),
+                      ce('span',null,
+                        ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,fontSize:12,color:'#7a5a00'}},cqcAvgMinor.toFixed(2)+'%'),
+                        ce('span',{style:{fontSize:10,color:'var(--text3)',marginLeft:4}},'minor')
+                      )
+                    )
                   )
                 )
               )
