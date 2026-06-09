@@ -11893,15 +11893,36 @@ function ClientQCMgmt(props){
             ce('div',{style:{overflowX:'auto'}},
             ce('table',{style:{width:'100%',minWidth:820,borderCollapse:'collapse',fontSize:13}},
               ce('thead',null,ce('tr',null,
-                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('container','Container')),
-                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},sortBtn('client','Client')),
-                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Variety'),
-                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('packDate','Pack date')),
-                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('defect','Defect')),
-                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'right',fontSize:11,fontWeight:500,color:'#8a2020',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'#fdf5f4',whiteSpace:'nowrap'}},'Major'),
-                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'right',fontSize:11,fontWeight:500,color:'#7a4a10',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'#fefaf0',whiteSpace:'nowrap'}},'Minor'),
-                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Score'),
-                ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Status')
+                (function(){
+                  /* Shared th helpers */
+                  var thBase={fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.08em',background:'var(--bg2)',padding:'10px 12px',whiteSpace:'nowrap',userSelect:'none'};
+                  function th(label,opts){
+                    var align=opts&&opts.align||'left';
+                    var accent=opts&&opts.accent||null;
+                    var labelColor=opts&&opts.labelColor||'var(--text3)';
+                    var cls=opts&&opts.cls||'';
+                    return ce('th',{
+                      className:cls,
+                      style:Object.assign({},thBase,{
+                        textAlign:align,
+                        color:labelColor,
+                        borderBottom:accent?'2px solid '+accent:'1px solid var(--border)',
+                        background:opts&&opts.bg||'var(--bg2)',
+                      })
+                    },label);
+                  }
+                  return [
+                    th(sortBtn('container','Container'),{accent:'var(--accent)'}),
+                    th(sortBtn('client','Client'),{}),
+                    th('Variety',{cls:'cqc-th-hide'}),
+                    th(sortBtn('packDate','Pack date'),{cls:'cqc-th-hide'}),
+                    th(sortBtn('defect','Defect'),{accent:'var(--amber)',labelColor:'var(--text2)'}),
+                    th('Major',{cls:'cqc-th-hide',align:'right',accent:'#c0392b',labelColor:'#8a2020',bg:'#fdf8f8'}),
+                    th('Minor',{cls:'cqc-th-hide',align:'right',accent:'#ba7517',labelColor:'#7a4a10',bg:'#fefcf4'}),
+                    th('Score',{}),
+                    th('Status',{}),
+                  ];
+                })()
               )),
               ce('tbody',null,
                 sortedFiltered.length===0
