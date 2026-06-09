@@ -10848,7 +10848,7 @@ function ClientQCMgmt(props){
                 'Client sample readings'
               ),
               /* Live stat pills — appear once samples exist */
-              cqcSamples.length>0&&ce('div',{style:{display:'flex',alignItems:'center',gap:6,flex:1,flexWrap:'nowrap',overflow:'hidden'}},
+              cqcSamples.length>0&&ce('div',{style:{display:'flex',alignItems:'center',gap:6,flexWrap:'nowrap',overflow:'hidden',flex:'1 1 0',minWidth:0}},
                 /* Avg Total */
                 ce('div',{style:{display:'flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:20,flexShrink:0,
                   background:cqcAvgTotalDefect>10?'#fdf0ee':cqcAvgTotalDefect>5?'#fef6e8':'#eef6ef',
