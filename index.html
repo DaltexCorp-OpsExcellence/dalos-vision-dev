@@ -11744,24 +11744,42 @@ function ClientQCMgmt(props){
       perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowNew(true);}},'+ New client report')
     ),
     /* ── Stats bar ── */
-    ce('div',{className:'cqc-stat-grid',style:{marginBottom:16}},
-      ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
-        ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Reports'),
-        ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--accent)'}},prodReports.length)
-      ),
-      ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
-        ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Matched'),
-        ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--green)'}},prodReports.filter(function(r){return r.matched;}).length)
-      ),
-      ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
-        ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Claims'),
-        ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--red)'}},prodReports.filter(function(r){return r.claimedValue>0||r.potentialClaim;}).length)
-      ),
-      ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
-        ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Avg defect'),
-        ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--amber)'}},prodReports.length?(prodReports.reduce(function(s,r){return s+(r.totalDefect||0);},0)/prodReports.length).toFixed(1)+'%':'—')
-      )
-    ),
+    (function(){
+      var rWithMaj=prodReports.filter(function(r){return r.sectionAvgs&&r.sectionAvgs.Major!=null;});
+      var rWithMin=prodReports.filter(function(r){return r.sectionAvgs&&r.sectionAvgs.Minor!=null;});
+      var kpiMajor=rWithMaj.length>0?Math.round(rWithMaj.reduce(function(s,r){return s+r.sectionAvgs.Major;},0)/rWithMaj.length*100)/100:null;
+      var kpiMinor=rWithMin.length>0?Math.round(rWithMin.reduce(function(s,r){return s+r.sectionAvgs.Minor;},0)/rWithMin.length*100)/100:null;
+      var kpiDef=prodReports.length>0?Math.round(prodReports.reduce(function(s,r){return s+((r.sampleAvgTotal!=null?r.sampleAvgTotal:r.totalDefect)||0);},0)/prodReports.length*10)/10:null;
+      return ce('div',{className:'cqc-stat-grid',style:{marginBottom:16}},
+        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
+          ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Reports'),
+          ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--accent)'}},prodReports.length)
+        ),
+        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
+          ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Matched'),
+          ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--green)'}},prodReports.filter(function(r){return r.matched;}).length)
+        ),
+        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
+          ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Claims'),
+          ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--red)'}},prodReports.filter(function(r){return r.claimedValue>0||r.potentialClaim;}).length)
+        ),
+        ce('div',{style:{background:'var(--bg2)',borderRadius:'var(--r1)',padding:'10px 14px'}},
+          ce('div',{style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Avg defect'),
+          ce('div',{style:{fontSize:22,fontWeight:500,color:kpiDef==null?'var(--text3)':kpiDef>10?'var(--red)':kpiDef>5?'var(--amber)':'var(--green)'}},
+            kpiDef!=null?kpiDef.toFixed(1)+'%':'—')
+        ),
+        ce('div',{style:{background:'#fdf0ee',borderRadius:'var(--r1)',padding:'10px 14px',border:'1px solid #f0c8c0'}},
+          ce('div',{style:{fontSize:11,color:'#8a2020',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Avg major'),
+          ce('div',{style:{fontSize:22,fontWeight:500,color:kpiMajor==null?'var(--text3)':kpiMajor>5?'var(--red)':'#b52828'}},
+            kpiMajor!=null?kpiMajor.toFixed(2)+'%':'—')
+        ),
+        ce('div',{style:{background:'#fef6e8',borderRadius:'var(--r1)',padding:'10px 14px',border:'1px solid #f0d8a0'}},
+          ce('div',{style:{fontSize:11,color:'#7a4a10',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}},'Avg minor'),
+          ce('div',{style:{fontSize:22,fontWeight:500,color:kpiMinor==null?'var(--text3)':kpiMinor>5?'var(--amber)':'#8a6010'}},
+            kpiMinor!=null?kpiMinor.toFixed(2)+'%':'—')
+        )
+      );
+    })(),
     prodReports.length===0
       ?ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'40px',textAlign:'center',color:'var(--text3)'}},
           ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18,marginBottom:6}},'No '+selProdObj.name+' reports yet'),
@@ -11874,12 +11892,14 @@ function ClientQCMgmt(props){
                 ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Variety'),
                 ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('packDate','Pack date')),
                 ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},sortBtn('defect','Defect')),
+                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'right',fontSize:11,fontWeight:500,color:'#8a2020',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'#fdf5f4',whiteSpace:'nowrap'}},'Major'),
+                ce('th',{className:'cqc-th-hide',style:{padding:'9px 12px',textAlign:'right',fontSize:11,fontWeight:500,color:'#7a4a10',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'#fefaf0',whiteSpace:'nowrap'}},'Minor'),
                 ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Score'),
                 ce('th',{style:{padding:'9px 12px',textAlign:'left',fontSize:11,fontWeight:500,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',background:'var(--bg2)'}},'Status')
               )),
               ce('tbody',null,
                 sortedFiltered.length===0
-                  ?ce('tr',null,ce('td',{colSpan:7,style:{padding:'32px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No reports match the current filters.'))
+                  ?ce('tr',null,ce('td',{colSpan:9,style:{padding:'32px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No reports match the current filters.'))
                   :sortedFiltered.map(function(r,i){
                     var isSelected=selRep===r.id;
                     return ce('tr',{key:r.id||i,
@@ -11900,6 +11920,16 @@ function ClientQCMgmt(props){
                       ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',fontSize:12,color:'var(--text3)',whiteSpace:'nowrap'}},r.packDate||'—'),
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',minWidth:120}},
                         (function(){var d=r.sampleAvgTotal!=null?r.sampleAvgTotal:r.totalDefect;return d!=null?defectBar(d):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—');})()
+                      ),
+                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'right',whiteSpace:'nowrap'}},
+                        r.sectionAvgs&&r.sectionAvgs.Major!=null
+                          ?ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:r.sectionAvgs.Major>5?'var(--red)':'#b52828'}},r.sectionAvgs.Major.toFixed(2)+'%')
+                          :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
+                      ),
+                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'right',whiteSpace:'nowrap'}},
+                        r.sectionAvgs&&r.sectionAvgs.Minor!=null
+                          ?ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:r.sectionAvgs.Minor>5?'var(--amber)':'#8a6010'}},r.sectionAvgs.Minor.toFixed(2)+'%')
+                          :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                       ),
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},
                         r.score?ce('span',{style:{display:'inline-block',padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
