@@ -9258,7 +9258,7 @@ function ClientQCMgmt(props){
   var sCQCSrchFocus=useState(false); var cqcSearchFocus=sCQCSrchFocus[0]; var setCqcSearchFocus=sCQCSrchFocus[1];
   var sCqcFilter=useState('all'); var cqcFilter=sCqcFilter[0]; var setCqcFilter=sCqcFilter[1];
   var sCqcView=useState('table'); var cqcView=sCqcView[0]; var setCqcView=sCqcView[1];
-  var sCqcSort=useState({col:'defect',dir:'desc'}); var cqcSort=sCqcSort[0]; var setCqcSort=sCqcSort[1];
+  var sCqcSort=useState({col:'created',dir:'desc'}); var cqcSort=sCqcSort[0]; var setCqcSort=sCqcSort[1];
   var sCqcMob=useState(typeof window!=='undefined'&&window.innerWidth<=767); var cqcMob=sCqcMob[0];
   var sCqcMobDispute=useState(null); var cqcMobDispute=sCqcMobDispute[0]; var setCqcMobDispute=sCqcMobDispute[1];
   var sSelCqcProd=useState(null); var selCqcProd=sSelCqcProd[0]; var setSelCqcProd=sSelCqcProd[1];
@@ -11811,6 +11811,7 @@ function ClientQCMgmt(props){
           if(col==='container') v=(a.container||'').localeCompare(b.container||'');
           else if(col==='packDate') v=(a.packDate||'').localeCompare(b.packDate||'');
           else if(col==='client') v=(a.client||'').localeCompare(b.client||'');
+          else if(col==='created') v=(a.savedAt||'').localeCompare(b.savedAt||'');
           else v=(a.totalDefect||0)-(b.totalDefect||0);
           return dir==='desc'?-v:v;
         });
