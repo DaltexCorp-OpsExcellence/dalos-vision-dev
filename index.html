@@ -10095,7 +10095,7 @@ function ClientQCMgmt(props){
       trace_code:fTrace||null,
       lot_number:fLot||null,
       wax:fWax||null,
-      score:['GREEN','AMBER','RED','BLUE','PASS','FAIL'].indexOf(fScore)>=0?fScore:null,
+      score:['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','PASS','FAIL'].indexOf(fScore)>=0?fScore:null,
       brix:parseFloat(fBrix)||null,
       brix_issue:fBrixIssue==='Yes',
       carton_issue:fCartonIssue==='Yes',
@@ -10862,7 +10862,7 @@ function ClientQCMgmt(props){
               ce('label',{className:'form-label'},'Client score / status'),
               ce('select',{className:'form-select',value:fScore,onChange:function(e){setScore(e.target.value);}},
                 ce('option',{value:''},'— Select —'),
-                ['GREEN','AMBER','RED','BLUE','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
               )
             ),
             fi('Max temperature (\u00b0C)',fMaxTemp,setMaxTemp),
@@ -11300,7 +11300,7 @@ function ClientQCMgmt(props){
                           onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
                         },
                           ce('option',{value:''},'—'),
-                          ['GREEN','AMBER','RED','BLUE','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                          ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
                         )
                       ),
                       /* Notes */
@@ -11581,7 +11581,7 @@ function ClientQCMgmt(props){
                           ce('label',{className:'form-label'},'Client score'),
                           ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
                             ce('option',{value:''},'— Select —'),
-                            ['GREEN','AMBER','RED','BLUE','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                            ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
                           )
                         )
                       );
