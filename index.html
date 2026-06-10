@@ -9278,6 +9278,7 @@ function ClientQCMgmt(props){
     return function(){window.removeEventListener('beforeunload',handler);};
   },[showNew]);
   var sReports=useState([]); var reports=sReports[0]; var setReportsRaw=sReports[1];
+  var sReloadTick=useState(0); var reloadTick=sReloadTick[0]; var setReloadTick=sReloadTick[1];
   function setReports(v){var next=typeof v==='function'?v:function(){return v;};setReportsRaw(function(prev){var n=next(prev);return n;});}
   function toggleClaim(id){
     setReports(function(prev){
@@ -9401,7 +9402,7 @@ function ClientQCMgmt(props){
         if(mapped.length>0) setReportsRaw(mapped);
       })
       .catch(function(e){console.error('[DalOS] CQC load failed:',e);});
-  },[config.activeSeasonId]);
+  },[config.activeSeasonId,reloadTick]);
   var sSel=useState(null); var selRep=sSel[0]; var setSelRep=sSel[1];
   var sEditRep=useState(null); var editRep=sEditRep[0]; var setEditRep=sEditRep[1];
   var sMBDef=useState(null); var matchedBDefects=sMBDef[0]; var setMatchedBDefects=sMBDef[1];
@@ -10009,14 +10010,6 @@ function ClientQCMgmt(props){
     supabase.from('client_qc_files').select('*').eq('client_qc_report_id',r.id).then(function(fr){
       if(fr.data&&fr.data.length>0){
         setUploadedFiles(fr.data.map(function(f){
-          return {name:f.file_name,type:f.file_type||'',storagePath:f.file_url,fileUrl:f.file_url,dbId:f.id};
-        }));
-      }
-    });
-    /* Load existing files */
-    supabase.from('client_qc_files').select('*').eq('client_qc_report_id',r.id).then(function(fr){
-      if(fr.data&&fr.data.length>0){
-        setUploadedFiles(fr.data.map(function(f){
           return {name:f.file_name,size:0,type:f.file_type||'',file:null,storagePath:f.file_url,fileUrl:f.file_url,dbId:f.id};
         }));
       }
@@ -10090,7 +10083,7 @@ function ClientQCMgmt(props){
     /* Save to Supabase */
     var dbRow={
       id:reportId,
-      container_number:fContainer||null,
+      container_number:fContainer||'UNKNOWN',
       sticker_available:fSticker||null,
       trace_code:fTrace||null,
       lot_number:fLot||null,
@@ -10178,44 +10171,9 @@ function ClientQCMgmt(props){
           });
         });
       }
-      /* Reload fresh report from DB to update local state */
-      supabase.from('client_qc_reports').select('*, client_qc_files(id,file_name,file_url,file_type)').eq('id',reportId).single().then(function(fresh){
-        if(fresh.data){
-          var r2=fresh.data;
-          /* Also load defect readings */
-          supabase.from('client_qc_defect_readings').select('*').eq('client_qc_report_id',reportId).then(function(dr){
-            var defects={};
-            if(dr.data) dr.data.forEach(function(d){defects[d.bucket_key]=d.value;});
-            var freshMapped={
-              id:r2.id, container:r2.container_number||'', stickerAvailable:r2.sticker_available||'',
-              traceCode:r2.trace_code||'', packhouse:(config.packhouses&&r2.packhouse_id&&config.packhouses.find(function(p){return p.id===r2.packhouse_id;})&&config.packhouses.find(function(p){return p.id===r2.packhouse_id;}).name)||r2.packhouse_id||'', cropCategory:r2.product_id||'',
-              variety:(config.varietiesIdToName&&r2.variety_id&&config.varietiesIdToName[r2.variety_id])||r2.variety_id||'',
-              variety2:(config.varietiesIdToName&&r2.variety2_id&&config.varietiesIdToName[r2.variety2_id])||'',
-              varietyType:r2.variety_type||'single',category2:(function(){if(!r2.variety2_id)return '';var pid=r2.product_id||selCqcProd||'grapes';var found=((config.varietiesFull||{})[pid]||[]).find(function(v){return v.id===r2.variety2_id;});return found&&found.categoryId?(config.categoriesIdToName||{})[found.categoryId]||'':'';})(),
-              loadDate:r2.load_date||'', packDate:r2.pack_date||'', harvestDate:r2.harvest_date||'',
-              phCover:r2.ph_cover||'', farm1:r2.farm_1||'', plot1:r2.plot_1||'', farm2:r2.farm_2||'', plot2:r2.plot_2||'', cqcExtraFields:r2.cqc_extra_fields||{},
-              cartonType:(config.cartonTypesIdToName&&r2.carton_type_id&&config.cartonTypesIdToName[r2.carton_type_id])||r2.carton_type_id||'',
-              qcReportNumber:r2.qc_report_number||'',
-              region:(config.countriesIdToName&&r2.country_id&&config.countriesIdToName[r2.country_id])||r2.country_id||'',
-              client:(config.clientsIdToName&&r2.client_id&&config.clientsIdToName[r2.client_id])||r2.client_id||'',
-              subClient:(config.subClients&&r2.sub_client_id&&(config.subClients.find(function(s){return s.id===r2.sub_client_id;})||{}).name)||r2.sub_client_id||'', farm:(config.farmsIdToName&&r2.farm_id&&config.farmsIdToName[r2.farm_id])||r2.farm_id||'',
-              lot:r2.lot_number||'', daltexClass:(config.classesIdToName&&r2.class_id&&config.classesIdToName[r2.class_id])||r2.daltex_class||'',
-              clientClass:r2.client_class||'', wax:r2.wax||'', score:r2.score||'', brix:r2.brix||'',
-              brixIssue:r2.brix_issue||false, cartonIssue:r2.carton_issue||false, sizeIssue:r2.size_issue||false,
-              totalDefect:r2.total_defect||0, gapTotal:r2.gap_total||null, defects:defects,
-              pkgComments:r2.pkg_comments||'', foreignPresent:r2.foreign_present||'', general:r2.general_comments||'',
-              tempLogger:r2.temp_logger||'', maxTemp:r2.max_temp||'', qcReportLink:r2.qc_report_link||'',
-              photoLink:r2.photo_link||'', cause:r2.cause||'',
-              claimedCurrency:r2.claimed_currency||'USD', claimedValue:r2.claimed_value||0,
-              potentialClaim:r2.potential_claim||false, files:(r2.client_qc_files||[]).map(function(f){return {id:f.id,name:f.file_name,url:f.file_url,type:f.file_type};}),
-              matched:r2.matched||false, batchId:r2.inspection_id||null,
-              season:r2.season_id||'', savedAt:r2.created_at||'', productId:r2.product_id||'', cqcExtraFields:r2.cqc_extra_fields||{}
-            };
-            setReports(function(prev){return prev.map(function(x){return x.id===reportId?freshMapped:x;});});
-            setSelRep(reportId);
-          });
-        }
-      });
+      /* Trigger full reload so sectionAvgs/sampleAvgTotal/allVarieties are all recomputed from DB */
+      setSelRep(reportId);
+      setReloadTick(function(n){return n+1;});
       /* ── Save CQC defect readings ── */
       var readings=[];
       Object.keys(defVals).forEach(function(key){
