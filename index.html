@@ -12447,15 +12447,19 @@ function ShipmentsMgmt(props){
           if(config.activeSeasonId) gq=gq.eq('season_id',config.activeSeasonId);
           gq.then(function(gr){
             if(!gr.error) setGrades(gr.data||[]);
-            /* Load CQC matches by container */
-            var containers=[...new Set(allRows.map(function(s){return s.container_number;}).filter(Boolean))];
-            if(containers.length===0){setLoading(false);return;}
-            supabase.from('client_qc_reports').select('id,container_number').in('container_number',containers.slice(0,200))
-              .then(function(cr){
+            /* Load CQC matches by season — avoids container list slice(200) limit and whitespace mismatch */
+            var cqcQ=supabase.from('client_qc_reports').select('id,container_number').eq('product_id',selProd);
+            if(config.activeSeasonId) cqcQ=cqcQ.eq('season_id',config.activeSeasonId);
+            cqcQ.then(function(cr){
                 setLoading(false);
                 if(cr.error) return;
                 var map={};
-                (cr.data||[]).forEach(function(r){map[r.container_number]=(map[r.container_number]||0)+1;});
+                /* normalise key: trim + collapse whitespace, uppercase */
+                function normCN(cn){return (cn||'').replace(/\s+/g,' ').trim().toUpperCase();}
+                (cr.data||[]).forEach(function(r){
+                  var k=normCN(r.container_number);
+                  if(k) map[k]=(map[k]||0)+1;
+                });
                 setCqcMatches(map);
               });
           });
@@ -12654,7 +12658,7 @@ function ShipmentsMgmt(props){
     /* Extract real container_number from key (may be "CN||CARTA" or plain CN) */
     var realCN=selContainer.indexOf('||')>=0?selContainer.split('||')[0]:selContainer;
     var g=getGrade(realCN);
-    var cqcCount=cqcMatches[realCN]||0;
+    var cqcCount=cqcMatches[(realCN||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
     return ce('div',{style:{width:340,position:'fixed',top:50,right:0,bottom:0,zIndex:30,borderLeft:'1px solid var(--border)',overflowY:'auto',flexShrink:0,background:'var(--card)',boxShadow:'-4px 0 16px rgba(0,0,0,0.08)'}},
       ce('div',{style:{padding:'14px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:'var(--card)',zIndex:5}},
         ce('div',null,
@@ -12812,8 +12816,8 @@ function ShipmentsMgmt(props){
           ce('div',{className:'kpi-label'},'With CQC'),
           ce('div',{className:'kpi-value',style:{fontSize:22,color:'var(--green)'}},
             aggMode
-              ?filteredContainers.filter(function(c){return cqcMatches[c.container_number]>0;}).length
-              :[...new Set(filteredRows.filter(function(s){return cqcMatches[s.container_number]>0;}).map(function(s){return s.container_number;}))].length
+              ?filteredContainers.filter(function(c){return (cqcMatches[(c.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0)>0;}).length
+              :[...new Set(filteredRows.filter(function(s){return (cqcMatches[(s.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length
           )
         ),
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
@@ -13806,29 +13810,9 @@ function App(){
             if(ir.error){console.error('[DalOS] Load inspections error:',ir.error.message);setInspLoading(false);return null;}
             var inspectionIds=(ir.data||[]).map(function(r){return r.id;});
             var noIds=!inspectionIds.length;
-            /* Fetch ALL pallets across loaded inspections, paginating past the PostgREST 1000-row cap.
-               Single .in() returns max 1000 rows, so most pallets were dropped and pallet-number search missed them. */
-            function fetchAllPallets(ids){
-              if(!ids||!ids.length) return Promise.resolve({data:[]});
-              var acc=[];
-              function page(from){
-                return supabase.from('pallets').select('inspection_id,pallet_number,container_number')
-                  .in('inspection_id',ids)
-                  .order('inspection_id',{ascending:true}).order('pallet_number',{ascending:true})
-                  .range(from,from+999)
-                  .then(function(r){
-                    if(r.error) return {data:acc,error:r.error};
-                    var batch=r.data||[];
-                    acc=acc.concat(batch);
-                    if(batch.length<1000) return {data:acc};
-                    return page(from+1000);
-                  });
-              }
-              return page(0);
-            }
             /* Fetch pallets + related tables in parallel using IN-clause lookups (avoids N+1 joins in the view query) */
             return Promise.all([
-              fetchAllPallets(noIds?[]:inspectionIds),
+              noIds?Promise.resolve({data:[]}):supabase.from('pallets').select('inspection_id,pallet_number,container_number').in('inspection_id',inspectionIds),
               noIds?Promise.resolve({data:[]}):supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds),
               noIds?Promise.resolve({data:[]}):supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('round',{ascending:false}),
               noIds?Promise.resolve({data:[]}):supabase.from('inspection_sticker_checks').select('inspection_id,field_key,confirmed').in('inspection_id',inspectionIds)
