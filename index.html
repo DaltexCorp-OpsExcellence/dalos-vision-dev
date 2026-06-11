@@ -13806,9 +13806,29 @@ function App(){
             if(ir.error){console.error('[DalOS] Load inspections error:',ir.error.message);setInspLoading(false);return null;}
             var inspectionIds=(ir.data||[]).map(function(r){return r.id;});
             var noIds=!inspectionIds.length;
+            /* Fetch ALL pallets across loaded inspections, paginating past the PostgREST 1000-row cap.
+               Single .in() returns max 1000 rows, so most pallets were dropped and pallet-number search missed them. */
+            function fetchAllPallets(ids){
+              if(!ids||!ids.length) return Promise.resolve({data:[]});
+              var acc=[];
+              function page(from){
+                return supabase.from('pallets').select('inspection_id,pallet_number,container_number')
+                  .in('inspection_id',ids)
+                  .order('inspection_id',{ascending:true}).order('pallet_number',{ascending:true})
+                  .range(from,from+999)
+                  .then(function(r){
+                    if(r.error) return {data:acc,error:r.error};
+                    var batch=r.data||[];
+                    acc=acc.concat(batch);
+                    if(batch.length<1000) return {data:acc};
+                    return page(from+1000);
+                  });
+              }
+              return page(0);
+            }
             /* Fetch pallets + related tables in parallel using IN-clause lookups (avoids N+1 joins in the view query) */
             return Promise.all([
-              noIds?Promise.resolve({data:[]}):supabase.from('pallets').select('inspection_id,pallet_number,container_number').in('inspection_id',inspectionIds),
+              fetchAllPallets(noIds?[]:inspectionIds),
               noIds?Promise.resolve({data:[]}):supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds),
               noIds?Promise.resolve({data:[]}):supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('round',{ascending:false}),
               noIds?Promise.resolve({data:[]}):supabase.from('inspection_sticker_checks').select('inspection_id,field_key,confirmed').in('inspection_id',inspectionIds)
