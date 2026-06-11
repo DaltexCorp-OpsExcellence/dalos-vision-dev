@@ -9443,7 +9443,7 @@ function ClientQCMgmt(props){
             cqcCmpCache.current[cacheKey]=result; setMatchedCmp(result);
           });
       });
-  },[selRep]);
+  },[selRep,reports]);
 
   /* ── FORM STATE (mirrors Client QC Input Sheet exactly) ── */
   var sC=useState(''); var fContainer=sC[0]; var setContainer=sC[1];
@@ -11690,6 +11690,17 @@ function ClientQCMgmt(props){
   /* ── REPORT LIST ── */
   var prodReports=reports.filter(function(r){return r.productId===selCqcProd&&(config.activeSeasonId?r.season===config.activeSeasonId:true);});
   return ce('div',{className:'page',style:{}},
+    /* Back to Shipments (when deep-linked from the shipments page) */
+    props.navBack&&ce('div',{style:{marginBottom:12}},
+      ce('button',{className:'btn btn-secondary btn-sm',
+        style:{display:'inline-flex',alignItems:'center',gap:6},
+        onClick:props.navBack},
+        ce('svg',{width:14,height:14,viewBox:'0 0 16 16',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'},
+          ce('path',{d:'M10 12L6 8l4-4'})
+        ),
+        props.navBackLabel||'Back to Shipments'
+      )
+    ),
     ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}},
       ce('div',{style:{display:'flex',alignItems:'center',gap:12}},
         ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelCqcProd(null);setCqcSearch('');setSelRep(null);}},'\u2190 Products'),
@@ -12384,8 +12395,22 @@ function ShipmentsMgmt(props){
   /* product container counts for hero */
   var sProdCounts=useState({}); var prodCounts=sProdCounts[0]; var setProdCounts=sProdCounts[1];
 
-  /* Reset product selection when season changes */
+  /* Restore view state when returning from a CQC deep link */
   React.useEffect(function(){
+    var st=props.initialShip;
+    if(st&&st.prod){
+      setSelProd(st.prod);
+      setAggMode(st.agg!==false);
+      if(st.container) setSelContainer(st.container);
+      if(st.ship) setSelShip(st.ship);
+    }
+  },[]);
+
+  /* Reset product selection when season changes */
+  var seasonRef=React.useRef(config.activeSeasonId);
+  React.useEffect(function(){
+    if(seasonRef.current===config.activeSeasonId) return;
+    seasonRef.current=config.activeSeasonId;
     setSelProd(null);
     setSelShip(null);
     setSelContainer(null);
@@ -12485,9 +12510,9 @@ function ShipmentsMgmt(props){
     if(cqcOpen===repId){setCqcOpen(null);return;}
     setCqcOpen(repId);
     if(cqcDetails[repId]) return;
-    supabase.from('client_qc_reports').select('id,total_defect,cqc_sample_rows(id,cqc_sample_defect_readings(cqc_defect_id,value))').eq('id',repId).single()
+    supabase.from('client_qc_reports').select('id,total_defect,inspection_id,cqc_extra_fields,cqc_sample_rows(id,cqc_sample_defect_readings(cqc_defect_id,value))').eq('id',repId).single()
       .then(function(r){
-        if(r.error||!r.data){setCqcDetails(function(p){return Object.assign({},p,{[repId]:{avgTotal:null,avgMajor:null,avgMinor:null,samples:0}});});return;}
+        if(r.error||!r.data){setCqcDetails(function(p){return Object.assign({},p,{[repId]:{avgTotal:null,avgMajor:null,avgMinor:null,samples:0,insp:null}});});return;}
         var samples=r.data.cqc_sample_rows||[];
         var secs=(config.cqcDefectSections||{})[selProd]||[];
         var majorTotal=0,minorTotal=0,grand=0;
@@ -12503,9 +12528,31 @@ function ShipmentsMgmt(props){
           samples:n,
           avgTotal:n>0?Math.round(grand/n*100)/100:(r.data.total_defect!=null?parseFloat(r.data.total_defect):null),
           avgMajor:n>0?Math.round(majorTotal/n*100)/100:null,
-          avgMinor:n>0?Math.round(minorTotal/n*100)/100:null
+          avgMinor:n>0?Math.round(minorTotal/n*100)/100:null,
+          insp:null
         };
+        /* Matched inspection(s): cqc_extra_fields.inspection_ids (multi-session) or single inspection_id */
+        var cef=r.data.cqc_extra_fields||{};
+        var inspIds=(Array.isArray(cef.inspection_ids)&&cef.inspection_ids.length>0)?cef.inspection_ids.slice():(r.data.inspection_id?[r.data.inspection_id]:[]);
+        if(inspIds.length===0){setCqcDetails(function(p){return Object.assign({},p,{[repId]:det});});return;}
+        det.insp={loading:true,ids:inspIds};
         setCqcDetails(function(p){return Object.assign({},p,{[repId]:det});});
+        supabase.from('sample_rows').select('id').in('inspection_id',inspIds)
+          .then(function(sr){
+            var rowIds=(sr.data||[]).map(function(x){return x.id;});
+            if(rowIds.length===0){
+              var d2=Object.assign({},det,{insp:{loading:false,ids:inspIds,samples:0,total:null}});
+              setCqcDetails(function(p){return Object.assign({},p,{[repId]:d2});});return;
+            }
+            supabase.from('sample_defect_readings').select('value,defects(severity)').in('sample_row_id',rowIds)
+              .then(function(dr){
+                var tot=0;
+                (dr.data||[]).forEach(function(x){tot+=parseFloat(x.value)||0;});
+                var inspTotal=Math.round(tot/rowIds.length*100)/100;
+                var d3=Object.assign({},det,{insp:{loading:false,ids:inspIds,samples:rowIds.length,total:inspTotal}});
+                setCqcDetails(function(p){return Object.assign({},p,{[repId]:d3});});
+              });
+          });
       });
   }
 
@@ -12771,7 +12818,22 @@ function ShipmentsMgmt(props){
                     })
                   ),
                   ce('div',{style:{fontSize:11,color:'var(--text2)'}},det.samples+' sample'+(det.samples===1?'':'s')+(rep.client_decision?' \u00b7 Decision: '+rep.client_decision:'')),
-                  props.onOpenCqc&&ce('button',{className:'btn btn-secondary btn-sm',style:{width:'100%',marginTop:8},onClick:function(){props.onOpenCqc(rep.id,selProd);}},'Open full CQC report \u2192')
+                  /* Internal QC (matched inspection) comparison */
+                  det.insp&&ce('div',{style:{marginTop:8,background:'var(--green-bg)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px'}},
+                    ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:4}},'Matched Inspection'),
+                    det.insp.loading?ce('div',{style:{fontSize:11,color:'var(--text3)'}},'Loading\u2026')
+                    :ce('div',null,
+                      ce('div',{style:{fontSize:11,fontFamily:'var(--font-mono)',color:'var(--text)',marginBottom:3}},det.insp.ids.join(', ')),
+                      det.insp.total!=null
+                        ?ce('div',{style:{display:'flex',alignItems:'baseline',gap:10}},
+                            ce('span',{style:{fontSize:11,color:'var(--text2)'}},'Internal: ',ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,color:det.insp.total>10?'var(--red)':det.insp.total>5?'var(--amber)':'var(--green)'}},det.insp.total.toFixed(1)+'%')),
+                            ce('span',{style:{fontSize:11,color:'var(--text2)'}},det.insp.samples+' samples'),
+                            det.avgTotal!=null&&(function(){var gap=Math.round((det.avgTotal-det.insp.total)*10)/10;return ce('span',{style:{fontSize:11,fontFamily:'var(--font-mono)',fontWeight:600,color:gap>0?'var(--red)':'var(--green)'}},'Gap: '+(gap>0?'+':'')+gap.toFixed(1));})()
+                          )
+                        :ce('div',{style:{fontSize:11,color:'var(--text3)'}},'No internal samples found')
+                    )
+                  ),
+                  props.onOpenCqc&&ce('button',{className:'btn btn-secondary btn-sm',style:{width:'100%',marginTop:8},onClick:function(){props.onOpenCqc(rep.id,selProd,{prod:selProd,agg:aggMode,container:selContainer,ship:selShip});}},'Open full CQC report \u2192')
                 )
               )
             );
@@ -13572,6 +13634,9 @@ function App(){
   /* Shipments -> CQC deep link; cleared when leaving the CQC page */
   var sCqcLink=useState(null); var cqcLink=sCqcLink[0]; var setCqcLink=sCqcLink[1];
   React.useEffect(function(){if(view!=='clientqc'&&cqcLink)setCqcLink(null);},[view]);
+  /* Saved shipments view state to restore after Back to Shipments */
+  var sShipReturn=useState(null); var shipReturn=sShipReturn[0]; var setShipReturn=sShipReturn[1];
+  React.useEffect(function(){if(view!=='shipments'&&view!=='clientqc'&&shipReturn)setShipReturn(null);},[view]);
   var sMob=useState(false); var mobOpen=sMob[0]; var setMobOpen=sMob[1];
   var sAuthChecked=useState(false); var authChecked=sAuthChecked[0]; var setAuthChecked=sAuthChecked[1];
   var sShowPwRecovery=useState(false); var showPasswordRecovery=sShowPwRecovery[0]; var setShowPasswordRecovery=sShowPwRecovery[1];
@@ -14997,10 +15062,12 @@ function App(){
           navBackLabel:navHistory?'Back to CQC report':null}),
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
-        view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId});setView('clientqc');}}),
+        view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
+          navBack:cqcLink?function(){var l=cqcLink;setShipReturn(l.ship||null);setCqcLink(null);setView('shipments');}:null,
+          navBackLabel:cqcLink?'Back to Shipments':null,
           onOpenInspection:function(batchId,selRep,selCqcProd){
             var found=batches.find(function(b){return b.id===batchId;});
             setNavHistory({view:'clientqc',selRep:selRep,selCqcProd:selCqcProd});
