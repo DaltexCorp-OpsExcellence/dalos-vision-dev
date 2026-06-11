@@ -12669,6 +12669,7 @@ function ShipmentsMgmt(props){
       key:key,
       rows:[],
       clients:new Set(),
+      subclients:new Set(),
       varieties:new Set(),
       countries:new Set(),
       statuses:new Set(),
@@ -12682,6 +12683,7 @@ function ShipmentsMgmt(props){
     var c=containerMap[key];
     c.rows.push(s);
     if(s.client) c.clients.add(s.client);
+    if(s.subclient) c.subclients.add(s.subclient);
     if(s.variety) c.varieties.add(s.variety);
     if(s.receiving_country) c.countries.add(s.receiving_country);
     if(s.shipping_status) c.statuses.add(s.shipping_status);
@@ -12708,7 +12710,7 @@ function ShipmentsMgmt(props){
       var q=search.toLowerCase();
       return (s.container_number||'').toLowerCase().includes(q)||
              (s.client||'').toLowerCase().includes(q)||(s.vessel||'').toLowerCase().includes(q)||
-             (s.carta||'').toLowerCase().includes(q)||(s.invoice_no||'').toLowerCase().includes(q)||
+             (s.carta||'').toLowerCase().includes(q)||(s.invoice_no||'').toLowerCase().includes(q)||(s.subclient||'').toLowerCase().includes(q)||
              (s.variety||'').toLowerCase().includes(q);
     }
     return true;
@@ -12723,6 +12725,7 @@ function ShipmentsMgmt(props){
       var q=search.toLowerCase();
       return c.container_number.toLowerCase().includes(q)||
              [...c.clients].some(function(x){return x.toLowerCase().includes(q);})||
+             [...c.subclients].some(function(x){return x.toLowerCase().includes(q);})||
              [...c.varieties].some(function(x){return x.toLowerCase().includes(q);})||
              [...c.invoice_nos].some(function(x){return x.toLowerCase().includes(q);})||
              [...c.cartas].some(function(x){return x.toLowerCase().includes(q);});
@@ -12854,6 +12857,7 @@ function ShipmentsMgmt(props){
                 ['Carta',[...c.cartas].join(', ')||null],
                 ['Varieties',[...c.varieties].join(', ')||null],
                 ['Client',[...c.clients].join(', ')||null],
+                ['Subclient',[...c.subclients].join(', ')||null],
                 ['Country',[...c.countries].join(', ')||null],
                 ['Pack House',c.rows[0]&&c.rows[0].pack_house||null],
                 ['Farm Source',c.rows[0]&&c.rows[0].farm_source||null],
@@ -13029,7 +13033,7 @@ function ShipmentsMgmt(props){
             ce('table',{style:{borderCollapse:'collapse',width:'100%'}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Invoice(s)'),ce('th',null,'Varieties'),
-                ce('th',null,'Client'),ce('th',null,'Country'),ce('th',null,'Loading'),
+                ce('th',null,'Subclient'),ce('th',null,'Country'),ce('th',null,'Loading'),
                 ce('th',null,'ETA'),ce('th',{style:{textAlign:'center'}},'Cartons'),
                 ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'Grade'),
                 ce('th',{style:{textAlign:'center'}},'Claim')
@@ -13053,7 +13057,7 @@ function ShipmentsMgmt(props){
                     ce('td',{style:{fontSize:12}},
                       [...c.varieties].map(function(v,i){return ce('span',{key:i,className:'badge badge-neutral',style:{fontSize:10,marginRight:3,marginBottom:2}},v);})
                     ),
-                    ce('td',{style:{fontSize:12,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},[...c.clients].join(', ')||'—'),
+                    ce('td',{style:{fontSize:12,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},[...c.subclients].join(', ')||'—'),
                     ce('td',{style:{fontSize:12}},[...c.countries].join(', ')||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},loadArr[0]||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},etaArr[etaArr.length-1]||'—'),
@@ -13079,7 +13083,7 @@ function ShipmentsMgmt(props){
             ce('table',{style:{borderCollapse:'collapse',width:'100%'}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Carta'),ce('th',null,'Invoice No.'),
-                ce('th',null,'Variety'),ce('th',null,'Client'),ce('th',null,'Loading'),
+                ce('th',null,'Variety'),ce('th',null,'Subclient'),ce('th',null,'Loading'),
                 ce('th',null,'ETA'),ce('th',null,'Status'),ce('th',{style:{textAlign:'center'}},'Cartons'),
                 ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'Grade'),
                 ce('th',{style:{textAlign:'center'}},'Claim')
@@ -13095,7 +13099,7 @@ function ShipmentsMgmt(props){
                     ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.carta||'—')),
                     ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.invoice_no||'—')),
                     ce('td',null,ce('div',{style:{fontSize:12}},s.variety||'—'),s.color&&ce('div',{style:{fontSize:10,color:'var(--text3)'}},s.color)),
-                    ce('td',{style:{fontSize:12,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.client||'—'),
+                    ce('td',{style:{fontSize:12,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.subclient||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.loading_date||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.eta||'—'),
                     ce('td',null,s.shipping_status?ce('span',{className:'badge '+(s.shipping_status==='Delivered'?'badge-pass':s.shipping_status==='In Transit'?'badge-warn':'badge-neutral'),style:{fontSize:10}},s.shipping_status):'—'),
