@@ -1045,16 +1045,26 @@ function InspectionForm(props){
   function openMoveModal(pIdx,pallet){
     setGrpMoveModal({pIdx:pIdx,palletId:pallet.palletId,palletLabel:pallet.palletLabel||('#'+pallet.palletNo)});
     /* Fetch pallet_number + container_number for all grapes sessions */
-    supabase.from('pallets').select('id,inspection_id,pallet_number,container_number')
-      .then(function(r){
-        if(r.error||!r.data) return;
-        var map={};
-        r.data.forEach(function(p){
-          if(!map[p.inspection_id]) map[p.inspection_id]=[];
-          map[p.inspection_id].push({palletLabel:p.pallet_number||'',container:p.container_number||''});
+    /* Paginate past the PostgREST 1000-row cap (4,900+ pallets this season) — newest first
+       so recent pallets always load even if a later page fails. Map is built from whatever
+       pages succeeded: degraded results beat an empty modal on flaky packhouse wifi. */
+    (function fetchPalletPage(from,acc){
+      supabase.from('pallets').select('id,inspection_id,pallet_number,container_number')
+        .order('created_at',{ascending:false})
+        .range(from,from+999)
+        .then(function(r){
+          var batch=r.data||[];
+          acc=acc.concat(batch);
+          if(!r.error&&batch.length===1000&&from<49000){fetchPalletPage(from+1000,acc);return;}
+          if(r.error) console.error('[DalOS] pallet map fetch error at page',from,':',r.error.message);
+          var map={};
+          acc.forEach(function(p){
+            if(!map[p.inspection_id]) map[p.inspection_id]=[];
+            map[p.inspection_id].push({palletLabel:p.pallet_number||'',container:p.container_number||''});
+          });
+          setSessionPallets(map);
         });
-        setSessionPallets(map);
-      });
+    })(0,[]);
   }
   var sGrpMoveSearch=useState(''); var grpMoveSearch=sGrpMoveSearch[0]; var setGrpMoveSearch=sGrpMoveSearch[1];
   /* Grapes session ID — stable for lifetime of this form instance */
