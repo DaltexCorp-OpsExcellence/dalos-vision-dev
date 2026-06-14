@@ -9315,7 +9315,7 @@ function ClientQCMgmt(props){
             daltexClass:(config.classesIdToName&&r.class_id&&config.classesIdToName[r.class_id])||r.daltex_class||'',
             clientClass:r.client_class||'', wax:r.wax||'',
             score:r.score||'', brix:r.brix||'', brixIssue:r.brix_issue||false,
-            cartonIssue:r.carton_issue||false, sizeIssue:r.size_issue||false, brixIssuePct:r.brix_issue_pct!=null?r.brix_issue_pct:null, sizeIssuePct:r.size_issue_pct!=null?r.size_issue_pct:null,
+            cartonIssue:r.carton_issue||false, sizeIssue:r.size_issue||false, brixIssuePct:r.brix_issue_pct!=null?r.brix_issue_pct:null, underweightPct:r.underweight_pct!=null?r.underweight_pct:null,
             totalDefect:r.total_defect||0, defects:(function(){
               var d={};
               (r.client_qc_defect_readings||[]).forEach(function(dr){d[dr.bucket_key]=dr.value;});
@@ -9522,7 +9522,7 @@ function ClientQCMgmt(props){
   var sCartonIssue=useState('No'); var fCartonIssue=sCartonIssue[0]; var setCartonIssue=sCartonIssue[1];
   var sSizeIssue=useState('No'); var fSizeIssue=sSizeIssue[0]; var setSizeIssue=sSizeIssue[1];
   var sBrixIssuePct=useState(''); var fBrixIssuePct=sBrixIssuePct[0]; var setBrixIssuePct=sBrixIssuePct[1];
-  var sSizeIssuePct=useState(''); var fSizeIssuePct=sSizeIssuePct[0]; var setSizeIssuePct=sSizeIssuePct[1];
+  var sUnderweightPct=useState(''); var fUnderweightPct=sUnderweightPct[0]; var setUnderweightPct=sUnderweightPct[1];
   /* defect buckets (matching CSV exactly) */
   var sTotalDef=useState('0'); var fTotalDef=sTotalDef[0]; var setTotalDef=sTotalDef[1];
   var sDefVals=useState({}); var defVals=sDefVals[0]; var setDefVals=sDefVals[1];
@@ -9847,7 +9847,7 @@ function ClientQCMgmt(props){
     setFarm1('');setPlot1('');setFarm2('');setPlot2('');setFarmsExtra([]);setPHExtra([]);setVarsExtra([]);setLoadDate('');setPackDate('');setHarvDate('');setCartonType('');
     setQCRef('');setRegion('');setClient('');setSubClient('');setLot('');setDaltexCls('');
     setClientCls('');setWax('');setScore('');setBrix('');setBrixIssue('No');setCartonIssue('No');
-    setSizeIssue('No');setBrixIssuePct('');setSizeIssuePct('');setTotalDef('');setMajorRot('');setStorageMld('');setForeign('');
+    setSizeIssue('No');setBrixIssuePct('');setUnderweightPct('');setTotalDef('');setMajorRot('');setStorageMld('');setForeign('');
     setBlemish('');setBruising('');setSoftness('');setGranulation('');setStalk('');
     setColoration('');setInternalDisc('');setSplitting('');setSizing('');setInjuries('');
     setUnderweight('');setPkgComments('');setForeignPresent('NO');setGeneral('');
@@ -10014,7 +10014,7 @@ function ClientQCMgmt(props){
     setRegion(r.region||'');setClient(r.client||'');setSubClient(r.subClient||'');setLot(r.lot||'');
     setDaltexCls(r.daltexClass||'');setClientCls(r.clientClass||'');setWax(r.wax||'');
     setScore(r.score||'');setBrix(r.brix?String(r.brix):'0');
-    setBrixIssue(r.brixIssue===true?'Yes':'No');setCartonIssue(r.cartonIssue===true?'Yes':'No');setSizeIssue(r.sizeIssue===true?'Yes':'No');setBrixIssuePct(r.brixIssuePct!=null?String(r.brixIssuePct):'');setSizeIssuePct(r.sizeIssuePct!=null?String(r.sizeIssuePct):'');
+    setBrixIssue(r.brixIssue===true?'Yes':'No');setCartonIssue(r.cartonIssue===true?'Yes':'No');setSizeIssue(r.sizeIssue===true?'Yes':'No');setBrixIssuePct(r.brixIssuePct!=null?String(r.brixIssuePct):'');setUnderweightPct(r.underweightPct!=null?String(r.underweightPct):'');
     setTotalDef(r.totalDefect?String(r.totalDefect):'0');
     if(r.defects){
       var restored={};
@@ -10075,7 +10075,7 @@ function ClientQCMgmt(props){
       cartonType:fCartonType,qcReportNumber:fQCRef,region:fRegion,
       client:fClient,subClient:fSubClient,lot:fLot,
       daltexClass:fDaltexCls,clientClass:fClientCls,wax:fWax,
-      score:fScore,brix:fBrix,brixIssue:fBrixIssue,cartonIssue:fCartonIssue,sizeIssue:fSizeIssue,brixIssuePct:fBrixIssuePct?parseFloat(fBrixIssuePct):null,sizeIssuePct:fSizeIssuePct?parseFloat(fSizeIssuePct):null,
+      score:fScore,brix:fBrix,brixIssue:fBrixIssue,cartonIssue:fCartonIssue,sizeIssue:fSizeIssue,brixIssuePct:fBrixIssuePct?parseFloat(fBrixIssuePct):null,underweightPct:fUnderweightPct?parseFloat(fUnderweightPct):null,
       totalDefect:parseFloat(fTotalDef)||0,
       defects:(function(){
         var d={};
@@ -10116,7 +10116,7 @@ function ClientQCMgmt(props){
       brix:parseFloat(fBrix)||null,
       brix_issue:fBrixIssue==='Yes', brix_issue_pct:fBrixIssuePct?parseFloat(fBrixIssuePct):null,
       carton_issue:fCartonIssue==='Yes',
-      size_issue:fSizeIssue==='Yes', size_issue_pct:fSizeIssuePct?parseFloat(fSizeIssuePct):null,
+      size_issue:fSizeIssue==='Yes', underweight_pct:fUnderweightPct?parseFloat(fUnderweightPct):null,
       total_defect:parseFloat(fTotalDef)||null,
       gap_total:(function(){
         var clientTotal=parseFloat(fTotalDef)||null;
@@ -10868,7 +10868,7 @@ function ClientQCMgmt(props){
                   ce('span',{style:{fontSize:11,color:'var(--amber)',fontWeight:600,whiteSpace:'nowrap'}},'Underweight damage'),
                   ce('input',{type:'number',min:'0',max:'100',step:'0.1',placeholder:'0.0',
                     style:{width:68,padding:'3px 6px',border:'1px solid var(--amber-border)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',background:'var(--card)',color:'var(--text)',textAlign:'right'},
-                    value:fSizeIssuePct,onChange:function(e){setSizeIssuePct(e.target.value);}
+                    value:fUnderweightPct,onChange:function(e){setUnderweightPct(e.target.value);}
                   }),
                   ce('span',{style:{fontSize:11,color:'var(--amber)',fontWeight:500}},'%')
                 )
