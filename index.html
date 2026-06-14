@@ -12217,7 +12217,7 @@ function ClientQCMgmt(props){
                         supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',s.id).single().then(function(ir){
                           if(ir.error||!ir.data){setInspPopup(null);return;}
                           var insp=ir.data;
-                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,pallets(pallet_number),varieties:sample_variety_id(name),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
+                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,sample_variety_id,pallets(pallet_number),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
                             var rows=(sr.data||[]).map(function(row){
                               var tot={Critical:0,Major:0,Minor:0};
                               (row.sample_defect_readings||[]).forEach(function(d){var sv=d.defects&&d.defects.severity;if(sv&&tot[sv]!==undefined)tot[sv]+=parseFloat(d.value)||0;});
@@ -12225,7 +12225,7 @@ function ClientQCMgmt(props){
                               return {
                                 pallet:(row.pallets&&row.pallets.pallet_number)||'—',
                                 num:row.sample_number,
-                                variety:(row.varieties&&row.varieties.name)||'',
+                                variety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',
                                 farm:ef.sampleFarm||'',
                                 plot:ef.samplePlot||'',
                                 brix:row.brix,
@@ -12511,7 +12511,7 @@ function ClientQCMgmt(props){
                         supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',s.id).single().then(function(ir){
                           if(ir.error||!ir.data){setInspPopup(null);return;}
                           var insp=ir.data;
-                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,pallets(pallet_number),varieties:sample_variety_id(name),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
+                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,sample_variety_id,pallets(pallet_number),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
                             var rows=(sr.data||[]).map(function(row){
                               var tot={Critical:0,Major:0,Minor:0};
                               (row.sample_defect_readings||[]).forEach(function(d){var sv=d.defects&&d.defects.severity;if(sv&&tot[sv]!==undefined)tot[sv]+=parseFloat(d.value)||0;});
@@ -12519,7 +12519,7 @@ function ClientQCMgmt(props){
                               return {
                                 pallet:(row.pallets&&row.pallets.pallet_number)||'—',
                                 num:row.sample_number,
-                                variety:(row.varieties&&row.varieties.name)||'',
+                                variety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',
                                 farm:ef.sampleFarm||'',
                                 plot:ef.samplePlot||'',
                                 brix:row.brix,
