@@ -12217,11 +12217,21 @@ function ClientQCMgmt(props){
                         supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',s.id).single().then(function(ir){
                           if(ir.error||!ir.data){setInspPopup(null);return;}
                           var insp=ir.data;
-                          supabase.from('sample_rows').select('id,sample_number,brix,sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
+                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,pallets(pallet_number),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
                             var rows=(sr.data||[]).map(function(row){
                               var tot={Critical:0,Major:0,Minor:0};
                               (row.sample_defect_readings||[]).forEach(function(d){var sv=d.defects&&d.defects.severity;if(sv&&tot[sv]!==undefined)tot[sv]+=parseFloat(d.value)||0;});
-                              return {num:row.sample_number,brix:row.brix,critical:tot.Critical,major:tot.Major,minor:tot.Minor,total:tot.Critical+tot.Major+tot.Minor};
+                              var ef=row.extra_fields||{};
+                              return {
+                                pallet:(row.pallets&&row.pallets.pallet_number)||'—',
+                                num:row.sample_number,
+                                farm:ef.sampleFarm||'',
+                                plot:ef.samplePlot||'',
+                                brix:row.brix,
+                                size:ef.grape_size||row.size||'',
+                                netWt:ef.netWeight?Math.round(ef.netWeight/100)/10:null,
+                                critical:tot.Critical,major:tot.Major,minor:tot.Minor,total:tot.Critical+tot.Major+tot.Minor
+                              };
                             });
                             var ph=(config.packhouses&&config.packhouses.find(function(p){return p.id===insp.packhouse_id;}))||{};
                             var variety=(config.varietiesIdToName&&insp.variety_id&&config.varietiesIdToName[insp.variety_id])||insp.variety_id||'';
@@ -12295,15 +12305,18 @@ function ClientQCMgmt(props){
                     ce('div',{style:{overflowX:'auto'}},
                       ce('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:12}},
                         ce('thead',null,ce('tr',null,
-                          ['#','Brix','Critical%','Major%','Minor%','Total%'].map(function(h){
+                          ['Pallet','Farm','Plot','Brix','Size','Crit%','Major%','Minor%','Total%'].map(function(h){
                             return ce('th',{key:h,style:{textAlign:h==='#'?'center':'right',padding:'5px 10px',fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'2px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},h);
                           })
                         )),
                         ce('tbody',null,
                           inspPopup.data.samples.map(function(s){
                             return ce('tr',{key:s.num,style:{borderBottom:'0.5px solid var(--border)'}},
-                              ce('td',{style:{textAlign:'center',padding:'6px 10px',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.num),
+                              ce('td',{style:{padding:'6px 10px',fontFamily:'var(--font-mono)',fontSize:11,fontWeight:600,color:'var(--accent)',whiteSpace:'nowrap'}},s.pallet),
+                              ce('td',{style:{padding:'6px 10px',fontSize:11,color:'var(--text2)',maxWidth:90,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.farm||'—'),
+                              ce('td',{style:{padding:'6px 10px',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.plot||'—'),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)'}},s.brix!=null?parseFloat(s.brix).toFixed(1)+'°':'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.size||'—'),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.critical>0?'var(--red)':'var(--text3)'}},s.critical>0?s.critical.toFixed(2)+'%':'—'),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.major>0?'#b52828':'var(--text3)'}},s.major>0?s.major.toFixed(2)+'%':'—'),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.minor>0?'var(--amber)':'var(--text3)'}},s.minor>0?s.minor.toFixed(2)+'%':'—'),
@@ -12316,10 +12329,13 @@ function ClientQCMgmt(props){
                             if(n===0) return null;
                             var avg=function(f){return inspPopup.data.samples.reduce(function(s,r){return s+r[f];},0)/n;};
                             return ce('tr',{style:{background:'var(--bg2)',fontWeight:600}},
-                              ce('td',{style:{textAlign:'center',padding:'6px 10px',fontSize:10,color:'var(--text3)'}},'Ø'),
+                              ce('td',{style:{textAlign:'center',padding:'6px 10px',fontSize:10,color:'var(--text3)',fontWeight:600}},'Ø avg'),
+                              ce('td',{style:{padding:'6px 10px'}}),
+                              ce('td',{style:{padding:'6px 10px'}}),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},
                                 (function(){var b=inspPopup.data.samples.filter(function(s){return s.brix!=null;});return b.length>0?(b.reduce(function(s,r){return s+parseFloat(r.brix);},0)/b.length).toFixed(1)+'°':'—';})()
                               ),
+                              ce('td',{style:{padding:'6px 10px'}}),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',color:avg('critical')>0?'var(--red)':'var(--text3)'}},avg('critical')>0?avg('critical').toFixed(2)+'%':'—'),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',color:avg('major')>0?'#b52828':'var(--text3)'}},avg('major')>0?avg('major').toFixed(2)+'%':'—'),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',color:avg('minor')>0?'var(--amber)':'var(--text3)'}},avg('minor')>0?avg('minor').toFixed(2)+'%':'—'),
@@ -12492,11 +12508,21 @@ function ClientQCMgmt(props){
                         supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',s.id).single().then(function(ir){
                           if(ir.error||!ir.data){setInspPopup(null);return;}
                           var insp=ir.data;
-                          supabase.from('sample_rows').select('id,sample_number,brix,sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
+                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,pallets(pallet_number),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
                             var rows=(sr.data||[]).map(function(row){
                               var tot={Critical:0,Major:0,Minor:0};
                               (row.sample_defect_readings||[]).forEach(function(d){var sv=d.defects&&d.defects.severity;if(sv&&tot[sv]!==undefined)tot[sv]+=parseFloat(d.value)||0;});
-                              return {num:row.sample_number,brix:row.brix,critical:tot.Critical,major:tot.Major,minor:tot.Minor,total:tot.Critical+tot.Major+tot.Minor};
+                              var ef=row.extra_fields||{};
+                              return {
+                                pallet:(row.pallets&&row.pallets.pallet_number)||'—',
+                                num:row.sample_number,
+                                farm:ef.sampleFarm||'',
+                                plot:ef.samplePlot||'',
+                                brix:row.brix,
+                                size:ef.grape_size||row.size||'',
+                                netWt:ef.netWeight?Math.round(ef.netWeight/100)/10:null,
+                                critical:tot.Critical,major:tot.Major,minor:tot.Minor,total:tot.Critical+tot.Major+tot.Minor
+                              };
                             });
                             var ph=(config.packhouses&&config.packhouses.find(function(p){return p.id===insp.packhouse_id;}))||{};
                             var variety=(config.varietiesIdToName&&insp.variety_id&&config.varietiesIdToName[insp.variety_id])||insp.variety_id||'';
