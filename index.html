@@ -200,7 +200,7 @@ tr.click:hover td{background:var(--bg)}
 .cqc-list-row{display:flex;gap:12px;align-items:flex-start}
 .cqc-list-pane{flex:1;min-width:0;transition:flex .2s}
 .cqc-list-pane.has-detail{flex:0 0 42%}
-.cqc-detail-pane{flex:1;min-width:0;position:sticky;top:16px}
+.cqc-detail-pane{flex:1;min-width:0;position:sticky;top:16px;max-height:calc(100vh - 80px);overflow-y:auto}
 .cqc-stat-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-bottom:16px}.cqc-kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;position:relative;overflow:hidden;transition:box-shadow .15s}.cqc-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:8px 0 0 8px}
 .cqc-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .cqc-two-col-bot{display:grid;grid-template-columns:1fr 1fr;gap:10px}
