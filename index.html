@@ -9434,12 +9434,34 @@ function ClientQCMgmt(props){
         var per={}; ids.forEach(function(id){per[id]=0;});
         sr.data.forEach(function(x){ if(per[x.inspection_id]!==undefined) per[x.inspection_id]++; });
         var sampleCount=sr.data.length;
-        supabase.from('sample_defect_readings').select('value,defects(severity)').in('sample_row_id',rowIds)
+        supabase.from('sample_defect_readings').select('value,defects(key,name_en,severity)').in('sample_row_id',rowIds)
           .then(function(dr){
             var totals={Critical:0,Major:0,Minor:0};
-            (dr.data||[]).forEach(function(x){var sev=x.defects&&x.defects.severity;if(sev&&totals[sev]!==undefined)totals[sev]+=parseFloat(x.value)||0;});
+            var perDefect={};
+            (dr.data||[]).forEach(function(x){
+              var sev=x.defects&&x.defects.severity;
+              var key=x.defects&&x.defects.key;
+              var name=x.defects&&x.defects.name_en;
+              var val=parseFloat(x.value)||0;
+              if(sev&&totals[sev]!==undefined) totals[sev]+=val;
+              if(sev&&key&&val>0){
+                if(!perDefect[key]) perDefect[key]={name:name||key,severity:sev,total:0};
+                perDefect[key].total+=val;
+              }
+            });
             var defects={Critical:Math.round(totals.Critical/sampleCount*100)/100,Major:Math.round(totals.Major/sampleCount*100)/100,Minor:Math.round(totals.Minor/sampleCount*100)/100};
-            var result={loading:false,multi:ids.length>1,sessions:ids.map(function(id){return {id:id,samples:per[id]||0};}),defects:defects,ourTotal:Math.round((defects.Critical+defects.Major+defects.Minor)*100)/100,pooledSamples:sampleCount};
+            /* Build top defects per severity (top 4, sorted desc) */
+            var topDefects={Critical:[],Major:[],Minor:[]};
+            Object.keys(perDefect).forEach(function(k){
+              var d=perDefect[k];
+              var pct=Math.round(d.total/sampleCount*100)/100;
+              if(pct>0&&topDefects[d.severity]) topDefects[d.severity].push({key:k,name:d.name,pct:pct});
+            });
+            ['Critical','Major','Minor'].forEach(function(s){
+              topDefects[s].sort(function(a,b){return b.pct-a.pct;});
+              topDefects[s]=topDefects[s].slice(0,4);
+            });
+            var result={loading:false,multi:ids.length>1,sessions:ids.map(function(id){return {id:id,samples:per[id]||0};}),defects:defects,topDefects:topDefects,ourTotal:Math.round((defects.Critical+defects.Major+defects.Minor)*100)/100,pooledSamples:sampleCount};
             cqcCmpCache.current[cacheKey]=result; setMatchedCmp(result);
           });
       });
@@ -12135,7 +12157,33 @@ function ClientQCMgmt(props){
                 var clientTotal=(r.totalDefect||r.totalDefect===0)?r.totalDefect:null;
                 var ourTotal=(!ld&&cmp.ourTotal!=null)?cmp.ourTotal:null;
                 var gap=(ourTotal!=null&&clientTotal!=null)?Math.round((clientTotal-ourTotal)*10)/10:null;
-                function sev(label,key,bdr,bg,tx,barc){return ce('div',{style:{flex:1,border:'0.5px solid '+bdr,borderRadius:8,overflow:'hidden'}},ce('div',{style:{padding:'7px 10px',background:bg}},ce('div',{style:{fontSize:9,fontWeight:600,color:tx,letterSpacing:'.06em',marginBottom:4}},label),ld?ce('span',{className:'cqc-shim',style:{display:'block',width:46,height:20}}):ce('div',{style:{fontSize:18,fontWeight:600,color:tx,lineHeight:1}},(d&&d[key]!=null)?d[key].toFixed(2)+'%':'\u2014'),ce('div',{style:{marginTop:5,height:3,background:bdr,borderRadius:2,overflow:'hidden'}},ce('div',{style:{width:(d&&d[key]!=null)?Math.min(d[key]/15*100,100).toFixed(1)+'%':'0%',height:'100%',background:barc,borderRadius:2}}))));}
+                function sev(label,key,bdr,bg,tx,barc){
+                  var tops=(!ld&&cmp.topDefects&&cmp.topDefects[key])||[];
+                  var sectionPct=(d&&d[key]!=null)?d[key]:0;
+                  return ce('div',{style:{flex:1,border:'0.5px solid '+bdr,borderRadius:8,overflow:'hidden'}},
+                    ce('div',{style:{padding:'7px 10px',background:bg}},
+                      ce('div',{style:{fontSize:9,fontWeight:600,color:tx,letterSpacing:'.06em',marginBottom:4}},label),
+                      ld?ce('span',{className:'cqc-shim',style:{display:'block',width:46,height:20}}):ce('div',{style:{fontSize:18,fontWeight:600,color:tx,lineHeight:1}},sectionPct?sectionPct.toFixed(2)+'%':'\u2014'),
+                      ce('div',{style:{marginTop:5,height:3,background:bdr,borderRadius:2,overflow:'hidden'}},
+                        ce('div',{style:{width:sectionPct?Math.min(sectionPct/15*100,100).toFixed(1)+'%':'0%',height:'100%',background:barc,borderRadius:2}})
+                      ),
+                      tops.length>0&&ce('div',{style:{marginTop:8,borderTop:'0.5px solid '+bdr,paddingTop:6,display:'flex',flexDirection:'column',gap:4}},
+                        tops.map(function(t){
+                          var w=sectionPct>0?Math.min(t.pct/sectionPct*100,100).toFixed(1)+'%':'0%';
+                          return ce('div',{key:t.key},
+                            ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:2}},
+                              ce('span',{title:t.name,style:{fontSize:9,color:tx,opacity:.9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'73%'}},t.name),
+                              ce('span',{style:{fontSize:9,fontWeight:700,color:tx,fontFamily:'var(--font-mono)',flexShrink:0}},t.pct.toFixed(2)+'%')
+                            ),
+                            ce('div',{style:{height:2,background:'rgba(0,0,0,.12)',borderRadius:1,overflow:'hidden'}},
+                              ce('div',{style:{width:w,height:'100%',background:barc,borderRadius:1}})
+                            )
+                          );
+                        })
+                      )
+                    )
+                  );
+                }
                 return ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
                   ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,flexWrap:'wrap',gap:6}},
                     ce('div',{style:{fontSize:11,fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--green)'}},'Client vs our inspection'),
@@ -12287,7 +12335,30 @@ function ClientQCMgmt(props){
                   var clientTotal=(r.totalDefect||r.totalDefect===0)?r.totalDefect:null;
                   var ourTotal=(!ld&&cmp.ourTotal!=null)?cmp.ourTotal:null;
                   var gap=(ourTotal!=null&&clientTotal!=null)?Math.round((clientTotal-ourTotal)*10)/10:null;
-                  function sev(label,key,bdr,bg,tx){return ce('div',{style:{flex:1,border:'0.5px solid '+bdr,borderRadius:8,overflow:'hidden'}},ce('div',{style:{padding:'7px 8px',background:bg}},ce('div',{style:{fontSize:9,fontWeight:600,color:tx,letterSpacing:'.05em'}},label),ld?ce('span',{className:'cqc-shim',style:{display:'block',width:38,height:17,marginTop:3}}):ce('div',{style:{fontSize:16,fontWeight:600,color:tx,lineHeight:1.15,marginTop:2}},(d&&d[key]!=null)?d[key].toFixed(2)+'%':'\u2014')));}
+                  function sev(label,key,bdr,bg,tx,barc){
+                    var tops=(!ld&&cmp.topDefects&&cmp.topDefects[key])||[];
+                    var sectionPct=(d&&d[key]!=null)?d[key]:0;
+                    return ce('div',{style:{flex:1,border:'0.5px solid '+bdr,borderRadius:8,overflow:'hidden'}},
+                      ce('div',{style:{padding:'7px 8px',background:bg}},
+                        ce('div',{style:{fontSize:9,fontWeight:600,color:tx,letterSpacing:'.05em'}},label),
+                        ld?ce('span',{className:'cqc-shim',style:{display:'block',width:38,height:17,marginTop:3}}):ce('div',{style:{fontSize:16,fontWeight:600,color:tx,lineHeight:1.15,marginTop:2}},sectionPct?sectionPct.toFixed(2)+'%':'—'),
+                        tops.length>0&&ce('div',{style:{marginTop:6,borderTop:'0.5px solid '+bdr,paddingTop:5,display:'flex',flexDirection:'column',gap:3}},
+                          tops.map(function(t){
+                            var w=sectionPct>0?Math.min(t.pct/sectionPct*100,100).toFixed(1)+'%':'0%';
+                            return ce('div',{key:t.key},
+                              ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:2}},
+                                ce('span',{title:t.name,style:{fontSize:8,color:tx,opacity:.9,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'72%'}},t.name),
+                                ce('span',{style:{fontSize:8,fontWeight:700,color:tx,fontFamily:'var(--font-mono)',flexShrink:0}},t.pct.toFixed(2)+'%')
+                              ),
+                              ce('div',{style:{height:2,background:'rgba(0,0,0,.12)',borderRadius:1,overflow:'hidden'}},
+                                ce('div',{style:{width:w,height:'100%',background:(barc||tx),borderRadius:1}})
+                              )
+                            );
+                          })
+                        )
+                      )
+                    );
+                  }
                   return ce('div',{style:{marginTop:14,background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
                     ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,flexWrap:'wrap',gap:6}},
                       ce('div',{style:{fontSize:10,fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--green)'}},'Client vs our inspection'),
@@ -12298,9 +12369,9 @@ function ClientQCMgmt(props){
                       (!ld&&cmp.multi)?ce('span',{style:{fontSize:10,color:'var(--text3)',marginLeft:'auto'}},cmp.pooledSamples+' pooled'):null
                     ),
                     ce('div',{style:{display:'flex',gap:6,marginBottom:8}},
-                      sev('CRITICAL','Critical','#F7C1C1','#FCEBEB','#A32D2D'),
-                      sev('MAJOR','Major','#FAC775','#FAEEDA','#854F0B'),
-                      sev('MINOR','Minor','#C0DD97','#EAF3DE','#27500A')
+                      sev('CRITICAL','Critical','#F7C1C1','#FCEBEB','#A32D2D','#E24B4A'),
+                      sev('MAJOR','Major','#FAC775','#FAEEDA','#854F0B','#BA7517'),
+                      sev('MINOR','Minor','#C0DD97','#EAF3DE','#27500A','#3B6D11')
                     ),
                     ce('div',{style:{display:'flex',alignItems:'center',gap:10,borderTop:'0.5px solid var(--green-border)',paddingTop:8,fontSize:11,flexWrap:'wrap'}},
                       ce('span',{style:{color:'var(--text3)'}},'Our total ',ld?ce('span',{className:'cqc-shim',style:{width:34,height:12}}):ce('b',{style:{color:'var(--green)'}},ourTotal!=null?ourTotal.toFixed(2)+'%':'\u2014')),
