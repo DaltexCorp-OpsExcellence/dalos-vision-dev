@@ -10849,7 +10849,7 @@ function ClientQCMgmt(props){
             ce('div',null,
               ce('label',{className:'form-label'},'Issues flagged'),
               ce('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginTop:4}},
-                [['Brix',fBrixIssue,setBrixIssue],['Carton',fCartonIssue,setCartonIssue],['Size/Weight',fSizeIssue,setSizeIssue]].map(function(item){
+                [['Brix',fBrixIssue,setBrixIssue],['Carton',fCartonIssue,setCartonIssue],['Underweight',fSizeIssue,setSizeIssue]].map(function(item){
                   return ce('button',{key:item[0],className:'btn btn-sm',style:{background:item[1]==='Yes'?'var(--amber)':'var(--bg2)',color:item[1]==='Yes'?'#fff':'var(--text3)',border:'1px solid '+(item[1]==='Yes'?'var(--amber)':'var(--border2)')},onClick:function(){item[2](item[1]==='Yes'?'No':'Yes');}},item[0]+' '+(item[1]==='Yes'?'\u26a0':'\u2610'));
                 })
               )
@@ -10951,20 +10951,20 @@ function ClientQCMgmt(props){
             if(allDefs.length===0) return ce('div',{style:{padding:'20px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No CQC defect sections configured for this product.');
             /* Column widths shared between header and body tables */
             var colW={hash:52,def:64,total:72,meta:{}};
-            var _metaW={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':200,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
+            var _metaW={'Variety':100,'Farm':100,'Plot':60,'PH':90,'Trace':200,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Underweight?':50,'Notes':150,'Dispute':80};
             /* Build col widths for both tables */
             var varOpts0=[];if(fVar)varOpts0.push(1);fVarsExtra.forEach(function(ve){if(ve.var)varOpts0.push(1);});
             var farmOpts0=[];if(fFarm1)farmOpts0.push(1);if(fFarm2)farmOpts0.push(1);fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts0.push(1);});
             var phOpts0=[];if(fPH)phOpts0.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts0.push(1);});
             var traceOpts0=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
-            var mW={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Brix':60,'Brix?':50,'Size mm':60,'Size?':50,'Carton?':60,'Score':72,'Notes':150,'Dispute':80};
+            var mW={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Brix':60,'Brix?':50,'Size mm':60,'Underweight?':50,'Carton?':60,'Score':72,'Notes':150,'Dispute':80};
             var hasMixed=cqcSamples.some(function(s){return s.sampleVariety&&s.sampleVariety.indexOf(' / ')>=0;})||(fVarType==='mixed'&&fVar2)||fVarsExtra.some(function(ve){return ve.type==='mixed'&&ve.var2;});
             var hdrs0=[];
             if(varOpts0.length>0) hdrs0.push('Variety');
             if(farmOpts0.length>0){hdrs0.push('Farm');hdrs0.push('Plot');if(hasMixed){hdrs0.push('Farm 2');hdrs0.push('Plot 2');}}
             if(phOpts0.length>0) hdrs0.push('PH');
             if(traceOpts0.length>0) hdrs0.push('Trace');
-            hdrs0.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes','Dispute');
+            hdrs0.push('Brix','Brix?','Size mm','Underweight?','Carton?','Score','Notes','Dispute');
             function mkColgroup(){
               return ce('colgroup',null,
                 ce('col',{style:{width:52}}),
@@ -11045,8 +11045,8 @@ function ClientQCMgmt(props){
                       if(phOpts.length>0) hdrs.push('PH');
                       var traceOpts2=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
                       if(traceOpts2.length>0) hdrs.push('Trace');
-                      hdrs.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes','Dispute');
-                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
+                      hdrs.push('Brix','Brix?','Size mm','Underweight?','Carton?','Score','Notes','Dispute');
+                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Underweight?':50,'Notes':150,'Dispute':80};
                       return hdrs.map(function(h){var isDisp=h==='Dispute';return ce('th',{key:h,style:{padding:'4px 6px',background:isDisp?'#faeeda':'#f0f5f9',border:'1px solid var(--border)',borderBottom:isDisp?'2px solid #BA7517':'',fontSize:10,color:isDisp?'#633806':'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h);});
                     })(),
                     ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
@@ -11259,7 +11259,7 @@ function ClientQCMgmt(props){
                           onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
                         })
                       ),
-                      /* Size issue */
+                      /* Underweight issue */
                       ce('td',{style:tdMeta},
                         ce('select',{style:selSt,'data-meta-row':si,'data-meta-col':3,value:sample.sizeIssue?'Yes':'No',
                           onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si),
@@ -11548,7 +11548,7 @@ function ClientQCMgmt(props){
                           ce('input',{className:'form-input',type:'number',step:'0.1',min:'0',value:sample.avgSize||'',placeholder:'mm',onChange:function(idx){return function(e){updateCqcSampleField(idx,'avgSize',e.target.value);};}(si)})
                         ),
                         ce('div',{className:'form-field',style:{marginBottom:0}},
-                          ce('label',{className:'form-label'},'Size issue?'),
+                          ce('label',{className:'form-label'},'Underweight?'),
                           ce('select',{className:'form-select',value:sample.sizeIssue?'Yes':'No',onChange:function(idx){return function(e){updateCqcSampleField(idx,'sizeIssue',e.target.value==='Yes');};}(si)},
                             ce('option',{value:'No'},'No'),ce('option',{value:'Yes'},'Yes')
                           )
