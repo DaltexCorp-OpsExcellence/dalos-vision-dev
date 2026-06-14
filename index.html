@@ -12441,6 +12441,7 @@ function ShipmentsMgmt(props){
   var sSelShip=useState(null); var selShip=sSelShip[0]; var setSelShip=sSelShip[1];
   var sSelContainer=useState(null); var selContainer=sSelContainer[0]; var setSelContainer=sSelContainer[1];
   var sSaving=useState(false); var saving=sSaving[0]; var setSaving=sSaving[1];
+  var sCqcShipFilter=useState('all'); var cqcShipFilter=sCqcShipFilter[0]; var setCqcShipFilter=sCqcShipFilter[1];
   /* grade/claim edit state */
   var sGrade=useState(''); var grade=sGrade[0]; var setGrade=sGrade[1];
   var sGradeNote=useState(''); var gradeNote=sGradeNote[0]; var setGradeNote=sGradeNote[1];
@@ -12460,6 +12461,7 @@ function ShipmentsMgmt(props){
     setGrades([]);
     setCqcMatches({});
     setProdCounts({});
+    setCqcShipFilter('all');
   },[config.activeSeasonId]);
 
   /* Load container counts per product for hero page */
@@ -12657,6 +12659,7 @@ function ShipmentsMgmt(props){
       key:key,
       rows:[],
       clients:new Set(),
+      subclients:new Set(),
       varieties:new Set(),
       countries:new Set(),
       statuses:new Set(),
@@ -12670,6 +12673,7 @@ function ShipmentsMgmt(props){
     var c=containerMap[key];
     c.rows.push(s);
     if(s.client) c.clients.add(s.client);
+    if(s.subclient) c.subclients.add(s.subclient);
     if(s.variety) c.varieties.add(s.variety);
     if(s.receiving_country) c.countries.add(s.receiving_country);
     if(s.shipping_status) c.statuses.add(s.shipping_status);
@@ -12689,6 +12693,9 @@ function ShipmentsMgmt(props){
   function matchesFilters(s){
     if(statusFilter&&s.shipping_status!==statusFilter) return false;
     if(countryFilter.length>0&&!countryFilter.includes(s.receiving_country)) return false;
+    var normCN=(s.container_number||'').replace(/\s+/g,' ').trim().toUpperCase();
+    if(cqcShipFilter==='with'&&!(cqcMatches[normCN]>0)) return false;
+    if(cqcShipFilter==='without'&&(cqcMatches[normCN]>0)) return false;
     if(search){
       var q=search.toLowerCase();
       return (s.container_number||'').toLowerCase().includes(q)||
@@ -12702,6 +12709,9 @@ function ShipmentsMgmt(props){
   function containerMatchesFilters(c){
     if(statusFilter&&!c.statuses.has(statusFilter)) return false;
     if(countryFilter.length>0&&![...c.countries].some(function(cn){return countryFilter.includes(cn);})) return false;
+    var normCN=(c.container_number||'').replace(/\s+/g,' ').trim().toUpperCase();
+    if(cqcShipFilter==='with'&&!(cqcMatches[normCN]>0)) return false;
+    if(cqcShipFilter==='without'&&(cqcMatches[normCN]>0)) return false;
     if(search){
       var q=search.toLowerCase();
       return c.container_number.toLowerCase().includes(q)||
@@ -12832,7 +12842,7 @@ function ShipmentsMgmt(props){
       ce('div',{style:{position:'sticky',top:0,zIndex:20,background:'var(--bg)',borderBottom:'1px solid var(--border)',padding:'16px 16px 12px',marginBottom:0}},
       /* Topbar */
       ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}},
-        ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);}},'\u2190 Products'),
+        ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);setCqcShipFilter('all');}},'\u2190 Products'),
         ce('div',{style:{width:10,height:10,borderRadius:'50%',background:selProdObj.color||'var(--accent)',flexShrink:0}}),
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:16}},selProdObj.name,' Shipments'),
         totalClaims>0&&ce('span',{className:'badge badge-fail',style:{fontSize:11}},totalClaims+' claim'+(totalClaims===1?'':'s')),
@@ -12867,7 +12877,18 @@ function ShipmentsMgmt(props){
             })
           )
         ),
-        countryFilter.length>0&&ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setCountryFilter([]);}},'\u00d7 Clear countries')
+        countryFilter.length>0&&ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setCountryFilter([]);}},'\u00d7 Clear countries'),
+        ce('div',{style:{display:'flex',gap:4,marginLeft:'auto'}},
+          [['all','All'],['with','\u2713 With CQC'],['without','No CQC']].map(function(f){
+            var active=cqcShipFilter===f[0];
+            return ce('button',{key:f[0],onClick:function(){setCqcShipFilter(f[0]);},
+              style:{padding:'5px 10px',borderRadius:6,fontSize:11,fontWeight:active?600:400,cursor:'pointer',
+                border:'1px solid '+(active?'var(--green)':'var(--border2)'),
+                background:active?'var(--green-bg)':'var(--card)',
+                color:active?'var(--green)':'var(--text3)'}
+            },f[1]);
+          })
+        )
       ),
       /* KPIs — filtered counts */
       ce('div',{style:{display:'flex',gap:10,marginBottom:4,flexWrap:'wrap'}},
@@ -12939,7 +12960,7 @@ function ShipmentsMgmt(props){
             ce('table',{style:{borderCollapse:'collapse',width:'100%'}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Invoice(s)'),ce('th',null,'Varieties'),
-                ce('th',null,'Client'),ce('th',null,'Country'),ce('th',null,'Loading'),
+                ce('th',null,'Subclient'),ce('th',null,'Country'),ce('th',null,'Loading'),
                 ce('th',null,'ETA'),ce('th',{style:{textAlign:'center'}},'Cartons'),
                 ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'Grade'),
                 ce('th',{style:{textAlign:'center'}},'Claim')
@@ -12948,7 +12969,7 @@ function ShipmentsMgmt(props){
                 filteredContainers.length===0&&ce('tr',null,ce('td',{colSpan:11,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No containers found')),
                 filteredContainers.map(function(c){
                   var g=getGrade(c.container_number);
-                  var cqcCount=cqcMatches[c.container_number]||0;
+                  var cqcCount=cqcMatches[(c.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
                   var isSelected=selContainer===c.key;
                   var statArr=[...c.statuses];
                   var status=statArr.length===1?statArr[0]:(statArr.length>1?'Mixed':'—');
@@ -12963,7 +12984,7 @@ function ShipmentsMgmt(props){
                     ce('td',{style:{fontSize:12}},
                       [...c.varieties].map(function(v,i){return ce('span',{key:i,className:'badge badge-neutral',style:{fontSize:10,marginRight:3,marginBottom:2}},v);})
                     ),
-                    ce('td',{style:{fontSize:12,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},[...c.clients].join(', ')||'—'),
+                    ce('td',{style:{fontSize:12,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},[...c.subclients].join(', ')||([...c.clients].join(', '))||'—'),
                     ce('td',{style:{fontSize:12}},[...c.countries].join(', ')||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},loadArr[0]||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},etaArr[etaArr.length-1]||'—'),
@@ -12989,7 +13010,7 @@ function ShipmentsMgmt(props){
             ce('table',{style:{borderCollapse:'collapse',width:'100%'}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Carta'),ce('th',null,'Invoice No.'),
-                ce('th',null,'Variety'),ce('th',null,'Client'),ce('th',null,'Loading'),
+                ce('th',null,'Variety'),ce('th',null,'Subclient'),ce('th',null,'Loading'),
                 ce('th',null,'ETA'),ce('th',null,'Status'),ce('th',{style:{textAlign:'center'}},'Cartons'),
                 ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'Grade'),
                 ce('th',{style:{textAlign:'center'}},'Claim')
@@ -12998,14 +13019,14 @@ function ShipmentsMgmt(props){
                 filteredRows.length===0&&ce('tr',null,ce('td',{colSpan:12,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No shipments found')),
                 filteredRows.map(function(s){
                   var g=getGrade(s.container_number);
-                  var cqcCount=cqcMatches[s.container_number]||0;
+                  var cqcCount=cqcMatches[(s.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
                   var isSelected=selContainer===s.container_number;
                   return ce('tr',{key:s.id,className:'click',onClick:function(){openRow(s);},style:{background:isSelected?'var(--green-bg)':''}},
                     ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600}},s.container_number||'—')),
                     ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.carta||'—')),
                     ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.invoice_no||'—')),
                     ce('td',null,ce('div',{style:{fontSize:12}},s.variety||'—'),s.color&&ce('div',{style:{fontSize:10,color:'var(--text3)'}},s.color)),
-                    ce('td',{style:{fontSize:12,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.client||'—'),
+                    ce('td',{style:{fontSize:12,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.subclient||s.client||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.loading_date||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.eta||'—'),
                     ce('td',null,s.shipping_status?ce('span',{className:'badge '+(s.shipping_status==='Delivered'?'badge-pass':s.shipping_status==='In Transit'?'badge-warn':'badge-neutral'),style:{fontSize:10}},s.shipping_status):'—'),
