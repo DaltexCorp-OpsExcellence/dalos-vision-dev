@@ -1045,26 +1045,16 @@ function InspectionForm(props){
   function openMoveModal(pIdx,pallet){
     setGrpMoveModal({pIdx:pIdx,palletId:pallet.palletId,palletLabel:pallet.palletLabel||('#'+pallet.palletNo)});
     /* Fetch pallet_number + container_number for all grapes sessions */
-    /* Paginate past the PostgREST 1000-row cap (4,900+ pallets this season) — newest first
-       so recent pallets always load even if a later page fails. Map is built from whatever
-       pages succeeded: degraded results beat an empty modal on flaky packhouse wifi. */
-    (function fetchPalletPage(from,acc){
-      supabase.from('pallets').select('id,inspection_id,pallet_number,container_number')
-        .order('created_at',{ascending:false})
-        .range(from,from+999)
-        .then(function(r){
-          var batch=r.data||[];
-          acc=acc.concat(batch);
-          if(!r.error&&batch.length===1000&&from<49000){fetchPalletPage(from+1000,acc);return;}
-          if(r.error) console.error('[DalOS] pallet map fetch error at page',from,':',r.error.message);
-          var map={};
-          acc.forEach(function(p){
-            if(!map[p.inspection_id]) map[p.inspection_id]=[];
-            map[p.inspection_id].push({palletLabel:p.pallet_number||'',container:p.container_number||''});
-          });
-          setSessionPallets(map);
+    supabase.from('pallets').select('id,inspection_id,pallet_number,container_number')
+      .then(function(r){
+        if(r.error||!r.data) return;
+        var map={};
+        r.data.forEach(function(p){
+          if(!map[p.inspection_id]) map[p.inspection_id]=[];
+          map[p.inspection_id].push({palletLabel:p.pallet_number||'',container:p.container_number||''});
         });
-    })(0,[]);
+        setSessionPallets(map);
+      });
   }
   var sGrpMoveSearch=useState(''); var grpMoveSearch=sGrpMoveSearch[0]; var setGrpMoveSearch=sGrpMoveSearch[1];
   /* Grapes session ID — stable for lifetime of this form instance */
@@ -4677,16 +4667,14 @@ function FGView(props){
     .filter(function(b){
       if(!searchQ.trim()) return true;
       var q=searchQ.trim().toLowerCase();
-      var qc=q.replace(/\s+/g,' ');
-      /* Containers can be stored with double spaces; collapse whitespace on both sides so single-space queries match */
-      var cont=(getContainer(b)||'').toLowerCase().replace(/\s+/g,' ');
+      var cont=(getContainer(b)||'').toLowerCase();
       /* Grapes: search by container, session ID, pallet numbers, pallet containers, client, variety — NOT lot */
       var palletNums=(b.pallets||[]).map(function(p){return (p.palletLabel||p.palletNo||'').toString().toLowerCase();}).join(' ');
-      var palletConts=(b.pallets||[]).map(function(p){return (p.palletContainer||'').toLowerCase().replace(/\s+/g,' ');}).join(' ');
+      var palletConts=(b.pallets||[]).map(function(p){return (p.palletContainer||'').toLowerCase();}).join(' ');
       var client=(b.client||'').toLowerCase();
       var variety=(b.variety||'').toLowerCase();
       var variety2=(b.variety2||'').toLowerCase();
-      return cont.indexOf(qc)>=0||b.id.toLowerCase().indexOf(q)>=0||palletNums.indexOf(q)>=0||palletConts.indexOf(qc)>=0||client.indexOf(q)>=0||variety.indexOf(q)>=0||variety2.indexOf(q)>=0;
+      return cont.indexOf(q)>=0||b.id.toLowerCase().indexOf(q)>=0||palletNums.indexOf(q)>=0||palletConts.indexOf(q)>=0||client.indexOf(q)>=0||variety.indexOf(q)>=0||variety2.indexOf(q)>=0;
     });
   var searchSuggestions=(searchQ.trim().length>=2)?(function(){
     var q=searchQ.trim().toLowerCase();
@@ -4694,7 +4682,7 @@ function FGView(props){
     seasonBatches.forEach(function(b){
       var cont=getContainer(b)||'';
       var lot=b.lot||'';
-      if(cont&&cont.toLowerCase().replace(/\s+/g,' ').indexOf(q.replace(/\s+/g,' '))>=0&&!seen['c'+cont]){seen['c'+cont]=1;out.push({label:cont,value:cont,type:'Container'});}
+      if(cont&&cont.toLowerCase().indexOf(q)>=0&&!seen['c'+cont]){seen['c'+cont]=1;out.push({label:cont,value:cont,type:'Container'});}
       /* No lot suggestions for grapes — grapes don't use lots */
       if(b.id.toLowerCase().indexOf(q)>=0&&!seen['id'+b.id]){seen['id'+b.id]=1;out.push({label:b.id,value:b.id,type:'ID'});}
       var cli=b.client||'';var var1=b.variety||'';var var2=b.variety2||'';
@@ -4706,7 +4694,7 @@ function FGView(props){
         var pn=(p.palletLabel||p.palletNo||'').toString();
         var pc=p.palletContainer||'';
         if(pn&&pn.toLowerCase().indexOf(q)>=0&&!seen['p'+pn]){seen['p'+pn]=1;out.push({label:pn,value:pn,type:'Pallet'});}
-        if(pc&&pc.toLowerCase().replace(/\s+/g,' ').indexOf(q.replace(/\s+/g,' '))>=0&&!seen['pc'+pc]){seen['pc'+pc]=1;out.push({label:pc,value:pc,type:'Pallet container'});}
+        if(pc&&pc.toLowerCase().indexOf(q)>=0&&!seen['pc'+pc]){seen['pc'+pc]=1;out.push({label:pc,value:pc,type:'Pallet container'});}
       });
     });
     return out.slice(0,8);
@@ -10100,7 +10088,7 @@ function ClientQCMgmt(props){
       trace_code:fTrace||null,
       lot_number:fLot||null,
       wax:fWax||null,
-      score:['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','PASS','FAIL'].indexOf(fScore)>=0?fScore:null,
+      score:['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL'].indexOf(fScore)>=0?fScore:null,
       brix:parseFloat(fBrix)||null,
       brix_issue:fBrixIssue==='Yes',
       carton_issue:fCartonIssue==='Yes',
@@ -10832,7 +10820,7 @@ function ClientQCMgmt(props){
               ce('label',{className:'form-label'},'Client score / status'),
               ce('select',{className:'form-select',value:fScore,onChange:function(e){setScore(e.target.value);}},
                 ce('option',{value:''},'— Select —'),
-                ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
               )
             ),
             fi('Max temperature (\u00b0C)',fMaxTemp,setMaxTemp),
@@ -11270,7 +11258,7 @@ function ClientQCMgmt(props){
                           onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
                         },
                           ce('option',{value:''},'—'),
-                          ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                          ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
                         )
                       ),
                       /* Notes */
@@ -11551,7 +11539,7 @@ function ClientQCMgmt(props){
                           ce('label',{className:'form-label'},'Client score'),
                           ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
                             ce('option',{value:''},'— Select —'),
-                            ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                            ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
                           )
                         )
                       );
@@ -13822,29 +13810,9 @@ function App(){
             if(ir.error){console.error('[DalOS] Load inspections error:',ir.error.message);setInspLoading(false);return null;}
             var inspectionIds=(ir.data||[]).map(function(r){return r.id;});
             var noIds=!inspectionIds.length;
-            /* Fetch ALL pallets across loaded inspections, paginating past the PostgREST 1000-row cap.
-               Single .in() returns max 1000 rows, so most pallets were dropped and pallet-number search missed them. */
-            function fetchAllPallets(ids){
-              if(!ids||!ids.length) return Promise.resolve({data:[]});
-              var acc=[];
-              function page(from){
-                return supabase.from('pallets').select('inspection_id,pallet_number,container_number')
-                  .in('inspection_id',ids)
-                  .order('inspection_id',{ascending:true}).order('pallet_number',{ascending:true})
-                  .range(from,from+999)
-                  .then(function(r){
-                    if(r.error) return {data:acc,error:r.error};
-                    var batch=r.data||[];
-                    acc=acc.concat(batch);
-                    if(batch.length<1000) return {data:acc};
-                    return page(from+1000);
-                  });
-              }
-              return page(0);
-            }
             /* Fetch pallets + related tables in parallel using IN-clause lookups (avoids N+1 joins in the view query) */
             return Promise.all([
-              fetchAllPallets(noIds?[]:inspectionIds),
+              noIds?Promise.resolve({data:[]}):supabase.from('pallets').select('inspection_id,pallet_number,container_number').in('inspection_id',inspectionIds),
               noIds?Promise.resolve({data:[]}):supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds),
               noIds?Promise.resolve({data:[]}):supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('round',{ascending:false}),
               noIds?Promise.resolve({data:[]}):supabase.from('inspection_sticker_checks').select('inspection_id,field_key,confirmed').in('inspection_id',inspectionIds)
