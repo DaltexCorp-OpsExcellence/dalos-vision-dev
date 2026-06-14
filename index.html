@@ -12217,7 +12217,7 @@ function ClientQCMgmt(props){
                         supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',s.id).single().then(function(ir){
                           if(ir.error||!ir.data){setInspPopup(null);return;}
                           var insp=ir.data;
-                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,pallets(pallet_number),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
+                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,pallets(pallet_number),varieties:sample_variety_id(name),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
                             var rows=(sr.data||[]).map(function(row){
                               var tot={Critical:0,Major:0,Minor:0};
                               (row.sample_defect_readings||[]).forEach(function(d){var sv=d.defects&&d.defects.severity;if(sv&&tot[sv]!==undefined)tot[sv]+=parseFloat(d.value)||0;});
@@ -12225,6 +12225,7 @@ function ClientQCMgmt(props){
                               return {
                                 pallet:(row.pallets&&row.pallets.pallet_number)||'—',
                                 num:row.sample_number,
+                                variety:(row.varieties&&row.varieties.name)||'',
                                 farm:ef.sampleFarm||'',
                                 plot:ef.samplePlot||'',
                                 brix:row.brix,
@@ -12305,7 +12306,7 @@ function ClientQCMgmt(props){
                     ce('div',{style:{overflowX:'auto'}},
                       ce('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:12}},
                         ce('thead',null,ce('tr',null,
-                          ['Pallet','Farm','Plot','Brix','Size','Crit%','Major%','Minor%','Total%'].map(function(h){
+                          ['Pallet','Variety','Farm','Plot','Brix','Size','Crit%','Major%','Minor%','Total%'].map(function(h){
                             return ce('th',{key:h,style:{textAlign:h==='#'?'center':'right',padding:'5px 10px',fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'2px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},h);
                           })
                         )),
@@ -12313,6 +12314,7 @@ function ClientQCMgmt(props){
                           inspPopup.data.samples.map(function(s){
                             return ce('tr',{key:s.num,style:{borderBottom:'0.5px solid var(--border)'}},
                               ce('td',{style:{padding:'6px 10px',fontFamily:'var(--font-mono)',fontSize:11,fontWeight:600,color:'var(--accent)',whiteSpace:'nowrap'}},s.pallet),
+                              ce('td',{style:{padding:'6px 10px',fontSize:11,color:'var(--text2)',maxWidth:100,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.variety||inspPopup.data.variety||'—'),
                               ce('td',{style:{padding:'6px 10px',fontSize:11,color:'var(--text2)',maxWidth:90,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.farm||'—'),
                               ce('td',{style:{padding:'6px 10px',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.plot||'—'),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)'}},s.brix!=null?parseFloat(s.brix).toFixed(1)+'°':'—'),
@@ -12330,6 +12332,7 @@ function ClientQCMgmt(props){
                             var avg=function(f){return inspPopup.data.samples.reduce(function(s,r){return s+r[f];},0)/n;};
                             return ce('tr',{style:{background:'var(--bg2)',fontWeight:600}},
                               ce('td',{style:{textAlign:'center',padding:'6px 10px',fontSize:10,color:'var(--text3)',fontWeight:600}},'Ø avg'),
+                              ce('td',{style:{padding:'6px 10px'}}),
                               ce('td',{style:{padding:'6px 10px'}}),
                               ce('td',{style:{padding:'6px 10px'}}),
                               ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},
@@ -12508,7 +12511,7 @@ function ClientQCMgmt(props){
                         supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',s.id).single().then(function(ir){
                           if(ir.error||!ir.data){setInspPopup(null);return;}
                           var insp=ir.data;
-                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,pallets(pallet_number),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
+                          supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,pallets(pallet_number),varieties:sample_variety_id(name),sample_defect_readings(value,defects(severity))').eq('inspection_id',s.id).order('sample_number').then(function(sr){
                             var rows=(sr.data||[]).map(function(row){
                               var tot={Critical:0,Major:0,Minor:0};
                               (row.sample_defect_readings||[]).forEach(function(d){var sv=d.defects&&d.defects.severity;if(sv&&tot[sv]!==undefined)tot[sv]+=parseFloat(d.value)||0;});
@@ -12516,6 +12519,7 @@ function ClientQCMgmt(props){
                               return {
                                 pallet:(row.pallets&&row.pallets.pallet_number)||'—',
                                 num:row.sample_number,
+                                variety:(row.varieties&&row.varieties.name)||'',
                                 farm:ef.sampleFarm||'',
                                 plot:ef.samplePlot||'',
                                 brix:row.brix,
