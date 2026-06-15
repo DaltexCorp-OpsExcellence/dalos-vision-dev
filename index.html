@@ -1042,19 +1042,37 @@ function InspectionForm(props){
   var sArrivePallet=useState(null); var arrivingPalletId=sArrivePallet[0]; var setArrivingPalletId=sArrivePallet[1];
   /* Pallet labels for other sessions — loaded lazily when move modal opens */
   var sSessionPallets=useState({}); var sessionPallets=sSessionPallets[0]; var setSessionPallets=sSessionPallets[1];
+  var sPalletsLoaded=useState(false); var palletsLoaded=sPalletsLoaded[0]; var setPalletsLoaded=sPalletsLoaded[1];
   function openMoveModal(pIdx,pallet){
     setGrpMoveModal({pIdx:pIdx,palletId:pallet.palletId,palletLabel:pallet.palletLabel||('#'+pallet.palletNo)});
-    /* Fetch pallet_number + container_number for all grapes sessions */
-    supabase.from('pallets').select('id,inspection_id,pallet_number,container_number')
-      .then(function(r){
-        if(r.error||!r.data) return;
-        var map={};
-        r.data.forEach(function(p){
-          if(!map[p.inspection_id]) map[p.inspection_id]=[];
-          map[p.inspection_id].push({palletLabel:p.pallet_number||'',container:p.container_number||''});
+    setPalletsLoaded(false);
+    /* Fetch pallet_number + container_number for every grapes session.
+       The pallets table holds >5k rows, so an unfiltered select silently hits
+       PostgREST's 1000-row cap and drops the NEWEST sessions — exactly the ones
+       shown at the top of this modal. Page through in 1000-row chunks (ordered
+       deterministically) and accumulate so every session is covered. */
+    var PAGE=1000;
+    function fetchPage(from,acc){
+      return supabase.from('pallets').select('inspection_id,pallet_number,container_number')
+        .order('inspection_id',{ascending:true})
+        .range(from,from+PAGE-1)
+        .then(function(r){
+          if(r.error){console.error('[DalOS] openMoveModal pallets fetch error:',r.error.message);return acc;}
+          var rows=r.data||[];
+          acc=acc.concat(rows);
+          if(rows.length===PAGE) return fetchPage(from+PAGE,acc);
+          return acc;
         });
-        setSessionPallets(map);
+    }
+    fetchPage(0,[]).then(function(all){
+      var map={};
+      all.forEach(function(p){
+        if(!map[p.inspection_id]) map[p.inspection_id]=[];
+        map[p.inspection_id].push({palletLabel:p.pallet_number||'',container:p.container_number||''});
       });
+      setSessionPallets(map);
+      setPalletsLoaded(true);
+    });
   }
   var sGrpMoveSearch=useState(''); var grpMoveSearch=sGrpMoveSearch[0]; var setGrpMoveSearch=sGrpMoveSearch[1];
   /* Grapes session ID — stable for lifetime of this form instance */
@@ -2243,7 +2261,7 @@ function InspectionForm(props){
                 livePallets.length>0&&ce('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},
                   livePallets.map(function(p,pi){return ce('span',{key:pi,style:{fontFamily:'var(--font-mono)',fontSize:10,background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:3,padding:'2px 6px',color:'var(--text2)'}},p.palletLabel||'—');})
                 ),
-                livePallets.length===0&&ce('div',{style:{fontSize:10,color:'var(--text3)',fontStyle:'italic'}},'Loading pallets...')
+                livePallets.length===0&&ce('div',{style:{fontSize:10,color:'var(--text3)',fontStyle:'italic'}},palletsLoaded?'No pallets yet':'Loading pallets...')
               );
             });
           })(),
