@@ -1711,9 +1711,13 @@ function InspectionForm(props){
               }
               console.log('[DalOS] pallet+samples moved to',resolvedTarget,'OK (atomic)');
               if(props&&props.onInvalidateSelB) props.onInvalidateSelB(toRefresh);
-              /* Remove pallet from local state — animation already ran */
+              /* Remove pallet from local state — animation already ran.
+                 Filter by stable palletId, NOT positional pIdx: pIdx is captured when the
+                 modal opens and can be stale after the array shifts. Removing by index here
+                 (combined with the duplicate removal below) was dropping the pallet BELOW the
+                 target from the UI while the DB only moved the real pallet. */
               setAnimatingPalletId(null);
-              setPallets(function(prev){var next=prev.filter(function(_,i){return i!==pIdx;});return next.length?next:[newPallet(1)];});
+              setPallets(function(prev){var next=prev.filter(function(p){return p.palletId!==palletId;});return next.length?next:[newPallet(1)];});
               /* Sync moved pallet's trace codes to target session, THEN refresh batches
                  so that onRefreshBatches fires AFTER the DB write — not before.
                  Both bugs (codes appearing only after refresh + not selected) share this root cause. */
@@ -1749,8 +1753,6 @@ function InspectionForm(props){
                 /* No trace codes to sync — refresh immediately */
                 if(props&&props.onRefreshBatches) props.onRefreshBatches(toRefresh);
               }
-              setAnimatingPalletId(null);
-              setPallets(function(prev){var next=prev.filter(function(_,i){return i!==pIdx;});return next.length?next:[newPallet(1)];});
             });
         }, 340); /* wait for slide-out to complete before hitting DB */
       }, 80); /* wait for modal to unmount before starting slide */
@@ -1858,8 +1860,8 @@ function InspectionForm(props){
       var refreshIds=[sourceId,newId];
       if(props.onRefreshBatches) props.onRefreshBatches(refreshIds);
       if(props.onInvalidateSelB) props.onInvalidateSelB(refreshIds);
-      /* Remove pallet locally + close popup */
-      setPallets(function(prev){var next=prev.filter(function(_,i){return i!==pIdx;});return next.length?next:[newPallet(1)];});
+      /* Remove pallet locally + close popup. Filter by stable palletId, NOT positional pIdx. */
+      setPallets(function(prev){var next=prev.filter(function(p){return p.palletId!==palletId;});return next.length?next:[newPallet(1)];});
       setGrpPopup(null);
       window.alert('Pallet moved to new session '+newId+'. The new session inherits this header — open it from the listing if you need to adjust anything.');
     }).catch(function(err){
