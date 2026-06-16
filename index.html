@@ -1774,6 +1774,16 @@ function InspectionForm(props){
             });
         }, 340); /* wait for slide-out to complete before hitting DB */
       }, 80); /* wait for modal to unmount before starting slide */
+    } else if(palletId&&typeof palletId!=='string'){
+      /* Pallet exists in the form but still has a temporary (numeric) id — it was
+         never saved to the DB, so there is no row to move. Refuse with a clear
+         message and KEEP the pallet so the inspector's filled data is not silently
+         discarded. (Mirrors the save-first guard on the new-session/split path.) */
+      console.warn('[DalOS] doMovePallet — pallet not saved yet, refusing move. pIdx:',pIdx,'palletId:',palletId);
+      window.alert('Save the inspection first, then move this pallet.\nNothing was moved or removed.');
+      setGrpPopup(null);
+      setGrpMoveModal(null);
+      setGrpMoveSearch('');
     } else {
       console.warn('[DalOS] doMovePallet — no targetId or palletId. pIdx:',pIdx,'palletId:',palletId,'target:',resolvedTarget);
       setPallets(function(prev){var next=prev.filter(function(_,i){return i!==pIdx;});return next.length?next:[newPallet(1)];});
@@ -7112,7 +7122,7 @@ function HomeView(props){
       ce('div',{className:'dh-tb-l'},
         
         ce('div',{className:'dh-logo'},ce('span',{style:{color:'#fff'}},'Dal'),ce('span',{style:{color:'#6fc191'}},'OS'),ce('span',{style:{color:'#5d8a6d',fontFamily:'var(--font-body)',fontSize:14,fontWeight:500,marginLeft:4}},'Vision')),
-        ce('div',{className:'dh-ver'},DALOS_BUILD.split(' ')[0]),ce('a',{className:'dh-pill',href:'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/workspace.html',title:'Back to DalOS Workspace',style:{textDecoration:'none',height:28,padding:'0 11px',fontSize:11,marginLeft:4}},ce('span',{style:{display:'inline-flex',alignItems:'center',marginRight:1},dangerouslySetInnerHTML:{__html:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>'}}),'Workspace')
+        ce('div',{className:'dh-ver'},DALOS_BUILD.split(' ')[0]),ce('a',{className:'dh-pill',href:'https://daltexcorp-opsexcellence.github.io/dalos-analytics-dev/workspace.html',title:'Back to DalOS Workspace',style:{textDecoration:'none',height:28,padding:'0 11px',fontSize:11,marginLeft:4}},ce('span',{style:{display:'inline-flex',alignItems:'center',marginRight:1},dangerouslySetInnerHTML:{__html:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>'}}),'Workspace')
       ),
       ce('div',{className:'dh-tb-r'},
         ce('div',{className:'dh-pill dh-season-pill'},
