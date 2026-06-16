@@ -14995,7 +14995,7 @@ function App(){
   var role=ROLES[liveCurrentUser.role]||ROLES.inspector;
   var perms=role.perms;
   var availViews=[];
-  availViews.push({id:'home', label:'Home', sub:'Overview'});
+  availViews.push({id:'home', label:'DalOS Workspace', sub:'Overview'});
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & claims'});
