@@ -14564,6 +14564,12 @@ function App(){
           });
         });
         /* Update existing rows — fetch defect map ONCE for all rows */
+        /* Tracked promises so onDone waits for these writes before showing 'Saved' */
+        /* STRICT: capture first child-write error so the save reports failure
+           instead of a false 'Saved'. */
+        var childWriteError=null;
+        var existingRowUpdatePromises=[];
+        var existingDefectsPromise=Promise.resolve();
         if(existingRows.length>0){
           existingRows.forEach(function(item){
             var row=item.row;
@@ -14581,37 +14587,44 @@ function App(){
               extra_fields:row.extraFields||{},
               sample_variety_id:isMixedSave?null:(config&&config.varietiesIdMap&&row.sampleVariety&&config.varietiesIdMap[row.sampleVariety])||null
             };
-            supabase.from('sample_rows').update(updatePayload).eq('id',row.id).then(function(r){
-              if(r.error) console.error('[DalOS] sample_row update error:',r.error.message);
-              else console.log('[DalOS] sample_row updated OK');
-            });
+            existingRowUpdatePromises.push(
+              supabase.from('sample_rows').update(updatePayload).eq('id',row.id).then(function(r){
+                if(r.error){console.error('[DalOS] sample_row update error:',r.error.message);if(!childWriteError)childWriteError='A sample row failed to save: '+r.error.message;}
+                else console.log('[DalOS] sample_row updated OK');
+                return r;
+              })
+            );
           });
-          /* Fetch defect map ONCE, then delete+insert for all rows */
-          supabase.from('defects').select('id,key').then(function(defRes){
+          /* Fetch defect map ONCE, then delete+insert for all rows.
+             Wrapped in a tracked promise (resolves when ALL rows processed) so
+             onDone waits for defect writes before showing 'Saved'. */
+          existingDefectsPromise=supabase.from('defects').select('id,key').then(function(defRes){
             if(defRes.error||!defRes.data) return;
             var defMap={};
             defRes.data.forEach(function(d){defMap[d.key]=d.id;});
-            /* Process rows one at a time to avoid race conditions */
-            function processRow(idx){
-              if(idx>=existingRows.length) return;
-              var rowId=existingRows[idx].row.id;
-              var defects=existingRows[idx].row.defects;
-              supabase.from('sample_defect_readings').delete().eq('sample_row_id',rowId).then(function(dr){
-                if(dr.error){console.error('[DalOS] defect delete error:',dr.error.message);processRow(idx+1);return;}
-                var readings=[];
-                Object.keys(defects||{}).forEach(function(key){
-                  var val=parseFloat(defects[key])||0;
-                  if(val>0&&defMap[key]) readings.push({sample_row_id:rowId,defect_id:defMap[key],value:val});
+            /* Process rows one at a time to avoid race conditions; resolve when done */
+            return new Promise(function(resolveAll){
+              function processRow(idx){
+                if(idx>=existingRows.length){resolveAll();return;}
+                var rowId=existingRows[idx].row.id;
+                var defects=existingRows[idx].row.defects;
+                supabase.from('sample_defect_readings').delete().eq('sample_row_id',rowId).then(function(dr){
+                  if(dr.error){console.error('[DalOS] defect delete error:',dr.error.message);if(!childWriteError)childWriteError='A defect reading failed to save: '+dr.error.message;processRow(idx+1);return;}
+                  var readings=[];
+                  Object.keys(defects||{}).forEach(function(key){
+                    var val=parseFloat(defects[key])||0;
+                    if(val>0&&defMap[key]) readings.push({sample_row_id:rowId,defect_id:defMap[key],value:val});
+                  });
+                  if(readings.length===0){processRow(idx+1);return;}
+                  supabase.from('sample_defect_readings').insert(readings).then(function(r){
+                    if(r.error){console.error('[DalOS] defect insert error:',r.error.message);if(!childWriteError)childWriteError='A defect reading failed to save: '+r.error.message;}
+                    else console.log('[DalOS] Defect readings saved for row',rowId,':',readings.length);
+                    processRow(idx+1);
+                  });
                 });
-                if(readings.length===0){processRow(idx+1);return;}
-                supabase.from('sample_defect_readings').insert(readings).then(function(r){
-                  if(r.error) console.error('[DalOS] defect insert error:',r.error.message);
-                  else console.log('[DalOS] Defect readings saved for row',rowId,':',readings.length);
-                  processRow(idx+1);
-                });
-              });
-            }
-            processRow(0);
+              }
+              processRow(0);
+            });
           });
         }
         /* INSERT new rows if any */
@@ -14729,7 +14742,7 @@ function App(){
             });
             if(inserts.length===0) return;
             return supabase.from('sample_rows').insert(inserts).select().then(function(r){
-              if(r.error){console.error('[DalOS] new sample rows insert error:',r.error.message);return;}
+              if(r.error){console.error('[DalOS] new sample rows insert error:',r.error.message);if(!childWriteError)childWriteError='New sample rows failed to save: '+r.error.message;return;}
               console.log('[DalOS] New sample rows inserted:',inserts.length);
               return supabase.from('defects').select('id,key').then(function(defRes){
                 if(defRes.error||!defRes.data) return;
@@ -14746,7 +14759,7 @@ function App(){
                 });
                 if(readings.length===0) return;
                 return supabase.from('sample_defect_readings').insert(readings).then(function(dr){
-                  if(dr.error){console.error('[DalOS] edit new defect readings error:',dr.error.message);logError('defect_readings_insert_edit_new',dr.error,{inspection_id:realId,count:readings.length});}
+                  if(dr.error){console.error('[DalOS] edit new defect readings error:',dr.error.message);if(!childWriteError)childWriteError='New defect readings failed to save: '+dr.error.message;logError('defect_readings_insert_edit_new',dr.error,{inspection_id:realId,count:readings.length});}
                   else console.log('[DalOS] Edit new defect readings saved:',readings.length);
                 });
               });
@@ -14757,8 +14770,12 @@ function App(){
         /* Fix 1: wait for BOTH pallet label updates AND the full new-rows chain
            before closing the form — previously only palletUpdatePromises was tracked,
            so the form closed while new sample rows were still inserting in the background */
-        Promise.all((palletUpdatePromises||[]).concat([newRowsChainPromise])).then(function(){
-          if(onDone){onDone(null,realId);onDone=null;}
+        Promise.all((palletUpdatePromises||[]).concat(existingRowUpdatePromises||[]).concat([existingDefectsPromise,newRowsChainPromise])).then(function(){
+          if(onDone){
+            if(childWriteError){onDone('Some changes did not save: '+childWriteError+' Please check your connection and save again.');}
+            else{onDone(null,realId);}
+            onDone=null;
+          }
         });
         return;
       }
@@ -14874,8 +14891,14 @@ function App(){
           return;
         }
         supabase.from('sample_defect_readings').insert(readings).then(function(r){
-          if(r.error) console.error('[DalOS] Defect readings error:',r.error.message);
-          else console.log('[DalOS] Defect readings saved:',readings.length);
+          if(r.error){
+            console.error('[DalOS] Defect readings error:',r.error.message);
+            /* STRICT: surface the failure instead of a false 'Saved' — the inspection
+               and pallets are saved, but defect values did not land. */
+            if(onDone){onDone('Defect readings failed to save: '+r.error.message+' The inspection was created, but please open it and save again to record the defect values.');onDone=null;}
+            return;
+          }
+          console.log('[DalOS] Defect readings saved:',readings.length);
           if(onDone){onDone(null,realId);onDone=null;}
         });
       });
