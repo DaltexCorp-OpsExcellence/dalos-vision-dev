@@ -9323,11 +9323,44 @@ function ClientQCMgmt(props){
 
   /* Load CQC reports from Supabase on mount */
   React.useEffect(function(){
+    /* LIVE MATCH (Level 2): build a season-scoped set of inspection container numbers
+       directly from the DB, normalized (trim + collapse whitespace + uppercase).
+       `matched` is then computed by membership at load time rather than read from the
+       stored client_qc_reports.matched column. This means:
+         - editing a container on an inspection reflects in the match on next load
+         - matching no longer depends on the in-browser `batches` array (which can be
+           empty for some sessions, e.g. client_qc, producing false "unmatched")
+         - matching is strictly season-scoped (no cross-season false positives)
+       The stored `matched` column is kept in sync as a convenience but is no longer
+       the source of truth for the listing. */
+    function normContainer(c){return (c||'').trim().toUpperCase().replace(/\s+/g,'');}
+    function fetchSeasonInspectionContainers(){
+      if(!config.activeSeasonId) return Promise.resolve({});
+      var acc={};
+      function page(from){
+        return supabase.from('inspections')
+          .select('container_number')
+          .eq('season_id',config.activeSeasonId)
+          .not('container_number','is',null)
+          .range(from,from+999)
+          .then(function(r){
+            if(r.error){console.error('[DalOS] inspection container fetch error:',r.error.message);return acc;}
+            var batch=r.data||[];
+            batch.forEach(function(row){var n=normContainer(row.container_number);if(n)acc[n]=true;});
+            if(batch.length<1000) return acc;
+            return page(from+1000);
+          });
+      }
+      return page(0);
+    }
+    fetchSeasonInspectionContainers().then(function(containerSet){
     var q=supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value))').order('created_at',{ascending:false}).limit(200);
     if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);
     q.then(function(res){
         if(res.error){console.error('[DalOS] CQC load error:',res.error.message);return;}
         var mapped=(res.data||[]).map(function(r){
+          /* live match: report container present in this season's inspection container set */
+          var _liveMatched=(containerSet[normContainer(r.container_number)]===true);
           return {
             id:r.id, container:r.container_number||'', stickerAvailable:r.sticker_available||'',
             traceCode:r.trace_code||'', packhouse:(config.packhouses&&r.packhouse_id&&config.packhouses.find(function(p){return p.id===r.packhouse_id;})&&config.packhouses.find(function(p){return p.id===r.packhouse_id;}).name)||r.packhouse_id||'', cropCategory:r.product_id||'',
@@ -9359,7 +9392,7 @@ function ClientQCMgmt(props){
             photoLink:r.photo_link||'', cause:r.cause||'',
             claimedCurrency:r.claimed_currency||'USD',
             claimedValue:r.claimed_value||0, potentialClaim:r.potential_claim||false,
-            files:(r.client_qc_files||[]).map(function(f){return {id:f.id,name:f.file_name,url:f.file_url,type:f.file_type};}), matched:r.matched||false, batchId:r.inspection_id||null,
+            files:(r.client_qc_files||[]).map(function(f){return {id:f.id,name:f.file_name,url:f.file_url,type:f.file_type};}), matched:_liveMatched, batchId:r.inspection_id||null,
             season:r.season_id||'', savedAt:r.created_at||'',
             productId:r.product_id||'',
             /* All varieties from header config */
@@ -9433,6 +9466,7 @@ function ClientQCMgmt(props){
         if(mapped.length>0) setReportsRaw(mapped);
       })
       .catch(function(e){console.error('[DalOS] CQC load failed:',e);});
+    }); /* end fetchSeasonInspectionContainers().then */
   },[config.activeSeasonId,reloadTick]);
   var sSel=useState(null); var selRep=sSel[0]; var setSelRep=sSel[1];
   var sEditRep=useState(null); var editRep=sEditRep[0]; var setEditRep=sEditRep[1];
