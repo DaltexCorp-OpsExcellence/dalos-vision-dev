@@ -9247,8 +9247,10 @@ function AdminCenter(props){
 /* ─── CLIENT QC MANAGEMENT VIEW ─── */
 function IntakePanel(props){
   var rows=props.rows||[]; var open=props.open; var setOpen=props.setOpen;
+  var sFilesFor=useState(null); var filesFor=sFilesFor[0]; var setFilesFor=sFilesFor[1];
   function ago(ts){ if(!ts) return ''; var ms=Date.now()-new Date(ts).getTime(); var d=Math.floor(ms/86400000); if(d>=1) return d+'d'; var h=Math.floor(ms/3600000); if(h>=1) return h+'h'; var m=Math.floor(ms/60000); return m>=1?m+'m':'now'; }
   function openFile(att){ if(!att||!att.url) return; var p=att.url.replace(/^cqc-intake-docs\//,''); supabase.storage.from('cqc-intake-docs').createSignedUrl(p,3600).then(function(su){ var u=su.data&&su.data.signedUrl; if(u) window.open(u,'_blank'); }); }
+  function clickFiles(r){ var atts=r.attachments||[]; if(atts.length<=1){ if(atts.length===1) openFile(atts[0]); return; } setFilesFor(filesFor===r.id?null:r.id); }
   var waiting=rows.filter(function(r){return r.status==='new';}).length;
   var prog=rows.filter(function(r){return r.status==='in_progress';}).length;
   var header=ce('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'var(--card)',cursor:'pointer'},onClick:function(){setOpen(!open);}},
@@ -9266,18 +9268,21 @@ function IntakePanel(props){
         if(conts.length===0 && r.container_number) conts.push(r.container_number);
         var label=conts.length?conts.join(', '):'\u2014';
         var done=r.status==='in_progress';
-        return ce('div',{key:r.id,style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderTop:'1px solid var(--border)',flexWrap:'wrap'}},
+        var mainRow=ce('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderTop:'1px solid var(--border)',flexWrap:'wrap'}},
           ce('span',{style:{fontFamily:'monospace',fontSize:13,fontWeight:500}},label),
           conts.length>1?ce('span',{style:{fontSize:11,color:'var(--text3)'}},'('+conts.length+' reports)'):null,
           ce('span',{style:{fontSize:12,color:'var(--text3)'}},(r.subject||'').replace(/^Fwd:\s*/i,'').slice(0,38)),
-          ce('span',{style:{fontSize:11,color:'var(--text3)',background:'var(--card)',padding:'2px 7px',borderRadius:4}},(atts.length||0)+' file'+(atts.length===1?'':'s')),
           ce('span',{style:{fontSize:11,color:'var(--text3)'}},ago(r.received_at)),
           r.source==='tagged'?null:ce('span',{style:{fontSize:11,color:'#b9770e'}},'untagged'),
           ce('span',{style:{marginLeft:'auto',display:'flex',gap:6}},
-            atts.length?ce('button',{className:'btn btn-sm',onClick:function(){openFile(atts[0]);}},'Files'):null,
+            atts.length?ce('button',{className:'btn btn-sm',onClick:function(){clickFiles(r);}},'Files ('+atts.length+')'+(atts.length>1?(filesFor===r.id?' \u25b4':' \u25be'):'')):null,
             ce('button',{className:'btn btn-primary btn-sm',onClick:function(){props.onStart&&props.onStart(r);}}, done?'Resume':'Start')
           )
         );
+        var sub=(filesFor===r.id && atts.length>1)?ce('div',{style:{maxHeight:220,overflowY:'auto',background:'var(--card)',borderTop:'1px solid var(--border)'}},
+          atts.map(function(a,ix){ return ce('div',{key:ix,onClick:function(){openFile(a);},title:a.name||'',style:{padding:'6px 14px 6px 26px',fontSize:12,color:'#2e5d3a',cursor:'pointer',borderTop:ix?'1px solid var(--border)':'none',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}, '\u2197 '+(a.name||('file '+(ix+1)))); })
+        ):null;
+        return ce('div',{key:r.id}, mainRow, sub);
       })
   ):null;
   return ce('div',{style:{border:'1px solid var(--border)',borderRadius:10,overflow:'hidden',marginBottom:16}}, header, body);
