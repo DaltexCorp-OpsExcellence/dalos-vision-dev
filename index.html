@@ -9245,6 +9245,44 @@ function AdminCenter(props){
 }
 
 /* ─── CLIENT QC MANAGEMENT VIEW ─── */
+function IntakePanel(props){
+  var rows=props.rows||[]; var open=props.open; var setOpen=props.setOpen;
+  function ago(ts){ if(!ts) return ''; var ms=Date.now()-new Date(ts).getTime(); var d=Math.floor(ms/86400000); if(d>=1) return d+'d'; var h=Math.floor(ms/3600000); if(h>=1) return h+'h'; var m=Math.floor(ms/60000); return m>=1?m+'m':'now'; }
+  function openFile(att){ if(!att||!att.url) return; var p=att.url.replace(/^cqc-intake-docs\//,''); supabase.storage.from('cqc-intake-docs').createSignedUrl(p,3600).then(function(su){ var u=su.data&&su.data.signedUrl; if(u) window.open(u,'_blank'); }); }
+  var waiting=rows.filter(function(r){return r.status==='new';}).length;
+  var prog=rows.filter(function(r){return r.status==='in_progress';}).length;
+  var header=ce('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'var(--card)',cursor:'pointer'},onClick:function(){setOpen(!open);}},
+    ce('span',{style:{fontSize:15,color:'var(--text2)'}},'\u2709'),
+    ce('span',{style:{fontSize:14,fontWeight:500}},'Incoming reports'),
+    waiting>0?ce('span',{style:{fontSize:12,fontWeight:500,color:'#fff',background:'#c0392b',padding:'2px 8px',borderRadius:999}},waiting+' waiting'):null,
+    prog>0?ce('span',{style:{fontSize:12,color:'var(--text3)'}},'\u00b7 '+prog+' in progress'):null,
+    ce('span',{style:{marginLeft:'auto',fontSize:13,color:'var(--text3)'}},open?'\u25b4':'\u25be')
+  );
+  var body=open?ce('div',null, rows.length===0
+    ? ce('div',{style:{padding:'14px',fontSize:13,color:'var(--text3)'}},'No incoming reports.')
+    : rows.map(function(r){
+        var atts=r.attachments||[];
+        var conts=[]; atts.forEach(function(a){ if(a&&a.container&&conts.indexOf(a.container)===-1) conts.push(a.container); });
+        if(conts.length===0 && r.container_number) conts.push(r.container_number);
+        var label=conts.length?conts.join(', '):'\u2014';
+        var done=r.status==='in_progress';
+        return ce('div',{key:r.id,style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderTop:'1px solid var(--border)',flexWrap:'wrap'}},
+          ce('span',{style:{fontFamily:'monospace',fontSize:13,fontWeight:500}},label),
+          conts.length>1?ce('span',{style:{fontSize:11,color:'var(--text3)'}},'('+conts.length+' reports)'):null,
+          ce('span',{style:{fontSize:12,color:'var(--text3)'}},(r.subject||'').replace(/^Fwd:\s*/i,'').slice(0,38)),
+          ce('span',{style:{fontSize:11,color:'var(--text3)',background:'var(--card)',padding:'2px 7px',borderRadius:4}},(atts.length||0)+' file'+(atts.length===1?'':'s')),
+          ce('span',{style:{fontSize:11,color:'var(--text3)'}},ago(r.received_at)),
+          r.source==='tagged'?null:ce('span',{style:{fontSize:11,color:'#b9770e'}},'untagged'),
+          ce('span',{style:{marginLeft:'auto',display:'flex',gap:6}},
+            atts.length?ce('button',{className:'btn btn-sm',onClick:function(){openFile(atts[0]);}},'Files'):null,
+            ce('button',{className:'btn btn-primary btn-sm',onClick:function(){props.onStart&&props.onStart(r);}}, done?'Resume':'Start')
+          )
+        );
+      })
+  ):null;
+  return ce('div',{style:{border:'1px solid var(--border)',borderRadius:10,overflow:'hidden',marginBottom:16}}, header, body);
+}
+
 function ClientQCMgmt(props){
   function grapeLoader(){
     return ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 0',gap:18}},
@@ -9284,7 +9322,7 @@ function ClientQCMgmt(props){
   var onOpenInspection=props.onOpenInspection||null;
   var initialProd=props.initialProd||null;
   var initialSelRep=props.initialSelRep||null;
-  var sShowNew=useState(false); var showNew=sShowNew[0]; var setShowNew=sShowNew[1];
+  var sShowNew=useState(false); var showNew=sShowNew[0]; var setShowNew=sShowNew[1]; var sIntakeRows=useState([]);var intakeRows=sIntakeRows[0];var setIntakeRows=sIntakeRows[1];var sIntakeOpen=useState(true);var intakeOpen=sIntakeOpen[0];var setIntakeOpen=sIntakeOpen[1];function loadCqcIntake(){supabase.from('cqc_intake').select('id,subject,from_email,container_number,attachments,source,status,received_at').neq('status','completed').order('received_at',{ascending:false}).then(function(r){if(!r.error)setIntakeRows(r.data||[]);});}React.useEffect(function(){loadCqcIntake();},[]);
   var sCQCSrch=useState(''); var cqcSearch=sCQCSrch[0]; var setCqcSearch=sCQCSrch[1];
   var sCQCSrchFocus=useState(false); var cqcSearchFocus=sCQCSrchFocus[0]; var setCqcSearchFocus=sCQCSrchFocus[1];
   var sCqcFilter=useState('all'); var cqcFilter=sCqcFilter[0]; var setCqcFilter=sCqcFilter[1];
@@ -11808,7 +11846,7 @@ function ClientQCMgmt(props){
         )
       ),
       perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowNew(true);}},'+ New client report')
-    ),
+    ),intakeRows.length?ce(IntakePanel,{rows:intakeRows,open:intakeOpen,setOpen:setIntakeOpen,onStart:function(row){setShowNew(true);}}):null,
     /* ── Stats bar ── */
     (function(){
       var rWithMaj=prodReports.filter(function(r){return r.sectionAvgs&&r.sectionAvgs.Major!=null;});
