@@ -9248,9 +9248,13 @@ function AdminCenter(props){
 function IntakePanel(props){
   var rows=props.rows||[]; var open=props.open; var setOpen=props.setOpen;
   var sFilesFor=useState(null); var filesFor=sFilesFor[0]; var setFilesFor=sFilesFor[1];
+  var sSel=useState({}); var sel=sSel[0]; var setSel=sSel[1];
   function ago(ts){ if(!ts) return ''; var ms=Date.now()-new Date(ts).getTime(); var d=Math.floor(ms/86400000); if(d>=1) return d+'d'; var h=Math.floor(ms/3600000); if(h>=1) return h+'h'; var m=Math.floor(ms/60000); return m>=1?m+'m':'now'; }
   function openFile(att){ if(!att||!att.url) return; var p=att.url.replace(/^cqc-intake-docs\//,''); supabase.storage.from('cqc-intake-docs').createSignedUrl(p,3600).then(function(su){ var u=su.data&&su.data.signedUrl; if(u) window.open(u,'_blank'); }); }
-  function clickFiles(r){ var atts=r.attachments||[]; if(atts.length<=1){ if(atts.length===1) openFile(atts[0]); return; } setFilesFor(filesFor===r.id?null:r.id); }
+  function expand(r){ var atts=r.attachments||[]; if(atts.length<=1){ if(atts.length===1) openFile(atts[0]); return; } if(filesFor===r.id){ setFilesFor(null); } else { var init={}; atts.forEach(function(a,ix){init[ix]=true;}); setSel(init); setFilesFor(r.id); } }
+  function toggleSel(ix){ setSel(function(p){var n=Object.assign({},p); n[ix]=!n[ix]; return n;}); }
+  function selCount(){ return Object.keys(sel).filter(function(k){return sel[k];}).length; }
+  function startMulti(r){ var atts=r.attachments||[]; var chosen=atts.filter(function(a,ix){return sel[ix];}); if(!chosen.length) return; props.onStart&&props.onStart(r,chosen); setFilesFor(null); }
   var waiting=rows.filter(function(r){return r.status==='new';}).length;
   var prog=rows.filter(function(r){return r.status==='in_progress';}).length;
   var header=ce('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'var(--card)',cursor:'pointer'},onClick:function(){setOpen(!open);}},
@@ -9267,20 +9271,31 @@ function IntakePanel(props){
         var conts=[]; atts.forEach(function(a){ if(a&&a.container&&conts.indexOf(a.container)===-1) conts.push(a.container); });
         if(conts.length===0 && r.container_number) conts.push(r.container_number);
         var label=conts.length?conts.join(', '):'\u2014';
-        var done=r.status==='in_progress';
+        var inprog=r.status==='in_progress';
+        var multi=atts.length>1;
+        var rightBtns=[];
+        if(multi){ rightBtns.push(ce('button',{key:'f',className:'btn btn-sm',onClick:function(){expand(r);}},'Open files ('+atts.length+')'+(filesFor===r.id?' \u25b4':' \u25be'))); }
+        if(!multi){ rightBtns.push(ce('button',{key:'s',className:'btn btn-primary btn-sm',onClick:function(){props.onStart&&props.onStart(r,atts);}}, inprog?'Resume':'Start')); }
+        if(inprog){ rightBtns.push(ce('button',{key:'d',className:'btn btn-sm',onClick:function(){props.onComplete&&props.onComplete(r);}},'Mark done')); }
         var mainRow=ce('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderTop:'1px solid var(--border)',flexWrap:'wrap'}},
           ce('span',{style:{fontFamily:'monospace',fontSize:13,fontWeight:500}},label),
           conts.length>1?ce('span',{style:{fontSize:11,color:'var(--text3)'}},'('+conts.length+' reports)'):null,
           ce('span',{style:{fontSize:12,color:'var(--text3)'}},(r.subject||'').replace(/^Fwd:\s*/i,'').slice(0,38)),
           ce('span',{style:{fontSize:11,color:'var(--text3)'}},ago(r.received_at)),
           r.source==='tagged'?null:ce('span',{style:{fontSize:11,color:'#b9770e'}},'untagged'),
-          ce('span',{style:{marginLeft:'auto',display:'flex',gap:6}},
-            atts.length?ce('button',{className:'btn btn-sm',onClick:function(){clickFiles(r);}},'Files ('+atts.length+')'+(atts.length>1?(filesFor===r.id?' \u25b4':' \u25be'):'')):null,
-            ce('button',{className:'btn btn-primary btn-sm',onClick:function(){props.onStart&&props.onStart(r);}}, done?'Resume':'Start')
-          )
+          ce('span',{style:{marginLeft:'auto',display:'flex',gap:6}}, rightBtns)
         );
-        var sub=(filesFor===r.id && atts.length>1)?ce('div',{style:{maxHeight:220,overflowY:'auto',background:'var(--card)',borderTop:'1px solid var(--border)'}},
-          atts.map(function(a,ix){ return ce('div',{key:ix,onClick:function(){openFile(a);},title:a.name||'',style:{padding:'6px 14px 6px 26px',fontSize:12,color:'#2e5d3a',cursor:'pointer',borderTop:ix?'1px solid var(--border)':'none',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}, '\u2197 '+(a.name||('file '+(ix+1)))); })
+        var sub=(filesFor===r.id && multi)?ce('div',{style:{background:'var(--card)',borderTop:'1px solid var(--border)'}},
+          ce('div',{style:{padding:'8px 14px',fontSize:12,color:'var(--text2)'}},'This email may hold more than one report \u2014 tick the file(s) for this report, view to check, then start.'),
+          ce('div',{style:{maxHeight:220,overflowY:'auto'}}, atts.map(function(a,ix){
+            return ce('div',{key:ix,style:{display:'flex',alignItems:'center',gap:8,padding:'5px 14px',borderTop:'1px solid var(--border)'}},
+              ce('input',{type:'checkbox',checked:!!sel[ix],onChange:function(){toggleSel(ix);}}),
+              ce('span',{onClick:function(){openFile(a);},title:a.name||'',style:{flex:1,fontSize:12,color:'#2e5d3a',cursor:'pointer',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},'\u2197 '+(a.name||('file '+(ix+1))))
+            );
+          })),
+          ce('div',{style:{padding:'8px 14px',display:'flex',justifyContent:'flex-end'}},
+            ce('button',{className:'btn btn-primary btn-sm',disabled:selCount()===0,onClick:function(){startMulti(r);}},'Start report with selected ('+selCount()+')')
+          )
         ):null;
         return ce('div',{key:r.id}, mainRow, sub);
       })
@@ -9327,7 +9342,7 @@ function ClientQCMgmt(props){
   var onOpenInspection=props.onOpenInspection||null;
   var initialProd=props.initialProd||null;
   var initialSelRep=props.initialSelRep||null;
-  var sShowNew=useState(false); var showNew=sShowNew[0]; var setShowNew=sShowNew[1]; var sIntakeRows=useState([]);var intakeRows=sIntakeRows[0];var setIntakeRows=sIntakeRows[1];var sIntakeOpen=useState(true);var intakeOpen=sIntakeOpen[0];var setIntakeOpen=sIntakeOpen[1];function loadCqcIntake(){supabase.from('cqc_intake').select('id,subject,from_email,container_number,attachments,source,status,received_at').neq('status','completed').order('received_at',{ascending:false}).then(function(r){if(!r.error)setIntakeRows(r.data||[]);});}React.useEffect(function(){loadCqcIntake();},[]);
+  var sShowNew=useState(false); var showNew=sShowNew[0]; var setShowNew=sShowNew[1]; var sIntakeRows=useState([]);var intakeRows=sIntakeRows[0];var setIntakeRows=sIntakeRows[1];var sIntakeOpen=useState(true);var intakeOpen=sIntakeOpen[0];var setIntakeOpen=sIntakeOpen[1]; var sStartRow=useState(null);var startRow=sStartRow[0];var setStartRow=sStartRow[1];function attachIntakeFile(att){ if(!att||!att.url) return; var src=att.url.replace(/^cqc-intake-docs\//,'');supabase.storage.from('cqc-intake-docs').createSignedUrl(src,3600).then(function(su){ var u=su.data&&su.data.signedUrl; if(!u) throw new Error('sign'); return fetch(u); }).then(function(resp){ return resp.blob(); }).then(function(blob){ var safe=(att.name||'file').replace(/[^a-zA-Z0-9._-]/g,'_'); var path='intake-'+Date.now()+'-'+Math.random().toString(36).slice(2)+'/'+safe;return supabase.storage.from('client-qc-files').upload(path,blob,{contentType:att.content_type||blob.type||'application/octet-stream',upsert:false}).then(function(res){ if(res.error) throw res.error;return supabase.storage.from('client-qc-files').createSignedUrl(path,31536000).then(function(su2){ var url2=su2.data&&su2.data.signedUrl;setUploadedFiles(function(prev){ return prev.concat([{name:att.name||safe,type:att.content_type||blob.type||'',fileUrl:url2,storagePath:path}]); }); }); }); }).catch(function(err){ console.error('[DalOS] intake file copy failed:',err); });}function loadCqcIntake(){supabase.from('cqc_intake').select('id,subject,from_email,container_number,attachments,source,status,received_at').neq('status','completed').order('received_at',{ascending:false}).then(function(r){if(!r.error)setIntakeRows(r.data||[]);});}React.useEffect(function(){loadCqcIntake();},[]);
   var sCQCSrch=useState(''); var cqcSearch=sCQCSrch[0]; var setCqcSearch=sCQCSrch[1];
   var sCQCSrchFocus=useState(false); var cqcSearchFocus=sCQCSrchFocus[0]; var setCqcSearchFocus=sCQCSrchFocus[1];
   var sCqcFilter=useState('all'); var cqcFilter=sCqcFilter[0]; var setCqcFilter=sCqcFilter[1];
@@ -10212,7 +10227,7 @@ function ClientQCMgmt(props){
     }
     var cqcSamplesSnapshot=cqcSamples.slice(); /* capture before clearForm resets */
     var uploadedFilesSnapshot=uploadedFiles.slice(); /* full snapshot before clearForm */
-    clearForm();setEditRep(null);setShowNew(false);
+    clearForm();setEditRep(null);setShowNew(false); if(startRow&&isNew){var _ic=startRow;setStartRow(null);supabase.from('cqc_intake').update({client_qc_report_id:reportId,status:((_ic.attachments||[]).length>1?'in_progress':'completed')}).eq('id',_ic.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});}
     /* Save to Supabase */
     var dbRow={
       id:reportId,
@@ -11850,8 +11865,8 @@ function ClientQCMgmt(props){
           ce('div',{style:{fontSize:12,color:'var(--text3)',marginTop:2}},'Log, upload and match client QC reports')
         )
       ),
-      perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowNew(true);}},'+ New client report')
-    ),intakeRows.length?ce(IntakePanel,{rows:intakeRows,open:intakeOpen,setOpen:setIntakeOpen,onStart:function(row){setShowNew(true);}}):null,
+      perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setStartRow(null);setShowNew(true);}},'+ New client report')
+    ),intakeRows.length?ce(IntakePanel,{rows:intakeRows,open:intakeOpen,setOpen:setIntakeOpen,onStart:function(row,selFiles){var gp=(config.products||[]).find(function(p){return /grape/i.test(p.name||'');});if(gp)setSelCqcProd(gp.id);else if((config.products||[])[0])setSelCqcProd((config.products||[])[0].id);setStartRow(row);setUploadedFiles([]);setContainer(row.container_number||'');setShowNew(true);(selFiles||[]).forEach(function(a){attachIntakeFile(a);});},onComplete:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});}}):null,
     /* ── Stats bar ── */
     (function(){
       var rWithMaj=prodReports.filter(function(r){return r.sectionAvgs&&r.sectionAvgs.Major!=null;});
