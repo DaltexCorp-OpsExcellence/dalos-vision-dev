@@ -7956,19 +7956,24 @@ function AnalyticsAccessPanel(){
       ce('span',{style:{fontWeight:600,fontSize:15}},'Has access'),
       pill(acc.length,'#e7ece7','#5f6f64')
     ),
-    ce('div',{style:{fontSize:12,color:'var(--text3)',margin:'0 0 10px'}},'Admins always have access and aren\u2019t listed here.'),
+    ce('div',{style:{fontSize:12,color:'var(--text3)',margin:'0 0 10px'}},'Admins have access automatically (shown below) and can\u2019t be revoked here.'),
     ce('div',{className:'scroll-card',style:{padding:0,overflow:'hidden'}},
       acc.length===0
-        ? ce('div',{style:{padding:'22px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No additional users granted yet.')
-        : acc.map(function(a,idx){ var kr=a.user_id+'rev';
+        ? ce('div',{style:{padding:'22px 16px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No one has access yet.')
+        : acc.map(function(a,idx){ var kr=a.user_id+'rev'; var isAdmin=a.source==='admin';
             return ce('div',{key:a.user_id,style:{display:'flex',alignItems:'center',gap:14,padding:'13px 16px',borderTop:idx>0?'1px solid var(--border)':'none'}},
-              avatar(a.name,'#e3eef0','#1f6b7a',36),
+              avatar(a.name,isAdmin?'#dfeee4':'#e3eef0',isAdmin?'#2b6b46':'#1f6b7a',36),
               ce('div',{style:{flex:1,minWidth:0}},
-                ce('div',{style:{fontWeight:500,fontSize:14}},a.name||'\u2014'),
+                ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                  ce('span',{style:{fontWeight:500,fontSize:14}},a.name||'\u2014'),
+                  isAdmin?ce('span',{style:{fontSize:9,fontWeight:700,letterSpacing:'.06em',padding:'2px 7px',borderRadius:20,background:'#dfeee4',color:'#2b6b46',textTransform:'uppercase'}},'Admin'):null
+                ),
                 ce('div',{style:{fontSize:12,color:'var(--text3)',fontFamily:'var(--font-mono)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.email)
               ),
-              ce('div',{style:{fontSize:12,color:'var(--text3)',whiteSpace:'nowrap'}},'Granted '+fmt(a.granted_at)),
-              ce('button',{onClick:function(){revoke(a.user_id);},disabled:busy===kr,style:{background:'var(--card)',color:'var(--red)',border:'1px solid var(--red-border,#e8cfc9)',borderRadius:7,padding:'7px 14px',fontSize:13,cursor:busy===kr?'default':'pointer',opacity:busy===kr?.6:1}}, busy===kr?'Revoking\u2026':'Revoke')
+              ce('div',{style:{fontSize:12,color:'var(--text3)',whiteSpace:'nowrap'}},isAdmin?'Automatic':('Granted '+fmt(a.granted_at))),
+              isAdmin
+                ? ce('span',{style:{fontSize:13,color:'var(--text3)',opacity:.45,whiteSpace:'nowrap',padding:'7px 10px'}},'\u2014')
+                : ce('button',{onClick:function(){revoke(a.user_id);},disabled:busy===kr,style:{background:'var(--card)',color:'var(--red)',border:'1px solid var(--red-border,#e8cfc9)',borderRadius:7,padding:'7px 14px',fontSize:13,cursor:busy===kr?'default':'pointer',opacity:busy===kr?.6:1}}, busy===kr?'Revoking\u2026':'Revoke')
             );
           })
     )
