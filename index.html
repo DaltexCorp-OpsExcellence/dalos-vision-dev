@@ -7918,6 +7918,40 @@ function ListEditor(lprops){
   );
 }
 
+function AnalyticsAccessPanel(){
+  var sd=useState(null); var data=sd[0]; var setData=sd[1];
+  var sbz=useState(''); var busy=sbz[0]; var setBusy=sbz[1];
+  function load(){ supabase.rpc('list_analytics_access_admin').then(function(r){ setData((r&&!r.error&&r.data)?r.data:{requests:[],access:[]}); }); }
+  React.useEffect(function(){ load(); },[]);
+  function act(rpc,arg,key){ setBusy(key); supabase.rpc(rpc,arg).then(function(r){ setBusy(''); load(); }); }
+  function bA(label,on,dis){ return ce('button',{onClick:on,disabled:dis,style:{fontSize:12,padding:'4px 12px',borderRadius:6,border:'1px solid var(--green-border)',background:'var(--green-bg)',color:'var(--green)',cursor:dis?'default':'pointer',opacity:dis?.6:1}},label); }
+  function bN(label,on,dis){ return ce('button',{onClick:on,disabled:dis,style:{fontSize:12,padding:'4px 12px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg2)',color:'var(--text2)',cursor:dis?'default':'pointer',marginLeft:6,opacity:dis?.6:1}},label); }
+  if(!data) return ce('div',{className:'scroll-card'},ce('div',{style:{padding:18,color:'var(--text3)'}},'Loading\u2026'));
+  var reqs=data.requests||[], acc=data.access||[];
+  return ce('div',null,
+    ce('div',{className:'scroll-card',style:{marginBottom:16}},
+      ce('div',{style:{fontWeight:600,marginBottom:10}},'Pending requests ('+reqs.length+')'),
+      reqs.length===0 ? ce('div',{style:{color:'var(--text3)',fontSize:13}},'No pending requests.')
+      : ce('div',{style:{overflowX:'auto'}}, ce('table',{style:{minWidth:600}},
+        ce('thead',null,ce('tr',null,ce('th',null,'Name'),ce('th',null,'Email'),ce('th',null,'Requested'),ce('th',null,'Actions'))),
+        ce('tbody',null, reqs.map(function(r){ return ce('tr',{key:r.id},
+          ce('td',null,r.name), ce('td',null,r.email), ce('td',null,new Date(r.requested_at).toLocaleDateString()),
+          ce('td',null, bA('Approve',function(){act('approve_analytics_request',{p_request_id:r.id},r.id);},busy===r.id), bN('Deny',function(){act('deny_analytics_request',{p_request_id:r.id},r.id);},busy===r.id)) ); }))
+      ))
+    ),
+    ce('div',{className:'scroll-card'},
+      ce('div',{style:{fontWeight:600,marginBottom:10}},'Has access ('+acc.length+')'),
+      ce('div',{style:{color:'var(--text3)',fontSize:12,marginBottom:10}},'Admins always have access and are not listed here.'),
+      acc.length===0 ? ce('div',{style:{color:'var(--text3)',fontSize:13}},'No additional users granted yet.')
+      : ce('div',{style:{overflowX:'auto'}}, ce('table',{style:{minWidth:600}},
+        ce('thead',null,ce('tr',null,ce('th',null,'Name'),ce('th',null,'Email'),ce('th',null,'Granted'),ce('th',null,'Actions'))),
+        ce('tbody',null, acc.map(function(a){ return ce('tr',{key:a.user_id},
+          ce('td',null,a.name), ce('td',null,a.email), ce('td',null,new Date(a.granted_at).toLocaleDateString()),
+          ce('td',null, bN('Revoke',function(){act('revoke_analytics_access',{p_user_id:a.user_id},a.user_id);},busy===a.user_id)) ); }))
+      ))
+    )
+  );
+}
 function AdminCenter(props){
   var users=props.users,setUsers=props.setUsers;
   var config=props.config||INITIAL_CONFIG,setConfig=props.setConfig||function(){};
@@ -8274,6 +8308,7 @@ function AdminCenter(props){
     ce('div',{className:'tabs'},
       ce('div',{className:'tab'+(tab==='users'?' active':''),onClick:function(){setTab('users');}},'Users ('+users.length+')'),
       ce('div',{className:'tab'+(tab==='matrix'?' active':''),onClick:function(){setTab('matrix');}},'Permissions matrix'),
+      ce('div',{className:'tab'+(tab==='aaccess'?' active':''),onClick:function(){setTab('aaccess');}},'Analytics access'),
       ce('div',{className:'tab'+(tab==='config'?' active':''),onClick:function(){setTab('config');},style:{color:tab==='config'?'var(--accent)':'var(--text3)'}},'System config \u2699\ufe0f')
     ),
     tab==='users'&&ce('div',{className:'scroll-card'},
@@ -8326,6 +8361,7 @@ function AdminCenter(props){
         )
       )
       )), /* end scroll+overflow wrapper */
+    tab==='aaccess'&&ce(AnalyticsAccessPanel,null),
     tab==='matrix'&&ce('div',{className:'scroll-card'},
       ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
       ce('table',{style:{fontSize:12,minWidth:700}},
