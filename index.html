@@ -823,6 +823,15 @@ function InspectionForm(props){
     if(rd.decision) setDecision(rd.decision);
     console.log('[DalOS] Draft applied to edit-mode form —',Object.keys(rd).length,'fields restored');
   },[]); /* empty deps: run once on mount */
+  /* FIX: restore the label checklist + extra labels from a recovered draft, in BOTH new and
+     edit mode. Previously omitted from recovery, so a recovered session reverted the checklist
+     to empty and a later save persisted it as all-unverified. */
+  React.useEffect(function(){
+    var rd=props.recoveryDraft;
+    if(!rd) return;
+    if(rd.stickerChecks) setStickerChecks(rd.stickerChecks);
+    if(rd.extraLabels) setExtraLabels(rd.extraLabels);
+  },[]);
   function safeClose(){
     if(isDirty&&!window.confirm('You have unsaved changes. Leave without saving?')) return;
     try{localStorage.removeItem(draftKey);}catch(e){}
@@ -871,7 +880,7 @@ function InspectionForm(props){
       }catch(e){console.warn('[DalOS] Autosave error:',e);}
     },30000);
     return function(){clearInterval(timer);};
-  },[isDirty,lot,date,variety,client,country,farm,container,pallets,decision,grpSessionId]);
+  },[isDirty,lot,date,variety,client,country,farm,container,pallets,decision,grpSessionId,stickerChecks,extraLabels]);
   var _d=restoredDraft||{};
   var sf=useState(batch?batch.date:(_d.date||new Date().toISOString().slice(0,10))); var date=sf[0]; var setDateRaw=sf[1];
   function setDate(v){setDateRaw(v);setIsDirty(true);}
