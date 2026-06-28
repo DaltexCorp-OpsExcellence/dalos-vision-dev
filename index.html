@@ -12797,6 +12797,10 @@ function ShipmentsMgmt(props){
   var sShipments=useState([]); var shipments=sShipments[0]; var setShipments=sShipments[1];
   var sGrades=useState([]); var grades=sGrades[0]; var setGrades=sGrades[1];
   var sCqcMatches=useState({}); var cqcMatches=sCqcMatches[0]; var setCqcMatches=sCqcMatches[1];
+  var sCqcRows=useState({}); var cqcRows=sCqcRows[0]; var setCqcRows=sCqcRows[1];
+  var sCqcOpen=useState(null); var cqcOpen=sCqcOpen[0]; var setCqcOpen=sCqcOpen[1];
+  var sCqcDetails=useState({}); var cqcDetails=sCqcDetails[0]; var setCqcDetails=sCqcDetails[1];
+  React.useEffect(function(){var st=props.initialShip;if(st&&st.prod){setSelProd(st.prod);if(typeof setAggMode==='function')setAggMode(st.agg!==false);if(st.container)setSelContainer(st.container);if(st.ship)setSelShip(st.ship);}},[]);
   var sLoading=useState(false); var loading=sLoading[0]; var setLoading=sLoading[1];
   var sSearch=useState(''); var search=sSearch[0]; var setSearch=sSearch[1];
   var sStatusFilter=useState(''); var statusFilter=sStatusFilter[0]; var setStatusFilter=sStatusFilter[1];
@@ -12823,7 +12827,7 @@ function ShipmentsMgmt(props){
     setSelContainer(null);
     setShipments([]);
     setGrades([]);
-    setCqcMatches({});
+    setCqcMatches({});setCqcRows({});
     setProdCounts({});
     setCqcShipFilter('all');
   },[config.activeSeasonId]);
@@ -12863,7 +12867,7 @@ function ShipmentsMgmt(props){
     /* Reset data when product or season changes */
     setShipments([]);
     setGrades([]);
-    setCqcMatches({});
+    setCqcMatches({});setCqcRows({});
     setLoading(true);
     /* Supabase caps at 1000 rows per request — paginate to get all */
     var allRows=[];
@@ -12885,19 +12889,19 @@ function ShipmentsMgmt(props){
           gq.then(function(gr){
             if(!gr.error) setGrades(gr.data||[]);
             /* Load CQC matches by season — avoids container list slice(200) limit and whitespace mismatch */
-            var cqcQ=supabase.from('client_qc_reports').select('id,container_number').eq('product_id',selProd);
+            var cqcQ=supabase.from('client_qc_reports').select('id,container_number,score,qc_report_number,client_decision,potential_claim').eq('product_id',selProd);
             if(config.activeSeasonId) cqcQ=cqcQ.eq('season_id',config.activeSeasonId);
             cqcQ.then(function(cr){
                 setLoading(false);
                 if(cr.error) return;
-                var map={};
+                var map={}; var rowsMap={};
                 /* normalise key: trim + collapse whitespace, uppercase */
                 function normCN(cn){return (cn||'').replace(/\s+/g,' ').trim().toUpperCase();}
                 (cr.data||[]).forEach(function(r){
                   var k=normCN(r.container_number);
-                  if(k) map[k]=(map[k]||0)+1;
+                  if(k){ map[k]=(map[k]||0)+1; if(!rowsMap[k])rowsMap[k]=[]; rowsMap[k].push(r); }
                 });
-                setCqcMatches(map);
+                setCqcMatches(map); setCqcRows(rowsMap);
               });
           });
         }
@@ -12908,6 +12912,43 @@ function ShipmentsMgmt(props){
 
   function getGrade(containerNum){
     return grades.find(function(g){return g.container_number===containerNum;})||null;
+  }
+  function cqcFor(cn){return cqcRows[(cn||'').replace(/\s+/g,' ').trim().toUpperCase()]||[];}
+  function toggleCqcDetail(repId){
+    if(cqcOpen===repId){setCqcOpen(null);return;}
+    setCqcOpen(repId);
+    if(cqcDetails[repId]) return;
+    supabase.from('client_qc_reports').select('id,total_defect,inspection_id,cqc_extra_fields,cqc_sample_rows(id,cqc_sample_defect_readings(cqc_defect_id,value))').eq('id',repId).single()
+      .then(function(r){
+        if(r.error||!r.data){setCqcDetails(function(p){return Object.assign({},p,{[repId]:{avgTotal:null,avgMajor:null,avgMinor:null,samples:0,insp:null}});});return;}
+        var samples=r.data.cqc_sample_rows||[];
+        var secs=(config.cqcDefectSections||{})[selProd]||[];
+        var majorTotal=0,minorTotal=0,grand=0;
+        secs.forEach(function(sec){
+          var ids=(sec.items||[]).map(function(d){return d.dbId;});
+          var sum=0;
+          samples.forEach(function(sr){(sr.cqc_sample_defect_readings||[]).forEach(function(dr){if(ids.indexOf(dr.cqc_defect_id)>=0)sum+=parseFloat(dr.value)||0;});});
+          grand+=sum;
+          if(sec.section==='Major')majorTotal=sum;else if(sec.section==='Minor')minorTotal=sum;
+        });
+        var n=samples.length;
+        var det={samples:n,avgTotal:n>0?Math.round(grand/n*100)/100:(r.data.total_defect!=null?parseFloat(r.data.total_defect):null),avgMajor:n>0?Math.round(majorTotal/n*100)/100:null,avgMinor:n>0?Math.round(minorTotal/n*100)/100:null,insp:null};
+        var cef=r.data.cqc_extra_fields||{};
+        var inspIds=(Array.isArray(cef.inspection_ids)&&cef.inspection_ids.length>0)?cef.inspection_ids.slice():(r.data.inspection_id?[r.data.inspection_id]:[]);
+        if(inspIds.length===0){setCqcDetails(function(p){return Object.assign({},p,{[repId]:det});});return;}
+        det.insp={loading:true,ids:inspIds};
+        setCqcDetails(function(p){return Object.assign({},p,{[repId]:det});});
+        supabase.from('sample_rows').select('id').in('inspection_id',inspIds).then(function(sr){
+            var rowIds=(sr.data||[]).map(function(x){return x.id;});
+            if(rowIds.length===0){var d2=Object.assign({},det,{insp:{loading:false,ids:inspIds,samples:0,total:null}});setCqcDetails(function(p){return Object.assign({},p,{[repId]:d2});});return;}
+            supabase.from('sample_defect_readings').select('value,defects(severity)').in('sample_row_id',rowIds).then(function(dr){
+                var tot=0;(dr.data||[]).forEach(function(x){tot+=parseFloat(x.value)||0;});
+                var inspTotal=Math.round(tot/rowIds.length*100)/100;
+                var d3=Object.assign({},det,{insp:{loading:false,ids:inspIds,samples:rowIds.length,total:inspTotal}});
+                setCqcDetails(function(p){return Object.assign({},p,{[repId]:d3});});
+              });
+          });
+      });
   }
 
   function openContainer(key, containerNum){
@@ -13104,6 +13145,7 @@ function ShipmentsMgmt(props){
     var realCN=selContainer.indexOf('||')>=0?selContainer.split('||')[0]:selContainer;
     var g=getGrade(realCN);
     var cqcCount=cqcMatches[(realCN||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
+    var cqcReps=cqcFor(realCN);
     return ce('div',{style:{width:340,position:'fixed',top:50,right:0,bottom:0,zIndex:30,borderLeft:'1px solid var(--border)',overflowY:'auto',flexShrink:0,background:'var(--card)',boxShadow:'-4px 0 16px rgba(0,0,0,0.08)'}},
       ce('div',{style:{padding:'14px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:'var(--card)',zIndex:5}},
         ce('div',null,
@@ -13148,6 +13190,53 @@ function ShipmentsMgmt(props){
           )
         ),
         ce('button',{className:'btn btn-primary',style:{width:'100%',marginBottom:16},onClick:saveContainerGrade},saving?'Saving...':'Save grade & claim'),
+        /* \u2500\u2500 Matched CQC reports \u2014 expandable summaries \u2500\u2500 */
+        cqcCount>0&&ce('div',{style:{marginBottom:16}},
+          ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'CQC Reports ('+cqcCount+')'),
+          cqcReps.map(function(rep){
+            var open=cqcOpen===rep.id;
+            var det=cqcDetails[rep.id];
+            var sc=(rep.score||'').toUpperCase();
+            var scCol=sc==='GREEN'||sc==='PASS'||sc.indexOf('GOOD')>=0?'var(--green)':sc==='AMBER'||sc==='YELLOW'||sc==='ORANGE'?'var(--amber)':sc==='RED'||sc==='FAIL'?'var(--red)':sc==='BLUE'?'#2563ad':'var(--text2)';
+            return ce('div',{key:rep.id,style:{border:'1px solid var(--border)',borderLeft:'3px solid '+scCol,borderRadius:8,marginBottom:8,overflow:'hidden'}},
+              ce('div',{style:{padding:'9px 12px',display:'flex',alignItems:'center',gap:8,cursor:'pointer',background:open?'var(--bg2)':'transparent'},onClick:function(){toggleCqcDetail(rep.id);}},
+                ce('span',{style:{fontSize:11,fontWeight:700,color:scCol}},rep.score||'\u2014'),
+                rep.qc_report_number&&ce('span',{style:{fontSize:11,color:'var(--text3)',fontFamily:'var(--font-mono)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},rep.qc_report_number),
+                rep.potential_claim&&ce('span',{className:'badge badge-fail',style:{fontSize:9}},'\uD83D\uDEA9 claim'),
+                ce('span',{style:{marginLeft:'auto',color:'var(--text3)',fontSize:12,flexShrink:0}},open?'\u25be':'\u25b8')
+              ),
+              open&&ce('div',{style:{padding:'10px 12px',borderTop:'1px solid var(--border)'}},
+                !det?ce('div',{style:{fontSize:12,color:'var(--text3)'}},'Loading\u2026')
+                :ce('div',null,
+                  ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:8}},
+                    [['Avg Total',det.avgTotal],['Avg Major',det.avgMajor],['Avg Minor',det.avgMinor]].map(function(m){
+                      var col=m[0]==='Avg Total'&&m[1]!=null?(m[1]>10?'var(--red)':m[1]>5?'var(--amber)':'var(--green)'):'var(--text)';
+                      return ce('div',{key:m[0],style:{background:'var(--bg2)',borderRadius:6,padding:'6px 4px',textAlign:'center'}},
+                        ce('div',{style:{fontSize:9,color:'var(--text3)',marginBottom:2}},m[0]),
+                        ce('div',{style:{fontSize:13,fontWeight:600,fontFamily:'var(--font-mono)',color:m[1]!=null?col:'var(--text3)'}},m[1]!=null?m[1].toFixed(1)+'%':'\u2014'));
+                    })
+                  ),
+                  ce('div',{style:{fontSize:11,color:'var(--text2)'}},det.samples+' sample'+(det.samples===1?'':'s')+(rep.client_decision?' \u00b7 Decision: '+rep.client_decision:'')),
+                  det.insp&&ce('div',{style:{marginTop:8,background:'var(--green-bg)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px'}},
+                    ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:4}},'Matched Inspection'),
+                    det.insp.loading?ce('div',{style:{fontSize:11,color:'var(--text3)'}},'Loading\u2026')
+                    :ce('div',null,
+                      ce('div',{style:{fontSize:11,fontFamily:'var(--font-mono)',color:'var(--text)',marginBottom:3}},det.insp.ids.join(', ')),
+                      det.insp.total!=null
+                        ?ce('div',{style:{display:'flex',alignItems:'baseline',gap:10}},
+                            ce('span',{style:{fontSize:11,color:'var(--text2)'}},'Internal: ',ce('span',{style:{fontFamily:'var(--font-mono)',fontWeight:600,color:det.insp.total>10?'var(--red)':det.insp.total>5?'var(--amber)':'var(--green)'}},det.insp.total.toFixed(1)+'%')),
+                            ce('span',{style:{fontSize:11,color:'var(--text2)'}},det.insp.samples+' samples'),
+                            det.avgTotal!=null&&(function(){var gap=Math.round((det.avgTotal-det.insp.total)*10)/10;return ce('span',{style:{fontSize:11,fontFamily:'var(--font-mono)',fontWeight:600,color:gap>0?'var(--red)':'var(--green)'}},'Gap: '+(gap>0?'+':'')+gap.toFixed(1));})()
+                          )
+                        :ce('div',{style:{fontSize:11,color:'var(--text3)'}},'No internal samples found')
+                    )
+                  ),
+                  props.onOpenCqc&&ce('button',{className:'btn btn-secondary btn-sm',style:{width:'100%',marginTop:8},onClick:function(){props.onOpenCqc(rep.id,selProd,{prod:selProd,agg:aggMode,container:selContainer,ship:selShip});}},'Open full CQC report \u2192')
+                )
+              )
+            );
+          })
+        ),
         /* Container details — always shown */
         ce('div',null,
           ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Container Details'),
@@ -13926,6 +14015,10 @@ function App(){
   React.useEffect(function(){window.location.hash=view;},[view]);
   var sNavHist=useState(null); var navHistory=sNavHist[0]; var setNavHistory=sNavHist[1];
   var sNavTarget=useState(null); var navTarget=sNavTarget[0]; var setNavTarget=sNavTarget[1];
+  var sCqcLink=useState(null); var cqcLink=sCqcLink[0]; var setCqcLink=sCqcLink[1];
+  React.useEffect(function(){if(view!=='clientqc'&&cqcLink)setCqcLink(null);},[view]);
+  var sShipReturn=useState(null); var shipReturn=sShipReturn[0]; var setShipReturn=sShipReturn[1];
+  React.useEffect(function(){if(view!=='shipments'&&view!=='clientqc'&&shipReturn)setShipReturn(null);},[view]);
   var sMob=useState(false); var mobOpen=sMob[0]; var setMobOpen=sMob[1];
   var sAuthChecked=useState(false); var authChecked=sAuthChecked[0]; var setAuthChecked=sAuthChecked[1];
   var sShowPwRecovery=useState(false); var showPasswordRecovery=sShowPwRecovery[0]; var setShowPasswordRecovery=sShowPwRecovery[1];
@@ -15392,14 +15485,14 @@ function App(){
       ce('div',{className:'page'},
         view==='fg'         &&perms.viewFG        &&ce(FGView,{packhouse:phInfo,perms:perms,cropId:cropId,config:config,batches:batches,onEscalate:escalateBatch,currentUser:liveCurrentUser,onAddBatch:addBatch,currentUserObj:currentUser,viewSeason:currentViewSeason,inspLoading:inspLoading,onRefreshBatches:refreshBatchesById,onReloadAll:loadConfigFromDB,
           initialSel:navTarget,
-          navBack:navHistory?function(){var h=navHistory;setNavHistory(null);setNavTarget(null);setView(h.view);}:null,
-          navBackLabel:navHistory?'Back to CQC report':null}),
+          navBack:cqcLink?function(){var l=cqcLink;setShipReturn(l.ship||null);setCqcLink(null);setView('shipments');}:(navHistory?function(){var h=navHistory;setNavHistory(null);setNavTarget(null);setView(h.view);}:null),
+          navBackLabel:cqcLink?'Back to Shipments':(navHistory?'Back to CQC report':null)}),
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
-        view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser}),
+        view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
-          initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:null,
-          initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:null,
+          initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
+          initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
           onOpenInspection:function(batchId,selRep,selCqcProd){
             var found=batches.find(function(b){return b.id===batchId;});
             setNavHistory({view:'clientqc',selRep:selRep,selCqcProd:selCqcProd});
