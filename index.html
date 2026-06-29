@@ -12916,7 +12916,7 @@ function ShipmentsMgmt(props){
                 if(cr.error) return;
                 var map={}; var rowsMap={};
                 /* normalise key: trim + collapse whitespace, uppercase */
-                function normCN(cn){return (cn||'').replace(/\s+/g,' ').trim().toUpperCase();}
+                function normCN(cn){return (cn||'').replace(/\s+/g,'').toUpperCase();}
                 (cr.data||[]).forEach(function(r){
                   var k=normCN(r.container_number);
                   if(k){ map[k]=(map[k]||0)+1; if(!rowsMap[k])rowsMap[k]=[]; rowsMap[k].push(r); }
@@ -12945,8 +12945,8 @@ function ShipmentsMgmt(props){
   function getGrade(containerNum){
     return grades.find(function(g){return g.container_number===containerNum;})||null;
   }
-  function cqcFor(cn){return cqcRows[(cn||'').replace(/\s+/g,' ').trim().toUpperCase()]||[];}
-  function inspFor(cn){return inspRows[(cn||'').replace(/\s+/g,' ').trim().toUpperCase()]||[];}
+  function cqcFor(cn){return cqcRows[(cn||'').replace(/\s+/g,'').toUpperCase()]||[];}
+  function inspFor(cn){return inspRows[(cn||'').replace(/\s+/g,'').toUpperCase()]||[];}
   function openInspPreview(id){
     setInspPopup({id:id,loading:true,data:null});
     supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',id).single().then(function(ir){
@@ -13149,7 +13149,7 @@ function ShipmentsMgmt(props){
   function matchesFilters(s){
     if(statusFilter&&s.shipping_status!==statusFilter) return false;
     if(countryFilter.length>0&&!countryFilter.includes(s.receiving_country)) return false;
-    var normCN=(s.container_number||'').replace(/\s+/g,' ').trim().toUpperCase();
+    var normCN=(s.container_number||'').replace(/\s+/g,'').toUpperCase();
     if(cqcShipFilter==='with'&&!(cqcMatches[normCN]>0)) return false;
     if(cqcShipFilter==='without'&&(cqcMatches[normCN]>0)) return false;
     if(inspShipFilter==='with'&&!(inspMatches[normCN]>0)) return false;
@@ -13167,7 +13167,7 @@ function ShipmentsMgmt(props){
   function containerMatchesFilters(c){
     if(statusFilter&&!c.statuses.has(statusFilter)) return false;
     if(countryFilter.length>0&&![...c.countries].some(function(cn){return countryFilter.includes(cn);})) return false;
-    var normCN=(c.container_number||'').replace(/\s+/g,' ').trim().toUpperCase();
+    var normCN=(c.container_number||'').replace(/\s+/g,'').toUpperCase();
     if(cqcShipFilter==='with'&&!(cqcMatches[normCN]>0)) return false;
     if(cqcShipFilter==='without'&&(cqcMatches[normCN]>0)) return false;
     if(inspShipFilter==='with'&&!(inspMatches[normCN]>0)) return false;
@@ -13199,9 +13199,9 @@ function ShipmentsMgmt(props){
     /* Extract real container_number from key (may be "CN||CARTA" or plain CN) */
     var realCN=selContainer.indexOf('||')>=0?selContainer.split('||')[0]:selContainer;
     var g=getGrade(realCN);
-    var cqcCount=cqcMatches[(realCN||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
+    var cqcCount=cqcMatches[(realCN||'').replace(/\s+/g,'').toUpperCase()]||0;
     var cqcReps=cqcFor(realCN);
-    var inspCount=inspMatches[(realCN||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
+    var inspCount=inspMatches[(realCN||'').replace(/\s+/g,'').toUpperCase()]||0;
     var inspReps=inspFor(realCN);
     return ce('div',{style:{width:340,position:'fixed',top:50,right:0,bottom:0,zIndex:30,borderLeft:'1px solid var(--border)',overflowY:'auto',flexShrink:0,background:'var(--card)',boxShadow:'-4px 0 16px rgba(0,0,0,0.08)'}},
       ce('div',{style:{padding:'14px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:'var(--card)',zIndex:5}},
@@ -13453,16 +13453,16 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
           ce('div',{className:'kpi-label'},'With CQC'),
           ce('div',{className:'kpi-value',style:{fontSize:22,color:'var(--green)'}},
             aggMode
-              ?filteredContainers.filter(function(c){return (cqcMatches[(c.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0)>0;}).length
-              :[...new Set(filteredRows.filter(function(s){return (cqcMatches[(s.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length
+              ?filteredContainers.filter(function(c){return (cqcMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).length
+              :[...new Set(filteredRows.filter(function(s){return (cqcMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length
           )
         ),
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},'With insp'),
           ce('div',{className:'kpi-value',style:{fontSize:22,color:'#2563ad'}},
             aggMode
-              ?filteredContainers.filter(function(c){return (inspMatches[(c.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0)>0;}).length
-              :[...new Set(filteredRows.filter(function(s){return (inspMatches[(s.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length
+              ?filteredContainers.filter(function(c){return (inspMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).length
+              :[...new Set(filteredRows.filter(function(s){return (inspMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length
           )
         ),
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
@@ -13522,8 +13522,8 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                 filteredContainers.length===0&&ce('tr',null,ce('td',{colSpan:12,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No containers found')),
                 filteredContainers.map(function(c){
                   var g=getGrade(c.container_number);
-                  var cqcCount=cqcMatches[(c.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
-                  var inspCount=inspMatches[(c.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
+                  var cqcCount=cqcMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
+                  var inspCount=inspMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
                   var isSelected=selContainer===c.key;
                   var statArr=[...c.statuses];
                   var status=statArr.length===1?statArr[0]:(statArr.length>1?'Mixed':'—');
@@ -13576,8 +13576,8 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                 filteredRows.length===0&&ce('tr',null,ce('td',{colSpan:13,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No shipments found')),
                 filteredRows.map(function(s){
                   var g=getGrade(s.container_number);
-                  var cqcCount=cqcMatches[(s.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
-                  var inspCount=inspMatches[(s.container_number||'').replace(/\s+/g,' ').trim().toUpperCase()]||0;
+                  var cqcCount=cqcMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
+                  var inspCount=inspMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
                   var isSelected=selContainer===s.container_number;
                   return ce('tr',{key:s.id,className:'click',onClick:function(){openRow(s);},style:{background:isSelected?'var(--green-bg)':''}},
                     ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600}},s.container_number||'—')),
