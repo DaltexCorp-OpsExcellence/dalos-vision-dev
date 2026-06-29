@@ -9348,7 +9348,7 @@ function IntakePanel(props){
         var multi=atts.length>1;
         var rightBtns=[];
         if(multi){ rightBtns.push(ce('button',{key:'f',className:'btn btn-sm',onClick:function(){expand(r);}},'Open files ('+atts.length+')'+(filesFor===r.id?' \u25b4':' \u25be'))); }
-        if(!multi){ rightBtns.push(ce('button',{key:'s',className:'btn btn-primary btn-sm',onClick:function(){props.onStart&&props.onStart(r,atts);}}, inprog?'Resume':'Start')); }
+        if(!multi){ if(atts.length===1) rightBtns.push(ce('button',{key:'v',className:'btn btn-sm',onClick:function(){openFile(atts[0]);}},'View file')); rightBtns.push(ce('button',{key:'s',className:'btn btn-primary btn-sm',onClick:function(){props.onStart&&props.onStart(r,atts);}}, inprog?'Resume':'Start')); }
         if(inprog){ rightBtns.push(ce('button',{key:'d',className:'btn btn-sm',onClick:function(){props.onComplete&&props.onComplete(r);}},'Mark done')); }
         var mainRow=ce('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderTop:'1px solid var(--border)',flexWrap:'wrap'}},
           ce('span',{style:{fontFamily:'monospace',fontSize:13,fontWeight:500}},label),
