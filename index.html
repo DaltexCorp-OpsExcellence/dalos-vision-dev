@@ -12923,7 +12923,7 @@ function ShipmentsMgmt(props){
                 });
                 setCqcMatches(map); setCqcRows(rowsMap);
                 /* Inspection match (container-level, season+product scoped) */
-                var inspQ=supabase.from('inspections').select('id,container_number,status,decision,avg_total_defect,avg_brix,avg_carton_weight,date,packhouse_id,has_critical').eq('product_id',selProd);
+                var inspQ=supabase.from('inspections').select('id,container_number,status,decision,avg_total_defect,avg_brix,avg_carton_weight,date,packhouse_id,has_critical,variety_id,variety2_id,trace_code,trace_codes').eq('product_id',selProd);
                 if(config.activeSeasonId) inspQ=inspQ.eq('season_id',config.activeSeasonId);
                 inspQ.then(function(ir){
                   if(ir.error) return;
@@ -12947,6 +12947,57 @@ function ShipmentsMgmt(props){
   }
   function cqcFor(cn){return cqcRows[(cn||'').replace(/\s+/g,'').toUpperCase()]||[];}
   function inspFor(cn){return inspRows[(cn||'').replace(/\s+/g,'').toUpperCase()]||[];}
+  function _vname(id){return (config.varietiesIdToName&&id&&config.varietiesIdToName[id])||'';}
+  function _vk(s){return (s||'').toString().toLowerCase().replace(/[^a-z0-9]/g,'');}
+  function _phk(s){var k=(s||'').toString().toLowerCase().replace(/[^a-z]/g,'').replace('packhouse','');if(k==='menia')k='menya';return k;}
+  function _inspTraceSet(insp){var set={};var arr=(insp&&insp.trace_codes)||[];if(Array.isArray(arr))arr.forEach(function(o){var c=((o&&o.code)||'').replace(/\D/g,'');if(c)set[c]=1;});var tc=((insp&&insp.trace_code)||'');(String(tc).match(/\d{15}/g)||[]).forEach(function(c){set[c]=1;});return set;}
+  function scoreInsp(ship,insp){
+    var sc=0,mTrace=false,mVar=false,mPh=false;
+    var st=((ship&&ship.traceability_code)||'').replace(/\D/g,'');
+    if(st&&_inspTraceSet(insp)[st]){sc+=5;mTrace=true;}
+    var sv=_vk(ship&&ship.variety);
+    if(sv&&(sv===_vk(_vname(insp.variety_id))||sv===_vk(_vname(insp.variety2_id)))){sc+=3;mVar=true;}
+    var sp=_phk(ship&&ship.pack_house);
+    if(sp&&sp===_phk(insp.packhouse_id)){sc+=2;mPh=true;}
+    return {score:sc,trace:mTrace,variety:mVar,ph:mPh};
+  }
+  function pinForRow(ship,reps){
+    if(!ship||!reps||!reps.length) return null;
+    var scored=reps.map(function(i){return {insp:i,m:scoreInsp(ship,i)};});
+    var traceHits=scored.filter(function(x){return x.m.trace;});
+    if(traceHits.length){
+      traceHits.sort(function(a,b){return b.m.score-a.m.score;});
+      var t=traceHits[0];
+      return {mode:'trace',pins:[t],others:scored.filter(function(x){return x!==t;}),varietyDiffers:!t.m.variety};
+    }
+    var vc=scored.filter(function(x){return x.m.variety;});
+    if(!vc.length) return {mode:'none',pins:[],others:scored};
+    var top=Math.max.apply(null,vc.map(function(x){return x.m.score;}));
+    var pins=vc.filter(function(x){return x.m.score===top;});
+    var others=scored.filter(function(x){return pins.indexOf(x)<0;});
+    return {mode:(pins.length>1?'tie':'one'),pins:pins,others:others};
+  }
+  function inspCard(insp,accent){
+    var td=insp.avg_total_defect;
+    var tdCol=td==null?'var(--text3)':(td>10?'var(--red)':td>5?'var(--amber)':'var(--green)');
+    var stCol=insp.status==='Accepted'||insp.status==='Approved'?'var(--green)':insp.status==='Rejected'?'var(--red)':'var(--text2)';
+    return ce('div',{key:insp.id,onClick:function(){openInspPreview(insp.id);},style:{border:'1px solid var(--border)',borderLeft:'3px solid '+(accent||'#2563ad'),borderRadius:8,marginBottom:8,padding:'9px 12px',cursor:'pointer'}},
+      ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
+        ce('span',{style:{fontSize:11,fontWeight:700,fontFamily:'var(--font-mono)'}},insp.id),
+        insp.status&&ce('span',{style:{fontSize:9,padding:'2px 6px',borderRadius:6,background:'var(--bg2)',color:stCol,fontWeight:600}},insp.status),
+        insp.has_critical&&ce('span',{className:'badge badge-fail',style:{fontSize:9}},'critical'),
+        ce('span',{style:{marginLeft:'auto',fontSize:11,fontWeight:700,fontFamily:'var(--font-mono)',color:tdCol}},td!=null?Number(td).toFixed(1)+'%':'\u2014'),
+        ce('span',{style:{color:'var(--text3)',fontSize:13,marginLeft:2}},'\u203a')
+      ),
+      ce('div',{style:{display:'flex',gap:10,marginTop:5,fontSize:10,color:'var(--text3)',flexWrap:'wrap'}},
+        insp.date&&ce('span',null,insp.date),
+        insp.packhouse_id&&ce('span',null,insp.packhouse_id),
+        _vname(insp.variety_id)&&ce('span',null,_vname(insp.variety_id)),
+        insp.decision&&ce('span',null,'Decision: '+insp.decision),
+        insp.avg_brix!=null&&ce('span',null,'Brix '+Number(insp.avg_brix).toFixed(1))
+      )
+    );
+  }
   function openInspPreview(id){
     setInspPopup({id:id,loading:true,data:null});
     supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',id).single().then(function(ir){
@@ -13296,27 +13347,31 @@ function ShipmentsMgmt(props){
           })
         ),
 inspCount>0&&ce('div',{style:{marginBottom:16}},
-          ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Inspections ('+inspCount+')'),
-          inspReps.map(function(insp){
-            var td=insp.avg_total_defect;
-            var tdCol=td==null?'var(--text3)':(td>10?'var(--red)':td>5?'var(--amber)':'var(--green)');
-            var stCol=insp.status==='Accepted'||insp.status==='Approved'?'var(--green)':insp.status==='Rejected'?'var(--red)':'var(--text2)';
-            return ce('div',{key:insp.id,onClick:function(){openInspPreview(insp.id);},style:{border:'1px solid var(--border)',borderLeft:'3px solid #2563ad',borderRadius:8,marginBottom:8,padding:'9px 12px',cursor:'pointer'}},
-              ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
-                ce('span',{style:{fontSize:11,fontWeight:700,fontFamily:'var(--font-mono)'}},insp.id),
-                insp.status&&ce('span',{style:{fontSize:9,padding:'2px 6px',borderRadius:6,background:'var(--bg2)',color:stCol,fontWeight:600}},insp.status),
-                insp.has_critical&&ce('span',{className:'badge badge-fail',style:{fontSize:9}},'critical'),
-                ce('span',{style:{marginLeft:'auto',fontSize:11,fontWeight:700,fontFamily:'var(--font-mono)',color:tdCol}},td!=null?Number(td).toFixed(1)+'%':'\u2014'),
-                ce('span',{style:{color:'var(--text3)',fontSize:13,marginLeft:2}},'\u203a')
-              ),
-              ce('div',{style:{display:'flex',gap:10,marginTop:5,fontSize:10,color:'var(--text3)',flexWrap:'wrap'}},
-                insp.date&&ce('span',null,insp.date),
-                insp.packhouse_id&&ce('span',null,insp.packhouse_id),
-                insp.decision&&ce('span',null,'Decision: '+insp.decision),
-                insp.avg_brix!=null&&ce('span',null,'Brix '+Number(insp.avg_brix).toFixed(1))
-              )
+          (function(){
+            var rowPin=(!aggMode&&selShip)?pinForRow(selShip,inspReps):null;
+            if(rowPin&&rowPin.mode!=='none'){
+              var pins=rowPin.pins, others=rowPin.others;
+              var warn=(rowPin.mode==='trace'&&rowPin.varietyDiffers);
+              var tagTxt=rowPin.mode==='trace'?'matched on trace':((pins[0].m.ph)?'matched on variety + packhouse':'matched on variety');
+              var hdr=rowPin.mode==='tie'?('Matched \u2014 '+pins.length+' equal, trace would separate'):'Matched to this row';
+              return ce('div',null,
+                ce('div',{style:{fontSize:10,fontWeight:600,color:'#2563ad',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}},hdr),
+                pins.map(function(x){return inspCard(x.insp,warn?'var(--amber)':'#2563ad');}),
+                ce('div',{style:{display:'flex',gap:5,flexWrap:'wrap',margin:'2px 0 10px'}},
+                  ce('span',{style:{fontSize:9,background:'rgba(37,99,173,0.12)',color:'#2563ad',padding:'2px 7px',borderRadius:10}},tagTxt),
+                  warn&&ce('span',{style:{fontSize:9,background:'var(--amber-bg)',color:'var(--amber)',padding:'2px 7px',borderRadius:10}},'\u26a0 variety differs')
+                ),
+                others.length>0&&ce('div',null,
+                  ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',margin:'4px 0 6px'}},'Other on this container ('+others.length+')'),
+                  others.map(function(x){return inspCard(x.insp,'var(--border2)');})
+                )
+              );
+            }
+            return ce('div',null,
+              ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},((!aggMode&&selShip&&rowPin&&rowPin.mode==='none')?('No row match \u2014 all on container ('+inspCount+')'):('Inspections ('+inspCount+')'))),
+              inspReps.map(function(insp){return inspCard(insp,'#2563ad');})
             );
-          })
+          })()
         ),
                 /* Container details — always shown */
         ce('div',null,
