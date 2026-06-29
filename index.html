@@ -9324,7 +9324,7 @@ function IntakePanel(props){
   var sSel=useState({}); var sel=sSel[0]; var setSel=sSel[1];
   function ago(ts){ if(!ts) return ''; var ms=Date.now()-new Date(ts).getTime(); var d=Math.floor(ms/86400000); if(d>=1) return d+'d'; var h=Math.floor(ms/3600000); if(h>=1) return h+'h'; var m=Math.floor(ms/60000); return m>=1?m+'m':'now'; }
   function openFile(att){ if(!att||!att.url) return; var p=att.url.replace(/^cqc-intake-docs\//,''); supabase.storage.from('cqc-intake-docs').createSignedUrl(p,3600).then(function(su){ var u=su.data&&su.data.signedUrl; if(u) window.open(u,'_blank'); }); }
-  function expand(r){ var atts=r.attachments||[]; if(atts.length<=1){ if(atts.length===1) openFile(atts[0]); return; } if(filesFor===r.id){ setFilesFor(null); } else { var init={}; atts.forEach(function(a,ix){init[ix]=true;}); setSel(init); setFilesFor(r.id); } }
+  function expand(r){ var atts=r.attachments||[]; if(atts.length<1) return; if(filesFor===r.id){ setFilesFor(null); } else { var init={}; atts.forEach(function(a,ix){init[ix]=true;}); setSel(init); setFilesFor(r.id); } }
   function toggleSel(ix){ setSel(function(p){var n=Object.assign({},p); n[ix]=!n[ix]; return n;}); }
   function selCount(){ return Object.keys(sel).filter(function(k){return sel[k];}).length; }
   function startMulti(r){ var atts=r.attachments||[]; var chosen=atts.filter(function(a,ix){return sel[ix];}); if(!chosen.length) return; props.onStart&&props.onStart(r,chosen); setFilesFor(null); }
@@ -9347,8 +9347,8 @@ function IntakePanel(props){
         var inprog=r.status==='in_progress';
         var multi=atts.length>1;
         var rightBtns=[];
-        if(multi){ rightBtns.push(ce('button',{key:'f',className:'btn btn-sm',onClick:function(){expand(r);}},'Open files ('+atts.length+')'+(filesFor===r.id?' \u25b4':' \u25be'))); }
-        if(!multi){ if(atts.length===1) rightBtns.push(ce('button',{key:'v',className:'btn btn-sm',onClick:function(){openFile(atts[0]);}},'View file')); rightBtns.push(ce('button',{key:'s',className:'btn btn-primary btn-sm',onClick:function(){props.onStart&&props.onStart(r,atts);}}, inprog?'Resume':'Start')); }
+        if(atts.length>=1){ rightBtns.push(ce('button',{key:'f',className:'btn btn-sm',onClick:function(){expand(r);}},'Open file'+(atts.length===1?'':'s')+' ('+atts.length+')'+(filesFor===r.id?' \u25b4':' \u25be'))); }
+        
         if(inprog){ rightBtns.push(ce('button',{key:'d',className:'btn btn-sm',onClick:function(){props.onComplete&&props.onComplete(r);}},'Mark done')); }
         var mainRow=ce('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderTop:'1px solid var(--border)',flexWrap:'wrap'}},
           ce('span',{style:{fontFamily:'monospace',fontSize:13,fontWeight:500}},label),
@@ -9358,8 +9358,8 @@ function IntakePanel(props){
           r.source==='tagged'?null:ce('span',{style:{fontSize:11,color:'#b9770e'}},'untagged'),
           ce('span',{style:{marginLeft:'auto',display:'flex',gap:6}}, rightBtns)
         );
-        var sub=(filesFor===r.id && multi)?ce('div',{style:{background:'var(--card)',borderTop:'1px solid var(--border)'}},
-          ce('div',{style:{padding:'8px 14px',fontSize:12,color:'var(--text2)'}},'This email may hold more than one report \u2014 tick the file(s) for this report, view to check, then start.'),
+        var sub=(filesFor===r.id)?ce('div',{style:{background:'var(--card)',borderTop:'1px solid var(--border)'}},
+          ce('div',{style:{padding:'8px 14px',fontSize:12,color:'var(--text2)'}},(atts.length>1?'This email may hold more than one report \u2014 tick the file(s) for this report, view to check, then start.':'Confirm the file for this report, then start.')),
           ce('div',{style:{maxHeight:220,overflowY:'auto'}}, atts.map(function(a,ix){
             return ce('div',{key:ix,style:{display:'flex',alignItems:'center',gap:8,padding:'5px 14px',borderTop:'1px solid var(--border)'}},
               ce('input',{type:'checkbox',checked:!!sel[ix],onChange:function(){toggleSel(ix);}}),
