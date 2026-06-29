@@ -12923,7 +12923,7 @@ function ShipmentsMgmt(props){
                 });
                 setCqcMatches(map); setCqcRows(rowsMap);
                 /* Inspection match (container-level, season+product scoped) */
-                var inspQ=supabase.from('inspections').select('id,container_number,status,decision,avg_total_defect,avg_brix,avg_carton_weight,date,packhouse_id,has_critical,variety_id,variety2_id,farm_id,trace_code,trace_codes').eq('product_id',selProd);
+                var inspQ=supabase.from('inspections_with_aggregates').select('id,container_number,status,decision,avg_total_defect,avg_brix,avg_carton_weight,date,packhouse_id,has_critical,variety_id,variety2_id,farm_id,trace_code,trace_codes,live_avg_total_defect,live_avg_brix').eq('product_id',selProd);
                 if(config.activeSeasonId) inspQ=inspQ.eq('season_id',config.activeSeasonId);
                 inspQ.then(function(ir){
                   if(ir.error) return;
@@ -12982,7 +12982,7 @@ function ShipmentsMgmt(props){
     return {mode:(pins.length>1?'tie':'one'),pins:pins,others:others};
   }
   function inspCard(insp,accent){
-    var td=insp.avg_total_defect;
+    var td=(insp.live_avg_total_defect!=null?insp.live_avg_total_defect:insp.avg_total_defect);
     var tdCol=td==null?'var(--text3)':(td>10?'var(--red)':td>5?'var(--amber)':'var(--green)');
     var stCol=insp.status==='Accepted'||insp.status==='Approved'?'var(--green)':insp.status==='Rejected'?'var(--red)':'var(--text2)';
     return ce('div',{key:insp.id,onClick:function(){openInspPreview(insp.id);},style:{border:'1px solid var(--border)',borderLeft:'3px solid '+(accent||'#2563ad'),borderRadius:8,marginBottom:8,padding:'9px 12px',cursor:'pointer'}},
@@ -12999,7 +12999,7 @@ function ShipmentsMgmt(props){
         _vname(insp.variety_id)&&ce('span',null,_vname(insp.variety_id)),
         _fname(insp.farm_id)&&ce('span',null,_fname(insp.farm_id)),
         insp.decision&&ce('span',null,'Decision: '+insp.decision),
-        insp.avg_brix!=null&&ce('span',null,'Brix '+Number(insp.avg_brix).toFixed(1))
+        (insp.live_avg_brix!=null?insp.live_avg_brix:insp.avg_brix)!=null&&ce('span',null,'Brix '+Number(insp.live_avg_brix!=null?insp.live_avg_brix:insp.avg_brix).toFixed(1))
       )
     );
   }
