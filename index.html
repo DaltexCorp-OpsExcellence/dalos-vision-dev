@@ -9592,6 +9592,18 @@ function ClientQCMgmt(props){
                 });
               });
               return Math.round(grandTotal/samples.length*100)/100;
+            })(),
+            topDefects:(function(){
+              var samples=r.cqc_sample_rows||[];
+              if(!samples.length) return [];
+              var pid=r.product_id||'citrus';
+              var secs=(config.cqcDefectSections||{})[pid]||[];
+              var meta={};
+              secs.forEach(function(sec){(sec.items||[]).forEach(function(it){if(it.dbId!=null)meta[it.dbId]={name:it.en||it.key,severity:it.sev||sec.section};});});
+              var sums={};
+              samples.forEach(function(sr){(sr.cqc_sample_defect_readings||[]).forEach(function(dr){var v=parseFloat(dr.value)||0;if(v>0&&meta[dr.cqc_defect_id]){var m=meta[dr.cqc_defect_id];if(!sums[dr.cqc_defect_id])sums[dr.cqc_defect_id]={name:m.name,severity:m.severity,s:0};sums[dr.cqc_defect_id].s+=v;}});});
+              var n=samples.length;
+              return Object.keys(sums).map(function(k){return {name:sums[k].name,severity:sums[k].severity,pct:Math.round(sums[k].s/n*100)/100};}).sort(function(a,b){return b.pct-a.pct;}).slice(0,3);
             })()
           };
         });
@@ -12130,8 +12142,7 @@ function ClientQCMgmt(props){
                     th('Variety',{cls:'cqc-th-hide'}),
                     th(sortBtn('packDate','Pack date'),{cls:'cqc-th-hide'}),
                     th(sortBtn('defect','Defect'),{accent:'var(--amber)',labelColor:'var(--text2)'}),
-                    th('Major',{cls:'cqc-th-hide',accent:'#c0392b',labelColor:'#8a2020',bg:'#fdf8f8'}),
-                    th('Minor',{cls:'cqc-th-hide',accent:'#ba7517',labelColor:'#7a4a10',bg:'#fefcf4'}),
+                    th('Top defects',{}),
                     th('Score',{}),
                     th('Status',{}),
                   ];
@@ -12139,7 +12150,7 @@ function ClientQCMgmt(props){
               )),
               ce('tbody',null,
                 sortedFiltered.length===0
-                  ?ce('tr',null,ce('td',{colSpan:9,style:{padding:'32px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No reports match the current filters.'))
+                  ?ce('tr',null,ce('td',{colSpan:8,style:{padding:'32px',textAlign:'center',color:'var(--text3)',fontSize:13}},'No reports match the current filters.'))
                   :sortedFiltered.map(function(r,i){
                     var isSelected=selRep===r.id;
                     return ce('tr',{key:r.id||i,
@@ -12161,15 +12172,10 @@ function ClientQCMgmt(props){
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',minWidth:120,textAlign:'center'}},
                         (function(){var d=r.sampleAvgTotal!=null?r.sampleAvgTotal:r.totalDefect;return d!=null?defectBar(d):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—');})()
                       ),
-                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center',whiteSpace:'nowrap'}},
-                        r.sectionAvgs&&r.sectionAvgs.Major!=null
-                          ?ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:r.sectionAvgs.Major>5?'var(--red)':'#b52828'}},r.sectionAvgs.Major.toFixed(2)+'%')
-                          :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
-                      ),
-                      ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center',whiteSpace:'nowrap'}},
-                        r.sectionAvgs&&r.sectionAvgs.Minor!=null
-                          ?ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:r.sectionAvgs.Minor>5?'var(--amber)':'#8a6010'}},r.sectionAvgs.Minor.toFixed(2)+'%')
-                          :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
+                      ce('td',{style:{padding:'10px 12px',verticalAlign:'middle'}},
+                        (r.topDefects&&r.topDefects.length>0)
+                          ?ce('div',{style:{display:'flex',flexWrap:'wrap',gap:'0 5px'}},r.topDefects.map(function(t){return ce('span',{key:t.name,title:t.name,style:{fontSize:10,background:'var(--bg2)',borderLeft:'3px solid '+(t.severity==='Critical'?'var(--red)':t.severity==='Major'?'#b52828':'var(--amber)'),borderRadius:'0 5px 5px 0',padding:'2px 7px',marginBottom:4,maxWidth:190,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'inline-block',verticalAlign:'middle'}},ce('b',null,t.name.length>26?t.name.slice(0,25)+'\u2026':t.name),' '+t.pct.toFixed(2)+'%');}))
+                          :ce('span',{style:{color:'var(--text3)',fontSize:12}},'\u2014')
                       ),
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},
                         r.score?ce('span',{style:{display:'inline-block',padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
@@ -13090,44 +13096,45 @@ function ShipmentsMgmt(props){
   }
 
   /* ── Build aggregated container view ── */
-  /* Key = container_number + carta to handle containers reused across voyages */
+  /* Group by container_number + loading-date window: rows within LOAD_GAP_DAYS are one
+     physical load; a larger gap = a separate voyage (same container reused later). */
+  var LOAD_GAP_DAYS=7;
+  var _byCN={};
+  shipments.forEach(function(s){var cn=s.container_number||'(no container)';(_byCN[cn]=_byCN[cn]||[]).push(s);});
   var containerMap={};
-  shipments.forEach(function(s){
-    var cn=s.container_number||'(no container)';
-    var carta=s.carta||'';
-    var key=cn+'||'+carta;
-    if(!containerMap[key]) containerMap[key]={
-      container_number:cn,
-      carta:carta,
-      key:key,
-      rows:[],
-      clients:new Set(),
-      subclients:new Set(),
-      varieties:new Set(),
-      farms:new Set(),
-      countries:new Set(),
-      statuses:new Set(),
-      total_cartons:0,
-      total_net_weight:0,
-      loading_dates:new Set(),
-      etas:new Set(),
-      invoice_nos:new Set(),
-      cartas:new Set(),
-    };
-    var c=containerMap[key];
-    c.rows.push(s);
-    if(s.client) c.clients.add(s.client);
-    if(s.subclient) c.subclients.add(s.subclient);
-    if(s.variety) c.varieties.add(s.variety);
-    if(s.farm_source) c.farms.add(s.farm_source);
-    if(s.receiving_country) c.countries.add(s.receiving_country);
-    if(s.shipping_status) c.statuses.add(s.shipping_status);
-    if(s.loading_date) c.loading_dates.add(s.loading_date);
-    if(s.eta) c.etas.add(s.eta);
-    if(s.invoice_no) c.invoice_nos.add(s.invoice_no);
-    if(s.carta) c.cartas.add(s.carta);
-    c.total_cartons+=(s.carton_count||0);
-    c.total_net_weight+=(s.net_weight||0);
+  Object.keys(_byCN).forEach(function(cn){
+    var crows=_byCN[cn].slice().sort(function(a,b){return (a.loading_date||'').localeCompare(b.loading_date||'');});
+    var clusterIdx=0; var prevT=null;
+    crows.forEach(function(s){
+      var t=s.loading_date?Date.parse(s.loading_date):null;
+      if(prevT!=null&&t!=null&&Math.abs(t-prevT)/86400000>LOAD_GAP_DAYS) clusterIdx++;
+      if(t!=null) prevT=t;
+      var key=cn+'||'+clusterIdx;
+      if(!containerMap[key]) containerMap[key]={
+        container_number:cn, carta:s.carta||'', key:key, rows:[],
+        clients:new Set(), subclients:new Set(), varieties:new Set(), farms:new Set(),
+        packhouses:new Set(), countries:new Set(), statuses:new Set(),
+        total_cartons:0, total_pallets:0, total_net_weight:0, total_gross_weight:0,
+        loading_dates:new Set(), etas:new Set(), invoice_nos:new Set(), cartas:new Set(),
+      };
+      var c=containerMap[key];
+      c.rows.push(s);
+      if(s.client) c.clients.add(s.client);
+      if(s.subclient) c.subclients.add(s.subclient);
+      if(s.variety) c.varieties.add(s.variety);
+      if(s.farm_source) c.farms.add(s.farm_source);
+      if(s.pack_house) c.packhouses.add(s.pack_house);
+      if(s.receiving_country) c.countries.add(s.receiving_country);
+      if(s.shipping_status) c.statuses.add(s.shipping_status);
+      if(s.loading_date) c.loading_dates.add(s.loading_date);
+      if(s.eta) c.etas.add(s.eta);
+      if(s.invoice_no) c.invoice_nos.add(s.invoice_no);
+      if(s.carta) c.cartas.add(s.carta);
+      c.total_cartons+=(parseInt(s.carton_count,10)||0);
+      c.total_pallets+=(parseInt(s.pallet_count,10)||0);
+      c.total_net_weight+=(parseFloat(s.net_weight)||0);
+      c.total_gross_weight+=(parseFloat(s.gross_weight)||0);
+    });
   });
   var containers=Object.values(containerMap);
 
@@ -13328,13 +13335,15 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                 ['Varieties',[...c.varieties].join(', ')||null],
                 ['Client',[...c.clients].join(', ')||null],
                 ['Country',[...c.countries].join(', ')||null],
-                ['Pack House',c.rows[0]&&c.rows[0].pack_house||null],
-                ['Farm Source',c.rows[0]&&c.rows[0].farm_source||null],
+                ['Pack House',[...c.packhouses].join(', ')||null],
+                ['Farms',[...c.farms].join(', ')||null],
                 ['Loading Date',[...c.loading_dates].sort()[0]||null],
                 ['ETA',[...c.etas].sort().pop()||null],
                 ['Status',[...c.statuses].join(', ')||null],
                 ['Total Cartons',c.total_cartons||null],
+                ['Total Pallets',c.total_pallets||null],
                 ['Net Weight',c.total_net_weight>0?c.total_net_weight.toFixed(1)+' t':null],
+                ['Gross Weight',c.total_gross_weight>0?c.total_gross_weight.toFixed(1)+' t':null],
                 ['Rows',c.rows.length],
               ];
             } else if(s){
@@ -13525,8 +13534,8 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                   var etaArr=[...c.etas].sort();
                   return ce('tr',{key:c.key,className:'click',onClick:function(){openContainer(c.key,c.container_number);},style:{background:isSelected?'var(--green-bg)':''}},
                     ce('td',null,ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600}},c.container_number),
-                      c.carta&&ce('div',{style:{fontSize:10,color:'var(--text3)',fontFamily:'var(--font-mono)'}},'Carta: '+c.carta),
-                      ce('div',{style:{fontSize:10,color:'var(--text3)',marginTop:1}},c.rows.length+' row'+(c.rows.length!==1?'s':'')+' \u00b7 '+(c.total_net_weight>0?c.total_net_weight.toFixed(1)+' t':''))
+                      c.cartas.size>0&&ce('div',{style:{fontSize:10,color:'var(--text3)',fontFamily:'var(--font-mono)'}},'Carta: '+[...c.cartas].join(', ')),
+                      ce('div',{style:{fontSize:10,color:'var(--text3)',marginTop:1}},c.rows.length+' row'+(c.rows.length!==1?'s':'')+(c.total_pallets>0?' \u00b7 '+c.total_pallets+' plt':'')+' \u00b7 '+(c.total_net_weight>0?c.total_net_weight.toFixed(1)+' t':''))
                     ),
                     ce('td',{style:{fontSize:11,color:'var(--text3)',fontFamily:'var(--font-mono)'}},[...c.invoice_nos].join(', ')||'—'),
                     ce('td',{style:{fontSize:12}},
