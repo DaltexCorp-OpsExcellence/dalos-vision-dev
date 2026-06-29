@@ -10389,56 +10389,27 @@ function ClientQCMgmt(props){
         setCqcSaveErr('Save failed: '+(res.error.message||'unknown error')+'. Your data is still here \u2014 please fix and retry.');
         return;
       }
-      console.log('[DalOS] CQC report saved:',reportId);
-      /* DEFENSE 2 — parent write CONFIRMED: now apply local state + clear the form */
-      if(editRep){ setReports(function(prev){return prev.map(function(x){return x.id===editRep?r:x;});}); }
-      else { setReports(function(prev){return prev.concat([r]);}); }
-      setCqcSaving(false);
-      setCqcSaveErr('');
-      clearForm();setEditRep(null);setShowNew(false);
-      if(startRow&&isNew){var _ic=startRow;setStartRow(null);supabase.from('cqc_intake').update({client_qc_report_id:reportId,status:((_ic.attachments||[]).length>1?'in_progress':'completed')}).eq('id',_ic.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});}
-      /* Save uploaded files — only NEW ones (no dbId = not yet in DB) */
+      console.log('[DalOS] CQC report saved (parent):',reportId);
+      /* DEFENSE 4 — wait for ALL child writes before clearing the form.
+         must(): reject if a Supabase write returns an error so Promise.all can catch it. */
+      function must(label,builder){return builder.then(function(rr){if(rr&&rr.error)throw new Error(label+': '+(rr.error.message||'error'));return rr;});}
+      var childWrites=[];
+      /* Child 1 — uploaded files (only NEW ones not yet in DB) */
       var newFiles=uploadedFilesSnapshot.filter(function(f){return f.storagePath&&f.fileUrl&&!f.dbId;});
       if(newFiles.length>0){
-        supabase.auth.getUser().then(function(ur){
-          var fileRows=newFiles.map(function(f){
-            return {client_qc_report_id:reportId,file_name:f.name,file_url:f.fileUrl,file_type:f.type,uploaded_by:ur.data&&ur.data.user?ur.data.user.id:null};
-          });
-          supabase.from('client_qc_files').insert(fileRows).then(function(r){
-            if(r.error) console.error('[DalOS] File records save error:',r.error.message);
-            else console.log('[DalOS] File records saved:',fileRows.length);
-          });
-        });
+        childWrites.push(supabase.auth.getUser().then(function(ur){
+          var fileRows=newFiles.map(function(f){return {client_qc_report_id:reportId,file_name:f.name,file_url:f.fileUrl,file_type:f.type,uploaded_by:ur.data&&ur.data.user?ur.data.user.id:null};});
+          return must('Files',supabase.from('client_qc_files').insert(fileRows));
+        }));
       }
-      /* Trigger full reload so sectionAvgs/sampleAvgTotal/allVarieties are all recomputed from DB */
-      setSelRep(reportId);
-      setReloadTick(function(n){return n+1;});
-      /* ── Save CQC defect readings ── */
+      /* Child 2 — report-level defect readings (delete-then-insert when editing) */
       var readings=[];
-      Object.keys(defVals).forEach(function(key){
-        var val=parseFloat(defVals[key])||0;
-        if(val>0){
-          readings.push({
-            client_qc_report_id:reportId,
-            bucket_key:key,
-            value:val
-          });
-        }
-      });
-      if(readings.length>0){
-      /* If editing, delete old readings first */
-      var deletePromise=isNew?Promise.resolve():supabase.from('client_qc_defect_readings').delete().eq('client_qc_report_id',reportId);
-      deletePromise.then(function(){
-        supabase.from('client_qc_defect_readings').insert(readings).then(function(r){
-          if(r.error) console.error('[DalOS] CQC defect readings error:',r.error.message);
-          else console.log('[DalOS] CQC defect readings saved:',readings.length);
-        });
-      });
-      }
-      /* ── Save CQC sample rows + defect readings ── */
-      var samplesDeletePromise=isNew?Promise.resolve():supabase.from('cqc_sample_rows').delete().eq('client_qc_report_id',reportId);
-      samplesDeletePromise.then(function(){
-        console.log('[DalOS] CQC samples snapshot length:',cqcSamplesSnapshot.length);
+      Object.keys(defVals).forEach(function(key){var val=parseFloat(defVals[key])||0;if(val>0){readings.push({client_qc_report_id:reportId,bucket_key:key,value:val});}});
+      childWrites.push((isNew?Promise.resolve():must('Clear defect readings',supabase.from('client_qc_defect_readings').delete().eq('client_qc_report_id',reportId))).then(function(){
+        if(readings.length>0) return must('Defect readings',supabase.from('client_qc_defect_readings').insert(readings));
+      }));
+      /* Child 3 — sample rows + their defect readings (delete-then-insert when editing) */
+      childWrites.push((isNew?Promise.resolve():must('Clear sample rows',supabase.from('cqc_sample_rows').delete().eq('client_qc_report_id',reportId))).then(function(){
         if(cqcSamplesSnapshot.length===0) return;
         var pid=selCqcProd||'citrus';
         var secs=(config.cqcDefectSections||{})[pid]||[];
@@ -10475,8 +10446,8 @@ function ClientQCMgmt(props){
           var _effTrace=s.sampleTraceCode||(function(){var tc=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);return tc.length===1?tc[0]:'';})();
           return {client_qc_report_id:reportId,sample_number:idx+1,sample_type:s.sampleType||'sample_readings',notes:s.notes||null,score:s.score||null,brix:s.brix?parseFloat(s.brix):null,brix_issue:s.brixIssue||false,avg_size:s.avgSize?parseFloat(s.avgSize):null,size_issue:s.sizeIssue||false,carton_issue:s.cartonIssue||false,disputed:s.disputed||false,dispute_note:s.disputeNote||null,sample_variety_id:(function(){if(!_effVar)return null;var parts=_effVar.split(' / ');return (config.varietiesIdMap&&config.varietiesIdMap[parts[0].trim()])||null;})(),sample_variety2_id:(function(){if(!_effVar||_effVar.indexOf(' / ')<0)return null;var parts=_effVar.split(' / ');return (config.varietiesIdMap&&config.varietiesIdMap[parts[1].trim()])||null;})(),sample_variety_text:_effVar||null,sample_farm:_effFarm||null,sample_plot:_effPlot||null,sample_farm2:s.sampleFarm2||null,sample_plot2:s.samplePlot2||null,sample_ph:_effPH||null,sample_trace_code:_effTrace||null};
         });
-        supabase.from('cqc_sample_rows').insert(sampleRows).select().then(function(sr){
-          if(sr.error||!sr.data){console.error('[DalOS] CQC sample rows error:',sr.error&&sr.error.message);return;}
+        return must('Sample rows',supabase.from('cqc_sample_rows').insert(sampleRows).select()).then(function(sr){
+          if(!sr.data) return;
           console.log('[DalOS] CQC sample rows saved:',sr.data.length);
           var defReadings=[];
           sr.data.forEach(function(savedRow,idx){
@@ -10488,11 +10459,27 @@ function ClientQCMgmt(props){
             });});
           });
           if(defReadings.length===0) return;
-          supabase.from('cqc_sample_defect_readings').insert(defReadings).then(function(r){
-            if(r.error) console.error('[DalOS] CQC sample defect readings error:',r.error.message);
-            else console.log('[DalOS] CQC sample defect readings saved:',defReadings.length);
-          });
+          return must('Sample defect readings',supabase.from('cqc_sample_defect_readings').insert(defReadings));
         });
+      }));
+      /* Gate the "saved" UI on ALL child writes completing successfully */
+      return Promise.all(childWrites).then(function(){
+        console.log('[DalOS] All CQC writes confirmed:',reportId);
+        if(editRep){ setReports(function(prev){return prev.map(function(x){return x.id===editRep?r:x;});}); }
+        else { setReports(function(prev){return prev.concat([r]);}); }
+        setCqcSaving(false);
+        setCqcSaveErr('');
+        clearForm();setEditRep(null);setShowNew(false);
+        if(startRow&&isNew){var _ic=startRow;setStartRow(null);supabase.from('cqc_intake').update({client_qc_report_id:reportId,status:((_ic.attachments||[]).length>1?'in_progress':'completed')}).eq('id',_ic.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});}
+        setSelRep(reportId);
+        setReloadTick(function(n){return n+1;});
+      }).catch(function(ce){
+        /* A child write failed. The parent row IS saved — flip to edit mode so a retry UPDATES
+           (idempotent) instead of re-inserting, and keep the form intact for that retry. */
+        console.error('[DalOS] CQC child write failed:',ce);
+        setEditRep(reportId);
+        setCqcSaving(false);
+        setCqcSaveErr('Partially saved \u2014 the main report was stored but some details ('+((ce&&ce.message)||'related records')+') did not save. Press Save again to finish; nothing will be duplicated.');
       });
     }).catch(function(e){console.error('[DalOS] CQC save failed:',e);setCqcSaving(false);setCqcSaveErr('Save failed: '+((e&&e.message)||'network error')+'. Your data is still here \u2014 please retry.');});
 
