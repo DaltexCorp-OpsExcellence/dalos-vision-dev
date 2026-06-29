@@ -10667,6 +10667,8 @@ function ClientQCMgmt(props){
               var farmName=(config.farmsIdToName&&r.farm_id&&config.farmsIdToName[r.farm_id])||r.farm_id||'';
               var farm2Name=(config.farmsIdToName&&r.farm2_id&&config.farmsIdToName[r.farm2_id])||'';
               var varName=(config.varietiesIdToName&&r.variety_id&&config.varietiesIdToName[r.variety_id])||'';
+              var var2Name=(config.varietiesIdToName&&r.variety2_id&&config.varietiesIdToName[r.variety2_id])||'';
+              var varDisplay=(r.variety_type==='mixed'||var2Name)?([varName,var2Name].filter(Boolean).join(' / ')+' (mix)'):(varName||'');
               return ce('div',{key:r.id,
                 style:{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:isSelected?'var(--green)':'var(--card)',borderRadius:6,marginBottom:4,cursor:'pointer',border:'1px solid '+(isSelected?'var(--green)':'var(--border)'),transition:'all .12s'},
                 onClick:function(id){return function(){setInspectionIds(function(prev){return prev.indexOf(id)>=0?prev.filter(function(x){return x!==id;}):prev.concat([id]);});};}(r.id)
@@ -10675,7 +10677,7 @@ function ClientQCMgmt(props){
                   isSelected&&ce('svg',{width:10,height:10,viewBox:'0 0 10 10'},ce('polyline',{points:'1.5,5 4,7.5 8.5,2',stroke:'#fff',strokeWidth:1.8,fill:'none',strokeLinecap:'round',strokeLinejoin:'round'}))
                 ),
                 ce('div',{style:{flex:1,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}},
-                  [['ID',r.id],['Packhouse',phName],['Farm',[farmName,farm2Name].filter(Boolean).join(' / ')||'\u2014'],['Variety',varName||'\u2014'],['Date',r.date||'\u2014'],['Plot',[r.plot,r.plot2].filter(Boolean).join(', ')||'\u2014'],['Trace',r.trace_code||'\u2014'],['Status',r.status||'\u2014']].map(function(item){
+                  [['ID',r.id],['Packhouse',phName],['Farm',[farmName,farm2Name].filter(Boolean).join(' / ')||'\u2014'],['Variety',varDisplay||'\u2014'],['Date',r.date||'\u2014'],['Plot',[r.plot,r.plot2].filter(Boolean).join(', ')||'\u2014'],['Trace',r.trace_code||'\u2014'],['Status',r.status||'\u2014']].map(function(item){
                     return ce('div',{key:item[0],style:{minWidth:0}},
                       ce('div',{style:{fontSize:9,color:isSelected?'rgba(255,255,255,0.7)':'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em'}},(item[0])),
                       ce('div',{style:{fontSize:11,fontWeight:500,color:isSelected?'#fff':'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(item[1]))
