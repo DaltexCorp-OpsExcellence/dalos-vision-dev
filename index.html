@@ -12818,6 +12818,7 @@ function ShipmentsMgmt(props){
   var sCqcDetails=useState({}); var cqcDetails=sCqcDetails[0]; var setCqcDetails=sCqcDetails[1];
   var sInspMatches=useState({}); var inspMatches=sInspMatches[0]; var setInspMatches=sInspMatches[1];
   var sInspRows=useState({}); var inspRows=sInspRows[0]; var setInspRows=sInspRows[1];
+  var sInspPopup=useState(null); var inspPopup=sInspPopup[0]; var setInspPopup=sInspPopup[1];
   React.useEffect(function(){var st=props.initialShip;if(st&&st.prod){setSelProd(st.prod);if(typeof setAggMode==='function')setAggMode(st.agg!==false);if(st.container)setSelContainer(st.container);if(st.ship)setSelShip(st.ship);}},[]);
   var sLoading=useState(false); var loading=sLoading[0]; var setLoading=sLoading[1];
   var sSearch=useState(''); var search=sSearch[0]; var setSearch=sSearch[1];
@@ -12946,6 +12947,24 @@ function ShipmentsMgmt(props){
   }
   function cqcFor(cn){return cqcRows[(cn||'').replace(/\s+/g,' ').trim().toUpperCase()]||[];}
   function inspFor(cn){return inspRows[(cn||'').replace(/\s+/g,' ').trim().toUpperCase()]||[];}
+  function openInspPreview(id){
+    setInspPopup({id:id,loading:true,data:null});
+    supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',id).single().then(function(ir){
+      if(ir.error||!ir.data){setInspPopup(null);return;}
+      var insp=ir.data;
+      supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,sample_variety_id,pallets(pallet_number),sample_defect_readings(value,defects(severity))').eq('inspection_id',id).order('sample_number').then(function(sr){
+        var rows=(sr.data||[]).map(function(row){
+          var tot={Critical:0,Major:0,Minor:0};
+          (row.sample_defect_readings||[]).forEach(function(d){var sv=d.defects&&d.defects.severity;if(sv&&tot[sv]!==undefined)tot[sv]+=parseFloat(d.value)||0;});
+          var ef=row.extra_fields||{};
+          return {pallet:(row.pallets&&row.pallets.pallet_number)||'—',num:row.sample_number,variety:(config.varietiesIdToName&&row.sample_variety_id&&config.varietiesIdToName[row.sample_variety_id])||'',farm:ef.sampleFarm||'',plot:ef.samplePlot||'',brix:row.brix,size:ef.grape_size||row.size||'',netWt:ef.netWeight?Math.round(ef.netWeight/100)/10:null,critical:tot.Critical,major:tot.Major,minor:tot.Minor,total:tot.Critical+tot.Major+tot.Minor};
+        });
+        var ph=(config.packhouses&&config.packhouses.find(function(p){return p.id===insp.packhouse_id;}))||{};
+        var variety=(config.varietiesIdToName&&insp.variety_id&&config.varietiesIdToName[insp.variety_id])||insp.variety_id||'';
+        setInspPopup({id:id,loading:false,data:{id:insp.id,date:insp.date,packhouse:ph.name||insp.packhouse_id||'',variety:variety,decision:insp.decision,status:insp.status,avgBrix:insp.avg_brix,avgDefect:insp.avg_total_defect,hasCritical:insp.has_critical,samples:rows}});
+      });
+    });
+  }
   function toggleCqcDetail(repId){
     if(cqcOpen===repId){setCqcOpen(null);return;}
     setCqcOpen(repId);
@@ -13282,12 +13301,13 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
             var td=insp.avg_total_defect;
             var tdCol=td==null?'var(--text3)':(td>10?'var(--red)':td>5?'var(--amber)':'var(--green)');
             var stCol=insp.status==='Accepted'||insp.status==='Approved'?'var(--green)':insp.status==='Rejected'?'var(--red)':'var(--text2)';
-            return ce('div',{key:insp.id,style:{border:'1px solid var(--border)',borderLeft:'3px solid #2563ad',borderRadius:8,marginBottom:8,padding:'9px 12px'}},
+            return ce('div',{key:insp.id,onClick:function(){openInspPreview(insp.id);},style:{border:'1px solid var(--border)',borderLeft:'3px solid #2563ad',borderRadius:8,marginBottom:8,padding:'9px 12px',cursor:'pointer'}},
               ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
                 ce('span',{style:{fontSize:11,fontWeight:700,fontFamily:'var(--font-mono)'}},insp.id),
                 insp.status&&ce('span',{style:{fontSize:9,padding:'2px 6px',borderRadius:6,background:'var(--bg2)',color:stCol,fontWeight:600}},insp.status),
                 insp.has_critical&&ce('span',{className:'badge badge-fail',style:{fontSize:9}},'critical'),
-                ce('span',{style:{marginLeft:'auto',fontSize:11,fontWeight:700,fontFamily:'var(--font-mono)',color:tdCol}},td!=null?Number(td).toFixed(1)+'%':'\u2014')
+                ce('span',{style:{marginLeft:'auto',fontSize:11,fontWeight:700,fontFamily:'var(--font-mono)',color:tdCol}},td!=null?Number(td).toFixed(1)+'%':'\u2014'),
+                ce('span',{style:{color:'var(--text3)',fontSize:13,marginLeft:2}},'\u203a')
               ),
               ce('div',{style:{display:'flex',gap:10,marginTop:5,fontSize:10,color:'var(--text3)',flexWrap:'wrap'}},
                 insp.date&&ce('span',null,insp.date),
@@ -13589,7 +13609,101 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         )
       ) /* end table content */
     ), /* end main column */
-    mkSidePanel()
+    mkSidePanel(),
+        inspPopup&&ce('div',{style:{position:'fixed',inset:0,zIndex:9000,background:'rgba(0,0,0,.45)',display:'flex',alignItems:'center',justifyContent:'center',padding:16},
+          onClick:function(e){if(e.target===e.currentTarget)setInspPopup(null);}},
+          ce('div',{style:{background:'var(--card)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.25)',width:'100%',maxWidth:640,maxHeight:'85vh',display:'flex',flexDirection:'column',overflow:'hidden'}},
+            /* Header */
+            ce('div',{style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',padding:'14px 18px',borderBottom:'1px solid var(--border)',flexShrink:0}},
+              ce('div',null,
+                ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:16,fontWeight:700,color:'var(--accent)',letterSpacing:'-.01em'}},inspPopup.id),
+                inspPopup.data&&ce('div',{style:{fontSize:12,color:'var(--text3)',marginTop:3}},
+                  [inspPopup.data.packhouse,inspPopup.data.variety,inspPopup.data.date].filter(Boolean).join(' · ')
+                )
+              ),
+              ce('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},
+                inspPopup.data&&inspPopup.data.decision&&ce('span',{style:{
+                  fontSize:11,fontWeight:600,padding:'3px 9px',borderRadius:12,
+                  background:inspPopup.data.decision==='A'?'var(--green-bg)':inspPopup.data.decision==='R'?'#fff0f0':'var(--amber-bg)',
+                  color:inspPopup.data.decision==='A'?'var(--green)':inspPopup.data.decision==='R'?'var(--red)':'var(--amber)'
+                }},inspPopup.data.decision==='A'?'✓ Accepted':inspPopup.data.decision==='R'?'✗ Rejected':inspPopup.data.decision),
+                ce('button',{onClick:function(){setInspPopup(null);},style:{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'var(--text3)',lineHeight:1,padding:'0 4px'}},'×')
+              )
+            ),
+            inspPopup.loading
+              /* Loading state */
+              ?ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',padding:40,gap:10,color:'var(--text3)'}},
+                  ce('span',{className:'dalos-spinner'}),
+                  ce('span',{style:{fontSize:13}},'Loading inspection…')
+                )
+              /* Content */
+              :inspPopup.data&&ce('div',{style:{overflowY:'auto',flex:1}},
+                  /* Summary KPIs */
+                  ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,padding:'12px 18px',borderBottom:'1px solid var(--border)'}},
+                    [['Samples',inspPopup.data.samples.length,null],
+                     ['Avg Brix',inspPopup.data.avgBrix!=null?inspPopup.data.avgBrix.toFixed(1)+'°':'—',null],
+                     ['Avg Defect',inspPopup.data.avgDefect!=null?inspPopup.data.avgDefect.toFixed(2)+'%':null,inspPopup.data.avgDefect],
+                     ['Critical',inspPopup.data.hasCritical?'⚠ Yes':'None',inspPopup.data.hasCritical?99:0]
+                    ].map(function(item){
+                      var color=item[2]!=null?(item[2]>10?'var(--red)':item[2]>5?'var(--amber)':item[2]>0?'var(--green)':'var(--text3)'):'var(--text)';
+                      return ce('div',{key:item[0],style:{background:'var(--bg2)',borderRadius:8,padding:'8px 10px'}},
+                        ce('div',{style:{fontSize:9,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:3}},item[0]),
+                        ce('div',{style:{fontSize:17,fontWeight:600,color:color}},item[1]!=null?item[1]:'—')
+                      );
+                    })
+                  ),
+                  /* Sample table */
+                  inspPopup.data.samples.length>0&&ce('div',{style:{padding:'0 18px 18px'}},
+                    ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.07em',margin:'12px 0 8px'}},'Sample readings'),
+                    ce('div',{style:{overflowX:'auto'}},
+                      ce('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:12}},
+                        ce('thead',null,ce('tr',null,
+                          ['Pallet','Variety','Farm','Plot','Brix','Size','Crit%','Major%','Minor%','Total%'].map(function(h){
+                            return ce('th',{key:h,style:{textAlign:h==='#'?'center':'right',padding:'5px 10px',fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'2px solid var(--border)',background:'var(--bg2)',whiteSpace:'nowrap'}},h);
+                          })
+                        )),
+                        ce('tbody',null,
+                          inspPopup.data.samples.map(function(s){
+                            return ce('tr',{key:s.num,style:{borderBottom:'0.5px solid var(--border)'}},
+                              ce('td',{style:{padding:'6px 10px',fontFamily:'var(--font-mono)',fontSize:11,fontWeight:600,color:'var(--accent)',whiteSpace:'nowrap'}},s.pallet),
+                              ce('td',{style:{padding:'6px 10px',fontSize:11,color:'var(--text2)',maxWidth:100,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.variety||inspPopup.data.variety||'—'),
+                              ce('td',{style:{padding:'6px 10px',fontSize:11,color:'var(--text2)',maxWidth:90,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.farm||'—'),
+                              ce('td',{style:{padding:'6px 10px',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.plot||'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)'}},s.brix!=null?parseFloat(s.brix).toFixed(1)+'°':'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.size||'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.critical>0?'var(--red)':'var(--text3)'}},s.critical>0?s.critical.toFixed(2)+'%':'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.major>0?'#b52828':'var(--text3)'}},s.major>0?s.major.toFixed(2)+'%':'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontWeight:500,color:s.minor>0?'var(--amber)':'var(--text3)'}},s.minor>0?s.minor.toFixed(2)+'%':'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontWeight:700,color:s.total>10?'var(--red)':s.total>5?'var(--amber)':s.total>0?'var(--green)':'var(--text3)'}},s.total>0?s.total.toFixed(2)+'%':'—')
+                            );
+                          }),
+                          /* Averages footer */
+                          (function(){
+                            var n=inspPopup.data.samples.length;
+                            if(n===0) return null;
+                            var avg=function(f){return inspPopup.data.samples.reduce(function(s,r){return s+r[f];},0)/n;};
+                            return ce('tr',{style:{background:'var(--bg2)',fontWeight:600}},
+                              ce('td',{style:{textAlign:'center',padding:'6px 10px',fontSize:10,color:'var(--text3)',fontWeight:600}},'Ø avg'),
+                              ce('td',{style:{padding:'6px 10px'}}),
+                              ce('td',{style:{padding:'6px 10px'}}),
+                              ce('td',{style:{padding:'6px 10px'}}),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},
+                                (function(){var b=inspPopup.data.samples.filter(function(s){return s.brix!=null;});return b.length>0?(b.reduce(function(s,r){return s+parseFloat(r.brix);},0)/b.length).toFixed(1)+'°':'—';})()
+                              ),
+                              ce('td',{style:{padding:'6px 10px'}}),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',color:avg('critical')>0?'var(--red)':'var(--text3)'}},avg('critical')>0?avg('critical').toFixed(2)+'%':'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',color:avg('major')>0?'#b52828':'var(--text3)'}},avg('major')>0?avg('major').toFixed(2)+'%':'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',color:avg('minor')>0?'var(--amber)':'var(--text3)'}},avg('minor')>0?avg('minor').toFixed(2)+'%':'—'),
+                              ce('td',{style:{textAlign:'right',padding:'6px 10px',fontFamily:'var(--font-mono)',color:avg('total')>10?'var(--red)':avg('total')>5?'var(--amber)':'var(--green)'}},avg('total').toFixed(2)+'%')
+                            );
+                          })()
+                        )
+                      )
+                    )
+                  )
+                )
+          )
+        )
   );
 }
 
