@@ -13104,6 +13104,7 @@ function ShipmentsMgmt(props){
       clients:new Set(),
       subclients:new Set(),
       varieties:new Set(),
+      farms:new Set(),
       countries:new Set(),
       statuses:new Set(),
       total_cartons:0,
@@ -13118,6 +13119,7 @@ function ShipmentsMgmt(props){
     if(s.client) c.clients.add(s.client);
     if(s.subclient) c.subclients.add(s.subclient);
     if(s.variety) c.varieties.add(s.variety);
+    if(s.farm_source) c.farms.add(s.farm_source);
     if(s.receiving_country) c.countries.add(s.receiving_country);
     if(s.shipping_status) c.statuses.add(s.shipping_status);
     if(s.loading_date) c.loading_dates.add(s.loading_date);
@@ -13504,14 +13506,14 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
           ce('div',{className:'table-wrap',style:{overflowX:'auto',overflowY:'auto',maxHeight:'calc(100vh - 320px)'}},
             ce('table',{style:{borderCollapse:'collapse',width:'100%'}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
-                ce('th',null,'Container'),ce('th',null,'Invoice(s)'),ce('th',null,'Varieties'),
+                ce('th',null,'Container'),ce('th',null,'Invoice(s)'),ce('th',null,'Varieties'),ce('th',null,'Farms'),
                 ce('th',null,'Subclient'),ce('th',null,'Country'),ce('th',null,'Loading'),
                 ce('th',null,'ETA'),ce('th',{style:{textAlign:'center'}},'Cartons'),
                 ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'INSP'),ce('th',{style:{textAlign:'center'}},'Grade'),
                 ce('th',{style:{textAlign:'center'}},'Claim')
               )),
               ce('tbody',null,
-                filteredContainers.length===0&&ce('tr',null,ce('td',{colSpan:12,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No containers found')),
+                filteredContainers.length===0&&ce('tr',null,ce('td',{colSpan:13,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No containers found')),
                 filteredContainers.map(function(c){
                   var g=getGrade(c.container_number);
                   var cqcCount=cqcMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
@@ -13529,6 +13531,9 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                     ce('td',{style:{fontSize:11,color:'var(--text3)',fontFamily:'var(--font-mono)'}},[...c.invoice_nos].join(', ')||'—'),
                     ce('td',{style:{fontSize:12}},
                       [...c.varieties].map(function(v,i){return ce('span',{key:i,className:'badge badge-neutral',style:{fontSize:10,marginRight:3,marginBottom:2}},v);})
+                    ),
+                    ce('td',{style:{fontSize:12}},
+                      c.farms.size>0?[...c.farms].map(function(v,i){return ce('span',{key:i,className:'badge badge-neutral',style:{fontSize:10,marginRight:3,marginBottom:2}},v);}):ce('span',{style:{color:'var(--text3)',fontSize:12}},'\u2014')
                     ),
                     ce('td',{style:{fontSize:12,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},[...c.subclients].join(', ')||([...c.clients].join(', '))||'—'),
                     ce('td',{style:{fontSize:12}},[...c.countries].join(', ')||'—'),
@@ -13559,13 +13564,13 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
             ce('table',{style:{borderCollapse:'collapse',width:'100%'}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Carta'),ce('th',null,'Invoice No.'),
-                ce('th',null,'Variety'),ce('th',null,'Subclient'),ce('th',null,'Loading'),
+                ce('th',null,'Variety'),ce('th',null,'Farm'),ce('th',null,'Subclient'),ce('th',null,'Loading'),
                 ce('th',null,'ETA'),ce('th',null,'Status'),ce('th',{style:{textAlign:'center'}},'Cartons'),
                 ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'INSP'),ce('th',{style:{textAlign:'center'}},'Grade'),
                 ce('th',{style:{textAlign:'center'}},'Claim')
               )),
               ce('tbody',null,
-                filteredRows.length===0&&ce('tr',null,ce('td',{colSpan:13,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No shipments found')),
+                filteredRows.length===0&&ce('tr',null,ce('td',{colSpan:14,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No shipments found')),
                 filteredRows.map(function(s){
                   var g=getGrade(s.container_number);
                   var cqcCount=cqcMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
@@ -13576,6 +13581,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                     ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.carta||'—')),
                     ce('td',null,ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.invoice_no||'—')),
                     ce('td',null,ce('div',{style:{fontSize:12}},s.variety||'—'),s.color&&ce('div',{style:{fontSize:10,color:'var(--text3)'}},s.color)),
+                    ce('td',{style:{fontSize:12}},s.farm_source||'\u2014'),
                     ce('td',{style:{fontSize:12,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.subclient||s.client||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.loading_date||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.eta||'—'),
