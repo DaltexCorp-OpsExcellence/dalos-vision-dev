@@ -12923,7 +12923,7 @@ function ShipmentsMgmt(props){
                 });
                 setCqcMatches(map); setCqcRows(rowsMap);
                 /* Inspection match (container-level, season+product scoped) */
-                var inspQ=supabase.from('inspections').select('id,container_number,status,decision,avg_total_defect,avg_brix,avg_carton_weight,date,packhouse_id,has_critical,variety_id,variety2_id,trace_code,trace_codes').eq('product_id',selProd);
+                var inspQ=supabase.from('inspections').select('id,container_number,status,decision,avg_total_defect,avg_brix,avg_carton_weight,date,packhouse_id,has_critical,variety_id,variety2_id,farm_id,trace_code,trace_codes').eq('product_id',selProd);
                 if(config.activeSeasonId) inspQ=inspQ.eq('season_id',config.activeSeasonId);
                 inspQ.then(function(ir){
                   if(ir.error) return;
@@ -12950,16 +12950,20 @@ function ShipmentsMgmt(props){
   function _vname(id){return (config.varietiesIdToName&&id&&config.varietiesIdToName[id])||'';}
   function _vk(s){return (s||'').toString().toLowerCase().replace(/[^a-z0-9]/g,'');}
   function _phk(s){var k=(s||'').toString().toLowerCase().replace(/[^a-z]/g,'').replace('packhouse','');if(k==='menia')k='menya';return k;}
+  function _fname(id){return (config.farmsIdToName&&id&&config.farmsIdToName[id])||'';}
+  function _fk(s){var k=(s||'').toString().toLowerCase().replace(/[^a-z0-9]/g,'');if(k==='elkhier')k='elkhair';if(k==='elmasa')k='elmassa';return k;}
   function _inspTraceSet(insp){var set={};var arr=(insp&&insp.trace_codes)||[];if(Array.isArray(arr))arr.forEach(function(o){var c=((o&&o.code)||'').replace(/\D/g,'');if(c)set[c]=1;});var tc=((insp&&insp.trace_code)||'');(String(tc).match(/\d{15}/g)||[]).forEach(function(c){set[c]=1;});return set;}
   function scoreInsp(ship,insp){
-    var sc=0,mTrace=false,mVar=false,mPh=false;
+    var sc=0,mTrace=false,mVar=false,mPh=false,mFarm=false;
     var st=((ship&&ship.traceability_code)||'').replace(/\D/g,'');
     if(st&&_inspTraceSet(insp)[st]){sc+=5;mTrace=true;}
     var sv=_vk(ship&&ship.variety);
     if(sv&&(sv===_vk(_vname(insp.variety_id))||sv===_vk(_vname(insp.variety2_id)))){sc+=3;mVar=true;}
     var sp=_phk(ship&&ship.pack_house);
     if(sp&&sp===_phk(insp.packhouse_id)){sc+=2;mPh=true;}
-    return {score:sc,trace:mTrace,variety:mVar,ph:mPh};
+    var sf=_fk(ship&&ship.farm_source);
+    if(sf&&sf===_fk(_fname(insp.farm_id))){sc+=2;mFarm=true;}
+    return {score:sc,trace:mTrace,variety:mVar,ph:mPh,farm:mFarm};
   }
   function pinForRow(ship,reps){
     if(!ship||!reps||!reps.length) return null;
@@ -12993,6 +12997,7 @@ function ShipmentsMgmt(props){
         insp.date&&ce('span',null,insp.date),
         insp.packhouse_id&&ce('span',null,insp.packhouse_id),
         _vname(insp.variety_id)&&ce('span',null,_vname(insp.variety_id)),
+        _fname(insp.farm_id)&&ce('span',null,_fname(insp.farm_id)),
         insp.decision&&ce('span',null,'Decision: '+insp.decision),
         insp.avg_brix!=null&&ce('span',null,'Brix '+Number(insp.avg_brix).toFixed(1))
       )
@@ -13352,7 +13357,8 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
             if(rowPin&&rowPin.mode!=='none'){
               var pins=rowPin.pins, others=rowPin.others;
               var warn=(rowPin.mode==='trace'&&rowPin.varietyDiffers);
-              var tagTxt=rowPin.mode==='trace'?'matched on trace':((pins[0].m.ph)?'matched on variety + packhouse':'matched on variety');
+              var _m=pins[0].m;var _parts=[];if(_m.variety)_parts.push('variety');if(_m.ph)_parts.push('packhouse');if(_m.farm)_parts.push('farm');
+              var tagTxt=rowPin.mode==='trace'?'matched on trace':('matched on '+(_parts.join(' + ')||'variety'));
               var hdr=rowPin.mode==='tie'?('Matched \u2014 '+pins.length+' equal, trace would separate'):'Matched to this row';
               return ce('div',null,
                 ce('div',{style:{fontSize:10,fontWeight:600,color:'#2563ad',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}},hdr),
