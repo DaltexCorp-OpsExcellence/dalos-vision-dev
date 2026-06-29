@@ -9441,6 +9441,8 @@ function ClientQCMgmt(props){
   },[showNew]);
   var sReports=useState([]); var reports=sReports[0]; var setReportsRaw=sReports[1];
   var sReloadTick=useState(0); var reloadTick=sReloadTick[0]; var setReloadTick=sReloadTick[1];
+  var sCqcSaving=useState(false); var cqcSaving=sCqcSaving[0]; var setCqcSaving=sCqcSaving[1];
+  var sCqcSaveErr=useState(''); var cqcSaveErr=sCqcSaveErr[0]; var setCqcSaveErr=sCqcSaveErr[1];
   function setReports(v){var next=typeof v==='function'?v:function(){return v;};setReportsRaw(function(prev){var n=next(prev);return n;});}
   function toggleClaim(id){
     setReports(function(prev){
@@ -10262,6 +10264,14 @@ function ClientQCMgmt(props){
   }
 
   function saveReport(){
+    if(cqcSaving) return; /* prevent double-save while a save is in flight */
+    /* DEFENSE 1 — offline pre-flight: block save, keep form intact, surface message */
+    if(typeof navigator!=='undefined'&&navigator.onLine===false){
+      setCqcSaveErr('You appear to be offline \u2014 your report was NOT saved. Your data is still here; reconnect and press Save again.');
+      return;
+    }
+    setCqcSaveErr('');
+    setCqcSaving(true);
     var isNew=!editRep;
     var reportId=editRep||(function(){try{return crypto.randomUUID();}catch(e){return 'cqc-'+Date.now()+'-'+Math.random().toString(36).slice(2);}})();
     var r={
@@ -10291,16 +10301,11 @@ function ClientQCMgmt(props){
       savedAt:new Date().toISOString(),
       productId:selCqcProd||''
     };
-    /* Update local state immediately */
-    if(editRep){
-      setReports(function(prev){return prev.map(function(x){return x.id===editRep?r:x;});});
-      setSelRep(r.id);
-    } else {
-      setReports(function(prev){return prev.concat([r]);});
-    }
-    var cqcSamplesSnapshot=cqcSamples.slice(); /* capture before clearForm resets */
-    var uploadedFilesSnapshot=uploadedFiles.slice(); /* full snapshot before clearForm */
-    clearForm();setEditRep(null);setShowNew(false); if(startRow&&isNew){var _ic=startRow;setStartRow(null);supabase.from('cqc_intake').update({client_qc_report_id:reportId,status:((_ic.attachments||[]).length>1?'in_progress':'completed')}).eq('id',_ic.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});}
+    /* DEFENSE 2 — snapshots captured now; do NOT clear the form or mutate the list
+       until the DB confirms the parent write (moved into the success handler below).
+       Closure vars (defVals, fVar, etc.) persist for this invocation regardless. */
+    var cqcSamplesSnapshot=cqcSamples.slice();
+    var uploadedFilesSnapshot=uploadedFiles.slice();
     /* Save to Supabase */
     var dbRow={
       id:reportId,
@@ -10377,8 +10382,21 @@ function ClientQCMgmt(props){
         return supabase.from('client_qc_reports').update(updateRow).eq('id',reportId).select();
       }
     }).then(function(res){
-      if(res&&res.error){console.error('[DalOS] CQC save error:',res.error.message,'details:',res.error.details);return;}
+      if(res&&res.error){
+        console.error('[DalOS] CQC save error:',res.error.message,'details:',res.error.details);
+        /* DEFENSE 3 — parent write rejected: keep form intact, show error, do NOT clear */
+        setCqcSaving(false);
+        setCqcSaveErr('Save failed: '+(res.error.message||'unknown error')+'. Your data is still here \u2014 please fix and retry.');
+        return;
+      }
       console.log('[DalOS] CQC report saved:',reportId);
+      /* DEFENSE 2 — parent write CONFIRMED: now apply local state + clear the form */
+      if(editRep){ setReports(function(prev){return prev.map(function(x){return x.id===editRep?r:x;});}); }
+      else { setReports(function(prev){return prev.concat([r]);}); }
+      setCqcSaving(false);
+      setCqcSaveErr('');
+      clearForm();setEditRep(null);setShowNew(false);
+      if(startRow&&isNew){var _ic=startRow;setStartRow(null);supabase.from('cqc_intake').update({client_qc_report_id:reportId,status:((_ic.attachments||[]).length>1?'in_progress':'completed')}).eq('id',_ic.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});}
       /* Save uploaded files — only NEW ones (no dbId = not yet in DB) */
       var newFiles=uploadedFilesSnapshot.filter(function(f){return f.storagePath&&f.fileUrl&&!f.dbId;});
       if(newFiles.length>0){
@@ -10476,7 +10494,7 @@ function ClientQCMgmt(props){
           });
         });
       });
-    }).catch(function(e){console.error('[DalOS] CQC save failed:',e);});
+    }).catch(function(e){console.error('[DalOS] CQC save failed:',e);setCqcSaving(false);setCqcSaveErr('Save failed: '+((e&&e.message)||'network error')+'. Your data is still here \u2014 please retry.');});
 
   }
 
@@ -10513,13 +10531,22 @@ function ClientQCMgmt(props){
       /* topbar */
       ce('div',{style:{background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'0 26px',height:50,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:20}},
         ce('div',{style:{display:'flex',alignItems:'center',gap:10}},
-          ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setShowNew(false);clearForm();setEditRep(null);}},'← Back'),
+          ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setShowNew(false);clearForm();setEditRep(null);setCqcSaveErr('');}},'← Back'),
           ce('div',{style:{fontFamily:'var(--font-display)',fontSize:16}},editRep?'Edit client QC report':'New client QC report'),
 
         ),
-        ce('button',{className:'btn btn-primary btn-sm',onClick:saveReport},'Save report')
+        ce('button',{className:'btn btn-primary btn-sm',onClick:saveReport,disabled:cqcSaving,style:{opacity:cqcSaving?.65:1,display:'inline-flex',alignItems:'center',gap:6}},cqcSaving&&ce('span',{className:'dalos-spinner'}),cqcSaving?'Saving\u2026':'Save report')
       ),
       ce('div',{style:{padding:'18px 24px',maxWidth:1100,margin:'0 auto'}},
+        /* DEFENSE 3 — save error banner: shown when offline or a write was rejected */
+        cqcSaveErr&&ce('div',{style:{background:'var(--red-bg)',border:'1px solid var(--red-border)',borderRadius:8,padding:'12px 16px',marginBottom:12,display:'flex',alignItems:'flex-start',gap:10}},
+          ce('span',{style:{fontSize:16,flexShrink:0,lineHeight:1.2}},'\u26a0'),
+          ce('div',{style:{flex:1}},
+            ce('div',{style:{fontSize:13,fontWeight:600,color:'var(--red)',marginBottom:2}},'Not saved'),
+            ce('div',{style:{fontSize:12,color:'var(--text2)'}},cqcSaveErr)
+          ),
+          ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,lineHeight:1,flexShrink:0},onClick:function(){setCqcSaveErr('');}},'\u00d7')
+        ),
 
         /* FILE UPLOAD + OCR */
         ce('div',{className:'card',style:{marginBottom:12}},
