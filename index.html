@@ -13005,7 +13005,7 @@ function ShipmentsMgmt(props){
   }
   function openInspPreview(id){
     setInspPopup({id:id,loading:true,data:null});
-    supabase.from('inspections').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical').eq('id',id).single().then(function(ir){
+    supabase.from('inspections_with_aggregates').select('id,date,packhouse_id,variety_id,decision,status,avg_brix,avg_total_defect,has_critical,live_avg_total_defect,live_avg_brix').eq('id',id).single().then(function(ir){
       if(ir.error||!ir.data){setInspPopup(null);return;}
       var insp=ir.data;
       supabase.from('sample_rows').select('id,sample_number,brix,size,extra_fields,sample_variety_id,pallets(pallet_number),sample_defect_readings(value,defects(severity))').eq('inspection_id',id).order('sample_number').then(function(sr){
@@ -13017,7 +13017,7 @@ function ShipmentsMgmt(props){
         });
         var ph=(config.packhouses&&config.packhouses.find(function(p){return p.id===insp.packhouse_id;}))||{};
         var variety=(config.varietiesIdToName&&insp.variety_id&&config.varietiesIdToName[insp.variety_id])||insp.variety_id||'';
-        setInspPopup({id:id,loading:false,data:{id:insp.id,date:insp.date,packhouse:ph.name||insp.packhouse_id||'',variety:variety,decision:insp.decision,status:insp.status,avgBrix:insp.avg_brix,avgDefect:insp.avg_total_defect,hasCritical:insp.has_critical,samples:rows}});
+        setInspPopup({id:id,loading:false,data:{id:insp.id,date:insp.date,packhouse:ph.name||insp.packhouse_id||'',variety:variety,decision:insp.decision,status:insp.status,avgBrix:(insp.live_avg_brix!=null?insp.live_avg_brix:insp.avg_brix),avgDefect:(insp.live_avg_total_defect!=null?insp.live_avg_total_defect:insp.avg_total_defect),hasCritical:insp.has_critical,samples:rows}});
       });
     });
   }
