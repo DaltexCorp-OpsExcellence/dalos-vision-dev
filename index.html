@@ -13115,7 +13115,7 @@ function ShipmentsMgmt(props){
         clients:new Set(), subclients:new Set(), varieties:new Set(), farms:new Set(),
         packhouses:new Set(), countries:new Set(), statuses:new Set(),
         total_cartons:0, total_pallets:0, total_net_weight:0, total_gross_weight:0,
-        loading_dates:new Set(), etas:new Set(), invoice_nos:new Set(), cartas:new Set(),
+        loading_dates:new Set(), etas:new Set(), arrival_dates:new Set(), invoice_nos:new Set(), cartas:new Set(),
       };
       var c=containerMap[key];
       c.rows.push(s);
@@ -13128,6 +13128,7 @@ function ShipmentsMgmt(props){
       if(s.shipping_status) c.statuses.add(s.shipping_status);
       if(s.loading_date) c.loading_dates.add(s.loading_date);
       if(s.eta) c.etas.add(s.eta);
+      if(s.arrival_date) c.arrival_dates.add(s.arrival_date);
       if(s.invoice_no) c.invoice_nos.add(s.invoice_no);
       if(s.carta) c.cartas.add(s.carta);
       c.total_cartons+=(parseInt(s.carton_count,10)||0);
@@ -13339,6 +13340,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                 ['Farms',[...c.farms].join(', ')||null],
                 ['Loading Date',[...c.loading_dates].sort()[0]||null],
                 ['ETA',[...c.etas].sort().pop()||null],
+                ['Arrival',[...c.arrival_dates].sort().pop()||null],
                 ['Status',[...c.statuses].join(', ')||null],
                 ['Total Cartons',c.total_cartons||null],
                 ['Total Pallets',c.total_pallets||null],
@@ -13353,7 +13355,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                 ['Variety',s.variety],['Color',s.color],['Class',s.daltex_class],
                 ['Carton Type',s.carton_type],['Pack House',s.pack_house],
                 ['Farm Source',s.farm_source],['Client',s.client],['Subclient',s.subclient],
-                ['Vessel',s.vessel],['Loading Date',s.loading_date],['ETA',s.eta],
+                ['Vessel',s.vessel],['Loading Date',s.loading_date],['ETA',s.eta],['Arrival',s.arrival_date],
                 ['Status',s.shipping_status],
                 ['Country',s.receiving_country+(s.receiving_port?' / '+s.receiving_port:'')],
                 ['Cartons',s.carton_count],['Net Weight',s.net_weight?s.net_weight+' t':null],
@@ -13517,12 +13519,12 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Invoice(s)'),ce('th',null,'Varieties'),ce('th',null,'Farms'),
                 ce('th',null,'Subclient'),ce('th',null,'Country'),ce('th',null,'Loading'),
-                ce('th',null,'ETA'),ce('th',null,'Status'),ce('th',{style:{textAlign:'center'}},'Cartons'),
+                ce('th',null,'ETA'),ce('th',null,'Arrival'),ce('th',null,'Status'),ce('th',{style:{textAlign:'center'}},'Cartons'),
                 ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'INSP'),ce('th',{style:{textAlign:'center'}},'Grade'),
                 ce('th',{style:{textAlign:'center'}},'Claim')
               )),
               ce('tbody',null,
-                filteredContainers.length===0&&ce('tr',null,ce('td',{colSpan:14,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No containers found')),
+                filteredContainers.length===0&&ce('tr',null,ce('td',{colSpan:15,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No containers found')),
                 filteredContainers.map(function(c){
                   var g=getGrade(c.container_number);
                   var cqcCount=cqcMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
@@ -13532,6 +13534,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                   var status=statArr.length===1?statArr[0]:(statArr.length>1?'Mixed':'—');
                   var loadArr=[...c.loading_dates].sort();
                   var etaArr=[...c.etas].sort();
+                  var arrArr=[...c.arrival_dates].sort();
                   return ce('tr',{key:c.key,className:'click',onClick:function(){openContainer(c.key,c.container_number);},style:{background:isSelected?'var(--green-bg)':''}},
                     ce('td',null,ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600}},c.container_number),
                       c.cartas.size>0&&ce('div',{style:{fontSize:10,color:'var(--text3)',fontFamily:'var(--font-mono)'}},'Carta: '+[...c.cartas].join(', ')),
@@ -13548,6 +13551,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                     ce('td',{style:{fontSize:12}},[...c.countries].join(', ')||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},loadArr[0]||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},etaArr[etaArr.length-1]||'—'),
+                    ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},arrArr[arrArr.length-1]||'—'),
                     ce('td',null, statArr.length? statArr.map(function(st,i){return ce('span',{key:i,className:'badge '+(st==='Delivered'?'badge-pass':st==='In Transit'?'badge-warn':'badge-neutral'),style:{fontSize:10,marginRight:3}},st);}) : ce('span',{style:{color:'var(--text3)',fontSize:12}},'\u2014')),
                     ce('td',{style:{textAlign:'center',fontFamily:'var(--font-mono)',fontSize:12}},c.total_cartons||'—'),
                     ce('td',{style:{textAlign:'center'}},
@@ -13575,12 +13579,12 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Carta'),ce('th',null,'Invoice No.'),
                 ce('th',null,'Variety'),ce('th',null,'Farm'),ce('th',null,'Subclient'),ce('th',null,'Loading'),
-                ce('th',null,'ETA'),ce('th',null,'Status'),ce('th',{style:{textAlign:'center'}},'Cartons'),
+                ce('th',null,'ETA'),ce('th',null,'Arrival'),ce('th',null,'Status'),ce('th',{style:{textAlign:'center'}},'Cartons'),
                 ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'INSP'),ce('th',{style:{textAlign:'center'}},'Grade'),
                 ce('th',{style:{textAlign:'center'}},'Claim')
               )),
               ce('tbody',null,
-                filteredRows.length===0&&ce('tr',null,ce('td',{colSpan:14,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No shipments found')),
+                filteredRows.length===0&&ce('tr',null,ce('td',{colSpan:15,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No shipments found')),
                 filteredRows.map(function(s){
                   var g=getGrade(s.container_number);
                   var cqcCount=cqcMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
@@ -13595,6 +13599,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                     ce('td',{style:{fontSize:12,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},s.subclient||s.client||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.loading_date||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.eta||'—'),
+                    ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.arrival_date||'—'),
                     ce('td',null,s.shipping_status?ce('span',{className:'badge '+(s.shipping_status==='Delivered'?'badge-pass':s.shipping_status==='In Transit'?'badge-warn':'badge-neutral'),style:{fontSize:10}},s.shipping_status):'—'),
                     ce('td',{style:{textAlign:'center',fontFamily:'var(--font-mono)',fontSize:12}},s.carton_count||'—'),
                     ce('td',{style:{textAlign:'center'}},
