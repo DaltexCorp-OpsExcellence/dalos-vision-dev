@@ -6199,7 +6199,7 @@ function AnalyticsView(props){
     /* Header */
     ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}},
       ce('div',null,
-        ce('div',{style:{fontSize:18,fontWeight:500,color:'var(--text)'}},productId?prodName(productId)+' \u2014 Analytics':'QC Analytics'),
+        ce('div',{style:{fontSize:18,fontWeight:500,color:'var(--text)'}},productId?prodName(productId)+' \u2014 Analytics':'Inspections Analytics'),
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginTop:2}},
           loading?'Loading\u2026':totalInsp+' inspection'+(totalInsp!==1?'s':'')+
           (totalPallets>0?' \u00b7 '+totalPallets.toLocaleString()+' pallets':'')+
@@ -7095,7 +7095,7 @@ function HomeView(props){
   if(perms.viewFG)        tiles.push({key:'fg',       view:'fg',         eyebrow:'Inspections',label:'Export Inspection',icon:'\u2713', hint:palletsToday+' pallets packed today', dynamicHint:true, primary:true, glow:'#6fc191', eyebrowColor:'#8fe0ad', big:activeToday.length, bigLabel:'active today'});
   if(perms.viewClientQC)  tiles.push({key:'clientqc', view:'clientqc',   eyebrow:'Reports',    label:'Client QC',        icon:'\uD83D\uDCCB', hint:'Reports & matching', glow:'#8079d4', eyebrowColor:'#b7b0f0'});
   if(perms.viewShipments) tiles.push({key:'shipments',view:'shipments',  eyebrow:'Logistics',  label:'Shipments',        icon:'\uD83D\uDEA2', hint:'Records & claims', glow:'#d98a1f', eyebrowColor:'#e8c489'});
-  if(perms.viewAnalytics) tiles.push({key:'analytics',view:'analytics',  eyebrow:'Insights',   label:'QC Analytics',     icon:'\uD83D\uDCCA', hint:'Season trends', glow:'#3d9e6b', eyebrowColor:'#8fe0ad', badge:'In progress'});
+  if(perms.viewAnalytics) tiles.push({key:'analytics',view:'analytics',  eyebrow:'Insights',   label:'Inspections Analytics',     icon:'\uD83D\uDCCA', hint:'Season trends', glow:'#3d9e6b', eyebrowColor:'#8fe0ad'});
   if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Board Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
 
   function tileEl(t){
@@ -15425,8 +15425,7 @@ function App(){
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & claims'});
-  if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'QC Analytics',      sub:'Dashboard',       inProgress:true});
-  if(perms.viewExport)       availViews.push({id:'export',     label:'Export data',       sub:'CSV / Tableau',   comingSoon:true});
+  if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'Inspections Analytics',      sub:'Dashboard'});
   if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Board Review',      sub:'Escalation queue'});
   if(perms.viewAdmin)        availViews.push({id:'admin',      label:'Admin',             sub:'Users & access'});
   var cropInfo=(config.products||CROPS).find(function(c){return c.id===cropId;})||{name:'',color:'#2b5c3f'};
