@@ -7793,7 +7793,9 @@ function ExportView(props){
 ═══════════════════════════════════════ */
 var ROLES = {
   admin:       {label:'Admin',                color:'#1e2d22',badge:'#2b5c3f',
-                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true}},
+                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, giveAccess:true}},
+  power_user:  {label:'Power User',           color:'#0f5a52',badge:'#159085',
+                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, giveAccess:false}},
   board:       {label:'Senior Board',         color:'#2a0a5a',badge:'#6a10b0',
                 perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:false,viewExport:false,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:true, escalate:false,allPackhouses:true, viewShipments:true}},
   qc_manager:  {label:'QC Manager',           color:'#2b5c3f',badge:'#4a8c62',
@@ -7994,7 +7996,8 @@ function AdminCenter(props){
   var config=props.config||INITIAL_CONFIG,setConfig=props.setConfig||function(){};
   var currentUser=props.currentUser||null;
   var reloadConfig=props.reloadConfig||function(){};
-  var stab=useState('users'); var tab=stab[0]; var setTab=stab[1];
+  var canGiveAccess=!!(currentUser&&ROLES[currentUser.role]&&ROLES[currentUser.role].perms&&ROLES[currentUser.role].perms.giveAccess);
+  var stab=useState(canGiveAccess?'users':'config'); var tab=stab[0]; var setTab=stab[1];
   var sedit=useState(null); var editId=sedit[0]; var setEditId=sedit[1];
   var sshow=useState(false); var showAdd=sshow[0]; var setShowAdd=sshow[1];
   var snn=useState(''),sne=useState(''),snp=useState(''),snr=useState('inspector'),snph=useState('KZ');
@@ -8343,12 +8346,12 @@ function AdminCenter(props){
       )
     ),
     ce('div',{className:'tabs'},
-      ce('div',{className:'tab'+(tab==='users'?' active':''),onClick:function(){setTab('users');}},'Users ('+users.length+')'),
-      ce('div',{className:'tab'+(tab==='matrix'?' active':''),onClick:function(){setTab('matrix');}},'Permissions matrix'),
-      ce('div',{className:'tab'+(tab==='aaccess'?' active':''),onClick:function(){setTab('aaccess');}},'Analytics access'),
+      canGiveAccess&&ce('div',{className:'tab'+(tab==='users'?' active':''),onClick:function(){setTab('users');}},'Users ('+users.length+')'),
+      canGiveAccess&&ce('div',{className:'tab'+(tab==='matrix'?' active':''),onClick:function(){setTab('matrix');}},'Permissions matrix'),
+      canGiveAccess&&ce('div',{className:'tab'+(tab==='aaccess'?' active':''),onClick:function(){setTab('aaccess');}},'Analytics access'),
       ce('div',{className:'tab'+(tab==='config'?' active':''),onClick:function(){setTab('config');},style:{color:tab==='config'?'var(--accent)':'var(--text3)'}},'System config \u2699\ufe0f')
     ),
-    tab==='users'&&ce('div',{className:'scroll-card'},
+    canGiveAccess&&tab==='users'&&ce('div',{className:'scroll-card'},
       ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
       ce('table',{style:{minWidth:700}},
         ce('thead',null,ce('tr',null,ce('th',null,'Name'),ce('th',null,'Email'),ce('th',null,'Role'),ce('th',null,'Packhouse access'),ce('th',null,'Last login'),ce('th',null,'Status'),ce('th',null,'Actions'))),
@@ -8398,8 +8401,8 @@ function AdminCenter(props){
         )
       )
       )), /* end scroll+overflow wrapper */
-    tab==='aaccess'&&ce(AnalyticsAccessPanel,null),
-    tab==='matrix'&&ce('div',{className:'scroll-card'},
+    canGiveAccess&&tab==='aaccess'&&ce(AnalyticsAccessPanel,null),
+    canGiveAccess&&tab==='matrix'&&ce('div',{className:'scroll-card'},
       ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
       ce('table',{style:{fontSize:12,minWidth:700}},
         ce('thead',null,ce('tr',null,
