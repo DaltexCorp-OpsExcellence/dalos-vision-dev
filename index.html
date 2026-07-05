@@ -15689,5 +15689,54 @@ function App(){
 
 ReactDOM.createRoot(document.getElementById('root')).render(ce(App,null));
 </script>
+<script>
+(function(){
+  if(window.__dalosSwitcher) return; window.__dalosSwitcher=1;
+  function build(){
+    if(!document.body || document.getElementById('dalos-switcher')) return;
+    var isDev = location.pathname.indexOf('/dalos-vision-dev/')===0;
+    var WS = isDev ? 'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/' : 'https://daltexcorp-opsexcellence.github.io/dalos-workspace/workspace.html';
+    var ANALYTICS = isDev ? 'https://daltexcorp-opsexcellence.github.io/dalos-analytics-dev/' : 'https://daltexcorp-opsexcellence.github.io/dalos-analytics/';
+    var APPS = '<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M17 4v6M14 7h6"/></svg>';
+    var APPS_S = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M17 4v6M14 7h6"/></svg>';
+    var CHART = '<svg viewBox="0 0 48 48" width="20" height="20"><g fill="currentColor"><rect x="8" y="27" width="7" height="13" rx="2"/><rect x="20" y="21" width="7" height="19" rx="2"/><rect x="32" y="14" width="7" height="26" rx="2"/></g><path d="M9 19 L20 14 L31 9 L40 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M34 5 L40 5 L40 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var LOCK = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+    var st = document.createElement('style');
+    st.textContent = '.dsw{position:fixed;right:20px;bottom:20px;z-index:2147483000;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:inherit}'
+      + '.dsw-menu{display:flex;flex-direction:column;align-items:flex-end;gap:8px;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .18s ease,transform .18s ease}'
+      + '.dsw:hover .dsw-menu,.dsw.open .dsw-menu,.dsw:focus-within .dsw-menu{opacity:1;transform:none;pointer-events:auto}'
+      + '.dsw-anchor{width:46px;height:46px;border-radius:50%;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;background:#d9b25f;color:#3a2c0e;box-shadow:0 2px 10px rgba(0,0,0,.30)}'
+      + '.dsw-item{position:relative;display:inline-flex;align-items:center;gap:9px;height:38px;padding:0 10px 0 14px;border-radius:19px;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.22);flex-direction:row-reverse;white-space:nowrap;background:#1c3a2b;color:#e8d7a8;border:1px solid #2f5740}'
+      + '.dsw-item .dsw-ic{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px}'
+      + '.dsw-locked{background:#16281f;color:#7f9788;border-color:#24402f}'
+      + '.dsw-lock{position:absolute;left:-6px;top:-6px;width:18px;height:18px;border-radius:50%;background:#3a4b40;color:#cfe0d4;display:inline-flex;align-items:center;justify-content:center;border:1px solid #24402f}';
+    document.head.appendChild(st);
+    var wrap = document.createElement('div'); wrap.className='dsw'; wrap.id='dalos-switcher';
+    wrap.innerHTML =
+      '<div class="dsw-menu" role="menu">'
+      + '<a class="dsw-item dsw-ana dsw-locked" id="dsw-ana" role="menuitem" tabindex="0"><span class="dsw-lock" id="dsw-lock">'+LOCK+'</span><span class="dsw-ic">'+CHART+'</span><span>DalOS Analytics</span></a>'
+      + '<a class="dsw-item" role="menuitem" tabindex="0" href="'+WS+'"><span class="dsw-ic">'+APPS_S+'</span><span>Workspace</span></a>'
+      + '</div>'
+      + '<button class="dsw-anchor" aria-label="Open app switcher" aria-expanded="false">'+APPS+'</button>';
+    document.body.appendChild(wrap);
+    var anchor = wrap.querySelector('.dsw-anchor');
+    anchor.addEventListener('click', function(e){ e.stopPropagation(); var o=wrap.classList.toggle('open'); anchor.setAttribute('aria-expanded', o?'true':'false'); });
+    document.addEventListener('click', function(){ wrap.classList.remove('open'); anchor.setAttribute('aria-expanded','false'); });
+    var ana = wrap.querySelector('#dsw-ana');
+    ana.addEventListener('click', function(e){ e.preventDefault(); location.href = (ana.getAttribute('data-granted')==='1') ? ANALYTICS : WS; });
+    function checkAccess(tries){
+      try{
+        if(typeof supabase==='undefined' || !supabase.rpc){ if(tries>0) setTimeout(function(){checkAccess(tries-1);},1200); return; }
+        supabase.rpc('has_analytics_access').then(function(a){
+          if(a && !a.error && a.data===true){ ana.classList.remove('dsw-locked'); ana.setAttribute('data-granted','1'); var lk=document.getElementById('dsw-lock'); if(lk) lk.remove(); }
+          else if(tries>0){ setTimeout(function(){checkAccess(tries-1);},1500); }
+        }).catch(function(){ if(tries>0) setTimeout(function(){checkAccess(tries-1);},1500); });
+      }catch(_e){}
+    }
+    checkAccess(3);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', build); } else { build(); }
+})();
+</script>
 </body>
 </html>
