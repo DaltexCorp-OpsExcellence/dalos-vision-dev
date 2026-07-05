@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DalOS Vision — CRM (Pre-test)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Instrument+Sans:wght@400;500;600&family=DM+Mono&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f0ede6;--bg2:#e8e4da;--bg3:#ddd8cc;
+  --sidebar:#1e2d22;--sidebar2:#263529;
+  --sidebar-text:#c8d4c0;--sidebar-muted:#6a8068;
+  --accent:#2b5c3f;--accent2:#4a8c62;
+  --amber:#b87820;--amber-bg:#fdf3e0;--amber-border:#e8c87a;
+  --red:#b03030;--red-bg:#faeaea;--red-border:#e8a0a0;
+  --green:#1e6b3a;--green-bg:#e8f5ec;--green-border:#8ecba4;
+  --text:#1a1a17;--text2:#4a4840;--text3:#7a7668;
+  --border:#d0cbbe;--border2:#bcb8ae;--card:#ffffff;
+  --font-display:'DM Serif Display',serif;
+  --font-body:'Instrument Sans',sans-serif;
+  --font-mono:'DM Mono',monospace;
+  --r:8px;--r2:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-size:14px}
+.wrap{max-width:1080px;margin:0 auto;padding:16px 18px 60px}
+.pretest{background:#2a1f4d;color:#e8e0ff;font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pretest b{color:#fff}
+.topbar{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.h1{font-family:var(--font-display);font-size:24px}
+.sub{font-size:12px;color:var(--text3)}
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:16px}
+.tab{padding:7px 14px;font-size:13px;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;white-space:nowrap}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.sec{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin:14px 0 6px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2)}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.b-pass{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.b-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.b-fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.b-neutral{background:var(--bg2);color:var(--text2);border:1px solid var(--border)}
+.mono{font-family:var(--font-mono)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;white-space:nowrap;background:var(--card);color:var(--text2)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent2)}
+.btn-secondary{border-color:var(--border2)}
+.btn-secondary:hover{background:var(--bg2)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.pill{padding:4px 12px;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3)}
+.pill.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);padding:7px 10px;border-bottom:2px solid var(--border2);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);vertical-align:middle}
+tr.rowsel td{background:var(--green-bg)}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--bg2)}
+.kpirow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:4px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px}
+.kpi-label{font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em}
+.kpi-value{font-family:var(--font-display);font-size:22px;line-height:1}
+.grade-btn{padding:6px 18px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3)}
+.grade-btn.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+.form-input,.form-select,.form-ta{width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--card);outline:none;font-size:14px;color:var(--text);font-family:var(--font-body)}
+.form-input:focus,.form-select:focus,.form-ta:focus{border-color:var(--accent)}
+.lbl{font-size:11px;color:var(--text3);font-weight:500;margin-bottom:4px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--card);border-radius:14px;padding:20px;max-width:460px;width:100%;max-height:92vh;overflow-y:auto}
+.attn{padding:9px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer}
+.attn:hover{background:var(--bg2)}
+.attn:last-child{border-bottom:none}
+.arr{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px;font-size:12px;flex:1;min-width:150px}
+.claimrow{border:1px solid var(--border);border-radius:var(--r);padding:8px 11px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--text2);flex-wrap:wrap}
+.loginbox{max-width:360px;margin:80px auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px}
+.errbanner{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:12px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.dp-head{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg2);border-radius:var(--r2) var(--r2) 0 0;gap:8px;flex-wrap:wrap}
+.evbox{background:var(--bg);border-radius:var(--r);padding:9px 11px;font-size:12px;color:var(--text2);line-height:1.6}
+@media(max-width:700px){
+  .wrap{padding:12px 12px 60px}
+  .twocol{grid-template-columns:1fr !important}
+  input,select,textarea{font-size:16px !important}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+var ce = React.createElement;
+var useState = React.useState, useEffect = React.useEffect, useMemo = React.useMemo;
+
+var DALOS_SUPABASE_URL='https://sfyjvgjwvtwkrnqrvqyc.supabase.co';
+var DALOS_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmeWp2Z2p3dnR3a3JucXJ2cXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzIxNjYsImV4cCI6MjA5MDQ0ODE2Nn0.FjA75XZsp0Kx5Xam_rrnYoAHX4JHKey6vEFCH_zlMuQ';
+var sb = window.supabase.createClient(DALOS_SUPABASE_URL, DALOS_ANON_KEY);
+
+var LS_KEY='dalos_crm_pretest_v1';
+function loadLocal(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {grades:{},claims:[]}; }catch(e){ return {grades:{},claims:[]}; } }
+function saveLocal(d){ try{ localStorage.setItem(LS_KEY, JSON.stringify(d)); }catch(e){} }
+
+/* ── helpers ── */
+function normCN(s){ if(!s) return ''; return String(s).trim().replace(/\s+/g,' ').toUpperCase(); }
+function parseScoreNum(s){ if(!s) return null; var m=String(s).match(/\((\d+)\)/); return m?parseInt(m[1],10):null; }
+function fmtPct(v){ if(v===null||v===undefined||isNaN(v)) return '—'; return (Math.round(v*10)/10)+'%'; }
+function fmtNum(v){ if(v===null||v===undefined||isNaN(v)) return '—'; return Math.round(v*10)/10; }
+function fmtDate(d){ if(!d) return '—'; var dt=new Date(d); if(isNaN(dt)) return '—'; return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+function daysAgo(d){ if(!d) return null; var ms=Date.now()-new Date(d).getTime(); return Math.floor(ms/86400000); }
+function daysUntil(d){ if(!d) return null; var ms=new Date(d).getTime()-Date.now(); return Math.ceil(ms/86400000); }
+function curSym(c){ return c==='GBP'?'£':(c==='EUR'?'€':(c==='EGP'?'E£':'$')); }
+function fmtMoney(a,c){ if(a===null||a===undefined||a==='') return '—'; var n=Number(a); if(isNaN(n)) return '—'; return curSym(c)+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
+function uid(){ return 'c_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+
+async function fetchAll(builderFn){
+  var out=[], from=0, page=1000;
+  for(;;){
+    var res = await builderFn().range(from, from+page-1);
+    if(res.error) throw res.error;
+    var rows = res.data || [];
+    out = out.concat(rows);
+    if(rows.length < page) break;
+    from += page;
+  }
+  return out;
+}
+
+/* ── badges ── */
+function Badge(cls, text){ return ce('span',{className:'badge '+cls}, text); }
+function scoreBadge(score){
+  var n = parseScoreNum(score);
+  if(n===null) return Badge('b-neutral', score||'—');
+  var cls = n<=2 ? 'b-pass' : (n===3 ? 'b-warn' : 'b-fail');
+  return Badge(cls, score);
+}
+function gradeBadge(g){
+  if(!g) return Badge('b-neutral','ungraded');
+  var cls = g==='A' ? 'b-pass' : (g==='B' ? 'b-warn' : 'b-fail');
+  return Badge(cls, g);
+}
+function claimStatusBadge(s){
+  var cls = s==='settled' ? 'b-pass' : (s==='submitted' ? 'b-warn' : (s==='rejected' ? 'b-neutral' : 'b-fail'));
+  return Badge(cls, s);
+}
+
+/* ── Login ── */
+function Login(props){
+  var st = useState(''); var email=st[0], setEmail=st[1];
+  var st2 = useState(''); var pw=st2[0], setPw=st2[1];
+  var st3 = useState(''); var err=st3[0], setErr=st3[1];
+  var st4 = useState(false); var busy=st4[0], setBusy=st4[1];
+  function go(){
+    setBusy(true); setErr('');
+    sb.auth.signInWithPassword({email:email.trim(), password:pw}).then(function(r){
+      setBusy(false);
+      if(r.error){ setErr(r.error.message); return; }
+      props.onAuthed(r.data.session);
+    });
+  }
+  return ce('div',{className:'loginbox'},
+    ce('div',{style:{fontFamily:'var(--font-display)',fontSize:'22px',marginBottom:'4px'}},'DalOS Vision'),
+    ce('div',{style:{fontSize:'12px',color:'var(--text3)',marginBottom:'18px'}},'CRM module · pre-test · sign in with your Vision account'),
+    err ? ce('div',{className:'errbanner'}, err) : null,
+    ce('div',{className:'lbl'},'Email'),
+    ce('input',{className:'form-input',type:'email',value:email,onChange:function(e){setEmail(e.target.value);},style:{marginBottom:'10px'}}),
+    ce('div',{className:'lbl'},'Password'),
+    ce('input',{className:'form-input',type:'password',value:pw,onChange:function(e){setPw(e.target.value);},onKeyDown:function(e){if(e.key==='Enter')go();},style:{marginBottom:'16px'}}),
+    ce('button',{className:'btn btn-primary',style:{width:'100%',justifyContent:'center'},disabled:busy,onClick:go}, busy?'Signing in…':'Sign in')
+  );
+}
+
+/* ── Claim modal ── */
+function ClaimModal(props){
+  var c = props.container;
+  var st = useState('part'); var scope=st[0], setScope=st[1];
+  var st1 = useState(''); var subclient=st1[0], setSubclient=st1[1];
+  var st2 = useState(''); var variety=st2[0], setVariety=st2[1];
+  var st3 = useState(''); var cartons=st3[0], setCartons=st3[1];
+  var st4 = useState(''); var pallets=st4[0], setPallets=st4[1];
+  var st5 = useState(''); var amount=st5[0], setAmount=st5[1];
+  var st6 = useState('USD'); var currency=st6[0], setCurrency=st6[1];
+  var st7 = useState('open'); var status=st7[0], setStatus=st7[1];
+  var st8 = useState(''); var notes=st8[0], setNotes=st8[1];
+  var st9 = useState(''); var err=st9[0], setErr=st9[1];
+
+  var subOpts = c.subclients.slice();
+  var varOpts = c.varieties.slice();
+
+  function save(){
+    var n = Number(String(amount).replace(/,/g,''));
+    if(isNaN(n) || n<=0){ setErr('Enter a valid amount.'); return; }
+    props.onSave({
+      id: uid(), cn: c.cn, scope: scope,
+      subclient: scope==='part'?subclient:'', variety: scope==='part'?variety:'',
+      cartons: scope==='part'?cartons:'', pallets: scope==='part'?pallets:'',
+      amount: n, currency: currency, status: status, notes: notes,
+      at: new Date().toISOString()
+    });
+  }
+  function fld(label, el){ return ce('div',null, ce('div',{className:'lbl'},label), el); }
+
+  return ce('div',{className:'modal-bg',onClick:function(e){ if(e.target===e.currentTarget) props.onClose(); }},
+    ce('div',{className:'modal'},
+      ce('div',{style:{fontWeight:600,fontSize:'15px',marginBottom:'2px'}},'New claim'),
+      ce('div',{className:'mono',style:{fontSize:'12px',color:'var(--text3)',marginBottom:'14px'}}, c.cn+' · '+(c.client||'—')),
+      err ? ce('div',{className:'errbanner'}, err) : null,
+      ce('div',{style:{display:'flex',gap:'6px',marginBottom:'12px'}},
+        ce('span',{className:'pill'+(scope==='part'?' sel':''),onClick:function(){setScope('part');}},'Part of load'),
+        ce('span',{className:'pill'+(scope==='whole'?' sel':''),onClick:function(){setScope('whole');}},'Whole container')
+      ),
+      scope==='part' ? ce('div',{className:'twocol',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}},
+        fld('Subclient', ce('input',{className:'form-input',list:'subclients-dl',value:subclient,onChange:function(e){setSubclient(e.target.value);},placeholder:'type or pick'})),
+        fld('Variety', ce('input',{className:'form-input',list:'varieties-dl',value:variety,onChange:function(e){setVariety(e.target.value);},placeholder:'type or pick'})),
+        fld('Cartons affected', ce('input',{className:'form-input',inputMode:'numeric',value:cartons,onChange:function(e){setCartons(e.target.value);}})),
+        fld('Pallets affected', ce('input',{className:'form-input',inputMode:'numeric',value:pallets,onChange:function(e){setPallets(e.target.value);},placeholder:'optional'}))
+      ) : null,
+      ce('datalist',{id:'subclients-dl'}, subOpts.map(function(s){return ce('option',{key:s,value:s});})),
+      ce('datalist',{id:'varieties-dl'}, varOpts.map(function(s){return ce('option',{key:s,value:s});})),
+      ce('div',{style:{display:'grid',gridTemplateColumns:'2fr 1fr 1.4fr',gap:'10px',marginBottom:'10px'}},
+        fld('Amount', ce('input',{className:'form-input',inputMode:'decimal',value:amount,onChange:function(e){setAmount(e.target.value);}})),
+        fld('Currency', ce('select',{className:'form-select',value:currency,onChange:function(e){setCurrency(e.target.value);}},
+          ['USD','EUR','GBP','EGP'].map(function(cu){return ce('option',{key:cu,value:cu},cu);}))),
+        fld('Status', ce('select',{className:'form-select',value:status,onChange:function(e){setStatus(e.target.value);}},
+          ['open','submitted','settled','rejected'].map(function(s){return ce('option',{key:s,value:s},s);})))
+      ),
+      ce('div',{style:{marginBottom:'14px'}},
+        ce('div',{className:'lbl'},'Notes'),
+        ce('textarea',{className:'form-ta',style:{height:'64px',resize:'vertical'},value:notes,onChange:function(e){setNotes(e.target.value);},placeholder:'Decay on arrival, client rejected 2 pallets…'})
+      ),
+      ce('div',{style:{display:'flex',gap:'8px',justifyContent:'flex-end'}},
+        ce('button',{className:'btn btn-secondary',onClick:props.onClose},'Cancel'),
+        ce('button',{className:'btn btn-primary',onClick:save},'Save claim')
+      )
+    )
+  );
+}
+
+/* ── Detail panel ── */
+function DetailPanel(props){
+  var c = props.container;
+  var local = props.local;
+  var grade = (local.grades[c.cn]||{}).grade || null;
+  var claims = local.claims.filter(function(cl){ return cl.cn===c.cn; });
+  var insp = c.insp, cqc = c.latestCqc;
+
+  return ce('div',{className:'card',style:{marginTop:'12px'}},
+    ce('div',{className:'dp-head'},
+      ce('span',{className:'mono',style:{fontSize:'12px'}}, c.cn,
+        ce('span',{style:{fontFamily:'var(--font-body)',color:'var(--text2)'}}, ' · '+(c.varietyLabel||'—')+' · ETA '+fmtDate(c.eta)+(c.port?' · '+c.port:''))),
+      c.gap!==null ? Badge(c.gap>2?'b-fail':(c.gap>0.5?'b-warn':'b-pass'), 'Gap '+(c.gap>0?'+':'')+fmtPct(c.gap)) : Badge('b-neutral','no gap data')
+    ),
+    ce('div',{style:{padding:'12px 14px'}},
+      ce('div',{className:'twocol',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'12px'}},
+        ce('div',{className:'evbox'},
+          ce('div',{className:'sec',style:{margin:'0 0 3px'}}, insp ? ('Inspection '+insp.id) : 'Inspection'),
+          insp ? ce(React.Fragment,null,
+            'Defects ', ce('span',{className:'mono'}, fmtPct(insp.avg_total_defect)),
+            insp.avg_brix!==null&&insp.avg_brix!==undefined ? ce(React.Fragment,null,' · Brix ',ce('span',{className:'mono'}, fmtNum(insp.avg_brix))) : null,
+            ce('br'),
+            ce('span',{style:{color: insp.decision==='Approved'?'var(--green)':'var(--text2)',fontWeight:500}}, insp.decision||insp.status||'—'),
+            insp.date ? ' · '+fmtDate(insp.date) : ''
+          ) : ce('span',{style:{color:'var(--text3)'}},'no matched inspection')
+        ),
+        ce('div',{className:'evbox'},
+          ce('div',{className:'sec',style:{margin:'0 0 3px'}},'CQC on arrival'+(c.cqcs.length>1?' ('+c.cqcs.length+')':'')),
+          cqc ? ce(React.Fragment,null,
+            'Defects ', ce('span',{className:'mono'}, fmtPct(cqc.total_defect)),
+            cqc.max_temp!==null&&cqc.max_temp!==undefined ? ce(React.Fragment,null,' · max ',ce('span',{className:'mono'}, fmtNum(cqc.max_temp)+'°C')) : null,
+            ce('br'),
+            scoreBadge(cqc.score),
+            cqc.potential_claim ? ce('span',{style:{marginLeft:'6px'}}, Badge('b-fail','claim flagged')) : null,
+            ce('span',{style:{color:'var(--text3)'}}, ' · '+fmtDate(cqc.created_at))
+          ) : ce('span',{style:{color:'var(--text3)'}},'no CQC yet')
+        )
+      ),
+      cqc && (cqc.general_comments || cqc.cause) ? ce('div',{className:'evbox',style:{marginBottom:'12px'}},
+        ce('div',{className:'sec',style:{margin:'0 0 3px'}},'CQC notes'),
+        cqc.cause ? ce('div',null, ce('b',null,'Cause: '), cqc.cause) : null,
+        cqc.general_comments ? ce('div',null, cqc.general_comments) : null
+      ) : null,
+      ce('div',{style:{display:'flex',gap:'8px',alignItems:'center',marginBottom:'14px',flexWrap:'wrap'}},
+        ce('span',{className:'sec',style:{margin:0}},'Grade'),
+        ['A','B','C'].map(function(g){
+          return ce('span',{key:g,className:'grade-btn'+(grade===g?' sel':''),onClick:function(){ props.onGrade(c.cn, grade===g?null:g); }}, g);
+        }),
+        grade ? ce('span',{style:{fontSize:'11px',color:'var(--text3)'}},'saved locally') : null
+      ),
+      ce('div',{className:'sec',style:{borderTop:'1px solid var(--border)',paddingTop:'10px'}},'Claims'),
+      claims.length===0 ? ce('div',{style:{fontSize:'12px',color:'var(--text3)',marginBottom:'8px'}},'No claims recorded.') :
+        claims.map(function(cl){
+          var label = cl.scope==='whole' ? 'Whole container' :
+            [(cl.cartons?cl.cartons+' ctn':null),(cl.subclient||null),(cl.variety||null)].filter(Boolean).join(' · ') || 'Part of load';
+          return ce('div',{key:cl.id,className:'claimrow'},
+            ce('span',null, label, cl.notes?ce('span',{style:{color:'var(--text3)'}},' — '+cl.notes):null),
+            ce('span',{style:{display:'flex',gap:'8px',alignItems:'center'}},
+              claimStatusBadge(cl.status),
+              ce('span',{className:'mono',style:{color:'var(--text)'}}, fmtMoney(cl.amount, cl.currency)),
+              ce('select',{className:'form-select',style:{width:'auto',padding:'3px 6px',fontSize:'11px'},value:cl.status,onChange:function(e){ props.onClaimStatus(cl.id, e.target.value); }},
+                ['open','submitted','settled','rejected'].map(function(s){return ce('option',{key:s,value:s},s);})),
+              ce('span',{style:{cursor:'pointer',color:'var(--text3)',fontSize:'14px'},title:'Delete',onClick:function(){ props.onClaimDelete(cl.id); }},'×')
+            )
+          );
+        }),
+      ce('button',{className:'btn btn-primary btn-sm',onClick:function(){ props.onNewClaim(c); }},'+ New claim')
+    )
+  );
+}
+
+/* ── App ── */
+function App(){
+  var stS = useState(undefined); var session=stS[0], setSession=stS[1];
+  var stL = useState('boot'); var loadState=stL[0], setLoadState=stL[1];
+  var stE = useState(''); var loadErr=stE[0], setLoadErr=stE[1];
+  var stD = useState(null); var data=stD[0], setData=stD[1];
+  var stT = useState('today'); var tab=stT[0], setTab=stT[1];
+  var stF = useState('all'); var filter=stF[0], setFilter=stF[1];
+  var stC = useState(null); var selectedCN=stC[0], setSelectedCN=stC[1];
+  var stLo = useState(loadLocal()); var local=stLo[0], setLocalState=stLo[1];
+  var stM = useState(null); var modalC=stM[0], setModalC=stM[1];
+  var stQ = useState(''); var q=stQ[0], setQ=stQ[1];
+
+  function setLocal(next){ setLocalState(next); saveLocal(next); }
+
+  useEffect(function(){
+    sb.auth.getSession().then(function(r){ setSession(r.data.session || null); });
+    var sub = sb.auth.onAuthStateChange(function(_ev, s){ setSession(s || null); });
+    return function(){ sub.data.subscription.unsubscribe(); };
+  },[]);
+
+  useEffect(function(){
+    if(!session) return;
+    var alive = true;
+    setLoadState('loading'); setLoadErr('');
+    (async function(){
+      try{
+        var seasonRes = await sb.from('seasons').select('id,name').eq('active',true).limit(1);
+        if(seasonRes.error) throw seasonRes.error;
+        if(!seasonRes.data || !seasonRes.data.length) throw new Error('No active season found');
+        var season = seasonRes.data[0];
+
+        var lookupsP = Promise.all([
+          fetchAll(function(){ return sb.from('clients').select('id,name'); }),
+          fetchAll(function(){ return sb.from('sub_clients').select('id,name'); }),
+          fetchAll(function(){ return sb.from('varieties').select('id,name'); })
+        ]);
+        var shipmentsP = fetchAll(function(){
+          return sb.from('shipments')
+            .select('id,row_key,container_number,carta,client,subclient,vessel,eta,etd,receiving_country,receiving_port,shipping_status,carton_count,pallet_count,variety,daltex_class,loading_date')
+            .eq('season_id', season.id).eq('product_id','grapes');
+        });
+        var inspectionsP = fetchAll(function(){
+          return sb.from('inspections')
+            .select('id,container_number,avg_total_defect,avg_brix,status,decision,date')
+            .eq('season_id', season.id).eq('product_id','grapes').not('container_number','is',null);
+        });
+        var cqcP = fetchAll(function(){
+          return sb.from('client_qc_reports')
+            .select('id,container_number,total_defect,gap_total,score,potential_claim,claimed_value,claimed_currency,client_id,sub_client_id,variety_id,created_at,max_temp,general_comments,cause,client_decision,qc_report_number')
+            .eq('season_id', season.id);
+        });
+
+        var all = await Promise.all([lookupsP, shipmentsP, inspectionsP, cqcP]);
+        if(!alive) return;
+        var lookups = all[0], shipments = all[1], inspections = all[2], cqcs = all[3];
+        var clientMap = {}, subMap = {}, varMap = {};
+        lookups[0].forEach(function(r){ clientMap[r.id]=r.name; });
+        lookups[1].forEach(function(r){ subMap[r.id]=r.name; });
+        lookups[2].forEach(function(r){ varMap[r.id]=r.name; });
+
+        /* group by normalized container */
+        var byCN = {};
+        function getC(cn){
+          if(!byCN[cn]) byCN[cn] = {cn:cn, rows:[], cqcs:[], insp:null, subclients:[], varieties:[], notInShipments:false};
+          return byCN[cn];
+        }
+        shipments.forEach(function(s){
+          var cn = normCN(s.container_number);
+          if(!cn) return;
+          getC(cn).rows.push(s);
+        });
+        var inspByCN = {};
+        inspections.forEach(function(i){
+          var cn = normCN(i.container_number);
+          if(!cn) return;
+          var prev = inspByCN[cn];
+          if(!prev || String(i.date||'') > String(prev.date||'')) inspByCN[cn]=i;
+        });
+        cqcs.forEach(function(r){
+          var cn = normCN(r.container_number);
+          if(!cn) return;
+          r._client = r.client_id ? (clientMap[r.client_id]||null) : null;
+          r._sub = r.sub_client_id ? (subMap[r.sub_client_id]||null) : null;
+          r._var = r.variety_id ? (varMap[r.variety_id]||null) : null;
+          var c = getC(cn);
+          if(c.rows.length===0) c.notInShipments = true;
+          c.cqcs.push(r);
+        });
+
+        var containers = Object.keys(byCN).map(function(cn){
+          var c = byCN[cn];
+          c.insp = inspByCN[cn] || null;
+          c.cqcs.sort(function(a,b){ return String(b.created_at||'').localeCompare(String(a.created_at||'')); });
+          c.latestCqc = c.cqcs[0] || null;
+          var clients = {}, subs = {}, vars = {};
+          c.rows.forEach(function(s){
+            if(s.client) clients[s.client]=1;
+            if(s.subclient) subs[s.subclient]=1;
+            if(s.variety) vars[s.variety]=1;
+          });
+          c.cqcs.forEach(function(r){
+            if(r._client) clients[r._client]=1;
+            if(r._sub) subs[r._sub]=1;
+            if(r._var) vars[r._var]=1;
+          });
+          c.client = Object.keys(clients).join(' / ') || null;
+          c.subclients = Object.keys(subs);
+          c.varieties = Object.keys(vars);
+          c.varietyLabel = c.varieties.join(' / ') || null;
+          var first = c.rows[0] || {};
+          c.eta = c.rows.reduce(function(a,s){ return s.eta && (!a || s.eta>a) ? s.eta : a; }, null);
+          c.port = first.receiving_port || null;
+          c.country = first.receiving_country || null;
+          c.vessel = first.vessel || null;
+          var inspD = c.insp ? c.insp.avg_total_defect : null;
+          var cqcD = c.latestCqc ? c.latestCqc.total_defect : null;
+          c.gap = (inspD!==null&&inspD!==undefined&&cqcD!==null&&cqcD!==undefined) ? (Number(cqcD)-Number(inspD)) : null;
+          return c;
+        });
+        containers.sort(function(a,b){ return String(b.eta||'').localeCompare(String(a.eta||'')); });
+        setData({season:season, containers:containers});
+        setLoadState('ready');
+      }catch(e){
+        if(!alive) return;
+        setLoadErr(e.message || String(e));
+        setLoadState('error');
+      }
+    })();
+    return function(){ alive=false; };
+  },[session]);
+
+  /* local actions */
+  function onGrade(cn, g){
+    var next = {grades: Object.assign({}, local.grades), claims: local.claims.slice()};
+    if(g) next.grades[cn] = {grade:g, at:new Date().toISOString()}; else delete next.grades[cn];
+    setLocal(next);
+  }
+  function onClaimSave(cl){
+    var next = {grades: local.grades, claims: local.claims.concat([cl])};
+    setLocal(next); setModalC(null);
+  }
+  function onClaimStatus(id, s){
+    var next = {grades: local.grades, claims: local.claims.map(function(c){ return c.id===id ? Object.assign({},c,{status:s}) : c; })};
+    setLocal(next);
+  }
+  function onClaimDelete(id){
+    var next = {grades: local.grades, claims: local.claims.filter(function(c){ return c.id!==id; })};
+    setLocal(next);
+  }
+
+  if(session===undefined) return ce('div',{className:'wrap'}, ce('div',{style:{padding:'60px',textAlign:'center'}}, ce('span',{className:'spin'}),' Checking session…'));
+  if(session===null) return ce(Login,{onAuthed:setSession});
+
+  var header = ce('div',null,
+    ce('div',{className:'pretest'},
+      ce('b',null,'PRE-TEST'),
+      ce('span',null,'Reads live staging data. Grades & claims are stored in this browser only — nothing is written to the database.'),
+      ce('span',{style:{marginLeft:'auto',cursor:'pointer',textDecoration:'underline'},onClick:function(){ sb.auth.signOut(); }},'Sign out')
+    ),
+    ce('div',{className:'topbar'},
+      ce('div',null,
+        ce('div',{className:'h1'},'Claims & grading'),
+        ce('div',{className:'sub'}, data ? ('Season '+data.season.name+' · Grapes · '+data.containers.length+' containers') : '')
+      )
+    ),
+    ce('div',{className:'tabs'},
+      ce('span',{className:'tab'+(tab==='today'?' active':''),onClick:function(){setTab('today');}},'Today'),
+      ce('span',{className:'tab'+(tab==='containers'?' active':''),onClick:function(){setTab('containers');}},'Containers')
+    )
+  );
+
+  if(loadState==='loading'||loadState==='boot') return ce('div',{className:'wrap'}, header, ce('div',{style:{padding:'40px',textAlign:'center',color:'var(--text3)'}}, ce('span',{className:'spin'}),' Loading shipments, inspections and CQC…'));
+  if(loadState==='error') return ce('div',{className:'wrap'}, header, ce('div',{className:'errbanner'},'Failed to load: '+loadErr));
+
+  var containers = data.containers;
+
+  /* derived for Today */
+  var now = Date.now();
+  var arriving = {};
+  containers.forEach(function(c){
+    var du = daysUntil(c.eta);
+    if(du!==null && du>=0 && du<=7 && c.client){
+      var k = c.client;
+      if(!arriving[k]) arriving[k]={client:k,count:0,eta:c.eta,port:c.port};
+      arriving[k].count++;
+      if(c.eta < arriving[k].eta){ arriving[k].eta=c.eta; arriving[k].port=c.port; }
+    }
+  });
+  var arrivingList = Object.keys(arriving).map(function(k){return arriving[k];}).sort(function(a,b){return String(a.eta).localeCompare(String(b.eta));}).slice(0,6);
+
+  var attention = containers.filter(function(c){
+    if(!c.latestCqc) return false;
+    if((local.grades[c.cn]||{}).grade) return false;
+    var age = daysAgo(c.latestCqc.created_at);
+    return age!==null && age<=21;
+  }).map(function(c){
+    var cqc = c.latestCqc;
+    var sn = parseScoreNum(cqc.score) || 0;
+    var pr = sn*10 + (cqc.potential_claim?15:0) + (c.gap!==null?Math.min(c.gap,10):0);
+    return {c:c, pr:pr, age:daysAgo(cqc.created_at)};
+  }).sort(function(a,b){ return b.pr-a.pr; }).slice(0,8);
+
+  var pipe = {open:{n:0,sums:{}}, submitted:{n:0,sums:{}}, settled:{n:0,sums:{}}, rejected:{n:0,sums:{}}};
+  local.claims.forEach(function(cl){
+    var p = pipe[cl.status]||pipe.open;
+    p.n++; p.sums[cl.currency] = (p.sums[cl.currency]||0)+Number(cl.amount||0);
+  });
+  function sumStr(sums){
+    var parts = Object.keys(sums).map(function(cu){ return curSym(cu)+Math.round(sums[cu]/100)/10+'k'; });
+    return parts.length?parts.join(' + '):'—';
+  }
+  var cqcFlagged = containers.filter(function(c){ return c.cqcs.some(function(r){return r.potential_claim;}); }).length;
+
+  var scoreByClient = {};
+  containers.forEach(function(c){
+    if(!c.client) return;
+    var k = c.client;
+    if(!scoreByClient[k]) scoreByClient[k]={client:k,cntr:0,cqc:0,claims:0,grades:[]};
+    var s = scoreByClient[k];
+    s.cntr++;
+    if(c.latestCqc) s.cqc++;
+    s.claims += local.claims.filter(function(cl){return cl.cn===c.cn;}).length;
+    var g = (local.grades[c.cn]||{}).grade; if(g) s.grades.push(g);
+  });
+  var scorecards = Object.keys(scoreByClient).map(function(k){return scoreByClient[k];}).sort(function(a,b){return b.cntr-a.cntr;}).slice(0,8);
+  function avgGrade(gs){
+    if(!gs.length) return '—';
+    var m={A:1,B:2,C:3}, r={1:'A',2:'B',3:'C'};
+    var v = gs.reduce(function(a,g){return a+m[g];},0)/gs.length;
+    return r[Math.round(v)]||'—';
+  }
+
+  var todayView = ce('div',null,
+    ce('div',{className:'kpirow'},
+      ce('div',{className:'kpi'}, ce('div',{className:'kpi-label'},'Containers'), ce('div',{className:'kpi-value'}, containers.length)),
+      ce('div',{className:'kpi'}, ce('div',{className:'kpi-label'},'CQC received'), ce('div',{className:'kpi-value'}, containers.filter(function(c){return !!c.latestCqc;}).length)),
+      ce('div',{className:'kpi'}, ce('div',{className:'kpi-label'},'Graded (local)'), ce('div',{className:'kpi-value'}, Object.keys(local.grades).length)),
+      ce('div',{className:'kpi'}, ce('div',{className:'kpi-label'},'CQC claim flags'), ce('div',{className:'kpi-value',style:{color: cqcFlagged? 'var(--red)':'var(--text)'}}, cqcFlagged))
+    ),
+    ce('div',{className:'sec'},'Arriving this week'),
+    arrivingList.length===0 ? ce('div',{style:{fontSize:'12px',color:'var(--text3)'}},'No arrivals in the next 7 days.') :
+      ce('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap'}},
+        arrivingList.map(function(a){
+          return ce('div',{key:a.client,className:'arr'},
+            ce('div',{style:{fontWeight:500,color:'var(--text)'}}, a.client+' · '+a.count+(a.count>1?' cntrs':' cntr')),
+            ce('div',{style:{color:'var(--text3)',fontSize:'11px'}}, fmtDate(a.eta)+(a.port?' · '+a.port:''))
+          );
+        })
+      ),
+    ce('div',{className:'sec'},'Needs attention'),
+    attention.length===0 ? ce('div',{style:{fontSize:'12px',color:'var(--text3)'}},'Nothing pending — all recent CQCs are graded.') :
+      ce('div',{className:'card'},
+        attention.map(function(a){
+          var c=a.c, cqc=c.latestCqc;
+          var sn = parseScoreNum(cqc.score)||0;
+          var tag = sn>=4 || (c.gap!==null&&c.gap>3) ? Badge('b-fail','act now') : (cqc.potential_claim ? Badge('b-warn','claim flag') : Badge('b-neutral','aging '+a.age+'d'));
+          return ce('div',{key:c.cn,className:'attn',onClick:function(){ setTab('containers'); setSelectedCN(c.cn); }},
+            ce('div',{style:{minWidth:0}},
+              ce('div',{style:{fontSize:'12px',color:'var(--text)'}}, ce('span',{className:'mono'},c.cn), ' · '+(c.client||'—')),
+              ce('div',{style:{fontSize:'11px',color:'var(--text3)'}},
+                'CQC '+(a.age===0?'today':a.age+'d ago')+' · '+(cqc.score||'no score')+
+                (c.gap!==null?' · gap '+(c.gap>0?'+':'')+fmtPct(c.gap):'')+
+                (cqc.potential_claim?' · client flagged claim':''))
+            ),
+            tag
+          );
+        })
+      ),
+    ce('div',{className:'twocol',style:{display:'grid',gridTemplateColumns:'1.1fr 1fr',gap:'10px',marginTop:'14px'}},
+      ce('div',null,
+        ce('div',{className:'sec',style:{marginTop:0}},'Claims pipeline (local pre-test data)'),
+        ce('div',{className:'card',style:{padding:'11px 12px'}},
+          ce('div',{style:{display:'flex',gap:'6px'}},
+            [['open','OPEN','var(--red)','var(--red-bg)'],['submitted','SUBMITTED','var(--amber)','var(--amber-bg)'],['settled','SETTLED','var(--green)','var(--green-bg)']].map(function(x){
+              return ce('div',{key:x[0],style:{flex:1,background:x[3],borderRadius:'6px',padding:'7px 9px'}},
+                ce('div',{style:{fontSize:'10px',color:x[2],fontWeight:500}},x[1]),
+                ce('div',{style:{fontFamily:'var(--font-display)',fontSize:'16px',color:x[2]}}, pipe[x[0]].n+' · '+sumStr(pipe[x[0]].sums))
+              );
+            })
+          )
+        )
+      ),
+      ce('div',null,
+        ce('div',{className:'sec',style:{marginTop:0}},'Client scorecards'),
+        ce('div',{className:'card',style:{padding:'4px 12px'}},
+          scorecards.map(function(s,i){
+            return ce('div',{key:s.client,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderBottom:i<scorecards.length-1?'1px solid var(--bg2)':'none',fontSize:'12px',gap:'8px'}},
+              ce('span',{style:{color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}, s.client),
+              ce('span',{style:{color:'var(--text3)',fontSize:'11px',whiteSpace:'nowrap'}},
+                s.cntr+' cntr · '+s.cqc+' cqc · ',
+                s.claims>0 ? ce('span',{style:{color:'var(--red)'}}, s.claims+' claims') : '0 claims',
+                ' · avg '+avgGrade(s.grades))
+            );
+          })
+        )
+      )
+    )
+  );
+
+  /* Containers tab */
+  var filtered = containers.filter(function(c){
+    if(q){ var qq=q.toUpperCase(); if(c.cn.indexOf(qq)<0 && (c.client||'').toUpperCase().indexOf(qq)<0) return false; }
+    var hasClaims = local.claims.some(function(cl){return cl.cn===c.cn;});
+    var graded = !!(local.grades[c.cn]||{}).grade;
+    if(filter==='hascqc') return !!c.latestCqc;
+    if(filter==='ungraded') return !!c.latestCqc && !graded;
+    if(filter==='claims') return hasClaims || c.cqcs.some(function(r){return r.potential_claim;});
+    return true;
+  });
+  var selected = selectedCN ? containers.find(function(c){return c.cn===selectedCN;}) : null;
+
+  var containersView = ce('div',null,
+    ce('div',{style:{display:'flex',gap:'6px',marginBottom:'10px',flexWrap:'wrap',alignItems:'center'}},
+      [['all','All'],['hascqc','Has CQC'],['ungraded','Ungraded'],['claims','Claims']].map(function(f){
+        return ce('span',{key:f[0],className:'pill'+(filter===f[0]?' sel':''),onClick:function(){setFilter(f[0]);}}, f[1]);
+      }),
+      ce('input',{className:'form-input',style:{width:'220px',marginLeft:'auto',padding:'5px 10px',fontSize:'13px'},placeholder:'Search container / client…',value:q,onChange:function(e){setQ(e.target.value);}})
+    ),
+    ce('div',{className:'card',style:{overflow:'auto'}},
+      ce('table',null,
+        ce('thead',null, ce('tr',null,
+          ce('th',null,'Container'), ce('th',null,'Client'), ce('th',null,'ETA'),
+          ce('th',null,'CQC'), ce('th',null,'Gap'), ce('th',null,'Grade'), ce('th',null,'Claims')
+        )),
+        ce('tbody',null,
+          filtered.slice(0,200).map(function(c){
+            var g = (local.grades[c.cn]||{}).grade;
+            var nClaims = local.claims.filter(function(cl){return cl.cn===c.cn;}).length;
+            var flagged = c.cqcs.some(function(r){return r.potential_claim;});
+            return ce('tr',{key:c.cn,className:'click'+(selectedCN===c.cn?' rowsel':''),onClick:function(){ setSelectedCN(selectedCN===c.cn?null:c.cn); }},
+              ce('td',{className:'mono',style:{fontSize:'12px',color:'var(--text)'}}, c.cn, c.notInShipments?ce('span',{style:{color:'var(--text3)',fontFamily:'var(--font-body)',fontSize:'10px'}},' (CQC only)'):null),
+              ce('td',null, c.client||'—'),
+              ce('td',null, fmtDate(c.eta)),
+              ce('td',null, c.latestCqc ? scoreBadge(c.latestCqc.score) : ce('span',{style:{color:'var(--text3)',fontSize:'12px'}},'—')),
+              ce('td',{style:{color: c.gap!==null&&c.gap>2?'var(--red)':'var(--text2)'}}, c.gap!==null?(c.gap>0?'+':'')+fmtPct(c.gap):'—'),
+              ce('td',null, gradeBadge(g)),
+              ce('td',null,
+                nClaims>0 ? Badge('b-fail', nClaims+(nClaims>1?' claims':' claim')) : (flagged ? Badge('b-warn','flagged') : ce('span',{style:{color:'var(--text3)'}},'—'))
+              )
+            );
+          })
+        )
+      ),
+      filtered.length>200 ? ce('div',{style:{padding:'8px 12px',fontSize:'11px',color:'var(--text3)'}},'Showing first 200 of '+filtered.length+' — use search to narrow.') : null
+    ),
+    selected ? ce(DetailPanel,{container:selected, local:local, onGrade:onGrade, onNewClaim:setModalC, onClaimStatus:onClaimStatus, onClaimDelete:onClaimDelete}) : ce('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'10px'}},'Click a container to open its detail panel.')
+  );
+
+  return ce('div',{className:'wrap'},
+    header,
+    tab==='today' ? todayView : containersView,
+    modalC ? ce(ClaimModal,{container:modalC, onClose:function(){setModalC(null);}, onSave:onClaimSave}) : null
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(ce(App));
+</script>
+</body>
+</html>
