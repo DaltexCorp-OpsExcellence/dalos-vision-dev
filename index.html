@@ -9331,8 +9331,13 @@ function IntakePanel(props){
   function toggleSel(ix){ setSel(function(p){var n=Object.assign({},p); n[ix]=!n[ix]; return n;}); }
   function selCount(){ return Object.keys(sel).filter(function(k){return sel[k];}).length; }
   function startMulti(r){ var atts=r.attachments||[]; var chosen=atts.filter(function(a,ix){return sel[ix];}); if(!chosen.length) return; props.onStart&&props.onStart(r,chosen); setFilesFor(null); }
-  var waiting=rows.filter(function(r){return r.status==='new';}).length;
-  var prog=rows.filter(function(r){return r.status==='in_progress';}).length;
+  /* Local done-tracking so a just-completed row stays visible with an Undo button
+     until the next natural reload (the load filter excludes completed rows). */
+  var sDone=useState({}); var done=sDone[0]; var setDone=sDone[1];
+  function markDone(r){ setDone(function(p){var n=Object.assign({},p); n[r.id]=r.status||'new'; return n;}); props.onMarkDone&&props.onMarkDone(r); }
+  function undoDone(r){ var prev=done[r.id]||'new'; setDone(function(p){var n=Object.assign({},p); delete n[r.id]; return n;}); props.onUndoDone&&props.onUndoDone(r,prev); }
+  var waiting=rows.filter(function(r){return r.status==='new'&&!done[r.id];}).length;
+  var prog=rows.filter(function(r){return r.status==='in_progress'&&!done[r.id];}).length;
   var header=ce('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'var(--card)',cursor:'pointer'},onClick:function(){setOpen(!open);}},
     ce('span',{style:{fontSize:15,color:'var(--text2)'}},'\u2709'),
     ce('span',{style:{fontSize:14,fontWeight:500}},'Incoming reports'),
@@ -9349,10 +9354,21 @@ function IntakePanel(props){
         var label=conts.length?conts.join(', '):'\u2014';
         var inprog=r.status==='in_progress';
         var multi=atts.length>1;
+        var isDone=!!done[r.id];
+        /* Row just marked done — show muted with an Undo button (persists until next reload) */
+        if(isDone){
+          return ce('div',{key:r.id,style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderTop:'1px solid var(--border)',flexWrap:'wrap',opacity:.55}},
+            ce('span',{style:{fontFamily:'monospace',fontSize:13,fontWeight:500,textDecoration:'line-through'}},label),
+            ce('span',{style:{fontSize:12,color:'var(--text3)'}},'Marked done'),
+            ce('span',{style:{marginLeft:'auto'}},
+              ce('button',{className:'btn btn-sm',onClick:function(){undoDone(r);}},'\u21a9 Undo')
+            )
+          );
+        }
         var rightBtns=[];
         if(atts.length>=1){ rightBtns.push(ce('button',{key:'f',className:'btn btn-sm',onClick:function(){expand(r);}},'Open file'+(atts.length===1?'':'s')+' ('+atts.length+')'+(filesFor===r.id?' \u25b4':' \u25be'))); }
-        
-        if(inprog){ rightBtns.push(ce('button',{key:'d',className:'btn btn-sm',onClick:function(){props.onComplete&&props.onComplete(r);}},'Mark done')); }
+        /* Mark done available on every row (reports may also be entered directly from email) */
+        rightBtns.push(ce('button',{key:'d',className:'btn btn-sm',onClick:function(){markDone(r);}},'Mark done'));
         var mainRow=ce('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderTop:'1px solid var(--border)',flexWrap:'wrap'}},
           ce('span',{style:{fontFamily:'monospace',fontSize:13,fontWeight:500}},label),
           conts.length>1?ce('span',{style:{fontSize:11,color:'var(--text3)'}},'('+conts.length+' reports)'):null,
@@ -11970,7 +11986,7 @@ function ClientQCMgmt(props){
         )
       ),
       perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setStartRow(null);setShowNew(true);}},'+ New client report')
-    ),intakeRows.length?ce(IntakePanel,{rows:intakeRows,open:intakeOpen,setOpen:setIntakeOpen,onStart:function(row,selFiles){var gp=(config.products||[]).find(function(p){return /grape/i.test(p.name||'');});if(gp)setSelCqcProd(gp.id);else if((config.products||[])[0])setSelCqcProd((config.products||[])[0].id);setStartRow(row);setUploadedFiles([]);setIntakeTotal((selFiles||[]).length);setIntakeCopying((selFiles||[]).length);setContainer(row.container_number||'');setShowNew(true);(selFiles||[]).forEach(function(a){attachIntakeFile(a);});},onComplete:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});}}):null,
+    ),intakeRows.length?ce(IntakePanel,{rows:intakeRows,open:intakeOpen,setOpen:setIntakeOpen,onStart:function(row,selFiles){var gp=(config.products||[]).find(function(p){return /grape/i.test(p.name||'');});if(gp)setSelCqcProd(gp.id);else if((config.products||[])[0])setSelCqcProd((config.products||[])[0].id);setStartRow(row);setUploadedFiles([]);setIntakeTotal((selFiles||[]).length);setIntakeCopying((selFiles||[]).length);setContainer(row.container_number||'');setShowNew(true);(selFiles||[]).forEach(function(a){attachIntakeFile(a);});},onComplete:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});},onMarkDone:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){});},onUndoDone:function(row,prev){supabase.from('cqc_intake').update({status:(prev||'new')}).eq('id',row.id).then(function(){});}}):null,
     /* ── Stats bar ── */
     (function(){
       var rWithMaj=prodReports.filter(function(r){return r.sectionAvgs&&r.sectionAvgs.Major!=null;});
