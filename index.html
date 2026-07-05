@@ -8857,7 +8857,7 @@ function AdminCenter(props){
                       supabase.from('seasons').update({active:false}).neq('name',s.name)
                         .then(function(){
                           supabase.from('seasons').update({active:true}).eq('name',s.name)
-                          .then(function(r){if(r.error){console.error('[DalOS] setActiveSeason error:',r.error.message);flashErr(r.error.message);}else flashSaved();});
+                          .then(function(r){if(r.error){console.error('[DalOS] setActiveSeason error:',r.error.message);flashErr(r.error.message);}else{flashSaved();/* FIX: season switch must refetch — reload once DB active flag is flipped */setTimeout(function(){window.location.reload();},400);}});
                         });
                     }},'Set as active')
                 )
