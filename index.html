@@ -9441,6 +9441,13 @@ function ClientQCMgmt(props){
   var sCQCSrchFocus=useState(false); var cqcSearchFocus=sCQCSrchFocus[0]; var setCqcSearchFocus=sCQCSrchFocus[1];
   var sCqcFilter=useState('all'); var cqcFilter=sCqcFilter[0]; var setCqcFilter=sCqcFilter[1];
   var sCqcView=useState('table'); var cqcView=sCqcView[0]; var setCqcView=sCqcView[1];
+  /* Card-view announcement (shows once per browser; bump key to re-announce a future feature) */
+  var CARDVIEW_TIP_KEY='dalos_seen_cqc_cardview_v1';
+  var sCvAnnounce=useState('none'); var cvAnnounce=sCvAnnounce[0]; var setCvAnnounce=sCvAnnounce[1]; /* 'none' | 'modal' | 'popover' */
+  React.useEffect(function(){
+    try{ if(!localStorage.getItem(CARDVIEW_TIP_KEY)) setCvAnnounce('modal'); }catch(e){}
+  },[]);
+  function dismissCvTip(){ try{ localStorage.setItem(CARDVIEW_TIP_KEY,'1'); }catch(e){} setCvAnnounce('none'); }
   var sCqcSort=useState({col:'created',dir:'desc'}); var cqcSort=sCqcSort[0]; var setCqcSort=sCqcSort[1];
   var sCqcMob=useState(typeof window!=='undefined'&&window.innerWidth<=767); var cqcMob=sCqcMob[0];
   var sCqcMobDispute=useState(null); var cqcMobDispute=sCqcMobDispute[0]; var setCqcMobDispute=sCqcMobDispute[1];
@@ -12105,6 +12112,24 @@ function ClientQCMgmt(props){
         }
 
         return ce('div',null,
+          /* ── Card-view announcement modal (step 1 of the first-view flow) ── */
+          cvAnnounce==='modal'&&ce('div',{style:{position:'fixed',inset:0,zIndex:9000,background:'rgba(20,28,22,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:16},onClick:function(e){if(e.target===e.currentTarget)dismissCvTip();}},
+            ce('div',{style:{width:380,maxWidth:'100%',background:'var(--card)',border:'1px solid var(--border2)',borderRadius:16,overflow:'hidden',boxShadow:'0 12px 48px rgba(0,0,0,.3)'}},
+              ce('div',{style:{height:4,background:'#c9a24b'}}),
+              ce('div',{style:{padding:'22px 22px 20px'}},
+                ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:14}},
+                  ce('div',{style:{width:38,height:38,borderRadius:10,background:'var(--green-bg)',display:'flex',alignItems:'center',justifyContent:'center',color:'#2e5d3a',fontSize:20}},'\u229e'),
+                  ce('span',{style:{fontSize:11,fontWeight:600,color:'#b8860b',background:'#fbf3dd',padding:'3px 10px',borderRadius:999,letterSpacing:'.04em'}},'NEW')
+                ),
+                ce('div',{style:{fontFamily:'var(--font-display,Georgia,serif)',fontSize:21,color:'var(--text)',marginBottom:8,lineHeight:1.25}},'Client QC has a new Card view'),
+                ce('div',{style:{fontSize:13.5,color:'var(--text2)',lineHeight:1.6,marginBottom:20}},'You can now switch between the classic table and a spacious card layout \u2014 easier to scan defects, scores, and matches at a glance. Toggle any time from the top-right of the listing.'),
+                ce('div',{style:{display:'flex',gap:10}},
+                  ce('button',{style:{flex:1,background:'#2e5d3a',color:'#fff',border:'none',borderRadius:8,padding:'10px 0',fontSize:13.5,fontWeight:500,cursor:'pointer'},onClick:function(){setCqcView('cards');setCvAnnounce('popover');}},'Show me'),
+                  ce('button',{style:{background:'transparent',color:'var(--text2)',border:'1px solid var(--border2)',borderRadius:8,padding:'10px 16px',fontSize:13.5,cursor:'pointer'},onClick:dismissCvTip},'Got it')
+                )
+              )
+            )
+          ),
           /* ── Toolbar ── */
           ce('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:12,flexWrap:'wrap'}},
             /* Search */
@@ -12126,10 +12151,21 @@ function ClientQCMgmt(props){
                 onClick:function(){setCqcFilter(f);}
               },labels[f]);
             }),
-            /* View toggle */
-            ce('div',{style:{display:'flex',border:'0.5px solid var(--border2)',borderRadius:'var(--r1)',overflow:'hidden',marginLeft:'auto'}},
-              ce('button',{title:'Table view',style:{padding:'5px 9px',background:cqcView==='table'?'#2e5d3a':'var(--card)',color:cqcView==='table'?'#fff':'var(--text3)',border:'none',cursor:'pointer',fontSize:13},onClick:function(){setCqcView('table');}},'≡'),
-              ce('button',{title:'Card view',style:{padding:'5px 9px',background:cqcView==='cards'?'#2e5d3a':'var(--card)',color:cqcView==='cards'?'#fff':'var(--text3)',border:'none',cursor:'pointer',fontSize:13},onClick:function(){setCqcView('cards');}},'\u229e')
+            /* View toggle (with card-view announcement popover anchored here) */
+            ce('div',{style:{position:'relative',marginLeft:'auto'}},
+              ce('div',{style:{display:'flex',border:'0.5px solid var(--border2)',borderRadius:'var(--r1)',overflow:'hidden'}},
+                ce('button',{title:'Table view',style:{padding:'5px 9px',background:cqcView==='table'?'#2e5d3a':'var(--card)',color:cqcView==='table'?'#fff':'var(--text3)',border:'none',cursor:'pointer',fontSize:13},onClick:function(){setCqcView('table');}},'≡'),
+                ce('button',{title:'Card view',style:{padding:'5px 9px',background:cqcView==='cards'?'#2e5d3a':'var(--card)',color:cqcView==='cards'?'#fff':'var(--text3)',border:'none',cursor:'pointer',fontSize:13},onClick:function(){setCqcView('cards');}},'\u229e')
+              ),
+              cvAnnounce==='popover'&&ce('div',{style:{position:'absolute',top:'calc(100% + 12px)',right:0,width:248,background:'var(--card)',border:'1px solid var(--border2)',borderRadius:12,padding:'13px 15px',boxShadow:'0 8px 28px rgba(0,0,0,.18)',zIndex:60}},
+                ce('div',{style:{position:'absolute',top:-6,right:14,width:11,height:11,background:'var(--card)',borderLeft:'1px solid var(--border2)',borderTop:'1px solid var(--border2)',transform:'rotate(45deg)'}}),
+                ce('div',{style:{display:'flex',alignItems:'center',gap:7,marginBottom:6}},
+                  ce('span',{style:{fontSize:10,fontWeight:600,color:'#b8860b',background:'#fbf3dd',padding:'2px 8px',borderRadius:999,letterSpacing:'.04em'}},'NEW'),
+                  ce('span',{style:{fontSize:13.5,fontWeight:600,color:'var(--text)'}},'Card view')
+                ),
+                ce('div',{style:{fontSize:12.5,color:'var(--text2)',lineHeight:1.5,marginBottom:12}},'You can switch between the table and the new card layout here anytime.'),
+                ce('button',{style:{width:'100%',background:'#2e5d3a',color:'#fff',border:'none',borderRadius:7,padding:'8px 0',fontSize:12.5,fontWeight:500,cursor:'pointer'},onClick:dismissCvTip},'Got it')
+              )
             )
           ),
 
