@@ -15470,6 +15470,7 @@ function App(){
               value:currentViewSeason,
               onChange:function(e){
                 var name=e.target.value;
+                var _f2=(config.seasons||[]).find(function(s){return s.name===name;});if(_f2){try{localStorage.setItem('dalos_view_season',_f2.id);}catch(_e){}window.location.reload();return;}
                 setViewSeason(name);
                 /* Also update config.activeSeasonId so shipments and other season-aware components react */
                 var found=(config.seasons||[]).find(function(s){return s.name===name;});
