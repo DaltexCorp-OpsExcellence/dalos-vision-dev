@@ -12061,7 +12061,8 @@ function ClientQCMgmt(props){
             var q=cqcSearch.trim().toLowerCase();
             return (r.container||'').toLowerCase().indexOf(q)>=0
               ||(r.qcReportNumber||'').toLowerCase().indexOf(q)>=0
-              ||(r.client||'').toLowerCase().indexOf(q)>=0;
+              ||(r.client||'').toLowerCase().indexOf(q)>=0
+              ||(r.subClient||'').toLowerCase().indexOf(q)>=0;
           }
           return true;
         }).sort(function(a,b){
@@ -12069,7 +12070,7 @@ function ClientQCMgmt(props){
           var v=0;
           if(col==='container') v=(a.container||'').localeCompare(b.container||'');
           else if(col==='packDate') v=(a.packDate||'').localeCompare(b.packDate||'');
-          else if(col==='client') v=(a.client||'').localeCompare(b.client||'');
+          else if(col==='client') v=((a.subClient||a.client)||'').localeCompare((b.subClient||b.client)||'');
           else if(col==='created') v=(a.savedAt||'').localeCompare(b.savedAt||'');
           else v=(a.totalDefect||0)-(b.totalDefect||0);
           return dir==='desc'?-v:v;
@@ -12201,7 +12202,7 @@ function ClientQCMgmt(props){
                   }
                   return [
                     th(sortBtn('container','Container'),{accent:'var(--accent)',align:'left'}),
-                    th(sortBtn('client','Client'),{}),
+                    th(sortBtn('client','Sub-client'),{}),
                     th('Variety',{cls:'cqc-th-hide'}),
                     th(sortBtn('packDate','Pack date'),{cls:'cqc-th-hide'}),
                     th(sortBtn('defect','Defect'),{accent:'var(--amber)',labelColor:'var(--text2)'}),
@@ -12221,12 +12222,13 @@ function ClientQCMgmt(props){
                       onClick:function(){setSelRep(isSelected?null:r.id);}
                     },
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'left'}},
-                        ce('div',{style:{fontWeight:500,fontSize:13,fontFamily:'var(--font-mono)'}},r.container||'—')
+                        ce('div',{style:{fontWeight:500,fontSize:13,fontFamily:'var(--font-mono)'}},r.container||'—'),
+                        r.savedAt&&ce('div',{style:{fontSize:9.5,color:'var(--text3)',lineHeight:'1.1',marginTop:1}},new Date(r.savedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'}))
                       ),
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},
                         ce('div',{style:{display:'flex',alignItems:'center',gap:7}},
-                          ce('div',{style:{width:26,height:26,borderRadius:'50%',background:'var(--bg2)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:500,flexShrink:0,color:'var(--text2)'}},(r.client||'?').slice(0,2).toUpperCase()),
-                          ce('span',{style:{fontSize:13}},r.client||'—')
+                          ce('div',{style:{width:26,height:26,borderRadius:'50%',background:'var(--bg2)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:500,flexShrink:0,color:'var(--text2)'}},((r.subClient||r.client)||'?').slice(0,2).toUpperCase()),
+                          ce('span',{style:{fontSize:13}},r.subClient||r.client||'—')
                         )
                       ),
                       ce('td',{className:'cqc-td-hide',style:{padding:'10px 12px',verticalAlign:'middle'}},varietyBadge(r)),
@@ -12266,7 +12268,7 @@ function ClientQCMgmt(props){
                   ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}},
                     ce('div',null,
                       ce('div',{style:{fontWeight:500,fontSize:13,fontFamily:'var(--font-mono)'}},r.container||'—'),
-                      ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:2}},r.client||'—')
+                      ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:2}},(r.subClient||r.client||'—')+(r.savedAt?' \u00b7 '+new Date(r.savedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):''))
                     ),
                     r.score&&ce('span',{style:{padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
                       background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',
