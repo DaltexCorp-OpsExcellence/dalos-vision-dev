@@ -5477,7 +5477,7 @@ function AnalyticsView(props){
   var sSeas=useState(config.trueActiveSeasonId||config.activeSeasonId||null);
   var seasonId=sSeas[0]; var setSeasonId=sSeas[1];
   /* FIX: header season dropdown sets config.activeSeasonId; keep local seasonId (drives inspections loader + KPIs) in sync so switching season refetches. */
-  useEffect(function(){ if(config.activeSeasonId&&config.activeSeasonId!==seasonId) setSeasonId(config.activeSeasonId); },[config.activeSeasonId]);
+  React.useEffect(function(){ if(config.activeSeasonId&&config.activeSeasonId!==seasonId) setSeasonId(config.activeSeasonId); },[config.activeSeasonId]);
   var sDM=useState('season');     var dateMode=sDM[0];       var setDateMode=sDM[1];
   var sCS=useState('');           var customStart=sCS[0];    var setCustomStart=sCS[1];
   var sCE=useState('');           var customEnd=sCE[0];      var setCustomEnd=sCE[1];
