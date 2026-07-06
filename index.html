@@ -1843,6 +1843,7 @@ function InspectionForm(props){
       variety_type:varietyType||'single',
       class_id:lookupId(config.classesIdMap,cls),
       client_id:lookupId(config.clientsIdMap,client),
+      sub_client_id:lookupId(config.subClientNameToId,client),
       country_id:lookupId(config.countriesIdMap,country),
       farm_id:lookupId(config.farmsIdMap,farm),
       farm2_id:lookupId(config.farmsIdMap,farm2),
@@ -1958,7 +1959,7 @@ function InspectionForm(props){
   }
   var varieties=config.varieties[cropId]||CITRUS_VARIETIES;
   var classes=config.classes||CITRUS_CLASSES;
-  var clients=config.clients||[];
+  var clients=(config.inspSubClients&&config.inspSubClients.length?config.inspSubClients:config.clients)||[];
   var countries=config.countries||[];
   var farms=config.farms||[];
 
@@ -5462,7 +5463,7 @@ function AnalyticsView(props){
   var config=props.config||{};
 
   /* ── Lookup maps ── */
-  var clIdToName=config.clientsIdToName||{};
+  var clIdToName=Object.assign({},config.clientsIdToName||{},config.subClientsIdToName||{});
   var vrIdToName=config.varietiesIdToName||{};
   var phList=config.packhouses||[];
   var phMap={};phList.forEach(function(p){phMap[p.id]=p;});
@@ -5562,17 +5563,20 @@ function AnalyticsView(props){
     if(!seasonId){setLoading(false);return;}
     setLoading(true);setErr(null);setInspections([]);setDefectData(null);
     var q=supabase.from('inspections_with_aggregates')
-      .select('id,product_id,packhouse_id,client_id,variety_id,date,status,avg_total_defect,avg_brix,has_critical,live_avg_total_defect,live_avg_brix,live_pallet_count,live_has_critical,container_number,lot_number')
+      .select('id,product_id,packhouse_id,client_id,sub_client_id,variety_id,date,status,avg_total_defect,avg_brix,has_critical,live_avg_total_defect,live_avg_brix,live_pallet_count,live_has_critical,container_number,lot_number')
       .eq('season_id',seasonId).order('date',{ascending:false}).limit(2000);
     if(productId) q=q.eq('product_id',productId);
     if(phFilter)  q=q.eq('packhouse_id',phFilter);
     if(rangeStart) q=q.gte('date',rangeStart);
     if(rangeEnd)   q=q.lte('date',rangeEnd);
-    var cqcQ=supabase.from('client_qc_reports').select('client_id,container_number').eq('season_id',seasonId);
+    var cqcQ=supabase.from('client_qc_reports').select('client_id,sub_client_id,container_number').eq('season_id',seasonId);
     if(productId) cqcQ=cqcQ.eq('product_id',productId);
     Promise.all([q,cqcQ]).then(function(res){
       var r=res[0],cqcR=res[1];
       if(r.error){setErr(r.error.message);setLoading(false);return;}
+      /* Sub-client migration: group by sub_client_id when present (same UUID as legacy client_id for migrated rows) */
+      (r.data||[]).forEach(function(i){if(i.sub_client_id)i.client_id=i.sub_client_id;});
+      if(!cqcR.error&&cqcR.data){cqcR.data.forEach(function(row){if(row.sub_client_id)row.client_id=row.sub_client_id;});}
       setInspections(r.data||[]);
       var cqcMap={};
       if(!cqcR.error&&cqcR.data){
@@ -10383,7 +10387,7 @@ function ClientQCMgmt(props){
       product_id:selCqcProd||null,
       packhouse_id:(function(){var ph=(config.packhouses||[]).find(function(p){return p.name===fPH||p.id===fPH;});return ph?ph.id:fPH||null;})()||null,
       client_id:(config.clientsIdMap&&fClient&&config.clientsIdMap[fClient])||null,
-      sub_client_id:(config.subClientsIdMap&&fSubClient&&config.subClientsIdMap[fSubClient])||null,
+      sub_client_id:(function(){if(!fSubClient)return null;var cid=(config.clientsIdMap&&fClient&&config.clientsIdMap[fClient])||null;var list=config.subClients||[];var hit=(cid&&list.find(function(s){return s.name===fSubClient&&s.clientId===cid;}))||list.find(function(s){return s.name===fSubClient&&s.isPrimary!==false;})||list.find(function(s){return s.name===fSubClient;});return hit?hit.id:null;})(),
       variety_id:(config.varietiesIdMap&&fVar&&config.varietiesIdMap[fVar])||null,
       variety2_id:(config.varietiesIdMap&&fVar2&&config.varietiesIdMap[fVar2])||null,
       variety_type:fVarType||'single',
@@ -14248,7 +14252,7 @@ function App(){
       }catch(e){}
     }
     supabase.from('inspections_with_aggregates')
-      .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count, seasons(name), inspection_clearance(item_index,item_label,status), inspection_escalations(escalation_note,escalated_at,resolution,resolution_comment,escalated_by,users!escalated_by(full_name)), inspection_sticker_checks(field_key,confirmed)')
+      .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,sub_client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count, seasons(name), inspection_clearance(item_index,item_label,status), inspection_escalations(escalation_note,escalated_at,resolution,resolution_comment,escalated_by,users!escalated_by(full_name)), inspection_sticker_checks(field_key,confirmed)')
       .in('id',ids)
       .then(function(r){
         if(r.error){console.error('[DalOS] refreshBatchesById error:',r.error.message);return;}
@@ -14279,11 +14283,11 @@ function App(){
             } else {
               /* New row not yet in state — normalize and prepend */
               var cfg=config||{};
-              var vn=cfg.varietiesIdToName||{}, cn=cfg.clientsIdToName||{}, con=cfg.countriesIdToName||{}, fn=cfg.farmsIdToName||{}, kn=cfg.classesIdToName||{}, ctn=cfg.cartonTypesIdToName||{};
+              var vn=cfg.varietiesIdToName||{}, cn=cfg.clientsIdToName||{}, scn=cfg.subClientsIdToName||{}, con=cfg.countriesIdToName||{}, fn=cfg.farmsIdToName||{}, kn=cfg.classesIdToName||{}, ctn=cfg.cartonTypesIdToName||{};
               updated.unshift({
                 id:row.id, date:row.date, lot:row.lot_number||'', container:row.container_number||'',
                 variety:vn[row.variety_id]||'', variety2:vn[row.variety2_id]||'', varietyType:row.variety_type||'single',
-                cls:kn[row.class_id]||'', client:cn[row.client_id]||'', country:con[row.country_id]||'',
+                cls:kn[row.class_id]||'', client:(row.sub_client_id&&scn[row.sub_client_id])||cn[row.client_id]||'', country:con[row.country_id]||'',
                 farm:fn[row.farm_id]||'', plot:row.plot||'', farm2:fn[row.farm2_id]||'', plot2:row.plot2||'',
                 farm3:fn[row.farm3_id]||'', plot3:row.plot3||'', farm4:fn[row.farm4_id]||'', plot4:row.plot4||'',
                 additionalFarms:(row.additional_farms||[]).map(function(af){return {farmId:af.farm_id||'',farmName:fn[af.farm_id]||'',plot:af.plot||''};}),
@@ -14403,6 +14407,14 @@ function App(){
         var clientsIdMap={};var clientsIdToName={};
         clients.forEach(function(c){clientsIdMap[c.name]=c.id;clientsIdToName[c.id]=c.name;});
 
+        /* ── Sub-client maps: deduped names for the inspection form (primary rows win on duplicate names across parents), plus id->name resolver ── */
+        var subClientNameToId={};var subClientsIdToName={};var inspSubClientNames=[];
+        (function(){var seen={};
+          var ordered=subClients.slice().sort(function(a,b){var ap=a.is_primary===false?1:0,bp=b.is_primary===false?1:0;return ap-bp||String(a.name).localeCompare(String(b.name));});
+          ordered.forEach(function(s){subClientsIdToName[s.id]=s.name;if(!seen[s.name]){seen[s.name]=true;subClientNameToId[s.name]=s.id;inspSubClientNames.push(s.name);}});
+          inspSubClientNames.sort(function(a,b){return a.localeCompare(b);});
+        })();
+
         var classesIdMap={};var classesIdToName={};
         var activeClasses=[];
         classes.forEach(function(c){
@@ -14482,8 +14494,11 @@ function App(){
           varietiesFull:varietiesFull,
           varieties:varietiesMap,
           clients:clients.filter(function(c){return c.active!==false;}).map(function(c){return c.name;}),
-          subClients:subClients.map(function(s){return {id:s.id,name:s.name,clientId:s.client_id};}),
+          subClients:subClients.map(function(s){return {id:s.id,name:s.name,clientId:s.client_id,isPrimary:s.is_primary!==false};}),
           subClientsIdMap:(function(){var m={};subClients.forEach(function(s){m[s.name]=s.id;});return m;})(  ),
+          inspSubClients:inspSubClientNames,
+          subClientNameToId:subClientNameToId,
+          subClientsIdToName:subClientsIdToName,
           countries:countries.filter(function(c){return c.active!==false;}).map(function(c){return c.name;}),
           farms:farms.filter(function(f){return f.active!==false;}).map(function(f){return f.name;}),
           classes:activeClasses.map(function(c){return c.name;}),
@@ -14529,7 +14544,7 @@ function App(){
 
         /* ── Load inspections from Supabase + pallet index for grapes pallet search ── */
         var inspQ=supabase.from('inspections_with_aggregates')
-          .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count,seasons(name)')
+          .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,sub_client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count,seasons(name)')
           .eq('season_id', displaySeason.id)
           .order('date', {ascending:false})
           .limit(500);
@@ -14596,7 +14611,7 @@ function App(){
               var varietyName=varietiesIdToName[r.variety_id]||r.variety_id||'';
               var variety2Name=varietiesIdToName[r.variety2_id]||r.variety2_id||'';
               var varietyTypeName=r.variety_type||'single';
-              var clientName=clientsIdToName[r.client_id]||r.client_id||'';
+              var clientName=(r.sub_client_id&&subClientsIdToName[r.sub_client_id])||clientsIdToName[r.client_id]||r.client_id||'';
               var countryName=countriesIdToName[r.country_id]||r.country_id||'';
               var farmName=farmsIdToName[r.farm_id]||r.farm_id||'';
               var clsName=classesIdToName[r.class_id]||r.class_id||'';
@@ -14871,6 +14886,7 @@ function App(){
       variety2_id:(config.varietiesIdMap&&newBatch.variety2&&config.varietiesIdMap[newBatch.variety2])||null,
       variety_type:newBatch.varietyType||'single',
       client_id:(config.clientsIdMap&&newBatch.client&&config.clientsIdMap[newBatch.client])||null,
+      sub_client_id:(config.subClientNameToId&&newBatch.client&&config.subClientNameToId[newBatch.client])||null,
       class_id:(config.classesIdMap&&newBatch.cls&&config.classesIdMap[newBatch.cls])||null,
       country_id:(config.countriesIdMap&&newBatch.country&&config.countriesIdMap[newBatch.country])||null,
       carton_type_id:(config.cartonTypesIdMap&&newBatch.cartonType&&config.cartonTypesIdMap[newBatch.cartonType])||null,
