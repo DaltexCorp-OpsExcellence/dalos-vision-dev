@@ -455,6 +455,8 @@ input,select,textarea{font-size:16px!important}
 var useState = React.useState;
 var ce = React.createElement;
 var Frag = React.Fragment;
+/* Settings > Sub-clients: parent list = distinct parents of existing sub-clients (incl. inactive clients) + active clients */
+function cfgSubClientParents(config){var seen={};var l=[];(config.subClients||[]).forEach(function(s){var n=(config.clientsIdToName||{})[s.clientId];if(n&&!seen[n]){seen[n]=1;l.push(n);}});(config.clients||[]).forEach(function(n){if(!seen[n]){seen[n]=1;l.push(n);}});return l.sort(function(a,b){return a.localeCompare(b);});}
 
 /* ─── CITRUS INSPECTION TEMPLATE (from KZ CSV) ─── */
 var CITRUS_DEFECTS = [
@@ -8776,14 +8778,14 @@ function AdminCenter(props){
         ce('div',{style:{display:'flex',gap:6,marginBottom:14,flexWrap:'wrap'}},
           ce('select',{className:'form-select',style:{flex:'0 0 200px'},value:subClientClient,onChange:function(e){setSubClientClient(e.target.value);}},
             ce('option',{value:''},'— Select client —'),
-            (config.clients||[]).map(function(c){return ce('option',{key:c,value:c},c);})
+            cfgSubClientParents(config).map(function(c){return ce('option',{key:c,value:c},c);})
           ),
           ce('input',{className:'form-input',style:{flex:1,minWidth:160},placeholder:'Sub-client / retailer name',value:newVal,onChange:function(e){setNewVal(e.target.value);},
             onKeyDown:function(e){if(e.key==='Enter')addSubClientEntry();}}),
           ce('button',{className:'btn btn-primary btn-sm',onClick:addSubClientEntry},'+  Add')
         ),
-        /* Group by client */
-        (config.clients||[]).map(function(clientName){
+        /* Group by client (derived from sub-clients so inactive parents still show) */
+        cfgSubClientParents(config).map(function(clientName){
           var subs=(config.subClients||[]).filter(function(s){
             var cid=(config.clientsIdMap||{})[clientName];
             return s.clientId===cid;
