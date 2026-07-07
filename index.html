@@ -4034,11 +4034,11 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
           ce('label',{className:'form-label'},'Trace codes'),
           traceCodes.map(function(tc,ti){
             return ce('div',{key:ti,style:{display:'flex',gap:6,marginBottom:6,alignItems:'center'}},
-              ce('input',{className:'form-input',value:tc,onChange:function(idx){return function(e){setTraceCodes(function(prev){var n=prev.slice();n[idx]=e.target.value;return n;});};}(ti),style:{fontFamily:'var(--font-mono)',fontSize:12,flex:1},placeholder:'e.g. 111031325042104'}),
+              ce('input',{className:'form-input',value:(typeof tc==='string'?tc:(tc&&tc.code)||''),onChange:function(idx){return function(e){setTraceCodes(function(prev){var n=prev.slice();var cur=n[idx];n[idx]=(cur&&typeof cur==='object')?Object.assign({},cur,{code:e.target.value}):{code:e.target.value,variety:null};return n;});};}(ti),style:{fontFamily:'var(--font-mono)',fontSize:12,flex:1},placeholder:'e.g. 111031325042104'}),
               traceCodes.length>1&&ce('button',{onClick:function(idx){return function(){setTraceCodes(function(prev){return prev.filter(function(_,i){return i!==idx;});});};}(ti),style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:16,lineHeight:1,padding:'0 4px',flexShrink:0}},'\u00d7')
             );
           }),
-          ce('button',{className:'btn btn-secondary btn-sm',style:{marginTop:2},onClick:function(){setTraceCodes(function(prev){return prev.concat(['']);});}},'\u002b Add trace code')
+          ce('button',{className:'btn btn-secondary btn-sm',style:{marginTop:2},onClick:function(){setTraceCodes(function(prev){return prev.concat([{code:'',variety:null}]);});}},'\u002b Add trace code')
         ),
         ce('div',{className:'clearance-grid'},
           CLEARANCE_ITEMS.map(function(item,i){
@@ -5245,7 +5245,7 @@ function FGView(props){
             ce('span',{style:{fontFamily:'var(--font-mono)',color:selB.totalDefect>10?'var(--red)':selB.totalDefect>5?'var(--amber)':'var(--green)'}},selB.totalDefect.toFixed(2)+'%')
           ),
           /* Pallets summary — grapes only */
-          cropId==='grapes'&&(function(){
+          (cropId==='grapes'||cropId==='mango')&&(function(){
             var bd=selBData[selB.id]||{};
             var pallets=bd.pallets||[];
             if(bd.loading) return ce('div',{style:{fontSize:11,color:'var(--text3)',padding:'4px 0'}},'Loading pallets...');
@@ -5425,7 +5425,7 @@ function FGView(props){
             ce('span',null,'Total defect'),
             ce('span',{style:{fontFamily:'var(--font-mono)',color:selB.totalDefect>10?'var(--red)':selB.totalDefect>5?'var(--amber)':'var(--green)'}},selB.totalDefect.toFixed(2)+'%')
           ),
-          cropId==='grapes'&&(function(){
+          (cropId==='grapes'||cropId==='mango')&&(function(){
             var bd=selBData[selB.id]||{};
             var pallets=bd.pallets||[];
             if(bd.loading) return null;
