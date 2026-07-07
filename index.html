@@ -15052,13 +15052,13 @@ function App(){
       if(isEditMode){
         /* ── Grapes: update pallet_number + container_number for each pallet ── */
         var isGrapesEdit=(newBatch.crop||'').toLowerCase()==='grapes';
-        if(isGrapesEdit){
+        if(isGrapesEdit||(newBatch&&(newBatch.crop||'').toLowerCase()==='mango')){
           var palletUpdatePromises=palletsData.map(function(p){
             var palletId=p.palletId;
             if(!palletId||typeof palletId==='number') return Promise.resolve(); /* skip temp numeric IDs */
             var palletPfx=(newBatch.palletPrefix)||'';
             var rawLabel=p.palletLabel&&p.palletLabel.trim()?p.palletLabel.trim():String(p.palletNo);
-            var palletUpdate={pallet_number:(palletPfx&&!rawLabel.startsWith(palletPfx))?palletPfx+rawLabel:rawLabel};
+            var palletUpdate={pallet_number:(isGrapesEdit&&palletPfx&&!rawLabel.startsWith(palletPfx))?palletPfx+rawLabel:rawLabel};
             if(p.palletContainer) palletUpdate.container_number=p.palletContainer;
             palletUpdate.trace_codes=p.palletTraceCodes||[];
             if(p.actualTraceCode!==undefined) palletUpdate.actual_trace_code=p.actualTraceCode||null;
