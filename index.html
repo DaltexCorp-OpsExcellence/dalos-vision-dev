@@ -2359,7 +2359,8 @@ function InspectionForm(props){
                   ce('span',{style:{fontSize:10,color:unitConfirmed.container?'#fff':'var(--amber)',lineHeight:1}},unitConfirmed.container?'\u2713':'\u2713')
                 )
               ),
-              ce('input',{className:'form-input',value:container,onChange:function(e){var newVal=e.target.value;var oldVal=container;setContainer(newVal);if(cropId==='grapes'){setPallets(function(prev){return prev.map(function(p){if(!p.palletContainer||(oldVal&&p.palletContainer.toUpperCase()===oldVal.toUpperCase())){return Object.assign({},p,{palletContainer:newVal});}return p;});});}if(preFilled)confirmUnit('container');},placeholder:'e.g. AMCU 9327595',style:preFilled&&!unitConfirmed.container?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}})
+              ce('input',{className:'form-input',value:container,onChange:function(e){var newVal=e.target.value;var oldVal=container;setContainer(newVal);if(cropId==='grapes'){setPallets(function(prev){return prev.map(function(p){if(!p.palletContainer||(oldVal&&p.palletContainer.toUpperCase()===oldVal.toUpperCase())){return Object.assign({},p,{palletContainer:newVal});}return p;});});}if(preFilled)confirmUnit('container');},placeholder:'e.g. AMCU 9327595',style:preFilled&&!unitConfirmed.container?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}}),
+              cropId==='mango'&&container.trim()&&(function(){var norm=container.trim().replace(/\s+/g,' ').toUpperCase();var dupe=(allBatches||[]).find(function(bb){return bb&&bb.id!==(batch&&batch.id)&&((bb.container||'').trim().replace(/\s+/g,' ').toUpperCase()===norm);});return dupe?ce('div',{style:{marginTop:5,fontSize:11,color:'#b06010',background:'#fff3e0',border:'1px solid #e8c87a',borderRadius:6,padding:'4px 8px'}},'\u26a0 Container already used in session '+dupe.id+(dupe.lot?' (LOT '+dupe.lot+')':'')+' \u2014 one container = one session.'):null;})()
             ),
             ce('div',{className:'form-field'},
               ce('label',{className:'form-label',style:{display:'flex',alignItems:'center',justifyContent:'space-between'}},
@@ -3498,11 +3499,12 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
             /* ── CITRUS (default) sample table ── */
             :(function(){
               var secCols=defSections.length?defSections.map(function(){return '72px';}).join(' '):'72px';
-              var gridTpl='90px 100px 70px 60px 60px 60px '+secCols+' 1fr 54px 22px 22px';
-              var hdrLabels=['Time','Op. Date','Sample #','Size','Wt (kg)','Brix'].concat(defSections.map(function(s){return (s.section||s.name||'Defect').split(' ')[0];})).concat(['Notes','P/F','▼','']);
+              var isMangoTbl=cropId==='mango';
+              var gridTpl='90px 100px 70px 60px 60px 60px '+(isMangoTbl?'60px ':'')+secCols+' 1fr 54px 22px 22px';
+              var hdrLabels=['Time','Op. Date','Sample #','Size','Wt (kg)','Brix'].concat(isMangoTbl?['Firm']:[]).concat(defSections.map(function(s){return (s.section||s.name||'Defect').split(' ')[0];})).concat(['Notes','P/F','▼','']);
               return ce('div',{style:{minWidth:900}},
                 ce('div',{style:{display:'grid',gridTemplateColumns:gridTpl,gap:4,padding:'5px 14px',background:'var(--bg2)',borderBottom:'1px solid var(--border2)'}},
-                  hdrLabels.map(function(h,i){return ce('div',{key:i,style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.04em',textAlign:i>=6?'center':'left'}},h);})
+                  hdrLabels.map(function(h,i){return ce('div',{key:i,style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.04em',textAlign:i>=(isMangoTbl?7:6)?'center':'left'}},h);})
                 ),
                 pRows.map(function(row,ri){
                   var rowCrit=defSections.some(function(sec){return sec.items.some(function(d){return d.sev==='Critical'&&(parseFloat(row.defects[d.key])||0)>0;});});
@@ -3515,6 +3517,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',textAlign:'right',background:'var(--card)'},type:'number',min:'0',step:'1',value:row.size||'',placeholder:'size',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)}),
                       ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',textAlign:'right',background:'var(--card)'},type:'number',step:'0.1',value:row.cartonWt,placeholder:'kg',onChange:function(i,id){return function(e){updateRowField(i,id,'cartonWt',e.target.value);};}(pIdx,row.id)}),
                       ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',textAlign:'right',background:'var(--card)'},type:'number',step:'0.1',value:row.brix,placeholder:'°Bx',onChange:function(i,id){return function(e){updateRowField(i,id,'brix',e.target.value);};}(pIdx,row.id)}),
+                      isMangoTbl&&ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',textAlign:'right',background:'var(--card)'},type:'number',step:'0.1',min:'0',value:(row.extraFields||{}).firmness||'',placeholder:'firm',onChange:function(i,id){return function(e){updateRowExtra(i,id,'firmness',e.target.value);};}(pIdx,row.id)}),
                       defSections.map(function(sec){
                         var secTotal=sec.items.reduce(function(sum,d){return sum+(parseFloat(row.defects[d.key])||0);},0);
                         var secOver=sec.items.some(function(d){var thresh=thresholds[d.key]!==undefined?thresholds[d.key]:d.thresh;return thresh===0?(parseFloat(row.defects[d.key])||0)>0:(parseFloat(row.defects[d.key])||0)>thresh;});
@@ -3880,7 +3883,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                     ),
                     ce('div',null,
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Size'),
-                      ce('select',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,background:'var(--card)',minHeight:40},value:row.size,onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)},CITRUS_SIZES.map(function(s){return ce('option',{key:s,value:s},s);}))
+                      cropId==='mango'?ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',textAlign:'right',background:'var(--card)',minHeight:40},type:'number',min:'0',step:'1',value:row.size||'',placeholder:'count',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)}):ce('select',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,background:'var(--card)',minHeight:40},value:row.size,onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)},CITRUS_SIZES.map(function(s){return ce('option',{key:s,value:s},s);}))
                     ),
                     ce('div',null,
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Wt kg'),
@@ -3889,6 +3892,10 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                     ce('div',null,
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Brix °'),
                       ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',textAlign:'right',background:'var(--card)',minHeight:40},type:'number',step:'0.1',value:row.brix,placeholder:'°Bx',onChange:function(i,id){return function(e){updateRowField(i,id,'brix',e.target.value);};}(pIdx,row.id)})
+                    ),
+                    cropId==='mango'&&ce('div',null,
+                      ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Firmness'),
+                      ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',textAlign:'right',background:'var(--card)',minHeight:40},type:'number',step:'0.1',min:'0',value:(row.extraFields||{}).firmness||'',placeholder:'firm',onChange:function(i,id){return function(e){updateRowExtra(i,id,'firmness',e.target.value);};}(pIdx,row.id)})
                     ),
                     ce('div',{style:{gridColumn:'span 2'}},
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Notes'),
@@ -3899,12 +3906,12 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                 cropId!=='grapes'&&ce('div',{style:{padding:'8px 12px',borderBottom:'1px solid var(--border)'}},
                   ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}},'Key defects (%)'),
                   ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6}},
-                    ['blemish','sunburn','mech_dmg','thrips','oil_spots'].map(function(key){
+                    (cropId==='mango'?['blemish','sun_burn','anthracnose','latex_burn','bruising']:['blemish','sunburn','mech_dmg','thrips','oil_spots']).map(function(key){
                       var def=null;defSections.forEach(function(sec){sec.items.forEach(function(d){if(d.key===key)def=d;});});
                       var v=parseFloat(row.defects[key])||0;
                       var thresh=thresholds[key]!==undefined?thresholds[key]:(def?def.thresh:0);
                       var over=thresh===0?v>0:v>thresh;
-                      var shortLabel={blemish:'Blem',sunburn:'Sun',mech_dmg:'Mech',thrips:'Thrips',oil_spots:'Oil'};
+                      var shortLabel={blemish:'Blem',sunburn:'Sun',mech_dmg:'Mech',thrips:'Thrips',oil_spots:'Oil',sun_burn:'Sun',anthracnose:'Anthr',latex_burn:'Latex',bruising:'Bruis'};
                       return ce('div',{key:key,style:{textAlign:'center'}},
                         ce('div',{style:{fontSize:9,color:over?'var(--red)':'var(--text3)',fontWeight:600,marginBottom:3,textTransform:'uppercase'}},shortLabel[key]||key),
                         ce('input',{style:{width:'100%',padding:'6px 4px',border:'1.5px solid '+(over?'var(--red)':'var(--border2)'),borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',textAlign:'center',background:over?'var(--red-bg)':'var(--card)',color:over?'var(--red)':'var(--text)',minHeight:40},type:'number',step:'0.1',min:'0',value:row.defects[key],onChange:function(i,id,k){return function(e){updateRowDefect(i,id,k,e.target.value);};}(pIdx,row.id,key)})
@@ -4602,6 +4609,7 @@ function FGView(props){
   var sSrch=useState(''); var searchQ=sSrch[0]; var setSearchQ=sSrch[1];
   var sSrchFocus=useState(false); var searchFocus=sSrchFocus[0]; var setSearchFocus=sSrchFocus[1];
   var sCollapsed=useState({}); var collapsedLots=sCollapsed[0]; var setCollapsedLots=sCollapsed[1];
+  var sGrpMode=useState('lot'); var grpMode=sGrpMode[0]; var setGrpMode=sGrpMode[1];
 
   function toggleLot(lotKey){setCollapsedLots(function(prev){var n=Object.assign({},prev);n[lotKey]=!prev[lotKey];return n;});}
 
@@ -4890,6 +4898,9 @@ function FGView(props){
         tabs.map(function(t){return ce('div',{key:t,className:'tab'+(filter===t?' active':''),onClick:function(){setFilter(t);}},t,t!=='All'&&ce('span',{style:{marginLeft:5,background:t==='Accepted'?'#e8f5ec':t==='Rejected'?'#fdecea':'#fff3e0',color:t==='Accepted'?'#1e6b3a':t==='Rejected'?'#b01010':'#b06010',padding:'1px 5px',borderRadius:8,fontSize:10}},seasonBatches.filter(function(b){return b.status===t;}).length));})
       ),
       ce('div',{style:{display:'flex',gap:8,alignItems:'center',marginLeft:16,flexShrink:0}},
+        cropId==='mango'&&ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:7,overflow:'hidden',flexShrink:0}},
+          [['lot','By Lot'],['container','By Container']].map(function(m){return ce('button',{key:m[0],onClick:function(mode){return function(){setGrpMode(mode);setCollapsedLots({});};}(m[0]),style:{padding:'5px 11px',fontSize:11,fontWeight:600,border:'none',cursor:'pointer',background:grpMode===m[0]?'var(--accent)':'var(--card)',color:grpMode===m[0]?'#fff':'var(--text3)'}},m[1]);})
+        ),
         ce('div',{style:{position:'relative'}},
           ce('input',{className:'form-input',value:searchQ,
             onChange:function(e){setSearchQ(e.target.value);setSel(null);},
@@ -5016,9 +5027,12 @@ function FGView(props){
               )
             )):
             (function(){
-              var groups=cropId==='grapes'?buildContainerGroups(rows):buildLotGroups(rows);
+              var useContGroups=cropId==='grapes'||(cropId==='mango'&&grpMode==='container');
+              var mangoContLots={};
+              if(cropId==='mango'){rows.forEach(function(bb){var cc=getContainer(bb);if(!cc)return;var ll=bb.lot||'';if(!mangoContLots[cc])mangoContLots[cc]={};mangoContLots[cc][ll]=1;});}
+              var groups=useContGroups?buildContainerGroups(rows):buildLotGroups(rows);
               return groups.reduce(function(acc,grp){
-                var isGrapesGroup=cropId==='grapes';
+                var isGrapesGroup=useContGroups;
                 var groupKey=isGrapesGroup?(grp.contKey||'__unassigned__'):grp.lotKey;
                 var units=grp.units;
                 var isCollapsed=!!collapsedLots[groupKey];
@@ -5043,6 +5057,7 @@ function FGView(props){
                       ce('span',{style:{fontSize:10,color:'rgba(255,255,255,.35)',userSelect:'none',width:12}},isCollapsed?'▶':'▼'),
                       hdrLabel,
                       ce('span',{style:{fontSize:11,color:'rgba(255,255,255,.35)',borderLeft:'1px solid rgba(255,255,255,.12)',paddingLeft:10}},units.length===1?'1 session':units.length+' sessions'),
+                      cropId==='mango'&&isGrapesGroup&&grp.contKey&&(function(){var ls={};units.forEach(function(u){ls[u.lot||'']=1;});var n=Object.keys(ls).length;return n>1?ce('span',{style:{fontSize:10,background:'rgba(253,230,138,.18)',color:'#fde68a',borderRadius:10,padding:'1px 8px',border:'1px solid rgba(253,230,138,.3)',fontWeight:600}},n+' lots'):null;})(),
                       accUnits.length>0&&ce('span',{style:{fontSize:10,background:'rgba(110,231,183,.18)',color:'#6ee7b7',borderRadius:10,padding:'1px 8px',border:'1px solid rgba(110,231,183,.25)'}},'✓ '+accUnits.length+' accepted'),
                       rejUnits.length>0&&ce('span',{style:{fontSize:10,background:'rgba(239,68,68,.22)',color:'#fca5a5',borderRadius:10,padding:'1px 8px',border:'1px solid rgba(239,68,68,.3)'}},'✗ '+rejUnits.length+' rejected'),
                       escUnits.length>0&&ce('span',{style:{fontSize:10,background:'rgba(99,102,241,.3)',color:'#c7d2fe',borderRadius:10,padding:'1px 8px',border:'1px solid rgba(99,102,241,.4)',fontWeight:600}},'⬆ '+escUnits.length+' escalated')
@@ -5056,7 +5071,7 @@ function FGView(props){
                       ce('td',{style:{width:28,paddingLeft:14}},''),
                       ce('td',null,
                         ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
-                          cropId==='grapes'&&ce('button',{
+                          (cropId==='grapes'||cropId==='mango')&&ce('button',{
                             className:'btn btn-sm',
                             style:{background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text3)',padding:'2px 7px',display:'inline-flex',alignItems:'center',gap:4,flexShrink:0,borderRadius:5,fontFamily:'var(--font-mono)',fontSize:10,fontWeight:600},
                             title:'View pallets in this session',
@@ -5068,6 +5083,7 @@ function FGView(props){
                           cont
                             ? ce('div',null,
                                 ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text)',fontWeight:500}},cont),
+                                cropId==='mango'&&!useContGroups&&mangoContLots[cont]&&Object.keys(mangoContLots[cont]).length>1&&ce('span',{title:'This container also carries another lot',style:{marginLeft:5,fontSize:9,background:'#fff3e0',color:'#b06010',border:'1px solid #e8c87a',borderRadius:8,padding:'0 5px',fontWeight:600,verticalAlign:'middle'}},'shared'),
                                 ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--text3)',marginTop:1}},b.id)
                               )
                             : ce('div',null,
