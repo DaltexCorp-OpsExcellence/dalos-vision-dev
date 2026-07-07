@@ -14551,7 +14551,7 @@ function App(){
           .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,sub_client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count,seasons(name)')
           .eq('season_id', displaySeason.id)
           .order('date', {ascending:false})
-          .limit(500);
+          .limit(2000);
         /* Season-filtered — loads active season only; sidebar season switch triggers full reload */
         inspQ
           .then(function(ir){
