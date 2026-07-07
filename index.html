@@ -15144,7 +15144,7 @@ function App(){
                   palletNumE=String(p.palletNo);
                 }
               } else {
-                palletNumE=p.palletNo;
+                palletNumE=String(p.palletNo);
               }
               var pr2={inspection_id:realId,pallet_number:palletNumE,actual_trace_code:p.actualTraceCode||null};
               if(isCropGrapesEdit&&p.palletTraceCodes&&p.palletTraceCodes.length) pr2.trace_codes=p.palletTraceCodes;
@@ -15205,9 +15205,9 @@ function App(){
                   expectedF=String(item.pallet.palletNo);
                 }
               } else {
-                expectedF=item.pallet.palletNo;
+                expectedF=String(item.pallet.palletNo);
               }
-              var savedPallet=pr.data.find(function(sp){return sp.pallet_number===expectedF;});
+              var savedPallet=pr.data.find(function(sp){return String(sp.pallet_number)===String(expectedF);});
               if(!savedPallet){
                 console.warn('[DalOS] Edit-mode: could not match saved pallet — sample rows dropped',{palletLabel:item.pallet.palletLabel,palletNo:item.pallet.palletNo,expected:expectedF,available:pr.data.map(function(sp){return sp.pallet_number;})});
                 return;
@@ -15277,7 +15277,7 @@ function App(){
       var isCropGrapes=(newBatch.crop||'').toLowerCase()==='grapes';
       var palletRows=palletsData.map(function(p){
         var palletPrefix=(newBatch.palletPrefix)||'';
-        var row={inspection_id:realId, pallet_number:isCropGrapes?(p.palletLabel&&p.palletLabel.trim()?(palletPrefix&&!p.palletLabel.trim().startsWith(palletPrefix)?palletPrefix+p.palletLabel.trim():p.palletLabel.trim()):String(p.palletNo)):p.palletNo, actual_trace_code:p.actualTraceCode||null};
+        var row={inspection_id:realId, pallet_number:isCropGrapes?(p.palletLabel&&p.palletLabel.trim()?(palletPrefix&&!p.palletLabel.trim().startsWith(palletPrefix)?palletPrefix+p.palletLabel.trim():p.palletLabel.trim()):String(p.palletNo)):String(p.palletNo), actual_trace_code:p.actualTraceCode||null};
         if(isCropGrapes&&p.palletContainer) row.container_number=p.palletContainer;
         if(isCropGrapes&&p.palletTraceCodes&&p.palletTraceCodes.length) row.trace_codes=p.palletTraceCodes;
         if(p.palletCartonCompany) row.carton_company=p.palletCartonCompany;
@@ -15319,9 +15319,9 @@ function App(){
             expectedPalletNumber=String(p.palletNo);
           }
         } else {
-          expectedPalletNumber=p.palletNo;
+          expectedPalletNumber=String(p.palletNo);
         }
-        var savedPallet=savedPallets.find(function(sp){return sp.pallet_number===expectedPalletNumber;});
+        var savedPallet=savedPallets.find(function(sp){return String(sp.pallet_number)===String(expectedPalletNumber);});
         if(!savedPallet){
           console.warn('[DalOS] Could not match saved pallet for label/no:',{palletLabel:p.palletLabel,palletNo:p.palletNo,expected:expectedPalletNumber,savedPalletNumbers:savedPallets.map(function(sp){return sp.pallet_number;})});
           return;
