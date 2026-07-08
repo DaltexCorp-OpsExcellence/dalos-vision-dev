@@ -850,7 +850,7 @@ function InspectionForm(props){
           importer:importer,importerAddr:importerAddr,stickerImg:stickerImg,
           extraLabels:extraLabels,hdrLocked:hdrLocked,stickerChecks:stickerChecks,
           cartonType:cartonType,cartonCompany2:cartonCompany2,
-          grpSessionId:(cropId==='grapes'?grpSessionId:null),
+          grpSessionId:grpSessionId||null,
           ts:Date.now()};
         localStorage.setItem(draftKey,JSON.stringify(snap));
       }catch(e){}
@@ -863,7 +863,7 @@ function InspectionForm(props){
             user_id:uid,
             packhouse_id:packhouse.id||'',
             product_id:cropId||'grapes',
-            inspection_id:(cropId==='grapes'&&grpSessionId)||null,
+            inspection_id:grpSessionId||null,
             snapshot:snap,
             last_autosaved_at:new Date().toISOString()
           },{onConflict:'id'}).then(function(r){
@@ -1090,8 +1090,8 @@ function InspectionForm(props){
   /* Grapes session ID — stable for lifetime of this form instance */
   var sGrpSession=useState(null);
   var grpSessionId=(function(){
+    if(sGrpSession[0]) return sGrpSession[0]; /* locked session id — all crops */
     if(cropId!=='grapes') return '';
-    if(sGrpSession[0]) return sGrpSession[0];
     if(batch&&batch.id) return batch.id;
     var prod=(config.products||[]).find(function(p){return p.id==='grapes';})||{inspection_prefix:'GR'};
     var prefix=prod.inspection_prefix||'GR';
@@ -1260,7 +1260,7 @@ function InspectionForm(props){
     var defectAvgs={};
     defSectionsForSave.forEach(function(sec){sec.items.forEach(function(d){defectAvgs[d.key]=avgDefect(d.key);});});
     var newBatch={
-      id:batch?batch.id:(cropId==='grapes'?grpSessionId:(function(){var prod=(config.products||[]).find(function(p){return p.id===cropId;})||{prefix:'CT'};return (prod.inspection_prefix||prod.prefix||'CT')+'-'+new Date().getFullYear()+'-'+String(Math.floor(1000+Math.random()*8999)).padStart(4,'0');}())),
+      id:batch?batch.id:(grpSessionId?grpSessionId:cropId==='grapes'?null:(function(){var prod=(config.products||[]).find(function(p){return p.id===cropId;})||{prefix:'CT'};return (prod.inspection_prefix||prod.prefix||'CT')+'-'+new Date().getFullYear()+'-'+String(Math.floor(1000+Math.random()*8999)).padStart(4,'0');}())),
       loadedVersion:loadedVersionRef.current||null,
       date:date,lot:lot,container:container,variety:variety,variety2:variety2,varietyType:varietyType,category:category,category2:category2,cls:cls,
       season:config.activeSeason||'2025/26',
@@ -1294,7 +1294,7 @@ function InspectionForm(props){
     };
     /* For new grapes inspections: switch to pending confirmation screen immediately
        so the user sees progress and can't navigate away mid-save. */
-    if(!isEdit&&cropId==='grapes') setSavePending(true);
+    if(!isEdit) setSavePending(true);
     setIsSaving(true);
     setSaveStatus('saving');
     setSaveErrMsg('');
@@ -1330,7 +1330,7 @@ function InspectionForm(props){
            Refresh the listing cache so when user reopens the form they get the
            latest updated_at and won't hit the conflict again. */
         try { if(typeof refreshBatchesById==='function') refreshBatchesById([realId]); } catch(e){}
-        if(!isEdit&&cropId==='grapes'){
+        if(!isEdit){
           setSavePending(false);
           setSaveFailed('This session was saved on another device while you were editing. Go back to the form, click Refresh, then save again.');
           setIsSaving(false);
@@ -1342,7 +1342,7 @@ function InspectionForm(props){
         return;
       }
       if(err){
-        if(!isEdit&&cropId==='grapes'){
+        if(!isEdit){
           setSavePending(false);
           setSaveFailed(typeof err==='string'?err:('Save failed: '+(err.message||'unknown error')));
           setIsSaving(false);
@@ -1363,11 +1363,12 @@ function InspectionForm(props){
       if(!isEdit&&realId){
         setSavePending(false);
         setSavedInspId(realId);
-        if(cropId==='grapes') setSavedLot(realId);
+        setSavedLot(cropId==='grapes'?realId:(newBatch.lot||realId));
       }
       var ts=new Date();
       setSavedAtTime(String(ts.getHours()).padStart(2,'0')+':'+String(ts.getMinutes()).padStart(2,'0'));
       setSaveStatus('saved');
+      setIsDirty(false); /* stop autosave from re-creating the draft after cleanup */
       /* Broadcast to other tabs so their listing refreshes automatically */
       try{
         var bc=new BroadcastChannel('dalos_saves');
@@ -1425,10 +1426,9 @@ function InspectionForm(props){
       }
     };
     if(props.onAddBatch) props.onAddBatch(newBatch, saveCallback);
-    /* Grapes: confirmation is shown from saveCallback once the real sequential ID
-       is confirmed by the server. For other products (Citrus etc.), show immediately
-       using the lot number since the lot is user-entered and known up front. */
-    if(!isEdit && cropId!=='grapes'){setSavedLot(newBatch.lot||newBatch.id||realId||'saved');}
+    /* Confirmation is shown from saveCallback for ALL crops once the server
+       confirms — never before, so a failed save can no longer display
+       "Unit saved". The pending screen covers the in-flight window. */
   }
 
   /* ── PDF Report Generation ── */
@@ -2011,6 +2011,7 @@ function InspectionForm(props){
             onClick:function(){
               if(cropId!=='grapes') prefillFromLot(savedLot);
               if(cropId!=='grapes') setLot(savedLot);
+              if(cropId!=='grapes') sGrpSession[1](null); /* next unit = new inspection */
               setDecision('');
               setPallets([newPallet(1,'',container)]);
               setActivePalletIdx(0);
@@ -14885,6 +14886,11 @@ function App(){
     });
   }
   function addBatch(newBatch, onDone){
+    /* Idempotency guard: the same newBatch object must never dispatch twice.
+       Replayed dispatches (observed as duplicate identical inserts seconds
+       apart) are ignored — the original dispatch's callback owns the UX. */
+    if(newBatch&&newBatch._dispatched){console.warn('[DalOS] Duplicate addBatch dispatch ignored:',newBatch.id);return;}
+    if(newBatch) newBatch._dispatched=true;
     var isEditMode=batches.some(function(b){return b.id===newBatch.id;});
     supabase.auth.getUser().then(function(userRes){
       var userId=userRes.data&&userRes.data.user?userRes.data.user.id:null;
