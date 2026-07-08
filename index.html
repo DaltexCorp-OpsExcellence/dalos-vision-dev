@@ -2012,6 +2012,7 @@ function InspectionForm(props){
               if(cropId!=='grapes') prefillFromLot(savedLot);
               if(cropId!=='grapes') setLot(savedLot);
               if(cropId!=='grapes') sGrpSession[1](null); /* next unit = new inspection */
+              setSaveStatus('idle'); /* clear stale "Saved at" banner from previous unit */
               setDecision('');
               setPallets([newPallet(1,'',container)]);
               setActivePalletIdx(0);
