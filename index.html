@@ -2264,7 +2264,7 @@ function InspectionForm(props){
                 ||livePalletsContainers.indexOf(q)>=0
                 ||(b.client||'').toLowerCase().indexOf(q)>=0;
             });
-            if(others.length===0) return ce('div',{style:{fontSize:12,color:'var(--text3)',textAlign:'center',padding:'20px 0'}},'No other grapes sessions found.');
+            if(others.length===0) return ce('div',{style:{fontSize:12,color:'var(--text3)',textAlign:'center',padding:'20px 0'}},'No other '+cropId+' sessions in this packhouse.');
             return others.map(function(b){
               var livePallets=sessionPallets[b.id]||[];
               /* get container from live pallets or from batch */
@@ -2902,7 +2902,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                   onClick:function(e){e.stopPropagation();addPalletSameLOT();}
                 },'+ Pallet')
               :ce('button',{className:'btn btn-sm',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap',display:'inline-flex'},onClick:function(e){e.stopPropagation();if(isEdit){addPalletSameLOT();}else{setShowNP(true);}}},'+ Pallet'),
-              cropId==='grapes'&&ce('button',{className:'btn btn-sm',
+              (cropId==='grapes'||(cropId==='mango'&&pallets.length>1))&&ce('button',{className:'btn btn-sm',
                 style:{background:'var(--bg2)',color:'var(--text2)',border:'1px solid var(--border2)',fontSize:11,flexShrink:0,opacity:animatingPalletId?.5:1,transition:'opacity .2s'},
                 disabled:!!animatingPalletId,
                 onClick:function(i,p){return function(e){e.stopPropagation();openMoveModal(i,p);};}(pIdx,pallet)
