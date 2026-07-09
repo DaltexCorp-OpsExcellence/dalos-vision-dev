@@ -1001,6 +1001,7 @@ function InspectionForm(props){
     setPreFilled(true);
   }
   var sNP=useState(false); var showNP=sNP[0]; var setShowNP=sNP[1];
+  var sNPWarn=useState(false); var npWarn=sNPWarn[0]; var setNPWarn=sNPWarn[1];
   var thresholds=(config.defectThresholds||{})[cropId]||INITIAL_CONFIG.defectThresholds.citrus||{};
   var defSections=(function(){
     var ds=config.defectSections;
@@ -2083,7 +2084,7 @@ function InspectionForm(props){
         (isEdit||savedLot)&&ce('button',{className:'btn btn-sm',title:'Download internal inspection record PDF',style:{background:'var(--bg2)',border:'1px solid var(--border2)',color:'var(--text2)',fontSize:11,flexShrink:0,display:'inline-flex',alignItems:'center',gap:4},onClick:function(){generatePDF('internal');}},'\u2193 Internal PDF'),
         cropId==='grapes'
         ?ce('button',{className:'btn btn-sm form-topbar-newpallet',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap'},onClick:function(){addPalletSameLOT();}},'+ Pallet')
-        :(!isEdit&&ce('button',{className:'btn btn-sm form-topbar-newpallet',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap'},onClick:function(){setShowNP(true);}}, 'New pallet')),
+        :ce('button',{className:'btn btn-sm form-topbar-newpallet',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap'},onClick:function(){if(isEdit){addPalletSameLOT();}else{setShowNP(true);}}}, isEdit?'+ Pallet':'New pallet'),
         ce('button',{className:'btn btn-primary btn-sm',style:{flexShrink:0,opacity:(isSaving||!isOnline&&!isReconnecting)?.7:1,display:'inline-flex',alignItems:'center',gap:6},
           onClick:function(){
             if(!isOnline||isReconnecting) return; /* offline banner already communicates this — no need for a second amber banner */
@@ -2310,11 +2311,18 @@ function InspectionForm(props){
             ce('div',{style:{fontWeight:600,marginBottom:2}},cropId==='grapes'?('Add pallet '+(pallets.length+1)+' to this session'):('Add pallet '+(pallets.length+1)+' — same LOT'+(lot?' '+lot:''))),
             ce('div',{style:{fontSize:11,opacity:.8,fontWeight:400}},cropId==='grapes'?'Adds another pallet to this session. Header stays the same.':'Adds Pallet '+(pallets.length+1)+' to this form. Header stays locked.')
           ),
-          ce('button',{className:'btn btn-secondary',style:{justifyContent:'flex-start',padding:'14px 16px',flexDirection:'column',alignItems:'flex-start',height:'auto'},onClick:startNewLOT},
+          npWarn
+          ?ce('div',{style:{border:'1.5px solid #e8a0a0',background:'#fdf3f2',borderRadius:10,padding:'14px 16px'}},
+              ce('div',{style:{fontWeight:600,fontSize:13,color:'#a03030',marginBottom:4}},'⚠ This '+(cropId==='grapes'?'session':'unit')+' is NOT saved yet'),
+              ce('div',{style:{fontSize:12,color:'#7a4040',lineHeight:1.5,marginBottom:12}},'Starting a new '+(cropId==='grapes'?'session':'LOT')+' now will permanently discard everything entered in this form.'),
+              ce('button',{className:'btn btn-primary',style:{width:'100%',justifyContent:'center',marginBottom:8},onClick:function(){setNPWarn(false);setShowNP(false);handleSave();}},'Save this '+(cropId==='grapes'?'session':'unit')+' first'),
+              ce('button',{className:'btn btn-secondary',style:{width:'100%',justifyContent:'center',color:'#a03030',borderColor:'#e8a0a0'},onClick:function(){setNPWarn(false);startNewLOT();}},'Discard and start fresh')
+            )
+          :ce('button',{className:'btn btn-secondary',style:{justifyContent:'flex-start',padding:'14px 16px',flexDirection:'column',alignItems:'flex-start',height:'auto'},onClick:function(){if(isDirty){setNPWarn(true);}else{startNewLOT();}}},
             ce('div',{style:{fontWeight:600,marginBottom:2}},cropId==='grapes'?'New session':'New LOT'),
             ce('div',{style:{fontSize:11,color:'var(--text3)',fontWeight:400}},cropId==='grapes'?'Clears everything. Fresh session with a new ID.':'Clears everything. Fresh header.')
           ),
-          ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setShowNP(false);}},'✕ Cancel')
+          ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setNPWarn(false);setShowNP(false);}},'✕ Cancel')
         )
       )
     ),
@@ -2893,7 +2901,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               ?ce('button',{className:'btn btn-sm',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap',display:'inline-flex'},
                   onClick:function(e){e.stopPropagation();addPalletSameLOT();}
                 },'+ Pallet')
-              :(!isEdit&&ce('button',{className:'btn btn-sm',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap',display:'inline-flex'},onClick:function(e){e.stopPropagation();setShowNP(true);}},'+ Pallet')),
+              :ce('button',{className:'btn btn-sm',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap',display:'inline-flex'},onClick:function(e){e.stopPropagation();if(isEdit){addPalletSameLOT();}else{setShowNP(true);}}},'+ Pallet'),
               cropId==='grapes'&&ce('button',{className:'btn btn-sm',
                 style:{background:'var(--bg2)',color:'var(--text2)',border:'1px solid var(--border2)',fontSize:11,flexShrink:0,opacity:animatingPalletId?.5:1,transition:'opacity .2s'},
                 disabled:!!animatingPalletId,
