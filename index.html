@@ -15122,7 +15122,7 @@ function App(){
             if(!palletId||typeof palletId==='number') return Promise.resolve(); /* skip temp numeric IDs */
             var palletPfx=(newBatch.palletPrefix)||'';
             var rawLabel=p.palletLabel&&p.palletLabel.trim()?p.palletLabel.trim():String(p.palletNo);
-            var palletUpdate={pallet_number:(isGrapesEdit&&palletPfx&&!rawLabel.startsWith(palletPfx))?palletPfx+rawLabel:rawLabel};
+            var palletUpdate={pallet_number:((isGrapesEdit||(newBatch&&(newBatch.crop||'').toLowerCase()==='mango'))&&palletPfx&&!rawLabel.startsWith(palletPfx))?palletPfx+rawLabel:rawLabel};
             if(p.palletContainer) palletUpdate.container_number=p.palletContainer;
             palletUpdate.trace_codes=p.palletTraceCodes||[];
             if(p.actualTraceCode!==undefined) palletUpdate.actual_trace_code=p.actualTraceCode||null;
@@ -15242,7 +15242,8 @@ function App(){
               /* Mirror line ~9044 prefix logic so edit-mode pallet labels match new-inspection format */
               var lblE=(p.palletLabel||'').trim();
               var palletNumE;
-              if(isCropGrapesEdit){
+              var _editUseLabel=(isCropGrapesEdit||(newBatch&&(newBatch.crop||'').toLowerCase()==='mango'));
+              if(_editUseLabel){
                 if(lblE){
                   palletNumE=(palletPrefixForEdit&&!lblE.startsWith(palletPrefixForEdit))?palletPrefixForEdit+lblE:lblE;
                 } else {
@@ -15382,7 +15383,7 @@ function App(){
       var isCropGrapes=(newBatch.crop||'').toLowerCase()==='grapes';
       var palletRows=palletsData.map(function(p){
         var palletPrefix=(newBatch.palletPrefix)||'';
-        var row={inspection_id:realId, pallet_number:isCropGrapes?(p.palletLabel&&p.palletLabel.trim()?(palletPrefix&&!p.palletLabel.trim().startsWith(palletPrefix)?palletPrefix+p.palletLabel.trim():p.palletLabel.trim()):String(p.palletNo)):String(p.palletNo), actual_trace_code:p.actualTraceCode||null};
+        var _useLabelPN=(isCropGrapes||(newBatch.crop||'').toLowerCase()==='mango'); var row={inspection_id:realId, pallet_number:_useLabelPN?(p.palletLabel&&p.palletLabel.trim()?(palletPrefix&&!p.palletLabel.trim().startsWith(palletPrefix)?palletPrefix+p.palletLabel.trim():p.palletLabel.trim()):String(p.palletNo)):String(p.palletNo), actual_trace_code:p.actualTraceCode||null};
         if((isCropGrapes||(newBatch.crop||'').toLowerCase()==='mango')&&p.palletContainer) row.container_number=p.palletContainer;
         if((isCropGrapes||(newBatch.crop||'').toLowerCase()==='mango')&&p.palletTraceCodes&&p.palletTraceCodes.length) row.trace_codes=p.palletTraceCodes;
         if(p.palletCartonCompany) row.carton_company=p.palletCartonCompany;
