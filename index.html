@@ -1140,8 +1140,8 @@ function InspectionForm(props){
               return {
                 palletId:pal.id,
                 palletNo:pal.pallet_number,
-                palletLabel:isGrapes?(pal.pallet_number||''):'',
-                palletContainer:isGrapes?(pal.container_number||''):'',
+                palletLabel:(isGrapes||isMangoLd)?(pal.pallet_number||''):'',
+                palletContainer:(isGrapes||isMangoLd)?(pal.container_number||''):'',
                 palletTraceCodes:(isGrapes||isMangoLd)?(pal.trace_codes||[]):[],
                 palletCartonCompany:pal.carton_company||'',
                 actualTraceCode:pal.actual_trace_code||'',
@@ -2370,7 +2370,7 @@ function InspectionForm(props){
                   ce('span',{style:{fontSize:10,color:unitConfirmed.container?'#fff':'var(--amber)',lineHeight:1}},unitConfirmed.container?'\u2713':'\u2713')
                 )
               ),
-              ce('input',{className:'form-input',value:container,onChange:function(e){var newVal=e.target.value;var oldVal=container;setContainer(newVal);if(cropId==='grapes'){setPallets(function(prev){return prev.map(function(p){if(!p.palletContainer||(oldVal&&p.palletContainer.toUpperCase()===oldVal.toUpperCase())){return Object.assign({},p,{palletContainer:newVal});}return p;});});}if(preFilled)confirmUnit('container');},placeholder:'e.g. AMCU 9327595',style:preFilled&&!unitConfirmed.container?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}}),
+              ce('input',{className:'form-input',value:container,onChange:function(e){var newVal=e.target.value;var oldVal=container;setContainer(newVal);if(cropId==='grapes'||cropId==='mango'){setPallets(function(prev){return prev.map(function(p){if(!p.palletContainer||(oldVal&&p.palletContainer.toUpperCase()===oldVal.toUpperCase())){return Object.assign({},p,{palletContainer:newVal});}return p;});});}if(preFilled)confirmUnit('container');},placeholder:'e.g. AMCU 9327595',style:preFilled&&!unitConfirmed.container?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}}),
               cropId==='mango'&&container.trim()&&(function(){var norm=container.trim().replace(/\s+/g,' ').toUpperCase();var dupe=(allBatches||[]).find(function(bb){return bb&&bb.id!==(batch&&batch.id)&&((bb.container||'').trim().replace(/\s+/g,' ').toUpperCase()===norm);});return dupe?ce('div',{style:{marginTop:5,fontSize:11,color:'#b06010',background:'#fff3e0',border:'1px solid #e8c87a',borderRadius:6,padding:'4px 8px'}},'\u26a0 Container already used in session '+dupe.id+(dupe.lot?' (LOT '+dupe.lot+')':'')+' \u2014 one container = one session.'):null;})()
             ),
             ce('div',{className:'form-field'},
@@ -2612,7 +2612,7 @@ function InspectionForm(props){
 ,ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton type'),ce('select',{className:'form-select',value:cartonType,onChange:function(e){setCartonType(e.target.value);}},
   [ce('option',{key:'',value:''},'— Select —')].concat((config.cartonTypes||[]).map(function(c){return ce('option',{key:c,value:c},c);})).concat(cartonType&&!(config.cartonTypes||[]).includes(cartonType)?[ce('option',{key:'deact',value:cartonType,style:{color:'var(--text3)'}},cartonType+' (inactive)')]:[])
 )),
-            cropId!=='grapes'&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton color'),ce('input',{className:'form-input',value:cartonColor,onChange:function(e){setCartonColor(e.target.value);},placeholder:'e.g. Brown, White...'})),
+            cropId==='citrus'&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton color'),ce('input',{className:'form-input',value:cartonColor,onChange:function(e){setCartonColor(e.target.value);},placeholder:'e.g. Brown, White...'})),
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton company'),ce('input',{className:'form-input',value:cartonCompany,onChange:function(e){setCartonCompany(e.target.value);},placeholder:'e.g. Smurfit Kappa...'})),
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton company 2'),ce('input',{className:'form-input',value:cartonCompany2,onChange:function(e){setCartonCompany2(e.target.value);},placeholder:'e.g. DS Smith...'})),
             ce('div',{className:'form-field','data-field':'client'},ce('label',{className:'form-label'},'Client'),
@@ -2835,8 +2835,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
           /* Pallet header */
           ce('div',{style:{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,background:isActive?'var(--accent)08':'var(--bg2)',cursor:'pointer'},onClick:function(){setActivePalletIdx(pIdx);}},
             ce('div',{style:{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}},
-              /* Grapes: pallet label input. Others: numbered badge */
-              cropId==='grapes'
+              /* Grapes + Mango: pallet label input. Others: numbered badge */
+              (cropId==='grapes'||cropId==='mango')
               ?ce('div',{style:{display:'flex',flexDirection:'column',gap:3,flexShrink:0},'data-field':'palletLabel-'+pIdx,onClick:function(e){e.stopPropagation();}},
                   ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Pallet #'),
                   ce('div',{style:{display:'flex',alignItems:'center',gap:4}},
@@ -2856,15 +2856,15 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               ce('div',{style:{minWidth:0,overflow:'hidden'}},
                 ce('div',{className:'section-title',style:{marginBottom:0,flexWrap:'nowrap',whiteSpace:'nowrap',overflow:'hidden'}},
                   ce('div',{className:'section-title-bar',style:{background:'#b03030',flexShrink:0}}),
-                  ce('span',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},cropId==='grapes'?('Pallet '+(pallet.palletLabel||('#'+pallet.palletNo))+' sample readings'):('Pallet '+pallet.palletNo+' sample readings')),
+                  ce('span',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(cropId==='grapes'||cropId==='mango')?('Pallet '+(pallet.palletLabel||('#'+pallet.palletNo))+' sample readings'):('Pallet '+pallet.palletNo+' sample readings')),
                   ce('span',{style:{fontSize:11,color:'var(--text3)',fontWeight:400,textTransform:'none',letterSpacing:0,marginLeft:6,flexShrink:0,whiteSpace:'nowrap'}},pRows.length+' sample'+(pRows.length!==1?'s':''))
                 ),
                 ce('div',{style:{fontSize:11,color:pCrit?'var(--red)':pTotal>5?'var(--amber)':'var(--green)',fontFamily:'var(--font-mono)',fontWeight:600,marginTop:2}},'Avg total: '+pTotal.toFixed(2)+'%'+(pCrit?' · ⚠ Critical':''))
               )
             ),
             ce('div',{className:'pallet-header-actions',style:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
-              /* Grapes: per-pallet container field + Set button */
-              cropId==='grapes'&&ce('div',{style:{display:'flex',alignItems:'center',gap:6},onClick:function(e){e.stopPropagation();}},
+              /* Grapes + Mango: per-pallet container field + Set button */
+              (cropId==='grapes'||cropId==='mango')&&ce('div',{style:{display:'flex',alignItems:'center',gap:6},onClick:function(e){e.stopPropagation();}},
                 ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',flexShrink:0}},'Container'),
                 ce('input',{className:'form-input',value:pallet.palletContainer||'',
                   onChange:function(i){return function(e){updatePalletContainer(i,e.target.value);};}(pIdx),
@@ -4525,11 +4525,15 @@ function FGView(props){
     setSelBData(function(prev){var u={};u[batchId]={loading:true,defects:{},pallets:[]};return Object.assign({},prev,u);});
     /* Fetch pallet list + sample defect totals per pallet */
     Promise.all([
-      supabase.from('pallets').select('id,pallet_number').eq('inspection_id',batchId).order('pallet_number'),
+      supabase.from('pallets').select('id,pallet_number,container_number').eq('inspection_id',batchId).order('pallet_number'),
       supabase.from('sample_rows').select('id,pallet_id,sample_defect_readings(value,defects(key,severity))').eq('inspection_id',batchId)
     ]).then(function(results){
       var palR=results[0]; var srR=results[1];
-      if(palR.error||srR.error) return;
+      if(palR.error||srR.error){
+        console.warn('[DalOS] pallet popup fetch error:',palR.error||srR.error);
+        setSelBData(function(prev){var u={};u[batchId]={loading:false,defects:{},pallets:[],error:true};return Object.assign({},prev,u);});
+        return;
+      }
       /* Build defects map (all keys summed, averaged across samples) */
       var defMap={}; var sampleCount=0;
       (srR.data||[]).forEach(function(row){
@@ -4560,9 +4564,12 @@ function FGView(props){
             else min+=parseFloat(dr.value);
           });
         });
-        return {id:p.id,label:p.pallet_number,crit:crit/pCount,maj:maj/pCount,min:min/pCount,samples:pCount};
+        return {id:p.id,label:p.pallet_number,container:p.container_number||'',crit:crit/pCount,maj:maj/pCount,min:min/pCount,samples:pCount};
       });
       setSelBData(function(prev){var u={};u[batchId]={loading:false,defects:defMap,pallets:pallets};return Object.assign({},prev,u);});
+    }).catch(function(err){
+      console.warn('[DalOS] pallet popup fetch threw:',err);
+      setSelBData(function(prev){var u={};u[batchId]={loading:false,defects:{},pallets:[],error:true};return Object.assign({},prev,u);});
     });
   },[sel]);
   var sPP=useState(null); var palletPopup=sPP[0]; var setPalletPopup=sPP[1];
@@ -5338,6 +5345,7 @@ function FGView(props){
             var bd=selBData[selB.id]||{};
             var pallets=bd.pallets||[];
             if(bd.loading) return ce('div',{style:{fontSize:11,color:'var(--text3)',padding:'4px 0'}},'Loading pallets...');
+            if(bd.error) return ce('div',{style:{fontSize:11,color:'var(--amber)',padding:'4px 0',cursor:'pointer',textDecoration:'underline'},onClick:function(){var bid=selB.id;setSelBData(function(prev){var u=Object.assign({},prev);delete u[bid];return u;});setSel(null);setTimeout(function(){setSel(bid);},60);}},'Could not load pallets — tap to retry');
             if(pallets.length===0) return null;
             return ce('div',{style:{marginTop:8}},
               ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}},'Pallets ('+pallets.length+')'),
@@ -5349,7 +5357,10 @@ function FGView(props){
                     ce('rect',{x:4,y:9,width:16,height:5,rx:1}),
                     ce('rect',{x:6,y:5,width:12,height:4,rx:1})
                   ),
-                  ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,fontWeight:600,color:hasCrit?'var(--red)':'var(--text)',flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},p.label),
+                  ce('div',{style:{flex:1,minWidth:0,overflow:'hidden'}},
+                    ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,fontWeight:600,color:hasCrit?'var(--red)':'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},p.label),
+                    p.container&&ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--text3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},p.container)
+                  ),
                   ce('div',{style:{display:'flex',gap:4,flexShrink:0}},
                     p.crit>0&&ce('span',{style:{fontSize:9,padding:'1px 5px',borderRadius:3,background:'var(--red-bg)',color:'var(--red)',fontFamily:'var(--font-mono)',fontWeight:600}},'C '+p.crit.toFixed(1)+'%'),
                     p.maj>0&&ce('span',{style:{fontSize:9,padding:'1px 5px',borderRadius:3,background:'var(--amber-bg)',color:'var(--amber)',fontFamily:'var(--font-mono)',fontWeight:600}},'M '+p.maj.toFixed(1)+'%'),
@@ -15242,7 +15253,7 @@ function App(){
               }
               var pr2={inspection_id:realId,pallet_number:palletNumE,actual_trace_code:p.actualTraceCode||null};
               if((isCropGrapesEdit||(newBatch&&(newBatch.crop||'').toLowerCase()==='mango'))&&p.palletTraceCodes&&p.palletTraceCodes.length) pr2.trace_codes=p.palletTraceCodes;
-              if(isCropGrapesEdit&&p.palletContainer) pr2.container_number=p.palletContainer;
+              if((isCropGrapesEdit||(newBatch&&(newBatch.crop||'').toLowerCase()==='mango'))&&p.palletContainer) pr2.container_number=p.palletContainer;
               if(p.palletCartonCompany) pr2.carton_company=p.palletCartonCompany;
               newPalletObjs.push({pallet:p,row:pr2});
             }
@@ -15372,7 +15383,7 @@ function App(){
       var palletRows=palletsData.map(function(p){
         var palletPrefix=(newBatch.palletPrefix)||'';
         var row={inspection_id:realId, pallet_number:isCropGrapes?(p.palletLabel&&p.palletLabel.trim()?(palletPrefix&&!p.palletLabel.trim().startsWith(palletPrefix)?palletPrefix+p.palletLabel.trim():p.palletLabel.trim()):String(p.palletNo)):String(p.palletNo), actual_trace_code:p.actualTraceCode||null};
-        if(isCropGrapes&&p.palletContainer) row.container_number=p.palletContainer;
+        if((isCropGrapes||(newBatch.crop||'').toLowerCase()==='mango')&&p.palletContainer) row.container_number=p.palletContainer;
         if((isCropGrapes||(newBatch.crop||'').toLowerCase()==='mango')&&p.palletTraceCodes&&p.palletTraceCodes.length) row.trace_codes=p.palletTraceCodes;
         if(p.palletCartonCompany) row.carton_company=p.palletCartonCompany;
         return row;
