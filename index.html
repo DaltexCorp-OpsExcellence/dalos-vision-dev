@@ -5082,8 +5082,8 @@ function FGView(props){
         );
       })
     ),
-    ce('div',{style:{display:'grid',gridTemplateColumns:selB&&!isMobile?'420px 1fr':'1fr',gap:14,alignItems:'start'}},
-      ce('div',{className:'scroll-card',style:{order:2,minWidth:0}},
+    ce('div',{style:{display:'grid',gridTemplateColumns:selB&&!isMobile?'minmax(0,1fr) 400px':'1fr',gap:14,alignItems:'start',maxWidth:'100%'}},
+      ce('div',{className:'scroll-card',style:{minWidth:0,overflow:'hidden'}},
         ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
         ce('table',{style:{minWidth:800}},
           ce('thead',null,ce('tr',null,
@@ -5261,7 +5261,7 @@ function FGView(props){
           )
         )
       ),
-      selB&&!isMobile&&ce('div',{className:'dp',style:{position:'sticky',top:12,order:1}},
+      selB&&!isMobile&&ce('div',{className:'dp',style:{position:'sticky',top:12}},
         showContEdit&&ce(ContainerEditModal,{
           batch:Object.assign({},selB,{container:getContainer(selB)}),
           onSave:function(val){saveContainer(selB.id,val);},
