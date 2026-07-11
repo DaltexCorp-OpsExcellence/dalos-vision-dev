@@ -15303,8 +15303,9 @@ function App(){
               /* Compose the same pallet_number we used at insert time (above) — without this,
                  the find returns undefined and sample rows get silently dropped */
               var lblF=(item.pallet.palletLabel||'').trim();
+              var _useLabelEditMatch=(isCropGrapesEdit||(newBatch&&(newBatch.crop||'').toLowerCase()==='mango'));
               var expectedF;
-              if(isCropGrapesEdit){
+              if(_useLabelEditMatch){
                 if(lblF){
                   expectedF=(palletPrefixForEdit&&!lblF.startsWith(palletPrefixForEdit))?palletPrefixForEdit+lblF:lblF;
                 } else {
@@ -15413,11 +15414,13 @@ function App(){
       sampleRows=[];
       var palletPrefixForMatch=(newBatch.palletPrefix)||'';
       palletsData.forEach(function(p){
-        var isCropGrapesNew=(newBatch&&(newBatch.crop||'').toLowerCase()==='grapes');
-        /* Compose the same pallet_number string we used at insert time (line 9044),
-           otherwise the find returns undefined and sample rows silently get dropped. */
+        /* Must compose pallet_number EXACTLY as the insert did (line ~15386, _useLabelPN),
+           otherwise the find returns undefined and sample rows attach to the wrong pallet
+           (or get dropped). Mango uses labels too — matching this here fixes the
+           mango sample-misattribution bug. */
+        var _useLabelMatch=(newBatch&&((newBatch.crop||'').toLowerCase()==='grapes'||(newBatch.crop||'').toLowerCase()==='mango'));
         var expectedPalletNumber;
-        if(isCropGrapesNew){
+        if(_useLabelMatch){
           var lbl=(p.palletLabel||'').trim();
           if(lbl){
             expectedPalletNumber=(palletPrefixForMatch&&!lbl.startsWith(palletPrefixForMatch))?palletPrefixForMatch+lbl:lbl;
