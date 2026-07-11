@@ -14957,7 +14957,7 @@ function App(){
   /* Assemble the full-inspection JSON payload for the atomic mango save RPC
      (save_mango_inspection_full). Mirrors the legacy field mapping exactly so
      the transactional path writes identical data to the 6-write path. */
-  function buildMangoSavePayload(newBatch, userId, seasonId){
+  function buildMangoSavePayload(newBatch, userId, seasonId, isEditFlag, editId){
     var productId=(function(){var p=(config.products||[]).find(function(pr){return pr.id===newBatch.crop||pr.name.toLowerCase()===(newBatch.crop||'').toLowerCase();});return p?p.id:newBatch.crop;})();
     var palletPrefix=(newBatch.palletPrefix)||'';
     /* Header — same resolutions as the legacy inspectionRow */
@@ -14981,6 +14981,13 @@ function App(){
       avg_total_defect:newBatch.totalDefect||null,
       has_critical:newBatch.hasCrit||false
     };
+    if(isEditFlag){
+      header.id=editId;
+      header.loaded_version=newBatch.loadedVersion||'';
+      header.last_edited_by=userId||null;
+      /* On edit, do not force submitted_at (RPC never touches it) */
+      delete header.submitted_at;
+    }
     if(newBatch.container) header.container_number=newBatch.container;
     if(newBatch.wax) header.wax=newBatch.wax;
     if(newBatch.packing) header.packing=newBatch.packing;
@@ -15095,6 +15102,41 @@ function App(){
         }catch(e){
           console.error('[DalOS] Failed to build mango payload, falling back to legacy path:',e&&e.message);
           /* fall through to legacy path below */
+        }
+      }
+      /* ── ATOMIC MANGO EDIT (shaky-network safe) ──────────────────────────
+         Editing an existing mango inspection also goes through one transactional
+         RPC (edit_mango_inspection_full): header update under optimistic lock,
+         then full child replace, all-or-nothing. A dropped connection can't leave
+         a half-edited record, and a stale lock is surfaced as CONFLICT. */
+      if(isEditMode && (newBatch.crop||'').toLowerCase()==='mango'){
+        try{
+          var mep=buildMangoSavePayload(newBatch, userId, seasonId, true, newBatch.id);
+          return supabase.rpc('edit_mango_inspection_full',{payload:mep}).then(function(res){
+            if(res.error){
+              var msg=res.error.message||'';
+              if(msg.indexOf('CONFLICT')>=0){
+                console.warn('[DalOS] Atomic mango edit conflict:',msg);
+                if(onDone){onDone('CONFLICT',newBatch.id);onDone=null;}
+                return {__handled:true};
+              }
+              console.error('[DalOS] Atomic mango edit failed:',msg);
+              if(onDone){onDone('RETRY:Save didn\u2019t go through \u2014 your changes are still here. Check your connection and tap Save again.');onDone=null;}
+              return {__handled:true};
+            }
+            var eid=(res.data&&res.data.id)||newBatch.id;
+            console.log('[DalOS] Atomic mango edit OK:',eid,res.data);
+            if(onDone){onDone(null,eid);onDone=null;}
+            try{ if(typeof refreshBatchesById==='function') setTimeout(function(){refreshBatchesById([eid]);},1200); }catch(e){}
+            return {__handled:true};
+          }).catch(function(e){
+            console.error('[DalOS] Atomic mango edit threw:',e&&e.message);
+            if(onDone){onDone('RETRY:Save didn\u2019t go through \u2014 your changes are still here. Check your connection and tap Save again.');onDone=null;}
+            return {__handled:true};
+          });
+        }catch(e){
+          console.error('[DalOS] Failed to build mango edit payload, falling back to legacy path:',e&&e.message);
+          /* fall through to legacy edit path */
         }
       }
       if(isEditMode){
