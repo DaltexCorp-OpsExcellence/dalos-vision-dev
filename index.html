@@ -1326,6 +1326,17 @@ function InspectionForm(props){
     },15000);
     var saveCallback=function(err, realId){
       if(saveWatchdogRef.current){clearTimeout(saveWatchdogRef.current);saveWatchdogRef.current=null;}
+      /* Recoverable integrity abort: return straight to the FILLED form (not the
+         failure screen) with an inline banner so the inspector just taps Save
+         again. Form state + autosave draft are intact — no data loss. */
+      if(typeof err==='string'&&err.indexOf('RETRY:')===0){
+        setSavePending(false);
+        setSaveFailed(null);
+        setSaveStatus('error');
+        setSaveErrMsg(err.slice(6));
+        setIsSaving(false);
+        return;
+      }
       if(err==='CONFLICT'){
         /* Optimistic lock conflict — another device saved this session first.
            Refresh the listing cache so when user reopens the form they get the
@@ -15413,6 +15424,10 @@ function App(){
       var palletsData=newBatch.pallets||[];
       sampleRows=[];
       var palletPrefixForMatch=(newBatch.palletPrefix)||'';
+      var _unmatchedPallets=0;
+      /* Expected sample-row total the form is holding — used to detect silent drops
+         before we declare success (see integrity guard below). */
+      var _expectedSampleTotal=palletsData.reduce(function(acc,pp){return acc+((pp.rows&&pp.rows.length)||0);},0);
       palletsData.forEach(function(p){
         /* Must compose pallet_number EXACTLY as the insert did (line ~15386, _useLabelPN),
            otherwise the find returns undefined and sample rows attach to the wrong pallet
@@ -15433,6 +15448,7 @@ function App(){
         var savedPallet=savedPallets.find(function(sp){return String(sp.pallet_number)===String(expectedPalletNumber);});
         if(!savedPallet){
           console.warn('[DalOS] Could not match saved pallet for label/no:',{palletLabel:p.palletLabel,palletNo:p.palletNo,expected:expectedPalletNumber,savedPalletNumbers:savedPallets.map(function(sp){return sp.pallet_number;})});
+          _unmatchedPallets++;
           return;
         }
         (p.rows||[]).forEach(function(row,idx){
@@ -15457,6 +15473,22 @@ function App(){
           _rowDefects.push(row.defects||{});
         });
       });
+      /* ── INTEGRITY GUARD ──────────────────────────────────────────────
+         If any pallet failed to match, or we assembled fewer sample rows than
+         the form is holding, DO NOT report success. Abort with a recoverable
+         error: the form state and the autosave draft are both still intact, so
+         the inspector lands back on the filled-in form and can simply tap Save
+         again — no data is lost. This closes the silent-drop hole behind the
+         MN-2026-0015 incident. */
+      if(_unmatchedPallets>0 || sampleRows.length<_expectedSampleTotal){
+        console.error('[DalOS] Sample integrity check failed — aborting before insert to protect data',{unmatchedPallets:_unmatchedPallets,assembled:sampleRows.length,expected:_expectedSampleTotal});
+        try{ if(typeof logError==='function') logError('sample_integrity_abort',{inspection:realId,unmatchedPallets:_unmatchedPallets,assembled:sampleRows.length,expected:_expectedSampleTotal}); }catch(e){}
+        /* Lock the session to the already-created inspection so the retry runs the
+           EDIT path (repairs this same row) instead of minting a duplicate shell. */
+        try{ if(realId) sGrpSession[1](realId); }catch(e){}
+        if(onDone){onDone('RETRY:Some samples weren\u2019t matched to their pallets, so nothing was saved yet \u2014 your data is still here. Please tap Save again. If this keeps happening, screenshot this message.');onDone=null;}
+        return;
+      }
       if(sampleRows.length===0){if(onDone){onDone(null,realId);onDone=null;}return;}
       return supabase.from('sample_rows').insert(sampleRows).select();
     }).then(function(sampleRes){
