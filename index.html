@@ -883,6 +883,21 @@ function InspectionForm(props){
     },30000);
     return function(){clearInterval(timer);};
   },[isDirty,lot,date,variety,client,country,farm,container,pallets,decision,grpSessionId,stickerChecks,extraLabels]);
+  /* MOVED UP (was defined ~140 lines below): compute restoredDraft BEFORE _d so that
+     _d — and every useState() default that reads _d — actually sees the recovered
+     draft. Previously restoredDraft was declared later, so at this point it was
+     undefined (var-hoisted), _d became {}, and fields like LOT restored blank. */
+  var restoredDraft=(function(){
+    if(props.recoveryDraft) return props.recoveryDraft;
+    if(isEdit) return null;
+    try{
+      var raw=localStorage.getItem(draftKey);
+      if(!raw) return null;
+      var d=JSON.parse(raw);
+      if(!d.ts||Date.now()-d.ts>86400000){localStorage.removeItem(draftKey);return null;}
+      return d;
+    }catch(e){return null;}
+  })();
   var _d=restoredDraft||{};
   var sf=useState(batch?batch.date:(_d.date||new Date().toISOString().slice(0,10))); var date=sf[0]; var setDateRaw=sf[1];
   function setDate(v){setDateRaw(v);setIsDirty(true);}
@@ -1019,19 +1034,7 @@ function InspectionForm(props){
 
   /* pallets: [{palletId, palletNo, rows:[{id,palletNo,time,size,cartonWt,brix,defects,notes}]}] */
   /* ── Draft restore — recover unsaved data after crash or failed save ── */
-  var restoredDraft=(function(){
-    /* Priority 1: Explicit recovery via banner — works for BOTH new and edit mode.
-       For edit mode, additional fields are applied via a mount useEffect below. */
-    if(props.recoveryDraft) return props.recoveryDraft;
-    if(isEdit) return null; /* edit mode without explicit recovery: DB is source of truth */
-    try{
-      var raw=localStorage.getItem(draftKey);
-      if(!raw) return null;
-      var d=JSON.parse(raw);
-      if(!d.ts||Date.now()-d.ts>86400000){localStorage.removeItem(draftKey);return null;}
-      return d;
-    }catch(e){return null;}
-  })();
+  /* (restoredDraft is computed earlier, just above _d) */
   /* initPallets: recoveryDraft takes priority over batch in edit mode when explicitly restoring */
   var initPallets=(props.recoveryDraft&&restoredDraft&&restoredDraft.pallets&&restoredDraft.pallets.length>0)
     ?restoredDraft.pallets
