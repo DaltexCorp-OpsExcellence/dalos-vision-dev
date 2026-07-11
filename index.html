@@ -14954,6 +14954,106 @@ function App(){
       return next;
     });
   }
+  /* Assemble the full-inspection JSON payload for the atomic mango save RPC
+     (save_mango_inspection_full). Mirrors the legacy field mapping exactly so
+     the transactional path writes identical data to the 6-write path. */
+  function buildMangoSavePayload(newBatch, userId, seasonId){
+    var productId=(function(){var p=(config.products||[]).find(function(pr){return pr.id===newBatch.crop||pr.name.toLowerCase()===(newBatch.crop||'').toLowerCase();});return p?p.id:newBatch.crop;})();
+    var palletPrefix=(newBatch.palletPrefix)||'';
+    /* Header — same resolutions as the legacy inspectionRow */
+    var header={
+      product_id:productId,
+      season_id:seasonId||null,
+      packhouse_id:newBatch.packhouse,
+      lot_number:newBatch.lot||'',
+      date:newBatch.date||null,
+      status:newBatch.status||'Pending',
+      decision:newBatch.decision||null,
+      submitted_at:new Date().toISOString(),
+      created_by:userId||null,
+      variety_id:(config.varietiesIdMap&&newBatch.variety&&config.varietiesIdMap[newBatch.variety])||null,
+      variety2_id:(config.varietiesIdMap&&newBatch.variety2&&config.varietiesIdMap[newBatch.variety2])||null,
+      variety_type:newBatch.varietyType||'single',
+      client_id:(config.subClientNameToId&&newBatch.client&&config.subClientNameToId[newBatch.client])||(config.clientsIdMap&&newBatch.client&&config.clientsIdMap[newBatch.client])||null,
+      class_id:(config.classesIdMap&&newBatch.cls&&config.classesIdMap[newBatch.cls])||null,
+      country_id:(config.countriesIdMap&&newBatch.country&&config.countriesIdMap[newBatch.country])||null,
+      carton_type_id:(config.cartonTypesIdMap&&newBatch.cartonType&&config.cartonTypesIdMap[newBatch.cartonType])||null,
+      avg_total_defect:newBatch.totalDefect||null,
+      has_critical:newBatch.hasCrit||false
+    };
+    if(newBatch.container) header.container_number=newBatch.container;
+    if(newBatch.wax) header.wax=newBatch.wax;
+    if(newBatch.packing) header.packing=newBatch.packing;
+    if(newBatch.labelling) header.labelling=newBatch.labelling;
+    if(newBatch.traceCode) header.trace_code=newBatch.traceCode;
+    header.trace_codes=newBatch.traceCodes?newBatch.traceCodes.filter(function(tc){var code=typeof tc==='string'?tc.trim():(tc&&tc.code&&tc.code.trim())||'';return !!code;}).map(function(tc){return typeof tc==='string'?{code:tc.trim(),variety:null}:tc;}):[];
+    if(newBatch.cartonColor) header.carton_color=newBatch.cartonColor;
+    if(newBatch.cartonCompany) header.carton_company=newBatch.cartonCompany;
+    if(newBatch.ggn) header.ggn=newBatch.ggn;
+    if(newBatch.phCode) header.ph_code=newBatch.phCode;
+    if(newBatch.brix) header.avg_brix=newBatch.brix;
+    if(newBatch.cartonWt) header.avg_carton_weight=newBatch.cartonWt;
+    if(newBatch.farmCode) header.farm_code=newBatch.farmCode;
+    if(newBatch.netWt) header.net_weight=newBatch.netWt;
+    if(newBatch.importer) header.importer=newBatch.importer;
+    if(newBatch.importerAddr) header.importer_address=newBatch.importerAddr;
+    if(newBatch.extraLabels) header.extra_labels=newBatch.extraLabels;
+    if(newBatch.farm) header.farm_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm])||null;
+    if(newBatch.formOpenedAt instanceof Date){
+      header.draft_started_at=newBatch.formOpenedAt.toISOString();
+      header.completion_minutes=Math.max(0,Math.round((Date.now()-newBatch.formOpenedAt.getTime())/60000));
+    }
+    /* Pallets → samples → defect readings (defects passed by KEY, resolved server-side) */
+    var pallets=(newBatch.pallets||[]).map(function(p){
+      var lbl=(p.palletLabel||'').trim();
+      var palletNumber=lbl?((palletPrefix&&!lbl.startsWith(palletPrefix))?palletPrefix+lbl:lbl):String(p.palletNo);
+      var samples=(p.rows||[]).map(function(row,idx){
+        var readings=[];
+        var defs=row.defects||{};
+        Object.keys(defs).forEach(function(dk){
+          var val=parseFloat(defs[dk])||0;
+          if(val>0) readings.push({defect_key:dk,value:val});
+        });
+        return {
+          sample_number:idx+1,
+          time:row.time||'00:00',
+          size:row.size||null,
+          carton_weight:row.cartonWt||null,
+          brix:row.brix||null,
+          brix_v2:((newBatch.varietyType||'')==='mixed'&&row.brixV2)?row.brixV2:null,
+          sample_result:row.pass===true?'true':row.pass===false?'false':null,
+          notes:row.notes||null,
+          op_date:row.opDate||null,
+          sample_size:row.sampleSize||null,
+          extra_fields:row.extraFields||{},
+          sample_variety_id:(newBatch.varietyType||'')==='mixed'?null:((config&&config.varietiesIdMap&&row.sampleVariety&&config.varietiesIdMap[row.sampleVariety])||null),
+          sample_farm_id:(row.extraFields&&row.extraFields.sampleFarmSession&&config&&config.farmsIdMap)?(config.farmsIdMap[row.extraFields.sampleFarmSession]||null):null,
+          sample_carton_company:(row.extraFields&&row.extraFields.sampleCartonCompany)||null,
+          defect_readings:readings
+        };
+      });
+      var pr={pallet_number:palletNumber,samples:samples};
+      if(p.palletContainer) pr.container_number=p.palletContainer;
+      if(p.palletTraceCodes&&p.palletTraceCodes.length) pr.trace_codes=p.palletTraceCodes;
+      if(p.actualTraceCode) pr.actual_trace_code=p.actualTraceCode;
+      if(p.palletCartonCompany) pr.carton_company=p.palletCartonCompany;
+      return pr;
+    });
+    /* De-dup pallets by pallet_number (keep last), mirroring legacy behavior */
+    var palMap={}; pallets.forEach(function(pr){palMap[pr.pallet_number]=pr;});
+    pallets=Object.keys(palMap).map(function(k){return palMap[k];});
+    /* Sticker checks */
+    var stickerChecks=[];
+    if(newBatch.stickerChecks){
+      stickerChecks=Object.keys(newBatch.stickerChecks).map(function(k){return {field_key:k,confirmed:!!newBatch.stickerChecks[k]};});
+    }
+    /* Clearance */
+    var clearanceLabels={c0:'Product condition',c1:'Labelling',c2:'Packaging',c3:'Documentation'};
+    var clearance=Object.keys(newBatch.clearance||{}).map(function(k,idx){
+      return {item_index:idx,item_label:clearanceLabels[k]||k,status:newBatch.clearance[k]||'Compliant'};
+    });
+    return {inspection:header,pallets:pallets,sticker_checks:stickerChecks,clearance:clearance};
+  }
   function addBatch(newBatch, onDone){
     /* Idempotency guard: the same newBatch object must never dispatch twice.
        Replayed dispatches (observed as duplicate identical inserts seconds
@@ -14964,6 +15064,39 @@ function App(){
     supabase.auth.getUser().then(function(userRes){
       var userId=userRes.data&&userRes.data.user?userRes.data.user.id:null;
       var seasonId=config.trueActiveSeasonId||config.activeSeasonId||null;
+      /* ── ATOMIC MANGO NEW-SAVE (shaky-network safe) ──────────────────────
+         For a brand-new mango inspection, send the ENTIRE inspection in ONE
+         transactional RPC (save_mango_inspection_full). The server writes header
+         + pallets + samples + defects + checklists all-or-nothing, so a dropped
+         hotspot connection can never leave a partial record. Edit-mode and other
+         products fall through to the existing hardened path below. */
+      if(!isEditMode && (newBatch.crop||'').toLowerCase()==='mango'){
+        try{
+          var mp=buildMangoSavePayload(newBatch, userId, seasonId);
+          return supabase.rpc('save_mango_inspection_full',{payload:mp}).then(function(res){
+            if(res.error){
+              console.error('[DalOS] Atomic mango save failed:',res.error.message);
+              /* Recoverable: nothing was written (transaction rolled back). Return the
+                 inspector to their filled form to retry — no data lost. */
+              if(onDone){onDone('RETRY:Save didn\u2019t go through \u2014 your data is still here. Check your connection and tap Save again.');onDone=null;}
+              return {__handled:true};
+            }
+            var newRealId=res.data&&res.data.id;
+            console.log('[DalOS] Atomic mango save OK:',newRealId,res.data);
+            if(onDone){onDone(null,newRealId);onDone=null;}
+            /* Refresh listing aggregates for the new row */
+            try{ if(typeof refreshBatchesById==='function'&&newRealId) setTimeout(function(){refreshBatchesById([newRealId]);},1200); }catch(e){}
+            return {__handled:true};
+          }).catch(function(e){
+            console.error('[DalOS] Atomic mango save threw:',e&&e.message);
+            if(onDone){onDone('RETRY:Save didn\u2019t go through \u2014 your data is still here. Check your connection and tap Save again.');onDone=null;}
+            return {__handled:true};
+          });
+        }catch(e){
+          console.error('[DalOS] Failed to build mango payload, falling back to legacy path:',e&&e.message);
+          /* fall through to legacy path below */
+        }
+      }
       if(isEditMode){
         return Promise.resolve({realId:newBatch.id,userId:userId,seasonId:seasonId});
       }
@@ -14979,6 +15112,7 @@ function App(){
         return {realId: idRes.data, userId: userId, seasonId: seasonId};
       });
     }).then(function(ctx){
+      if(ctx&&ctx.__handled) return; /* atomic mango save already completed */
       var realId=ctx.realId;
       /* Parallel array to sampleRows — maps sampleRows[i] defects so we can correctly
          assign defect readings to savedSamples[i] after insert.
