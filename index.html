@@ -1232,15 +1232,42 @@ function InspectionForm(props){
     }
     if(!variety.trim()) errs.push('Variety');
     if(!decision) errs.push('Decision \u2014 Accept or Reject must be selected');
+    /* ── DUPLICATE PALLET LABEL BLOCK (session-scoped, all products) ──────────
+       Two pallets with the same number get merged by the (inspection_id,
+       pallet_number) de-dup, silently dropping one pallet's samples. Hard-block
+       the save until labels are unique. Only considers pallets that actually
+       have a label (blank-label handling stays with the grapes label rule). */
+    var _palletPfx=(packhouse&&packhouse.pallet_prefix)||'';
+    var _seen={}, _dupLabels=[], _dupFirstIdx=-1;
+    pallets.forEach(function(p,idx){
+      var raw=(p.palletLabel||'').trim();
+      if(!raw) return;
+      var composed=(_palletPfx&&!raw.startsWith(_palletPfx))?_palletPfx+raw:raw;
+      if(_seen[composed]!==undefined){
+        if(_dupLabels.indexOf(composed)<0) _dupLabels.push(composed);
+        if(_dupFirstIdx<0) _dupFirstIdx=idx;
+      } else {
+        _seen[composed]=idx;
+      }
+    });
+    if(_dupLabels.length>0){
+      errs.push('Duplicate pallet number'+(_dupLabels.length>1?'s':'')+': '+_dupLabels.join(', ')+' \u2014 give each pallet its own number');
+      window.__dupFirstIdx=_dupFirstIdx;
+    } else { window.__dupFirstIdx=-1; }
     setValidErrs(errs);
     if(errs.length>0){
       /* Scroll to first invalid field + flash red ring */
       try {
         var fieldKeyMap={'LOT No':'lot','Variety':'variety','Decision \u2014 Accept or Reject must be selected':'decision','Pallet label required for all pallets (e.g. P-4471)':'__pallet__','All trace codes must be assigned V1, V2 or Both in a mixed variety session':'traceCodes'};
-        var firstKey=fieldKeyMap[errs[0]]||'';
+        var isDupErr=errs[0].indexOf('Duplicate pallet number')===0;
+        var firstKey=isDupErr?'__dup__':(fieldKeyMap[errs[0]]||'');
         if(firstKey){
           var el=null;
-          if(firstKey==='__pallet__'){
+          if(firstKey==='__dup__'){
+            /* Scroll to the first colliding pallet label */
+            var di=(typeof window.__dupFirstIdx==='number')?window.__dupFirstIdx:-1;
+            if(di>=0) el=document.querySelector('[data-field="palletLabel-'+di+'"]');
+          } else if(firstKey==='__pallet__'){
             /* Scroll to the first pallet with an empty label specifically */
             var emptyIdx=pallets.findIndex(function(p){return !(p.palletLabel||'').trim();});
             if(emptyIdx>=0) el=document.querySelector('[data-field="palletLabel-'+emptyIdx+'"]');
