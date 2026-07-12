@@ -15124,6 +15124,19 @@ function App(){
     });
     return {inspection:header,pallets:pallets,sticker_checks:stickerChecks,clearance:clearance};
   }
+  /* Build an accurate save-failure message. A response-level error (res.error) means the
+     SERVER answered with a rejection — this is NOT a connectivity problem, so we must not
+     tell the inspector to check their wifi (they'd retry forever, as happens with a
+     duplicate-key/constraint error). Genuine network failures land in .catch() instead and
+     keep their "check your connection" wording. */
+  function mangoServerErrMsg(rawMsg, isEditMode){
+    var m=(rawMsg||'').toLowerCase();
+    var noun=isEditMode?'your changes are':'your data is';
+    if(m.indexOf('duplicate key')>=0||m.indexOf('already exists')>=0){
+      return 'RETRY:Save was blocked by a record conflict on the server \u2014 '+noun+' still here. Please contact support before retrying.';
+    }
+    return 'RETRY:Save didn\u2019t go through (server error) \u2014 '+noun+' still here. Please try again, and tell support if it keeps happening.';
+  }
   function addBatch(newBatch, onDone){
     /* Idempotency guard: the same newBatch object must never dispatch twice.
        Replayed dispatches (observed as duplicate identical inserts seconds
@@ -15158,8 +15171,9 @@ function App(){
             if(res.error){
               console.error('[DalOS] Atomic mango save failed:',res.error.message);
               /* Recoverable: nothing was written (transaction rolled back). Return the
-                 inspector to their filled form to retry — no data lost. */
-              if(onDone){onDone('RETRY:Save didn\u2019t go through \u2014 your data is still here. Check your connection and tap Save again.');onDone=null;}
+                 inspector to their filled form to retry — no data lost. The message is
+                 classified so a server/DB rejection is not mislabelled as a network fault. */
+              if(onDone){onDone(mangoServerErrMsg(res.error.message,false));onDone=null;}
               return {__handled:true};
             }
             var newRealId=res.data&&res.data.id;
@@ -15195,7 +15209,7 @@ function App(){
                 return {__handled:true};
               }
               console.error('[DalOS] Atomic mango edit failed:',msg);
-              if(onDone){onDone('RETRY:Save didn\u2019t go through \u2014 your changes are still here. Check your connection and tap Save again.');onDone=null;}
+              if(onDone){onDone(mangoServerErrMsg(msg,true));onDone=null;}
               return {__handled:true};
             }
             var eid=(res.data&&res.data.id)||newBatch.id;
