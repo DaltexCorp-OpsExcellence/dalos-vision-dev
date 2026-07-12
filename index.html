@@ -14490,6 +14490,7 @@ function App(){
                 traceCode:row.trace_code||'', traceCodes:(function(){var r=normTC(row.trace_codes&&row.trace_codes.length?row.trace_codes:(row.trace_code?[row.trace_code]:[]));return r.length?r:[{code:'',variety:null}];})(),
                 extraLabels:row.extra_labels||[],
                 stickerChecks:(function(){var sc={product:false,variety:false,cls:false,phName:false,phCode:false,farmCode:false,packDate:false,netWt:false,trace:false,ggn:false,lot:false,importer:false,origin:false};(row.inspection_sticker_checks||[]).forEach(function(c){sc[c.field_key]=c.confirmed;});return sc;})(),
+                clearance:(function(){var cl={c0:'Compliant',c1:'Compliant',c2:'Compliant',c3:'Compliant'};(row.inspection_clearance||[]).forEach(function(it){cl['c'+it.item_index]=it.status;});return cl;})(),
                 cartonColor:row.carton_color||'', cartonCompany:row.carton_company||'', cartonCompany2:row.carton_company2||'',
                 ggn:row.ggn||'', phCode:row.ph_code||'', farmCode:row.farm_code||'', netWt:row.net_weight||'',
                 importer:row.importer||'', importerAddr:row.importer_address||'', stickerImg:row.sticker_image_url||'',
@@ -14750,30 +14751,36 @@ function App(){
             /* Fetch ALL pallets across loaded inspections, paginating past the PostgREST 1000-row cap.
                A single .in() returns max 1000 rows; with thousands of pallets per season most were
                dropped, so pallet-number search silently missed them. */
-            function fetchAllPallets(ids){
-              if(!ids||!ids.length) return Promise.resolve({data:[]});
+            /* Generic paginated IN-fetch — walks past the PostgREST 1000-row cap.
+               makeQuery() returns a FRESH query WITH .select()/.in()/.order() but WITHOUT .range().
+               A stable .order() is required so rows don't shift between pages. */
+            function fetchAllPaged(makeQuery){
               var acc=[];
               function page(from){
-                return supabase.from('pallets').select('inspection_id,pallet_number,container_number')
-                  .in('inspection_id',ids)
-                  .order('inspection_id',{ascending:true}).order('pallet_number',{ascending:true})
-                  .range(from,from+999)
-                  .then(function(r){
-                    if(r.error) return {data:acc,error:r.error};
-                    var batch=r.data||[];
-                    acc=acc.concat(batch);
-                    if(batch.length<1000) return {data:acc};
-                    return page(from+1000);
-                  });
+                return makeQuery().range(from,from+999).then(function(r){
+                  if(r.error) return {data:acc,error:r.error};
+                  var batch=r.data||[];
+                  acc=acc.concat(batch);
+                  if(batch.length<1000) return {data:acc};
+                  return page(from+1000);
+                });
               }
               return page(0);
+            }
+            function fetchAllPallets(ids){
+              if(!ids||!ids.length) return Promise.resolve({data:[]});
+              return fetchAllPaged(function(){
+                return supabase.from('pallets').select('inspection_id,pallet_number,container_number')
+                  .in('inspection_id',ids)
+                  .order('inspection_id',{ascending:true}).order('pallet_number',{ascending:true});
+              });
             }
             /* Fetch pallets + related tables in parallel using IN-clause lookups (avoids N+1 joins in the view query) */
             return Promise.all([
               fetchAllPallets(noIds?[]:inspectionIds),
-              noIds?Promise.resolve({data:[]}):supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds),
-              noIds?Promise.resolve({data:[]}):supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('round',{ascending:false}),
-              noIds?Promise.resolve({data:[]}):supabase.from('inspection_sticker_checks').select('inspection_id,field_key,confirmed').in('inspection_id',inspectionIds)
+              noIds?Promise.resolve({data:[]}):fetchAllPaged(function(){return supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('item_index',{ascending:true});}),
+              noIds?Promise.resolve({data:[]}):fetchAllPaged(function(){return supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('round',{ascending:false});}),
+              noIds?Promise.resolve({data:[]}):fetchAllPaged(function(){return supabase.from('inspection_sticker_checks').select('inspection_id,field_key,confirmed').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('field_key',{ascending:true});})
             ]).then(function(results){
               var pr=results[0],cr=results[1],er=results[2],sr=results[3];
               var palletsByInspection={};
@@ -15067,6 +15074,7 @@ function App(){
     if(newBatch.netWt) header.net_weight=newBatch.netWt;
     if(newBatch.importer) header.importer=newBatch.importer;
     if(newBatch.importerAddr) header.importer_address=newBatch.importerAddr;
+    if(newBatch.stickerImg) header.sticker_image_url=newBatch.stickerImg;
     if(newBatch.extraLabels) header.extra_labels=newBatch.extraLabels;
     if(newBatch.farm) header.farm_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm])||null;
     if(newBatch.formOpenedAt instanceof Date){
