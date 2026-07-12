@@ -972,6 +972,23 @@ function InspectionForm(props){
   var sSC=useState(batch&&batch.stickerChecks?batch.stickerChecks:{product:false,variety:false,cls:false,phName:false,phCode:false,farmCode:false,packDate:false,netWt:false,trace:false,ggn:false,lot:false,importer:false,origin:false});
   var stickerChecks=sSC[0]; var setStickerChecks=sSC[1];
   function toggleCheck(k){var n=Object.assign({},stickerChecks);n[k]=!n[k];setStickerChecks(n);}
+  /* Lazy-load this inspection's label-sticker checklist on edit-open. Sticker checks are no
+     longer bulk-loaded with the list (that was an 8-page fetch); we pull just this one
+     inspection's rows here — a single uncapped .eq query, fast even on a weak connection.
+     Skipped for new inspections and when a recovery draft is present (the draft's checklist
+     takes priority and is applied by the recovery effect above). */
+  React.useEffect(function(){
+    if(!isEdit||!batch||!batch.id||props.recoveryDraft) return;
+    supabase.from('inspection_sticker_checks').select('field_key,confirmed').eq('inspection_id',batch.id)
+      .then(function(r){
+        if(r.error||!r.data||!r.data.length) return;
+        setStickerChecks(function(prev){
+          var sc=Object.assign({},prev);
+          r.data.forEach(function(c){sc[c.field_key]=c.confirmed;});
+          return sc;
+        });
+      });
+  },[]);
   var totalChecks=Object.keys(stickerChecks).length;
   var doneChecks=Object.values(stickerChecks).filter(Boolean).length;
 
@@ -14780,7 +14797,12 @@ function App(){
               fetchAllPallets(noIds?[]:inspectionIds),
               noIds?Promise.resolve({data:[]}):fetchAllPaged(function(){return supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('item_index',{ascending:true});}),
               noIds?Promise.resolve({data:[]}):fetchAllPaged(function(){return supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('round',{ascending:false});}),
-              noIds?Promise.resolve({data:[]}):fetchAllPaged(function(){return supabase.from('inspection_sticker_checks').select('inspection_id,field_key,confirmed').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('field_key',{ascending:true});})
+              /* Sticker checks are NOT bulk-loaded — they feed ONLY the edit form (the list
+                 table and detail panel never show them). Bulk-fetching them meant an 8-page
+                 (~7.8k row) walk on every list load. The edit form now fetches just this one
+                 inspection's rows lazily on open (see the sticker-checks useEffect in
+                 InspectionForm). refreshBatchesById still repopulates them after a save. */
+              Promise.resolve({data:[]})
             ]).then(function(results){
               var pr=results[0],cr=results[1],er=results[2],sr=results[3];
               var palletsByInspection={};
