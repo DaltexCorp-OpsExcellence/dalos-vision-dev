@@ -1208,6 +1208,13 @@ function InspectionForm(props){
      On save we assert this hasn't changed. If another device saved first,
      we get 0 rows updated and show a clear conflict error. */
   var loadedVersionRef=React.useRef(isEdit&&batch?batch.savedAt:null);
+  /* FIX (re-send guard): remembers the last dispatch time per inspection id, across
+     newBatch objects. A genuine human retry (tap Save again after a conflict) is
+     always seconds apart; an automatic re-send hammers far faster. We ignore any
+     dispatch for the same id that arrives within the cooldown window — this kills
+     the runaway CONFLICT loop WITHOUT weakening the optimistic lock or blocking a
+     real tap. */
+  var lastDispatchRef=React.useRef({});
 
   function handleSave(){
     if(isSaving) return; /* prevent double-save */
@@ -15025,7 +15032,11 @@ function App(){
     };
     if(isEditFlag){
       header.id=editId;
-      header.loaded_version=newBatch.loadedVersion||'';
+      /* FIX: read the LIVE optimistic-lock version from the ref, not the stale
+         snapshot on newBatch. After a CONFLICT the ref is refreshed to the current
+         updated_at; without this, a rebuilt/re-sent save keeps carrying the old
+         version and conflicts forever (the MN-2026-0015 storm). */
+      header.loaded_version=(loadedVersionRef&&loadedVersionRef.current)||newBatch.loadedVersion||'';
       header.last_edited_by=userId||null;
       /* On edit, do not force submitted_at (RPC never touches it) */
       delete header.submitted_at;
@@ -15108,6 +15119,17 @@ function App(){
        Replayed dispatches (observed as duplicate identical inserts seconds
        apart) are ignored — the original dispatch's callback owns the UX. */
     if(newBatch&&newBatch._dispatched){console.warn('[DalOS] Duplicate addBatch dispatch ignored:',newBatch.id);return;}
+    /* Re-send throttle: block any dispatch for the same inspection id that arrives
+       within 3s of the previous one. A human tapping Save again is always slower
+       than this; a runaway automatic re-send is much faster, so this stops the loop
+       at source without ever blocking a legitimate retry. Skipped for brand-new
+       inspections with no stable id yet. */
+    if(newBatch&&newBatch.id){
+      var _now=Date.now();
+      var _prev=lastDispatchRef.current[newBatch.id]||0;
+      if(_now-_prev<3000){console.warn('[DalOS] Rapid re-dispatch throttled for',newBatch.id,'(',(_now-_prev),'ms since last)');return;}
+      lastDispatchRef.current[newBatch.id]=_now;
+    }
     if(newBatch) newBatch._dispatched=true;
     var isEditMode=batches.some(function(b){return b.id===newBatch.id;});
     supabase.auth.getUser().then(function(userRes){
