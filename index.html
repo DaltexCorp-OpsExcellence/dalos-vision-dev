@@ -1369,17 +1369,28 @@ function InspectionForm(props){
       }
       if(err==='CONFLICT'){
         /* Optimistic lock conflict — another device saved this session first.
-           Refresh the listing cache so when user reopens the form they get the
-           latest updated_at and won't hit the conflict again. */
+           AUTO-REFRESH the optimistic-lock version immediately: refetch the
+           current updated_at into loadedVersionRef so the inspector's NEXT save
+           validates against the live version instead of the stale one. Without
+           this, a re-tap re-sends the same stale loaded_version and conflicts
+           again — the runaway CONFLICT loop seen in prod. (Manual Refresh stays.) */
         try { if(typeof refreshBatchesById==='function') refreshBatchesById([realId]); } catch(e){}
+        var _conflictId=(isEdit&&batch&&batch.id)?batch.id:realId;
+        if(_conflictId){
+          try{
+            supabase.from('inspections').select('updated_at').eq('id',_conflictId).single().then(function(r){
+              if(r&&r.data&&r.data.updated_at){ loadedVersionRef.current=r.data.updated_at; }
+            }).catch(function(){});
+          }catch(e){}
+        }
         if(!isEdit){
           setSavePending(false);
-          setSaveFailed('This session was saved on another device while you were editing. Go back to the form, click Refresh, then save again.');
+          setSaveFailed('This session was updated on another device. We\u2019ve reloaded the latest version — review your entries, then save again.');
           setIsSaving(false);
           return;
         }
         setSaveStatus('error');
-        setSaveErrMsg('This session was saved on another device while you were editing. Click \u201cRefresh\u201d to load the latest version — your changes have not been saved.');
+        setSaveErrMsg('This session was updated on another device. We\u2019ve reloaded the latest version — review your changes, then tap Save again.');
         setIsSaving(false);
         return;
       }
