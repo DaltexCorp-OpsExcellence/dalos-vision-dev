@@ -1208,13 +1208,6 @@ function InspectionForm(props){
      On save we assert this hasn't changed. If another device saved first,
      we get 0 rows updated and show a clear conflict error. */
   var loadedVersionRef=React.useRef(isEdit&&batch?batch.savedAt:null);
-  /* FIX (re-send guard): remembers the last dispatch time per inspection id, across
-     newBatch objects. A genuine human retry (tap Save again after a conflict) is
-     always seconds apart; an automatic re-send hammers far faster. We ignore any
-     dispatch for the same id that arrives within the cooldown window — this kills
-     the runaway CONFLICT loop WITHOUT weakening the optimistic lock or blocking a
-     real tap. */
-  var lastDispatchRef=React.useRef({});
 
   function handleSave(){
     if(isSaving) return; /* prevent double-save */
@@ -14366,6 +14359,12 @@ var IPATHS={
 };
 
 function App(){
+  /* FIX (re-send guard): last dispatch time per inspection id, in App scope where
+     addBatch lives. A human retry after a conflict is always seconds apart; a runaway
+     automatic re-send hammers far faster. We ignore any dispatch for the same id
+     within a 3s cooldown — kills the CONFLICT loop without weakening the lock or
+     blocking a real tap. */
+  var lastDispatchRef=React.useRef({});
   var sUser=useState(null); var currentUser=sUser[0]; var setCurrentUser=sUser[1];
   var sSessionExp=useState(false); var sessionExpired=sSessionExp[0]; var setSessionExpired=sSessionExp[1];
   var sc=useState(null); var cropId=sc[0]; var setCropId=sc[1];
@@ -15032,11 +15031,7 @@ function App(){
     };
     if(isEditFlag){
       header.id=editId;
-      /* FIX: read the LIVE optimistic-lock version from the ref, not the stale
-         snapshot on newBatch. After a CONFLICT the ref is refreshed to the current
-         updated_at; without this, a rebuilt/re-sent save keeps carrying the old
-         version and conflicts forever (the MN-2026-0015 storm). */
-      header.loaded_version=(loadedVersionRef&&loadedVersionRef.current)||newBatch.loadedVersion||'';
+      header.loaded_version=newBatch.loadedVersion||'';
       header.last_edited_by=userId||null;
       /* On edit, do not force submitted_at (RPC never touches it) */
       delete header.submitted_at;
