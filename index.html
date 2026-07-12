@@ -798,6 +798,21 @@ function InspectionForm(props){
     var rd=props.recoveryDraft;
     if(!rd||!isEdit) return; /* only needed for edit-mode recovery */
     /* Apply draft header overrides — snapshot values replace DB-loaded batch values */
+    /* FIX (draft-restore): these header fields were previously OMITTED here, so on
+       edit-mode recovery they silently reverted to the DB (batch) value instead of the
+       draft's edited value — most visibly LOT came back as the old DB lot. Restore them
+       from the snapshot too. Raw setters (no setIsDirty side-effect) to match the rest. */
+    if(rd.lot!==undefined) setLotRaw(rd.lot);
+    if(rd.date!==undefined) setDateRaw(rd.date);
+    if(rd.additionalFarms!==undefined) setAdditionalFarms(rd.additionalFarms);
+    if(rd.farm3!==undefined) setFarm3(rd.farm3);
+    if(rd.farm4!==undefined) setFarm4(rd.farm4);
+    if(rd.plot3!==undefined) setPlot3(rd.plot3);
+    if(rd.plot4!==undefined) setPlot4(rd.plot4);
+    if(rd.cartonCompany2!==undefined) setCartonCompany2(rd.cartonCompany2);
+    if(rd.importer!==undefined) setImporter(rd.importer);
+    if(rd.importerAddr!==undefined) setImporterAddr(rd.importerAddr);
+    if(rd.stickerImg!==undefined) setStickerImg(rd.stickerImg);
     if(rd.variety!==undefined) setVariety(rd.variety);
     if(rd.variety2!==undefined) setVariety2(rd.variety2);
     if(rd.varietyType) setVarietyType(rd.varietyType);
