@@ -9721,9 +9721,9 @@ function ClientQCMgmt(props){
       return page(0);
     }
     fetchSeasonInspectionContainers().then(function(containerSet){
-    var q=supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value))').order('created_at',{ascending:false}).limit(200);
-    if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);
-    q.then(function(res){
+    /* paginated: PostgREST caps un-paged reads; the old .limit(200) hid reports beyond 200 (see fetchAllPaged pattern) */
+    var cqcQuery=function(){var q=supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value))').order('created_at',{ascending:false});if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);return q;};
+    (function(){var acc=[];function page(from){return cqcQuery().range(from,from+999).then(function(r){if(r.error) return {data:acc,error:r.error};var batch=r.data||[];acc=acc.concat(batch);if(batch.length<1000) return {data:acc};return page(from+1000);});}return page(0);})().then(function(res){
         if(res.error){console.error('[DalOS] CQC load error:',res.error.message);return;}
         var mapped=(res.data||[]).map(function(r){
           /* live match: report container present in this season's inspection container set */
