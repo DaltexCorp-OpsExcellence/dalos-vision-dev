@@ -3,12 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>DalOS Vision — CRM (Pre-test)</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Instrument+Sans:wght@400;500;600&family=DM+Mono&display=swap">
-<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<title>DalOS Vision — CRM (Mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root{
   --bg:#f0ede6;--bg2:#e8e4da;--bg3:#ddd8cc;
@@ -24,646 +21,1385 @@
   --font-body:'Instrument Sans',sans-serif;
   --font-mono:'DM Mono',monospace;
   --r:8px;--r2:12px;
+  --sidebar-w:218px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-size:14px}
-.wrap{max-width:1080px;margin:0 auto;padding:16px 18px 60px}
-.pretest{background:#2a1f4d;color:#e8e0ff;font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.pretest b{color:#fff}
-.topbar{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
-.h1{font-family:var(--font-display);font-size:24px}
-.sub{font-size:12px;color:var(--text3)}
-.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:16px}
-.tab{padding:7px 14px;font-size:13px;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;white-space:nowrap}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.sec{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin:14px 0 6px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2)}
-.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
-.b-pass{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
-.b-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
-.b-fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
-.b-neutral{background:var(--bg2);color:var(--text2);border:1px solid var(--border)}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{width:var(--sidebar-w);background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;padding:16px 0}
+.logo{padding:0 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:12px}
+.logo-name{font-family:var(--font-display);font-size:19px;color:#fff;line-height:1}
+.logo-crop{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--sidebar-muted);margin-top:5px;display:flex;align-items:center;gap:6px}
+.crop-dot{width:6px;height:6px;border-radius:50%;background:#7b4bd6}
+/* season switcher — matches Vision's sidebar pattern (index.html ~L15973) */
+.season-box{margin-top:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:6px 10px}
+.season-box-lbl{font-size:9px;color:var(--sidebar-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px}
+.season-box select{font-size:12px;font-weight:700;color:#fff;background:transparent;border:none;outline:none;cursor:pointer;font-family:var(--font-body);padding:0;width:100%}
+.season-box select option{color:var(--text)}
+.nav-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--sidebar-muted);padding:12px 18px 5px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 18px;font-size:13px;color:var(--sidebar-text);cursor:pointer;transition:.15s}
+.nav-item svg{width:14px;height:14px;opacity:.65;flex-shrink:0}
+.nav-item:hover{background:var(--sidebar2)}
+.nav-item.active{background:var(--accent);color:#fff;font-weight:500}
+.nav-item.active svg{opacity:1}
+.nav-spacer{margin-top:auto}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:50px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;gap:12px}
+.topbar-title{font-family:var(--font-display);font-size:17px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.staging-badge{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#ff6b35 0%,#f7c948 100%);color:#fff;padding:5px 14px 5px 10px;border-radius:20px;box-shadow:0 3px 14px rgba(255,107,53,.45);font-size:10px;font-family:'Courier New',monospace;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
+.staging-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.9);display:inline-block;flex-shrink:0;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+
+.page{flex:1;overflow-y:auto;padding:0 16px 40px}
+.page-inner{max-width:1180px;margin:0 auto}
+
+/* ── Region switcher ── */
+.region-bar{display:flex;align-items:center;gap:10px;margin:14px 0;flex-wrap:wrap}
+.region-switch{display:flex;gap:3px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:3px}
+.region-btn{padding:5px 12px;border-radius:7px;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border:1px solid transparent;white-space:nowrap;transition:.15s}
+.region-btn:hover{color:var(--text2)}
+.region-btn.active{background:var(--card);color:var(--accent);border-color:var(--border);font-weight:600}
+.region-btn .rcount{font-family:var(--font-mono);font-size:10px;opacity:.7;margin-left:5px}
+.region-note{font-size:11px;color:var(--text3);font-style:italic}
+.season-sel{width:auto !important;padding:7px 10px !important;font-size:12px !important;border-radius:9px !important;font-weight:500}
+.crm-search{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 0;margin-bottom:8px;box-shadow:0 6px 8px -6px rgba(0,0,0,.12)}
+.crm-search input{width:100%;padding:9px 32px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:13px;color:var(--text);font-family:var(--font-body);outline:none}
+.crm-search input:focus{border-color:var(--accent)}
+.crm-search-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.55}
+.crm-search-clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text3);font-size:17px;line-height:1;display:none}
+.crm-search.has-q .crm-search-clear{display:block}
+.crm-search.has-q .crm-search-clear:hover{color:var(--text)}
+
+/* ── KPIs ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:12px 14px}
+.kpi-label{font-size:11px;color:var(--text3);margin-bottom:4px}
+.kpi-value{font-family:var(--font-display);font-size:26px;line-height:1}
+.kpi-sub{font-size:11px;margin-top:4px;color:var(--text3)}
+.kpi-sub.down{color:var(--red)}
+.kpi-sub.up{color:var(--green)}
+
+/* ── Section title ── */
+.section-title{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);margin:6px 0 10px}
+.section-title-bar{width:20px;height:2px;background:var(--accent);border-radius:2px}
+.section-count{font-family:var(--font-mono);color:var(--text3);font-weight:400;letter-spacing:0}
+
+/* ── Shipment cards ── */
+.card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.ship-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;display:flex;flex-direction:column;transition:.15s}
+.ship-card.attn{border-color:var(--red-border)}
+.sc-head{padding:12px 14px 10px;border-bottom:1px solid var(--border)}
+.sc-head-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+.sc-container{font-family:var(--font-mono);font-size:14px;font-weight:500;color:var(--text)}
+.sc-split{font-family:var(--font-body);font-size:10px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-border);padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:1px}
+.sc-meta{font-size:12px;color:var(--text3)}
+.sc-client{font-size:13px;color:var(--text);font-weight:500;margin-top:2px}
+.sc-client .sub{color:var(--text3);font-weight:400}
+.region-chip{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px;background:var(--bg2);color:var(--text2);border:1px solid var(--border);white-space:nowrap}
+
+.sc-body{padding:10px 14px;display:flex;flex-direction:column;gap:9px;flex:1}
+.sc-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sc-update{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px}
+.dot-sep{color:var(--border2)}
+
+.stream{display:flex;gap:8px}
+.stream-box{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;min-width:0}
+.stream-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:4px}
+.stream-line{font-size:12px;color:var(--text2)}
+.stream-line .mono{font-family:var(--font-mono);color:var(--text)}
+.stream-empty{font-size:11px;color:var(--text3);font-style:italic}
+.stream-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px}
+.stream-head .stream-label{margin-bottom:0}
+.stream-open{font-size:9px;color:var(--accent);font-weight:600;white-space:nowrap;opacity:0;transition:.15s}
+.stream-box.link{cursor:pointer}
+.stream-box.link:hover{border-color:var(--accent);background:var(--green-bg)}
+.stream-box.link:hover .stream-open{opacity:1}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--sidebar);color:#fff;padding:9px 14px;border-radius:8px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.28);z-index:80;display:none;align-items:center;gap:8px;max-width:90%}
+.toast.show{display:flex}
+.toast b{font-family:var(--font-mono);font-weight:500}
+/* deep-link stand-in — right-side popup panel (matches Shipments detail) */
+.dlv{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:none;justify-content:flex-end}
+.dlv.open{display:flex}
+.dlv-panel{width:560px;max-width:94vw;height:100%;background:var(--bg);box-shadow:-4px 0 22px rgba(0,0,0,.20);display:flex;flex-direction:column;animation:dlvIn .24s cubic-bezier(.32,.72,0,1)}
+@keyframes dlvIn{from{transform:translateX(36px);opacity:.5}to{transform:translateX(0);opacity:1}}
+.dlv-top{height:50px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;flex-shrink:0}
+.dlv-title{font-family:var(--font-display);font-size:17px}
+.dlv-x{cursor:pointer;color:var(--text3);font-size:22px;line-height:1;padding:2px 4px}
+.dlv-x:hover{color:var(--text)}
+.dlv-body{flex:1;overflow-y:auto;padding:16px}
+.dlv-inner{max-width:none}
+.dlv .kpi-grid{grid-template-columns:repeat(2,1fr)}
+.dlv table.wl{min-width:0}
+.standin{background:var(--bg2);border:1px dashed var(--border2);color:var(--text2);font-size:12px;padding:9px 13px;border-radius:8px;margin-bottom:14px;display:flex;gap:8px;align-items:center;line-height:1.4}
+.standin b{color:var(--text);text-transform:uppercase;letter-spacing:.05em;font-size:10px;background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);padding:2px 7px;border-radius:20px;flex-shrink:0}
+.dlv-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.dlv-id{font-family:var(--font-mono);font-size:16px;font-weight:500;color:var(--text)}
+.dlv-meta{font-size:13px;color:var(--text3);margin-top:3px}
+.photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.photo{width:96px;height:72px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px}
+
+.sc-foot{padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg)}
+.coverage{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;border:1px solid}
+.cov-cqc{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.cov-graded{background:#f0e8ff;color:#6a10b0;border-color:#c090e0}
+.cov-none{background:var(--bg2);color:var(--text3);border-color:var(--border2)}
+.cov-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.sc-actions{display:flex;gap:6px}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;border:1px solid}
+.b-pass{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.b-warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+.b-fail{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.b-neutral{background:var(--bg2);color:var(--text2);border-color:var(--border)}
+.b-hold{background:#fff3e0;color:#b06010;border-color:#e8c090}
+.b-esc{background:#e8eeff;color:#2a50c0;border-color:#a0b4e8}
 .mono{font-family:var(--font-mono)}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;white-space:nowrap;background:var(--card);color:var(--text2)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;white-space:nowrap;background:var(--card);color:var(--text2);transition:.15s;font-family:var(--font-body)}
 .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-primary:hover{background:var(--accent2)}
-.btn-secondary{border-color:var(--border2)}
+.btn-secondary{border-color:var(--border2);color:var(--text2)}
 .btn-secondary:hover{background:var(--bg2)}
 .btn-sm{padding:4px 10px;font-size:12px}
-.pill{padding:4px 12px;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3)}
-.pill.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
-table{width:100%;border-collapse:collapse}
-th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);padding:7px 10px;border-bottom:2px solid var(--border2);white-space:nowrap}
-td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);vertical-align:middle}
-tr.rowsel td{background:var(--green-bg)}
-tr.click{cursor:pointer}
-tr.click:hover td{background:var(--bg2)}
-.kpirow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:4px}
-.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px}
-.kpi-label{font-size:10px;color:var(--text3);font-weight:500;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em}
-.kpi-value{font-family:var(--font-display);font-size:22px;line-height:1}
-.grade-btn{padding:6px 18px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3)}
-.grade-btn.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Modal / forms ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);border-radius:14px;max-width:520px;width:100%;max-height:92vh;overflow-y:auto}
+.modal-head{padding:16px 20px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);z-index:2}
+.modal-title{font-family:var(--font-display);font-size:19px}
+.modal-sub{font-family:var(--font-mono);font-size:12px;color:var(--text3);margin-top:3px}
+.modal-body{padding:16px 20px}
+.modal-foot{padding:12px 20px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card)}
+.modal-x{float:right;cursor:pointer;color:var(--text3);font-size:20px;line-height:1;padding:2px 4px;margin:-2px -4px 0 0}
+.modal-x:hover{color:var(--text)}
+
+.form-label{display:block;font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:.05em;color:var(--text3);margin-bottom:5px}
 .form-input,.form-select,.form-ta{width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--card);outline:none;font-size:14px;color:var(--text);font-family:var(--font-body)}
 .form-input:focus,.form-select:focus,.form-ta:focus{border-color:var(--accent)}
-.lbl{font-size:11px;color:var(--text3);font-weight:500;margin-bottom:4px}
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
-.modal{background:var(--card);border-radius:14px;padding:20px;max-width:460px;width:100%;max-height:92vh;overflow-y:auto}
-.attn{padding:9px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer}
-.attn:hover{background:var(--bg2)}
-.attn:last-child{border-bottom:none}
-.arr{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px;font-size:12px;flex:1;min-width:150px}
-.claimrow{border:1px solid var(--border);border-radius:var(--r);padding:8px 11px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--text2);flex-wrap:wrap}
-.loginbox{max-width:360px;margin:80px auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px}
-.errbanner{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:12px}
-.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
-@keyframes sp{to{transform:rotate(360deg)}}
-.dp-head{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg2);border-radius:var(--r2) var(--r2) 0 0;gap:8px;flex-wrap:wrap}
-.evbox{background:var(--bg);border-radius:var(--r);padding:9px 11px;font-size:12px;color:var(--text2);line-height:1.6}
-@media(max-width:700px){
-  .wrap{padding:12px 12px 60px}
-  .twocol{grid-template-columns:1fr !important}
+.form-input.mono{font-family:var(--font-mono)}
+.form-row{margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* lifecycle segmented */
+.lifecycle{display:flex;gap:4px;margin-bottom:4px}
+.lc-step{flex:1;text-align:center;padding:8px 6px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3);position:relative}
+.lc-step .lc-n{display:block;font-size:9px;letter-spacing:.06em;text-transform:uppercase;opacity:.7;margin-bottom:2px}
+.lc-step.sel-open{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+.lc-step.sel-ack{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
+.lc-step.sel-settled{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.lc-step.sel-rejected{background:var(--bg2);border-color:var(--border2);color:var(--text2)}
+.lc-arrow{align-self:center;color:var(--border2);font-size:12px}
+
+/* scope pills */
+.pill{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3)}
+.pill.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pill-row{display:flex;gap:6px;margin-bottom:12px}
+.grade-pill{padding:6px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3)}
+.grade-pill.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+.part-fields{display:none}
+.part-fields.show{display:block}
+.ctx-val{padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);min-height:37px;display:flex;align-items:center;gap:6px}
+/* claim: composition-row picker */
+.row-sel{display:flex;flex-direction:column;gap:5px}
+.row-opt{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--border2);border-radius:7px;cursor:pointer;font-size:12px;background:var(--card)}
+.row-opt:has(input:checked){border-color:var(--accent);background:var(--green-bg)}
+.row-opt input{width:14px;height:14px;accent-color:var(--accent);margin:0;flex-shrink:0;cursor:pointer}
+.row-opt-main{flex:1;min-width:0;color:var(--text2);line-height:1.45}
+.row-opt-main b{color:var(--text);font-weight:600}
+.row-opt-main .mono{font-family:var(--font-mono)}
+.row-opt-qty{font-family:var(--font-mono);font-size:11px;color:var(--text3);white-space:nowrap}
+.ctx-tag{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);background:var(--card);border:1px solid var(--border);padding:1px 6px;border-radius:20px;margin-left:auto;white-space:nowrap}
+.scope-sum{display:none;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--green-border);background:var(--green-bg);border-radius:7px;font-size:12px;color:var(--text2);line-height:1.4}
+.scope-sum.show{display:flex}
+.scope-sum .ev-check{width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.scope-sum b{color:var(--text)}
+.chk{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);cursor:pointer;user-select:none}
+.chk input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0}
+
+/* evidence link */
+.evidence{display:flex;flex-direction:column;gap:6px}
+.ev-opt{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--border2);border-radius:7px;cursor:pointer;font-size:12px}
+.ev-opt.sel{border-color:var(--accent);background:var(--green-bg)}
+.ev-opt .ev-radio{width:15px;height:15px;border-radius:50%;border:2px solid var(--border2);flex-shrink:0}
+.ev-opt.sel .ev-radio{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 2px #fff}
+.ev-opt .ev-main{flex:1}
+.ev-opt .ev-code{font-family:var(--font-mono);color:var(--text);font-size:12px}
+.ev-opt .ev-desc{color:var(--text3);font-size:11px}
+.ev-link{color:var(--accent);font-size:11px;text-decoration:underline;cursor:pointer;white-space:nowrap}
+.ev-code{font-family:var(--font-mono);color:var(--text);font-size:12px}
+.ev-desc{color:var(--text3);font-size:11px}
+/* linked CQC (the evidence) */
+.ev-cqc{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--green-border);background:var(--green-bg);border-radius:7px;font-size:12px}
+.ev-cqc .ev-check{width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.ev-cqc .ev-main{flex:1;min-width:0}
+.ev-cqc-empty{display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px dashed var(--border2);border-radius:7px;font-size:12px;color:var(--text3)}
+/* upload dropzone */
+.dropzone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;padding:16px 12px;margin-top:8px;border:1.5px dashed var(--border2);border-radius:8px;cursor:pointer;transition:.15s;background:var(--bg)}
+.dropzone:hover,.dropzone.drag{border-color:var(--accent);background:var(--green-bg)}
+.dz-ic{font-size:18px;color:var(--text3);line-height:1}
+.dz-text{font-size:12px;color:var(--text2)}
+.dz-text b{color:var(--text);font-weight:600}
+.dz-browse{color:var(--accent);text-decoration:underline}
+.dz-sub{font-size:10px;color:var(--text3)}
+.ev-files{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.ev-file{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--card)}
+.ev-file .ev-fic{color:var(--accent)}
+.ev-file .ev-fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
+.ev-file .ev-fsize{color:var(--text3);font-size:10px;font-family:var(--font-mono)}
+.ev-file .ev-fx{cursor:pointer;color:var(--text3);font-size:14px}
+.ev-file .ev-fx:hover{color:var(--red)}
+/* reference (accessible, not evidence) */
+.ev-ref{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:9px;border-top:1px solid var(--border);font-size:11px}
+.ev-ref-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+
+/* defect grid (grading form) */
+.defect-hdr{display:grid;grid-template-columns:1fr 90px;gap:8px;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600;padding:0 2px 6px}
+.defect-row{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;padding:3px 0}
+.defect-row label{font-size:13px;color:var(--text2)}
+.defect-row .form-input{padding:6px 8px;font-family:var(--font-mono);font-size:12px;text-align:right}
+.defect-total{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;background:var(--bg2);border-radius:6px;padding:8px;margin-top:6px}
+.defect-total label{font-size:12px;font-weight:600;color:var(--text)}
+.defect-total .val{font-family:var(--font-mono);font-size:14px;font-weight:600;text-align:right;padding-right:8px}
+
+.hint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.4}
+.divider{height:1px;background:var(--border);margin:16px 0}
+
+/* ── View tabs ── */
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:8px 14px;font-size:13px;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab .tcount{font-family:var(--font-mono);font-size:11px;background:var(--bg2);color:var(--text2);border:1px solid var(--border);border-radius:20px;padding:0 7px;line-height:16px}
+.tab.active .tcount{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+
+/* ── Tables (worklists) ── */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow-x:auto}
+table.wl{width:100%;border-collapse:collapse;min-width:640px}
+table.wl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);font-weight:600;padding:9px 12px;border-bottom:2px solid var(--border2);white-space:nowrap}
+table.wl td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);vertical-align:middle}
+table.wl tbody tr:last-child td{border-bottom:none}
+table.wl tbody tr:hover td{background:var(--bg)}
+.lot{font-family:var(--font-mono);font-size:12px;color:var(--text);white-space:nowrap}
+.cell-sub{font-size:11px;color:var(--text3)}
+.empty-state{padding:34px 16px;text-align:center;color:var(--text3);font-size:13px}
+.right{text-align:right}
+
+/* ── Sub-client scorecards ── */
+.scorecard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:10px;margin-bottom:18px}
+.scorecard{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:12px 13px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:9px}
+.scorecard:hover{border-color:var(--accent);box-shadow:0 3px 14px rgba(0,0,0,.07)}
+.scorecard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.scorecard-sub{font-size:14px;font-weight:600;color:var(--text)}
+.scorecard-client{font-size:11px;color:var(--text3)}
+.scorecard-count{font-family:var(--font-display);font-size:24px;line-height:1;color:var(--text);white-space:nowrap}
+.scorecard-count small{font-family:var(--font-body);font-size:10px;color:var(--text3);font-weight:500}
+.scorecard-scores{display:flex;flex-wrap:wrap;gap:4px}
+.sc-chip{min-width:22px;height:22px;padding:0 5px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;font-family:var(--font-mono);border:1px solid}
+.sc-chip.good{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.sc-chip.fair{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+.sc-chip.poor{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.sc-chip.graded{background:#f0e8ff;color:#6a10b0;border-color:#c090e0}
+.sc-chip.none{background:var(--bg2);color:var(--text3);border-color:var(--border2)}
+.scorecard-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--border);padding-top:8px}
+.scorecard-open{font-size:11px;color:var(--accent);font-weight:600;white-space:nowrap}
+
+/* ── Shipment detail (in-CRM drawer) ── */
+.sc-container.clickable{cursor:pointer}
+.sc-container.clickable:hover{color:var(--accent);text-decoration:underline}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:2px}
+.detail-cell{background:var(--card);padding:8px 11px;min-width:0}
+.detail-k{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);font-weight:600;margin-bottom:2px}
+.detail-v{font-size:13px;color:var(--text);word-break:break-word}
+.detail-v.mono{font-family:var(--font-mono)}
+.scope-lock{display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px dashed var(--border2);background:var(--bg2);border-radius:7px;font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.4}
+
+/* ── Scale UX: filters, pager, distribution bars, triage ── */
+.filter-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.filter-group{display:flex;gap:3px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:3px}
+.fpill{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border:1px solid transparent;white-space:nowrap}
+.fpill:hover{color:var(--text2)}
+.fpill.active{background:var(--card);color:var(--accent);border-color:var(--border);font-weight:600}
+.sort-select{margin-left:auto;width:auto !important;padding:6px 10px !important;font-size:12px !important}
+.pager{display:flex;justify-content:space-between;align-items:center;padding:10px 2px 0;font-size:12px;color:var(--text3)}
+.pager-btns{display:flex;gap:6px}
+.pager button[disabled]{opacity:.4;cursor:default;pointer-events:none}
+table.wl tbody tr.click{cursor:pointer}
+.dist{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--bg2)}
+.dist span{display:block;height:100%}
+.dg{background:#4a8c62}.df{background:#e8c87a}.dp{background:#c86060}.dgr{background:#b490e0}.dn{background:var(--border2)}
+.dist-legend{display:flex;gap:9px;flex-wrap:wrap;font-size:10px;color:var(--text3);margin-top:5px}
+.dist-legend i{font-style:normal;display:inline-flex;align-items:center;gap:3px}
+.dist-legend b{width:7px;height:7px;border-radius:2px;display:inline-block}
+.attn-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:2px 0 10px;flex-wrap:wrap}
+.link-btn{font-size:12px;color:var(--accent);font-weight:600;cursor:pointer;white-space:nowrap}
+.link-btn:hover{text-decoration:underline}
+.more-subs{grid-column:1/-1;text-align:center;padding:9px;border:1px dashed var(--border2);border-radius:var(--r2);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;background:var(--bg2)}
+.more-subs:hover{border-color:var(--accent)}
+
+/* ── Responsive ── */
+@media(max-width:1024px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .card-grid{grid-template-columns:1fr}
+}
+@media(max-width:767px){
+  .sidebar{display:none}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .card-grid{grid-template-columns:1fr}
+  .stream{flex-direction:column}
+  .grid2,.grid3{grid-template-columns:1fr}
   input,select,textarea{font-size:16px !important}
 }
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-name">DalOS Vision</div>
+      <div class="season-box">
+        <div class="season-box-lbl">Season</div>
+        <select onchange="setSeason(this.value)">
+          <option value="2025/26">2025/26 ✓</option>
+          <option value="2024/25">2024/25</option>
+        </select>
+      </div>
+    </div>
+    <div class="nav-label">Quality</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Inspections</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>Client QC</div>
+    <div class="nav-label">Commercial</div>
+    <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>CRM</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8zM5.5 18.5a2.5 2.5 0 100 .01M18.5 18.5a2.5 2.5 0 100 .01"/></svg>Shipments</div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">CRM</div>
+      <div class="topbar-right">
+        <span class="staging-badge"><span class="staging-dot"></span>Staging</span>
+        <span class="avatar">TG</span>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="page-inner">
+
+        <!-- Region · product scoping (season is chosen in the sidebar, like the rest of Vision) -->
+        <div class="region-bar">
+          <div class="region-switch" id="regionSwitch"></div>
+          <div class="region-switch" id="productSwitch"></div>
+          <span class="region-note">Placeholder regions — real names TBD. Region resolved on the fly per shipment (client → sub-client → override cascade).</span>
+        </div>
+
+        <!-- Search -->
+        <div class="crm-search" id="crmSearchWrap">
+          <span class="crm-search-ic">🔍</span>
+          <input id="crmSearch" oninput="onSearch(this.value)" placeholder="Search client, sub-client, container #, invoice #, variety, product, country or port…"/>
+          <span class="crm-search-clear" onclick="clearSearch()">&times;</span>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <!-- View tabs -->
+        <div class="tabs" id="viewTabs"></div>
+
+        <!-- Content (cards or worklist table) -->
+        <div id="viewContent"></div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ── Deep-link stand-in view ── -->
+<div class="dlv" id="dlv">
+  <div class="dlv-panel">
+    <div class="dlv-top">
+      <span class="dlv-title" id="dlvTitle">Inspection</span>
+      <span class="dlv-x" onclick="closeDlv()">&times;</span>
+    </div>
+    <div class="dlv-body"><div class="dlv-inner" id="dlvBody"></div></div>
+  </div>
+</div>
+
+<!-- ── Claim modal ── -->
+<div class="modal-bg" id="claimModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-x" onclick="closeModal('claimModal')">&times;</span>
+      <div class="modal-title">Raise a claim</div>
+      <div class="modal-sub" id="claimSub">MSKU 7841203 · Fresh Fields Ltd</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Lifecycle status</label>
+        <div class="lifecycle" id="claimLifecycle">
+          <div class="lc-step sel-open" data-lc="open" onclick="setLifecycle('open')"><span class="lc-n">Step 1</span>Open</div>
+          <span class="lc-arrow">→</span>
+          <div class="lc-step" data-lc="ack" onclick="setLifecycle('ack')"><span class="lc-n">Step 2</span>Acknowledged</div>
+          <span class="lc-arrow">→</span>
+          <div class="lc-step" data-lc="settled" onclick="setLifecycle('settled')"><span class="lc-n">Resolve</span>Settled</div>
+          <div class="lc-step" data-lc="rejected" onclick="setLifecycle('rejected')"><span class="lc-n">Resolve</span>Rejected</div>
+        </div>
+        <div class="hint">Open → Acknowledged (under review) → Settled or Rejected. History is timestamped on each transition.</div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">Claim value</label>
+        <label class="chk"><input type="checkbox" id="potFlag" onchange="togglePotential()"/><span>Potential claim — flag now, value to be confirmed</span></label>
+        <div class="grid3" id="valueRow" style="margin-top:8px">
+          <div style="grid-column:span 2"><input class="form-input mono" id="claimValue" inputmode="decimal" placeholder="optional"/></div>
+          <div><select class="form-select" id="claimCurrency"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option></select></div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">Scope</label>
+        <div class="pill-row">
+          <span class="pill sel" id="scopeWhole" onclick="setScope('whole')">Whole container</span>
+          <span class="pill" id="scopePart" onclick="setScope('part')">Part of load</span>
+        </div>
+        <div class="scope-sum show" id="wholeSum"></div>
+        <div class="part-fields" id="partFields"><div id="partBody"></div></div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">Reason</label>
+        <select class="form-select">
+          <option>Decay / rot on arrival</option>
+          <option>Temperature abuse in transit</option>
+          <option>Soft / overripe berries</option>
+          <option>Shatter / loose berries</option>
+          <option>Short weight</option>
+          <option>Wrong variety / spec</option>
+          <option>Late arrival / missed market</option>
+          <option>Documentation</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">Quality evidence</label>
+        <div class="ev-cqc">
+          <span class="ev-check">✓</span>
+          <span class="ev-main"><span class="ev-code">CQC-2026-0142</span> <span class="ev-desc">— Score 4 (Poor) · 11.4% defect · arrival temp 9.2°C</span></span>
+          <span class="ev-link">open ↗</span>
+        </div>
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="evFile" accept=".pdf,image/*" multiple style="display:none"/>
+          <div class="dz-ic">⬆</div>
+          <div class="dz-text"><b>Drop a file</b> or <span class="dz-browse">browse</span></div>
+          <div class="dz-sub">PDF, image or screenshot — client email, arrival photos, rejection note</div>
+        </label>
+        <div class="ev-files" id="evFiles"></div>
+        <div class="ev-ref">
+          <span class="ev-ref-label">Reference</span>
+          <span class="ev-code">GR-2026-0318</span>
+          <span class="ev-desc">Export inspection · 3.1% · Approved</span>
+          <span class="ev-link" style="margin-left:auto">open ↗</span>
+        </div>
+        <div class="hint">The CQC report is the quality evidence; the export inspection is shown for reference only. Upload client emails, arrival photos or rejection notes as supporting files.</div>
+      </div>
+
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Notes</label>
+        <textarea class="form-ta" style="height:64px;resize:vertical" placeholder="Client rejected 2 pallets on arrival; decay concentrated in stems…"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot" style="justify-content:space-between">
+      <span class="link-btn" style="color:var(--red)" title="Removes a claim opened in error — kept in history as Cancelled (distinct from Rejected)" onclick="cancelClaim()">Cancel claim</span>
+      <span style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="closeModal('claimModal')">Close</button>
+        <button class="btn btn-primary" onclick="closeModal('claimModal')">Save claim</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Grading modal ── -->
+<div class="modal-bg" id="gradeModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-x" onclick="closeModal('gradeModal')">&times;</span>
+      <div class="modal-title">CRM grading</div>
+      <div class="modal-sub" id="gradeSub">TCLU 5590118 · Mediterra Import SA</div>
+    </div>
+    <div class="modal-body">
+      <div class="badge b-neutral" style="margin-bottom:14px">No CQC on file — record a quick CRM grade</div>
+
+      <div class="form-row">
+        <label class="form-label">Grade</label>
+        <div class="pill-row" style="margin-bottom:0">
+          <span class="grade-pill" onclick="setGrade('A')">A</span>
+          <span class="grade-pill sel" onclick="setGrade('B')">B</span>
+          <span class="grade-pill" onclick="setGrade('C')">C</span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">Cause of grade</label>
+        <select class="form-select"><option>Field / pre-harvest</option><option selected>Cold chain / transit</option><option>Packing</option><option>Overripe at loading</option><option>Undetermined</option></select>
+      </div>
+
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Comments</label>
+        <textarea class="form-ta" style="height:80px;resize:vertical" placeholder="Container arrived without a CQC report; graded from photos + client feedback…"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('gradeModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('gradeModal')">Save grading</button>
+    </div>
+  </div>
+</div>
+
 <script>
-var ce = React.createElement;
-var useState = React.useState, useEffect = React.useEffect, useMemo = React.useMemo;
+/* ── Placeholder regions (names TBD — scaffold region-agnostic) ── */
+var REGIONS = [
+  {id:'all', label:'All regions', admin:true},
+  {id:'r1',  label:'Region A'},
+  {id:'r2',  label:'Region B'},
+  {id:'r3',  label:'Region C'},
+  {id:'r4',  label:'Region D'}
+];
 
-var DALOS_SUPABASE_URL='https://sfyjvgjwvtwkrnqrvqyc.supabase.co';
-var DALOS_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmeWp2Z2p3dnR3a3JucXJ2cXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzIxNjYsImV4cCI6MjA5MDQ0ODE2Nn0.FjA75XZsp0Kx5Xam_rrnYoAHX4JHKey6vEFCH_zlMuQ';
-var sb = window.supabase.createClient(DALOS_SUPABASE_URL, DALOS_ANON_KEY);
-
-var LS_KEY='dalos_crm_pretest_v1';
-function loadLocal(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {grades:{},claims:[]}; }catch(e){ return {grades:{},claims:[]}; } }
-function saveLocal(d){ try{ localStorage.setItem(LS_KEY, JSON.stringify(d)); }catch(e){} }
-
-/* ── helpers ── */
-function normCN(s){ if(!s) return ''; return String(s).trim().replace(/\s+/g,' ').toUpperCase(); }
-function parseScoreNum(s){ if(!s) return null; var m=String(s).match(/\((\d+)\)/); return m?parseInt(m[1],10):null; }
-function fmtPct(v){ if(v===null||v===undefined||isNaN(v)) return '—'; return (Math.round(v*10)/10)+'%'; }
-function fmtNum(v){ if(v===null||v===undefined||isNaN(v)) return '—'; return Math.round(v*10)/10; }
-function fmtDate(d){ if(!d) return '—'; var dt=new Date(d); if(isNaN(dt)) return '—'; return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
-function daysAgo(d){ if(!d) return null; var ms=Date.now()-new Date(d).getTime(); return Math.floor(ms/86400000); }
-function daysUntil(d){ if(!d) return null; var ms=new Date(d).getTime()-Date.now(); return Math.ceil(ms/86400000); }
-function curSym(c){ return c==='GBP'?'£':(c==='EUR'?'€':(c==='EGP'?'E£':'$')); }
-function fmtMoney(a,c){ if(a===null||a===undefined||a==='') return '—'; var n=Number(a); if(isNaN(n)) return '—'; return curSym(c)+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
-function uid(){ return 'c_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
-
-async function fetchAll(builderFn){
-  var out=[], from=0, page=1000;
-  for(;;){
-    var res = await builderFn().range(from, from+page-1);
-    if(res.error) throw res.error;
-    var rows = res.data || [];
-    out = out.concat(rows);
-    if(rows.length < page) break;
-    from += page;
+/* ── Placeholder shipment data ── */
+var SHIPMENTS = [
+  {
+    cn:'MSKU 7841203', region:'r1', client:'Fresh Fields Ltd', sub:'Manchester DC',
+    vessel:'MSC Ambra', eta:'12 Jul', port:'Southampton', variety:'Crimson Seedless', varieties:['Crimson Seedless','Sweet Globe'], cartons:5040, netKg:22176,
+    status:'delivered', statusLabel:'Delivered', update:'Client confirmed offload · 2d ago',
+    insp:{id:'GR-2026-0318', defect:'3.1%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0142', score:4, scoreLabel:'Poor', defect:'11.4%', gap:'+8.3%', flag:true},
+    coverage:'cqc', claim:{status:'open', value:'$14,200'}
+  },
+  {
+    cn:'TGHU 2205567', region:'r1', client:'Fresh Fields Ltd', sub:'London RDC',
+    vessel:'MSC Ambra', eta:'12 Jul', port:'Southampton', variety:'Sweet Globe', cartons:4980, netKg:21414,
+    status:'delivered', statusLabel:'Delivered', update:'On time · 3d ago',
+    insp:{id:'GR-2026-0319', defect:'2.4%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0140', score:1, scoreLabel:'Excellent', defect:'2.9%', gap:'+0.5%', flag:false},
+    coverage:'cqc', claim:null
+  },
+  {
+    cn:'MSKU 7841250', region:'r1', client:'Fresh Fields Ltd', sub:'Manchester DC',
+    vessel:'MSC Ambra', eta:'12 Jul', port:'Southampton', variety:'Sweet Globe', cartons:5010, netKg:22044,
+    status:'delivered', statusLabel:'Delivered', update:'On time · 3d ago',
+    insp:{id:'GR-2026-0320', defect:'2.7%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0145', score:2, scoreLabel:'Good', defect:'3.8%', gap:'+1.1%', flag:false},
+    coverage:'cqc', claim:null
+  },
+  {
+    cn:'MSKU 7841268', region:'r1', client:'Fresh Fields Ltd', sub:'Manchester DC',
+    vessel:'Maersk Cardiff', eta:'18 Jul', port:'Southampton', variety:'Crimson Seedless', cartons:4950, netKg:21780,
+    status:'delivered', statusLabel:'Delivered', update:'Awaiting quality feedback · 1d ago',
+    insp:{id:'GR-2026-0331', defect:'3.0%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0149', score:3, scoreLabel:'Fair', defect:'6.2%', gap:'+3.2%', flag:true},
+    coverage:'cqc', claim:null
+  },
+  {
+    cn:'TGHU 2205590', region:'r1', client:'Fresh Fields Ltd', sub:'London RDC',
+    vessel:'Maersk Cardiff', eta:'18 Jul', port:'Southampton', variety:'Sweet Globe', cartons:5080, netKg:22352,
+    status:'delivered', statusLabel:'Delivered', update:'On time · 1d ago',
+    insp:{id:'GR-2026-0332', defect:'2.3%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0150', score:1, scoreLabel:'Excellent', defect:'2.6%', gap:'+0.3%', flag:false},
+    coverage:'cqc', claim:null
+  },
+  {
+    cn:'MRKU 4418890', region:'r2', client:'Mediterra Import SA', sub:'Rungis',
+    vessel:'CMA Loire', eta:'09 Jul', port:'Marseille', variety:'Arra 15', cartons:5120, netKg:23040,
+    status:'delivered', statusLabel:'Delivered', update:'Awaiting quality feedback · 5d ago',
+    insp:{id:'GR-2026-0301', defect:'2.8%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0138', score:3, scoreLabel:'Fair', defect:'6.7%', gap:'+3.9%', flag:true},
+    coverage:'cqc', claim:{status:'ack', value:'€6,900'}
+  },
+  {
+    cn:'TCLU 5590118', region:'r2', client:'Mediterra Import SA', sub:'Perpignan',
+    vessel:'CMA Loire', eta:'09 Jul', port:'Marseille', variety:'Timco', cartons:4760, netKg:21420,
+    status:'delivered', statusLabel:'Delivered', update:'No CQC received · 5d ago',
+    insp:{id:'GR-2026-0302', defect:'3.4%', decision:'Approved'},
+    cqc:null,
+    coverage:'graded', graded:{grade:'B', cause:'Cold chain / transit'}, claim:{status:'open', potential:true}
+  },
+  {
+    cn:'HLXU 9930042', region:'r3', client:'NordFrukt AB', sub:'Helsingborg',
+    vessel:'Maersk Kotka', eta:'16 Jul', port:'Gothenburg', variety:'Allison', cartons:5010, netKg:22545,
+    status:'in_transit', statusLabel:'In transit', update:'ETA in 2d · reefer 4.2°C', reefer:true,
+    insp:{id:'GR-2026-0327', defect:'1.9%', decision:'Approved'},
+    cqc:null, coverage:'none', claim:null
+  },
+  {
+    cn:'MSMU 6612374', region:'r3', client:'NordFrukt AB', sub:'Oslo',
+    vessel:'Maersk Kotka', eta:'16 Jul', port:'Gothenburg', variety:'Crimson Seedless', cartons:4890, netKg:21516,
+    split:true, status:'in_transit', statusLabel:'In transit', update:'Split carta (2 lots) · matched on container',
+    insp:{id:'GR-2026-0326', defect:'2.2%', decision:'Approved'},
+    cqc:null, coverage:'none', claim:null
+  },
+  {
+    cn:'OOLU 1120665', region:'r4', client:'Pacific Produce Inc', sub:'New Jersey',
+    vessel:'OOCL Napoli', eta:'02 Jul', port:'Newark', variety:'Sweet Celebration', cartons:5200, netKg:23400,
+    status:'delivered', statusLabel:'Delivered', update:'Claim settled · 1d ago',
+    insp:{id:'GR-2026-0288', defect:'2.6%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0129', score:3, scoreLabel:'Fair', defect:'5.9%', gap:'+3.3%', flag:true},
+    coverage:'cqc', claim:{status:'settled', value:'$4,500'}
+  },
+  {
+    cn:'OOLU 1120671', region:'r4', client:'Pacific Produce Inc', sub:'Los Angeles',
+    vessel:'OOCL Napoli', eta:'02 Jul', port:'Newark', variety:'Autumn Crisp', cartons:5150, netKg:22660,
+    status:'delivered', statusLabel:'Delivered', update:'Claim rejected — QC cleared · 1d ago',
+    insp:{id:'GR-2026-0289', defect:'2.1%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0130', score:2, scoreLabel:'Good', defect:'3.4%', gap:'+1.3%', flag:false},
+    coverage:'cqc', claim:{status:'rejected', value:'$3,000'}
   }
-  return out;
-}
+];
 
-/* ── badges ── */
-function Badge(cls, text){ return ce('span',{className:'badge '+cls}, text); }
-function scoreBadge(score){
-  var n = parseScoreNum(score);
-  if(n===null) return Badge('b-neutral', score||'—');
-  var cls = n<=2 ? 'b-pass' : (n===3 ? 'b-warn' : 'b-fail');
-  return Badge(cls, score);
-}
-function gradeBadge(g){
-  if(!g) return Badge('b-neutral','ungraded');
-  var cls = g==='A' ? 'b-pass' : (g==='B' ? 'b-warn' : 'b-fail');
-  return Badge(cls, g);
-}
-function claimStatusBadge(s){
-  var cls = s==='settled' ? 'b-pass' : (s==='submitted' ? 'b-warn' : (s==='rejected' ? 'b-neutral' : 'b-fail'));
-  return Badge(cls, s);
-}
-
-/* ── Login ── */
-function Login(props){
-  var st = useState(''); var email=st[0], setEmail=st[1];
-  var st2 = useState(''); var pw=st2[0], setPw=st2[1];
-  var st3 = useState(''); var err=st3[0], setErr=st3[1];
-  var st4 = useState(false); var busy=st4[0], setBusy=st4[1];
-  function go(){
-    setBusy(true); setErr('');
-    sb.auth.signInWithPassword({email:email.trim(), password:pw}).then(function(r){
-      setBusy(false);
-      if(r.error){ setErr(r.error.message); return; }
-      props.onAuthed(r.data.session);
-    });
-  }
-  return ce('div',{className:'loginbox'},
-    ce('div',{style:{fontFamily:'var(--font-display)',fontSize:'22px',marginBottom:'4px'}},'DalOS Vision'),
-    ce('div',{style:{fontSize:'12px',color:'var(--text3)',marginBottom:'18px'}},'CRM module · pre-test · sign in with your Vision account'),
-    err ? ce('div',{className:'errbanner'}, err) : null,
-    ce('div',{className:'lbl'},'Email'),
-    ce('input',{className:'form-input',type:'email',value:email,onChange:function(e){setEmail(e.target.value);},style:{marginBottom:'10px'}}),
-    ce('div',{className:'lbl'},'Password'),
-    ce('input',{className:'form-input',type:'password',value:pw,onChange:function(e){setPw(e.target.value);},onKeyDown:function(e){if(e.key==='Enter')go();},style:{marginBottom:'16px'}}),
-    ce('button',{className:'btn btn-primary',style:{width:'100%',justifyContent:'center'},disabled:busy,onClick:go}, busy?'Signing in…':'Sign in')
-  );
-}
-
-/* ── Claim modal ── */
-function ClaimModal(props){
-  var c = props.container;
-  var st = useState('part'); var scope=st[0], setScope=st[1];
-  var st1 = useState(''); var subclient=st1[0], setSubclient=st1[1];
-  var st2 = useState(''); var variety=st2[0], setVariety=st2[1];
-  var st3 = useState(''); var cartons=st3[0], setCartons=st3[1];
-  var st4 = useState(''); var pallets=st4[0], setPallets=st4[1];
-  var st5 = useState(''); var amount=st5[0], setAmount=st5[1];
-  var st6 = useState('USD'); var currency=st6[0], setCurrency=st6[1];
-  var st7 = useState('open'); var status=st7[0], setStatus=st7[1];
-  var st8 = useState(''); var notes=st8[0], setNotes=st8[1];
-  var st9 = useState(''); var err=st9[0], setErr=st9[1];
-
-  var subOpts = c.subclients.slice();
-  var varOpts = c.varieties.slice();
-
-  function save(){
-    var n = Number(String(amount).replace(/,/g,''));
-    if(isNaN(n) || n<=0){ setErr('Enter a valid amount.'); return; }
-    props.onSave({
-      id: uid(), cn: c.cn, scope: scope,
-      subclient: scope==='part'?subclient:'', variety: scope==='part'?variety:'',
-      cartons: scope==='part'?cartons:'', pallets: scope==='part'?pallets:'',
-      amount: n, currency: currency, status: status, notes: notes,
-      at: new Date().toISOString()
-    });
-  }
-  function fld(label, el){ return ce('div',null, ce('div',{className:'lbl'},label), el); }
-
-  return ce('div',{className:'modal-bg',onClick:function(e){ if(e.target===e.currentTarget) props.onClose(); }},
-    ce('div',{className:'modal'},
-      ce('div',{style:{fontWeight:600,fontSize:'15px',marginBottom:'2px'}},'New claim'),
-      ce('div',{className:'mono',style:{fontSize:'12px',color:'var(--text3)',marginBottom:'14px'}}, c.cn+' · '+(c.client||'—')),
-      err ? ce('div',{className:'errbanner'}, err) : null,
-      ce('div',{style:{display:'flex',gap:'6px',marginBottom:'12px'}},
-        ce('span',{className:'pill'+(scope==='part'?' sel':''),onClick:function(){setScope('part');}},'Part of load'),
-        ce('span',{className:'pill'+(scope==='whole'?' sel':''),onClick:function(){setScope('whole');}},'Whole container')
-      ),
-      scope==='part' ? ce('div',{className:'twocol',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}},
-        fld('Subclient', ce('input',{className:'form-input',list:'subclients-dl',value:subclient,onChange:function(e){setSubclient(e.target.value);},placeholder:'type or pick'})),
-        fld('Variety', ce('input',{className:'form-input',list:'varieties-dl',value:variety,onChange:function(e){setVariety(e.target.value);},placeholder:'type or pick'})),
-        fld('Cartons affected', ce('input',{className:'form-input',inputMode:'numeric',value:cartons,onChange:function(e){setCartons(e.target.value);}})),
-        fld('Pallets affected', ce('input',{className:'form-input',inputMode:'numeric',value:pallets,onChange:function(e){setPallets(e.target.value);},placeholder:'optional'}))
-      ) : null,
-      ce('datalist',{id:'subclients-dl'}, subOpts.map(function(s){return ce('option',{key:s,value:s});})),
-      ce('datalist',{id:'varieties-dl'}, varOpts.map(function(s){return ce('option',{key:s,value:s});})),
-      ce('div',{style:{display:'grid',gridTemplateColumns:'2fr 1fr 1.4fr',gap:'10px',marginBottom:'10px'}},
-        fld('Amount', ce('input',{className:'form-input',inputMode:'decimal',value:amount,onChange:function(e){setAmount(e.target.value);}})),
-        fld('Currency', ce('select',{className:'form-select',value:currency,onChange:function(e){setCurrency(e.target.value);}},
-          ['USD','EUR','GBP','EGP'].map(function(cu){return ce('option',{key:cu,value:cu},cu);}))),
-        fld('Status', ce('select',{className:'form-select',value:status,onChange:function(e){setStatus(e.target.value);}},
-          ['open','submitted','settled','rejected'].map(function(s){return ce('option',{key:s,value:s},s);})))
-      ),
-      ce('div',{style:{marginBottom:'14px'}},
-        ce('div',{className:'lbl'},'Notes'),
-        ce('textarea',{className:'form-ta',style:{height:'64px',resize:'vertical'},value:notes,onChange:function(e){setNotes(e.target.value);},placeholder:'Decay on arrival, client rejected 2 pallets…'})
-      ),
-      ce('div',{style:{display:'flex',gap:'8px',justifyContent:'flex-end'}},
-        ce('button',{className:'btn btn-secondary',onClick:props.onClose},'Cancel'),
-        ce('button',{className:'btn btn-primary',onClick:save},'Save claim')
-      )
-    )
-  );
-}
-
-/* ── Detail panel ── */
-function DetailPanel(props){
-  var c = props.container;
-  var local = props.local;
-  var grade = (local.grades[c.cn]||{}).grade || null;
-  var claims = local.claims.filter(function(cl){ return cl.cn===c.cn; });
-  var insp = c.insp, cqc = c.latestCqc;
-
-  return ce('div',{className:'card',style:{marginTop:'12px'}},
-    ce('div',{className:'dp-head'},
-      ce('span',{className:'mono',style:{fontSize:'12px'}}, c.cn,
-        ce('span',{style:{fontFamily:'var(--font-body)',color:'var(--text2)'}}, ' · '+(c.varietyLabel||'—')+' · ETA '+fmtDate(c.eta)+(c.port?' · '+c.port:''))),
-      c.gap!==null ? Badge(c.gap>2?'b-fail':(c.gap>0.5?'b-warn':'b-pass'), 'Gap '+(c.gap>0?'+':'')+fmtPct(c.gap)) : Badge('b-neutral','no gap data')
-    ),
-    ce('div',{style:{padding:'12px 14px'}},
-      ce('div',{className:'twocol',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'12px'}},
-        ce('div',{className:'evbox'},
-          ce('div',{className:'sec',style:{margin:'0 0 3px'}}, insp ? ('Inspection '+insp.id) : 'Inspection'),
-          insp ? ce(React.Fragment,null,
-            'Defects ', ce('span',{className:'mono'}, fmtPct(insp.avg_total_defect)),
-            insp.avg_brix!==null&&insp.avg_brix!==undefined ? ce(React.Fragment,null,' · Brix ',ce('span',{className:'mono'}, fmtNum(insp.avg_brix))) : null,
-            ce('br'),
-            ce('span',{style:{color: insp.decision==='Approved'?'var(--green)':'var(--text2)',fontWeight:500}}, insp.decision||insp.status||'—'),
-            insp.date ? ' · '+fmtDate(insp.date) : ''
-          ) : ce('span',{style:{color:'var(--text3)'}},'no matched inspection')
-        ),
-        ce('div',{className:'evbox'},
-          ce('div',{className:'sec',style:{margin:'0 0 3px'}},'CQC on arrival'+(c.cqcs.length>1?' ('+c.cqcs.length+')':'')),
-          cqc ? ce(React.Fragment,null,
-            'Defects ', ce('span',{className:'mono'}, fmtPct(cqc.total_defect)),
-            cqc.max_temp!==null&&cqc.max_temp!==undefined ? ce(React.Fragment,null,' · max ',ce('span',{className:'mono'}, fmtNum(cqc.max_temp)+'°C')) : null,
-            ce('br'),
-            scoreBadge(cqc.score),
-            cqc.potential_claim ? ce('span',{style:{marginLeft:'6px'}}, Badge('b-fail','claim flagged')) : null,
-            ce('span',{style:{color:'var(--text3)'}}, ' · '+fmtDate(cqc.created_at))
-          ) : ce('span',{style:{color:'var(--text3)'}},'no CQC yet')
-        )
-      ),
-      cqc && (cqc.general_comments || cqc.cause) ? ce('div',{className:'evbox',style:{marginBottom:'12px'}},
-        ce('div',{className:'sec',style:{margin:'0 0 3px'}},'CQC notes'),
-        cqc.cause ? ce('div',null, ce('b',null,'Cause: '), cqc.cause) : null,
-        cqc.general_comments ? ce('div',null, cqc.general_comments) : null
-      ) : null,
-      ce('div',{style:{display:'flex',gap:'8px',alignItems:'center',marginBottom:'14px',flexWrap:'wrap'}},
-        ce('span',{className:'sec',style:{margin:0}},'Grade'),
-        ['A','B','C'].map(function(g){
-          return ce('span',{key:g,className:'grade-btn'+(grade===g?' sel':''),onClick:function(){ props.onGrade(c.cn, grade===g?null:g); }}, g);
-        }),
-        grade ? ce('span',{style:{fontSize:'11px',color:'var(--text3)'}},'saved locally') : null
-      ),
-      ce('div',{className:'sec',style:{borderTop:'1px solid var(--border)',paddingTop:'10px'}},'Claims'),
-      claims.length===0 ? ce('div',{style:{fontSize:'12px',color:'var(--text3)',marginBottom:'8px'}},'No claims recorded.') :
-        claims.map(function(cl){
-          var label = cl.scope==='whole' ? 'Whole container' :
-            [(cl.cartons?cl.cartons+' ctn':null),(cl.subclient||null),(cl.variety||null)].filter(Boolean).join(' · ') || 'Part of load';
-          return ce('div',{key:cl.id,className:'claimrow'},
-            ce('span',null, label, cl.notes?ce('span',{style:{color:'var(--text3)'}},' — '+cl.notes):null),
-            ce('span',{style:{display:'flex',gap:'8px',alignItems:'center'}},
-              claimStatusBadge(cl.status),
-              ce('span',{className:'mono',style:{color:'var(--text)'}}, fmtMoney(cl.amount, cl.currency)),
-              ce('select',{className:'form-select',style:{width:'auto',padding:'3px 6px',fontSize:'11px'},value:cl.status,onChange:function(e){ props.onClaimStatus(cl.id, e.target.value); }},
-                ['open','submitted','settled','rejected'].map(function(s){return ce('option',{key:s,value:s},s);})),
-              ce('span',{style:{cursor:'pointer',color:'var(--text3)',fontSize:'14px'},title:'Delete',onClick:function(){ props.onClaimDelete(cl.id); }},'×')
-            )
-          );
-        }),
-      ce('button',{className:'btn btn-primary btn-sm',onClick:function(){ props.onNewClaim(c); }},'+ New claim')
-    )
-  );
-}
-
-/* ── App ── */
-function App(){
-  var stS = useState(undefined); var session=stS[0], setSession=stS[1];
-  var stL = useState('boot'); var loadState=stL[0], setLoadState=stL[1];
-  var stE = useState(''); var loadErr=stE[0], setLoadErr=stE[1];
-  var stD = useState(null); var data=stD[0], setData=stD[1];
-  var stT = useState('today'); var tab=stT[0], setTab=stT[1];
-  var stF = useState('all'); var filter=stF[0], setFilter=stF[1];
-  var stC = useState(null); var selectedCN=stC[0], setSelectedCN=stC[1];
-  var stLo = useState(loadLocal()); var local=stLo[0], setLocalState=stLo[1];
-  var stM = useState(null); var modalC=stM[0], setModalC=stM[1];
-  var stQ = useState(''); var q=stQ[0], setQ=stQ[1];
-
-  function setLocal(next){ setLocalState(next); saveLocal(next); }
-
-  useEffect(function(){
-    sb.auth.getSession().then(function(r){ setSession(r.data.session || null); });
-    var sub = sb.auth.onAuthStateChange(function(_ev, s){ setSession(s || null); });
-    return function(){ sub.data.subscription.unsubscribe(); };
-  },[]);
-
-  useEffect(function(){
-    if(!session) return;
-    var alive = true;
-    setLoadState('loading'); setLoadErr('');
-    (async function(){
-      try{
-        var seasonRes = await sb.from('seasons').select('id,name').eq('active',true).limit(1);
-        if(seasonRes.error) throw seasonRes.error;
-        if(!seasonRes.data || !seasonRes.data.length) throw new Error('No active season found');
-        var season = seasonRes.data[0];
-
-        var lookupsP = Promise.all([
-          fetchAll(function(){ return sb.from('clients').select('id,name'); }),
-          fetchAll(function(){ return sb.from('sub_clients').select('id,name'); }),
-          fetchAll(function(){ return sb.from('varieties').select('id,name'); })
-        ]);
-        var shipmentsP = fetchAll(function(){
-          return sb.from('shipments')
-            .select('id,row_key,container_number,carta,client,subclient,vessel,eta,etd,receiving_country,receiving_port,shipping_status,carton_count,pallet_count,variety,daltex_class,loading_date')
-            .eq('season_id', season.id).eq('product_id','grapes');
-        });
-        var inspectionsP = fetchAll(function(){
-          return sb.from('inspections')
-            .select('id,container_number,avg_total_defect,avg_brix,status,decision,date')
-            .eq('season_id', season.id).eq('product_id','grapes').not('container_number','is',null);
-        });
-        var cqcP = fetchAll(function(){
-          return sb.from('client_qc_reports')
-            .select('id,container_number,total_defect,gap_total,score,potential_claim,claimed_value,claimed_currency,client_id,sub_client_id,variety_id,created_at,max_temp,general_comments,cause,client_decision,qc_report_number')
-            .eq('season_id', season.id);
-        });
-
-        var all = await Promise.all([lookupsP, shipmentsP, inspectionsP, cqcP]);
-        if(!alive) return;
-        var lookups = all[0], shipments = all[1], inspections = all[2], cqcs = all[3];
-        var clientMap = {}, subMap = {}, varMap = {};
-        lookups[0].forEach(function(r){ clientMap[r.id]=r.name; });
-        lookups[1].forEach(function(r){ subMap[r.id]=r.name; });
-        lookups[2].forEach(function(r){ varMap[r.id]=r.name; });
-
-        /* group by normalized container */
-        var byCN = {};
-        function getC(cn){
-          if(!byCN[cn]) byCN[cn] = {cn:cn, rows:[], cqcs:[], insp:null, subclients:[], varieties:[], notInShipments:false};
-          return byCN[cn];
-        }
-        shipments.forEach(function(s){
-          var cn = normCN(s.container_number);
-          if(!cn) return;
-          getC(cn).rows.push(s);
-        });
-        var inspByCN = {};
-        inspections.forEach(function(i){
-          var cn = normCN(i.container_number);
-          if(!cn) return;
-          var prev = inspByCN[cn];
-          if(!prev || String(i.date||'') > String(prev.date||'')) inspByCN[cn]=i;
-        });
-        cqcs.forEach(function(r){
-          var cn = normCN(r.container_number);
-          if(!cn) return;
-          r._client = r.client_id ? (clientMap[r.client_id]||null) : null;
-          r._sub = r.sub_client_id ? (subMap[r.sub_client_id]||null) : null;
-          r._var = r.variety_id ? (varMap[r.variety_id]||null) : null;
-          var c = getC(cn);
-          if(c.rows.length===0) c.notInShipments = true;
-          c.cqcs.push(r);
-        });
-
-        var containers = Object.keys(byCN).map(function(cn){
-          var c = byCN[cn];
-          c.insp = inspByCN[cn] || null;
-          c.cqcs.sort(function(a,b){ return String(b.created_at||'').localeCompare(String(a.created_at||'')); });
-          c.latestCqc = c.cqcs[0] || null;
-          var clients = {}, subs = {}, vars = {};
-          c.rows.forEach(function(s){
-            if(s.client) clients[s.client]=1;
-            if(s.subclient) subs[s.subclient]=1;
-            if(s.variety) vars[s.variety]=1;
-          });
-          c.cqcs.forEach(function(r){
-            if(r._client) clients[r._client]=1;
-            if(r._sub) subs[r._sub]=1;
-            if(r._var) vars[r._var]=1;
-          });
-          c.client = Object.keys(clients).join(' / ') || null;
-          c.subclients = Object.keys(subs);
-          c.varieties = Object.keys(vars);
-          c.varietyLabel = c.varieties.join(' / ') || null;
-          var first = c.rows[0] || {};
-          c.eta = c.rows.reduce(function(a,s){ return s.eta && (!a || s.eta>a) ? s.eta : a; }, null);
-          c.port = first.receiving_port || null;
-          c.country = first.receiving_country || null;
-          c.vessel = first.vessel || null;
-          var inspD = c.insp ? c.insp.avg_total_defect : null;
-          var cqcD = c.latestCqc ? c.latestCqc.total_defect : null;
-          c.gap = (inspD!==null&&inspD!==undefined&&cqcD!==null&&cqcD!==undefined) ? (Number(cqcD)-Number(inspD)) : null;
-          return c;
-        });
-        containers.sort(function(a,b){ return String(b.eta||'').localeCompare(String(a.eta||'')); });
-        setData({season:season, containers:containers});
-        setLoadState('ready');
-      }catch(e){
-        if(!alive) return;
-        setLoadErr(e.message || String(e));
-        setLoadState('error');
-      }
-    })();
-    return function(){ alive=false; };
-  },[session]);
-
-  /* local actions */
-  function onGrade(cn, g){
-    var next = {grades: Object.assign({}, local.grades), claims: local.claims.slice()};
-    if(g) next.grades[cn] = {grade:g, at:new Date().toISOString()}; else delete next.grades[cn];
-    setLocal(next);
-  }
-  function onClaimSave(cl){
-    var next = {grades: local.grades, claims: local.claims.concat([cl])};
-    setLocal(next); setModalC(null);
-  }
-  function onClaimStatus(id, s){
-    var next = {grades: local.grades, claims: local.claims.map(function(c){ return c.id===id ? Object.assign({},c,{status:s}) : c; })};
-    setLocal(next);
-  }
-  function onClaimDelete(id){
-    var next = {grades: local.grades, claims: local.claims.filter(function(c){ return c.id!==id; })};
-    setLocal(next);
-  }
-
-  if(session===undefined) return ce('div',{className:'wrap'}, ce('div',{style:{padding:'60px',textAlign:'center'}}, ce('span',{className:'spin'}),' Checking session…'));
-  if(session===null) return ce(Login,{onAuthed:setSession});
-
-  var header = ce('div',null,
-    ce('div',{className:'pretest'},
-      ce('b',null,'PRE-TEST'),
-      ce('span',null,'Reads live staging data. Grades & claims are stored in this browser only — nothing is written to the database.'),
-      ce('span',{style:{marginLeft:'auto',cursor:'pointer',textDecoration:'underline'},onClick:function(){ sb.auth.signOut(); }},'Sign out')
-    ),
-    ce('div',{className:'topbar'},
-      ce('div',null,
-        ce('div',{className:'h1'},'Claims & grading'),
-        ce('div',{className:'sub'}, data ? ('Season '+data.season.name+' · Grapes · '+data.containers.length+' containers') : '')
-      )
-    ),
-    ce('div',{className:'tabs'},
-      ce('span',{className:'tab'+(tab==='today'?' active':''),onClick:function(){setTab('today');}},'Today'),
-      ce('span',{className:'tab'+(tab==='containers'?' active':''),onClick:function(){setTab('containers');}},'Containers')
-    )
-  );
-
-  if(loadState==='loading'||loadState==='boot') return ce('div',{className:'wrap'}, header, ce('div',{style:{padding:'40px',textAlign:'center',color:'var(--text3)'}}, ce('span',{className:'spin'}),' Loading shipments, inspections and CQC…'));
-  if(loadState==='error') return ce('div',{className:'wrap'}, header, ce('div',{className:'errbanner'},'Failed to load: '+loadErr));
-
-  var containers = data.containers;
-
-  /* derived for Today */
-  var now = Date.now();
-  var arriving = {};
-  containers.forEach(function(c){
-    var du = daysUntil(c.eta);
-    if(du!==null && du>=0 && du<=7 && c.client){
-      var k = c.client;
-      if(!arriving[k]) arriving[k]={client:k,count:0,eta:c.eta,port:c.port};
-      arriving[k].count++;
-      if(c.eta < arriving[k].eta){ arriving[k].eta=c.eta; arriving[k].port=c.port; }
+/* ── Synthetic fleet (mockup only): scale to hundreds of shipments so views are designed for real volume ── */
+(function(){
+  var BOOK=[
+    {client:'Fresh Fields Ltd', region:'r1', subs:['Manchester DC','London RDC','Birmingham Hub'], ports:['Southampton','Felixstowe'], country:'United Kingdom', cur:'£'},
+    {client:'Albion Fresh', region:'r1', subs:['Leeds DC','Glasgow Depot'], ports:['Southampton'], country:'United Kingdom', cur:'£'},
+    {client:'Mediterra Import SA', region:'r2', subs:['Rungis','Perpignan','Lyon Marché'], ports:['Marseille','Le Havre'], country:'France', cur:'€'},
+    {client:'Iberia Frutas SL', region:'r2', subs:['Madrid Central','Valencia DC'], ports:['Algeciras'], country:'Spain', cur:'€'},
+    {client:'NordFrukt AB', region:'r3', subs:['Helsingborg','Oslo','Stockholm'], ports:['Gothenburg'], country:'Sweden', cur:'€'},
+    {client:'Baltic Fresh OÜ', region:'r3', subs:['Tallinn'], ports:['Gothenburg'], country:'Estonia', cur:'€'},
+    {client:'Pacific Produce Inc', region:'r4', subs:['New Jersey','Los Angeles','Houston'], ports:['Newark','Long Beach'], country:'United States', cur:'$'},
+    {client:'Maple Fresh Foods', region:'r4', subs:['Toronto DC'], ports:['Montreal'], country:'Canada', cur:'$'}
+  ];
+  var GRAPE_VARS=['Crimson Seedless','Sweet Globe','Arra 15','Timco','Allison','Autumn Crisp','Sweet Celebration','Prime'];
+  var CITRUS_VARS=['Valencia','Navel','Murcott'];
+  var VESSELS=['MSC Ambra','CMA Loire','Maersk Kotka','OOCL Napoli','Maersk Cardiff','MSC Riona','Ever Glory'];
+  var PREF=['MSKU','TGHU','MRKU','TCLU','HLXU','MSMU','OOLU','SUDU','CMAU','TRHU'];
+  var MONTHS=[['Apr',4],['May',5],['Jun',6],['Jul',7]];
+  var seed=20260715;
+  function rnd(){ seed=(seed*1103515245+12345)%2147483648; return seed/2147483648; }
+  function pick(a){ return a[Math.floor(rnd()*a.length)]; }
+  for(var i=0;i<430;i++){
+    var b=pick(BOOK);
+    var citrus=rnd()<0.12;
+    var m=pick(MONTHS), day=1+Math.floor(rnd()*28);
+    var cartons=4600+Math.floor(rnd()*700);
+    var delivered=rnd()<0.8;
+    var insp={id:(citrus?'CT':'GR')+'-2026-'+(1000+i), defect:(Math.round((1.5+rnd()*2.2)*10)/10)+'%', decision:'Approved'};
+    var cqc=null, coverage='none', graded=null;
+    if(delivered && rnd()<0.72){
+      var r=rnd(), score=r<0.45?1:(r<0.75?2:(r<0.9?3:(r<0.97?4:5)));
+      var cd=(score<=2?2+rnd()*2:(score===3?5+rnd()*3:9+rnd()*5));
+      var gap=Math.round((cd-parseFloat(insp.defect))*10)/10;
+      cqc={id:'CQC-2026-'+(1000+i), score:score, scoreLabel:['','Excellent','Good','Fair','Poor','Reject'][score],
+        defect:(Math.round(cd*10)/10)+'%', gap:(gap>0?'+':'')+gap+'%', flag:score>=4||(score===3&&rnd()<0.3)};
+      coverage='cqc';
+    } else if(delivered && rnd()<0.25){
+      coverage='graded';
+      graded={grade:pick(['A','B','B','C']), cause:pick(['Cold chain / transit','Field / pre-harvest','Packing','Undetermined'])};
     }
-  });
-  var arrivingList = Object.keys(arriving).map(function(k){return arriving[k];}).sort(function(a,b){return String(a.eta).localeCompare(String(b.eta));}).slice(0,6);
-
-  var attention = containers.filter(function(c){
-    if(!c.latestCqc) return false;
-    if((local.grades[c.cn]||{}).grade) return false;
-    var age = daysAgo(c.latestCqc.created_at);
-    return age!==null && age<=21;
-  }).map(function(c){
-    var cqc = c.latestCqc;
-    var sn = parseScoreNum(cqc.score) || 0;
-    var pr = sn*10 + (cqc.potential_claim?15:0) + (c.gap!==null?Math.min(c.gap,10):0);
-    return {c:c, pr:pr, age:daysAgo(cqc.created_at)};
-  }).sort(function(a,b){ return b.pr-a.pr; }).slice(0,8);
-
-  var pipe = {open:{n:0,sums:{}}, submitted:{n:0,sums:{}}, settled:{n:0,sums:{}}, rejected:{n:0,sums:{}}};
-  local.claims.forEach(function(cl){
-    var p = pipe[cl.status]||pipe.open;
-    p.n++; p.sums[cl.currency] = (p.sums[cl.currency]||0)+Number(cl.amount||0);
-  });
-  function sumStr(sums){
-    var parts = Object.keys(sums).map(function(cu){ return curSym(cu)+Math.round(sums[cu]/100)/10+'k'; });
-    return parts.length?parts.join(' + '):'—';
+    var claim=null;
+    if(cqc && cqc.score>=4 && rnd()<0.65) claim={status:pick(['open','open','ack','settled','rejected']), value:b.cur+(3+Math.floor(rnd()*18))+','+pick(['000','200','400','500','800'])};
+    else if(cqc && cqc.score===3 && rnd()<0.18) claim={status:pick(['open','ack']), value:b.cur+(2+Math.floor(rnd()*8))+','+pick(['000','500'])};
+    else if(cqc && cqc.flag && rnd()<0.3) claim={status:'open', potential:true};
+    SHIPMENTS.push({
+      cn:pick(PREF)+' '+(1000000+Math.floor(rnd()*9000000)), region:b.region, client:b.client, sub:pick(b.subs),
+      vessel:pick(VESSELS), eta:day+' '+m[0], port:pick(b.ports), country:b.country, product:citrus?'Citrus':'Grapes',
+      variety:pick(citrus?CITRUS_VARS:GRAPE_VARS), cartons:cartons, netKg:Math.round(cartons*4.4), split:rnd()<0.04,
+      status:delivered?'delivered':'in_transit', statusLabel:delivered?'Delivered':'In transit',
+      update:delivered?pick(['On time','Client confirmed offload','Awaiting quality feedback'])+' · '+(1+Math.floor(rnd()*9))+'d ago':'ETA in '+(1+Math.floor(rnd()*12))+'d',
+      insp:insp, cqc:cqc, coverage:coverage, graded:graded, claim:claim, sortKey:m[1]*100+day
+    });
   }
-  var cqcFlagged = containers.filter(function(c){ return c.cqcs.some(function(r){return r.potential_claim;}); }).length;
+  var MIDX={Apr:4,May:5,Jun:6,Jul:7};
+  SHIPMENTS.forEach(function(s){ if(!s.sortKey){ var p=s.eta.split(' '); s.sortKey=(MIDX[p[1]]||0)*100+parseInt(p[0],10); } });
 
-  var scoreByClient = {};
-  containers.forEach(function(c){
-    if(!c.client) return;
-    var k = c.client;
-    if(!scoreByClient[k]) scoreByClient[k]={client:k,cntr:0,cqc:0,claims:0,grades:[]};
-    var s = scoreByClient[k];
-    s.cntr++;
-    if(c.latestCqc) s.cqc++;
-    s.claims += local.claims.filter(function(cl){return cl.cn===c.cn;}).length;
-    var g = (local.grades[c.cn]||{}).grade; if(g) s.grades.push(g);
+  /* ── Container composition rows ──
+     A shipments ROW = new line whenever any of these changes:
+     actual packhouse · farm · variety · size (citrus) / single-mixed (grapes) · carton type · container # · loading date.
+     One container voyage therefore aggregates 1..n rows. */
+  var FARMS=['F-Daltex 04','F-Daltex 09','F-Wadi 12','F-Nubaria 03','F-Sadat 07'];
+  var PHS=['TAG','Rayos','Menya','KZ','Regwa'];
+  var CTYPES=['4.5 kg punnet','5 kg open-top','8.2 kg bag'];
+  var GV=['Crimson Seedless','Sweet Globe','Arra 15','Timco','Allison','Autumn Crisp','Sweet Celebration','Prime'];
+  var CV=['Valencia','Navel','Murcott'];
+  seed=99;
+  SHIPMENTS.forEach(function(s){
+    if(s.rows) return;
+    var citrus = (s.product==='Citrus');
+    var baseVars = s.varieties ? s.varieties.slice() : [s.variety];
+    var n = Math.max(rnd()<0.5?1:(rnd()<0.72?2:3), baseVars.length);
+    var CT_KG={'4.5 kg punnet':4.5,'5 kg open-top':5,'8.2 kg bag':8.2};
+    /* uneven allocation: each row gets its own share of the cartons, its own carton type → its own net weight */
+    var weights=[], wSum=0, j;
+    for(j=0;j<n;j++){ var w=0.5+rnd(); weights.push(w); wSum+=w; }
+    var rows=[], usedVars={}, allocated=0, netSum=0;
+    for(j=0;j<n;j++){
+      var v = baseVars[j] || pick(citrus?CV:GV);
+      usedVars[v]=1;
+      var ctype = pick(CTYPES);
+      var ctn = (j===n-1) ? (s.cartons-allocated) : Math.round(s.cartons*weights[j]/wSum);
+      allocated += ctn;
+      var kg = Math.round(ctn*CT_KG[ctype]);
+      netSum += kg;
+      rows.push({
+        variety:v,
+        farm:pick(FARMS),
+        ph:pick(PHS),
+        ctype:ctype,
+        mix: citrus ? ('Size '+pick(['1','2','3','4'])) : (n>1&&rnd()<0.35?'Mixed':'Single'),
+        cartons: ctn,
+        netKg: kg
+      });
+    }
+    s.rows=rows;
+    s.netKg=netSum; /* container total = sum of its rows */
+    var distinct=Object.keys(usedVars);
+    if(distinct.length>1) s.varieties=distinct;
   });
-  var scorecards = Object.keys(scoreByClient).map(function(k){return scoreByClient[k];}).sort(function(a,b){return b.cntr-a.cntr;}).slice(0,8);
-  function avgGrade(gs){
-    if(!gs.length) return '—';
-    var m={A:1,B:2,C:3}, r={1:'A',2:'B',3:'C'};
-    var v = gs.reduce(function(a,g){return a+m[g];},0)/gs.length;
-    return r[Math.round(v)]||'—';
-  }
+})();
 
-  var todayView = ce('div',null,
-    ce('div',{className:'kpirow'},
-      ce('div',{className:'kpi'}, ce('div',{className:'kpi-label'},'Containers'), ce('div',{className:'kpi-value'}, containers.length)),
-      ce('div',{className:'kpi'}, ce('div',{className:'kpi-label'},'CQC received'), ce('div',{className:'kpi-value'}, containers.filter(function(c){return !!c.latestCqc;}).length)),
-      ce('div',{className:'kpi'}, ce('div',{className:'kpi-label'},'Graded (local)'), ce('div',{className:'kpi-value'}, Object.keys(local.grades).length)),
-      ce('div',{className:'kpi'}, ce('div',{className:'kpi-label'},'CQC claim flags'), ce('div',{className:'kpi-value',style:{color: cqcFlagged? 'var(--red)':'var(--text)'}}, cqcFlagged))
-    ),
-    ce('div',{className:'sec'},'Arriving this week'),
-    arrivingList.length===0 ? ce('div',{style:{fontSize:'12px',color:'var(--text3)'}},'No arrivals in the next 7 days.') :
-      ce('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap'}},
-        arrivingList.map(function(a){
-          return ce('div',{key:a.client,className:'arr'},
-            ce('div',{style:{fontWeight:500,color:'var(--text)'}}, a.client+' · '+a.count+(a.count>1?' cntrs':' cntr')),
-            ce('div',{style:{color:'var(--text3)',fontSize:'11px'}}, fmtDate(a.eta)+(a.port?' · '+a.port:''))
-          );
-        })
-      ),
-    ce('div',{className:'sec'},'Needs attention'),
-    attention.length===0 ? ce('div',{style:{fontSize:'12px',color:'var(--text3)'}},'Nothing pending — all recent CQCs are graded.') :
-      ce('div',{className:'card'},
-        attention.map(function(a){
-          var c=a.c, cqc=c.latestCqc;
-          var sn = parseScoreNum(cqc.score)||0;
-          var tag = sn>=4 || (c.gap!==null&&c.gap>3) ? Badge('b-fail','act now') : (cqc.potential_claim ? Badge('b-warn','claim flag') : Badge('b-neutral','aging '+a.age+'d'));
-          return ce('div',{key:c.cn,className:'attn',onClick:function(){ setTab('containers'); setSelectedCN(c.cn); }},
-            ce('div',{style:{minWidth:0}},
-              ce('div',{style:{fontSize:'12px',color:'var(--text)'}}, ce('span',{className:'mono'},c.cn), ' · '+(c.client||'—')),
-              ce('div',{style:{fontSize:'11px',color:'var(--text3)'}},
-                'CQC '+(a.age===0?'today':a.age+'d ago')+' · '+(cqc.score||'no score')+
-                (c.gap!==null?' · gap '+(c.gap>0?'+':'')+fmtPct(c.gap):'')+
-                (cqc.potential_claim?' · client flagged claim':''))
-            ),
-            tag
-          );
-        })
-      ),
-    ce('div',{className:'twocol',style:{display:'grid',gridTemplateColumns:'1.1fr 1fr',gap:'10px',marginTop:'14px'}},
-      ce('div',null,
-        ce('div',{className:'sec',style:{marginTop:0}},'Claims pipeline (local pre-test data)'),
-        ce('div',{className:'card',style:{padding:'11px 12px'}},
-          ce('div',{style:{display:'flex',gap:'6px'}},
-            [['open','OPEN','var(--red)','var(--red-bg)'],['submitted','SUBMITTED','var(--amber)','var(--amber-bg)'],['settled','SETTLED','var(--green)','var(--green-bg)']].map(function(x){
-              return ce('div',{key:x[0],style:{flex:1,background:x[3],borderRadius:'6px',padding:'7px 9px'}},
-                ce('div',{style:{fontSize:'10px',color:x[2],fontWeight:500}},x[1]),
-                ce('div',{style:{fontFamily:'var(--font-display)',fontSize:'16px',color:x[2]}}, pipe[x[0]].n+' · '+sumStr(pipe[x[0]].sums))
-              );
-            })
-          )
-        )
-      ),
-      ce('div',null,
-        ce('div',{className:'sec',style:{marginTop:0}},'Client scorecards'),
-        ce('div',{className:'card',style:{padding:'4px 12px'}},
-          scorecards.map(function(s,i){
-            return ce('div',{key:s.client,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderBottom:i<scorecards.length-1?'1px solid var(--bg2)':'none',fontSize:'12px',gap:'8px'}},
-              ce('span',{style:{color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}, s.client),
-              ce('span',{style:{color:'var(--text3)',fontSize:'11px',whiteSpace:'nowrap'}},
-                s.cntr+' cntr · '+s.cqc+' cqc · ',
-                s.claims>0 ? ce('span',{style:{color:'var(--red)'}}, s.claims+' claims') : '0 claims',
-                ' · avg '+avgGrade(s.grades))
-            );
-          })
-        )
-      )
-    )
-  );
+var currentRegion = 'r1';
 
-  /* Containers tab */
-  var filtered = containers.filter(function(c){
-    if(q){ var qq=q.toUpperCase(); if(c.cn.indexOf(qq)<0 && (c.client||'').toUpperCase().indexOf(qq)<0) return false; }
-    var hasClaims = local.claims.some(function(cl){return cl.cn===c.cn;});
-    var graded = !!(local.grades[c.cn]||{}).grade;
-    if(filter==='hascqc') return !!c.latestCqc;
-    if(filter==='ungraded') return !!c.latestCqc && !graded;
-    if(filter==='claims') return hasClaims || c.cqcs.some(function(r){return r.potential_claim;});
+function statusBadge(s, label){
+  var cls = s==='delivered' ? 'b-pass' : (s==='in_transit' ? 'b-esc' : 'b-neutral');
+  return '<span class="badge '+cls+'">'+label+'</span>';
+}
+function claimBadge(c){
+  if(!c) return '';
+  var map = {open:['b-fail','Claim open'], ack:['b-warn','Claim acknowledged'], settled:['b-pass','Claim settled'], rejected:['b-neutral','Claim rejected']};
+  var m = map[c.status];
+  return '<span class="badge '+m[0]+'">'+m[1]+' · '+(c.potential?'potential':c.value)+'</span>';
+}
+function scoreBadgeHtml(cqc){
+  var cls = cqc.score<=2 ? 'b-pass' : (cqc.score===3 ? 'b-warn' : 'b-fail');
+  return '<span class="badge '+cls+'">Score '+cqc.score+' · '+cqc.scoreLabel+'</span>';
+}
+function coverageBadge(c){
+  if(c.coverage==='cqc') return '<span class="coverage cov-cqc"><span class="cov-dot"></span>CQC · Score '+c.cqc.score+'</span>';
+  if(c.coverage==='graded') return '<span class="coverage cov-graded"><span class="cov-dot"></span>CRM-graded · '+c.graded.grade+'</span>';
+  return '<span class="coverage cov-none"><span class="cov-dot"></span>No quality data</span>';
+}
+
+function renderRegions(){
+  var base = baseFiltered('region');
+  var counts = {};
+  base.forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
+  counts.all = base.length;
+  document.getElementById('regionSwitch').innerHTML = REGIONS.map(function(r){
+    return '<span class="region-btn'+(r.id===currentRegion?' active':'')+'" onclick="setRegion(\''+r.id+'\')">'+r.label+
+      (r.admin?' <span class="rcount">admin</span>':'')+
+      '<span class="rcount">'+(counts[r.id]||0)+'</span></span>';
+  }).join('');
+}
+
+/* derived fields (stand in for real shipments columns) */
+var PORT_COUNTRY = {'Southampton':'United Kingdom','Marseille':'France','Gothenburg':'Sweden','Newark':'United States'};
+function shipCountry(s){ return s.country || PORT_COUNTRY[s.port] || '—'; }
+function shipInvoice(s){ return s.invoice || ('DX-INV-'+String(s.cn).replace(/[^0-9]/g,'')); }
+function shipProduct(s){ return s.product || 'Grapes'; }
+
+var currentQuery = '';
+var currentProduct = 'all';
+var currentSeason = '2025/26'; /* CRM follows the app's season like every other module */
+function matchesQuery(s){
+  if(!currentQuery) return true;
+  var q = currentQuery.toLowerCase();
+  var hay = [s.cn, s.client, s.sub, shipInvoice(s), (s.varieties?s.varieties.join(' '):s.variety), shipProduct(s), shipCountry(s), s.port].join(' ').toLowerCase();
+  return hay.indexOf(q) >= 0;
+}
+/* every view is scoped by season → region → product → search; `exclude` lets a switcher count its own options */
+function baseFiltered(exclude){
+  if(currentSeason!=='2025/26') return []; /* mock: only the active season has data */
+  return SHIPMENTS.filter(function(s){
+    if(exclude!=='region' && !(currentRegion==='all' || s.region===currentRegion)) return false;
+    if(exclude!=='product' && !(currentProduct==='all' || shipProduct(s)===currentProduct)) return false;
+    return matchesQuery(s);
+  });
+}
+function visibleShipments(){ return baseFiltered(null); }
+function setSeason(v){ currentSeason=v; resetPages(); showAllSubs=false; render(); }
+function setProduct(p){ currentProduct=p; resetPages(); showAllSubs=false; render(); }
+function renderProducts(){
+  var list = baseFiltered('product');
+  var counts={};
+  list.forEach(function(s){ var p=shipProduct(s); counts[p]=(counts[p]||0)+1; });
+  var opts=[['all','All products',list.length]];
+  Object.keys(counts).sort().forEach(function(p){ opts.push([p,p,counts[p]]); });
+  document.getElementById('productSwitch').innerHTML = opts.map(function(o){
+    return '<span class="region-btn'+(currentProduct===o[0]?' active':'')+'" onclick="setProduct(\''+o[0]+'\')">'+o[1]+'<span class="rcount">'+o[2]+'</span></span>';
+  }).join('');
+}
+
+function renderKpis(){
+  var list = visibleShipments();
+  var cqcCount = list.filter(function(s){return s.coverage==='cqc';}).length;
+  var gradedCount = list.filter(function(s){return s.coverage==='graded';}).length;
+  var covered = cqcCount + gradedCount;
+  var covPct = list.length ? Math.round(covered/list.length*100) : 0;
+  var openClaims = list.filter(function(s){return s.claim && (s.claim.status==='open'||s.claim.status==='ack');}).length;
+  var noData = list.filter(function(s){return s.coverage==='none';}).length;
+  document.getElementById('kpiGrid').innerHTML =
+    kpi('Shipments', list.length, currentRegion==='all'?'across all regions':'in region') +
+    kpi('Quality coverage', covPct+'%', cqcCount+' CQC · '+gradedCount+' CRM-graded') +
+    kpi('Open claims', openClaims, openClaims?'need action':'none pending', openClaims?'down':'') +
+    kpi('No quality data', noData, noData?'gap — grade or chase CQC':'fully covered', noData?'down':'up');
+}
+function kpi(label,val,sub,cls){
+  return '<div class="kpi"><div class="kpi-label">'+label+'</div><div class="kpi-value">'+val+'</div>'+
+    '<div class="kpi-sub '+(cls||'')+'">'+sub+'</div></div>';
+}
+
+/* ── classification ── */
+function noCqc(s){ return s.coverage!=='cqc'; }                       // no CQC on file (needs / has grading)
+function needsGrading(s){ return s.coverage==='none'; }               // no CQC and no grading yet
+function hasClaim(s){ return !!s.claim; }
+function isFlagged(s){ return !!(s.cqc && s.cqc.flag); }              // CQC flags a potential claim
+function isClean(s){ return !s.claim && !isFlagged(s); }             // no claim + not flagged as a risk
+
+var regionLabel = {};
+REGIONS.forEach(function(r){ regionLabel[r.id]=r.label; });
+
+/* triage priority: what needs a human today */
+function attentionInfo(s){
+  if(s.claim && (s.claim.status==='open'||s.claim.status==='ack')) return {p:3, label:'claim '+s.claim.status};
+  if(isFlagged(s) && !s.claim) return {p:2, label:'CQC claim flag'};
+  if(s.coverage==='none' && s.status==='delivered') return {p:1, label:'delivered · no quality data'};
+  return null;
+}
+function scoreNum(s){ if(s.cqc) return s.cqc.score; if(s.coverage==='graded') return ({A:2,B:3,C:4})[s.graded.grade]||3; return 0; }
+function gapNum(s){ return s.cqc ? (parseFloat(s.cqc.gap)||0) : 0; }
+function qualityCell(s){
+  if(s.cqc) return '<span class="badge '+(s.cqc.score<=2?'b-pass':(s.cqc.score===3?'b-warn':'b-fail'))+'">Score '+s.cqc.score+'</span>';
+  if(s.coverage==='graded') return '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+s.graded.grade+'</span>';
+  return '<span class="cell-sub">no data</span>';
+}
+
+/* pagination */
+var PER_PAGE=50;
+var pageState={shipments:0, grading:0, claims:0, clean:0};
+function resetPages(){ pageState={shipments:0, grading:0, claims:0, clean:0}; }
+function setPage(k,p){ pageState[k]=p; render(); document.getElementById('viewTabs').scrollIntoView({block:'nearest'}); }
+function pagerHtml(total,page,key){
+  if(total<=PER_PAGE) return '';
+  var pages=Math.ceil(total/PER_PAGE), from=page*PER_PAGE+1, to=Math.min(total,(page+1)*PER_PAGE);
+  return '<div class="pager"><span>'+from.toLocaleString()+'–'+to.toLocaleString()+' of '+total.toLocaleString()+'</span><span class="pager-btns">'+
+    '<button '+(page===0?'disabled':'')+' class="btn btn-secondary btn-sm" onclick="setPage(\''+key+'\','+(page-1)+')">‹ Prev</button>'+
+    '<button '+(page>=pages-1?'disabled':'')+' class="btn btn-secondary btn-sm" onclick="setPage(\''+key+'\','+(page+1)+')">Next ›</button></span></div>';
+}
+
+function renderTabs(){
+  var list = visibleShipments();
+  var attCount = list.filter(function(s){return !!attentionInfo(s);}).length;
+  var tabs = [
+    {id:'dashboard', label:'Dashboard', count:attCount},
+    {id:'shipments', label:'Shipments', count:list.length},
+    {id:'grading',   label:'Grading queue', count:list.filter(noCqc).length},
+    {id:'claims',    label:'Claims', count:list.filter(hasClaim).length},
+    {id:'clean',     label:'Clean', count:list.filter(isClean).length}
+  ];
+  document.getElementById('viewTabs').innerHTML = tabs.map(function(t){
+    return '<span class="tab'+(t.id===currentTab?' active':'')+'" onclick="setTab(\''+t.id+'\')">'+
+      t.label+'<span class="tcount">'+t.count.toLocaleString()+'</span></span>';
+  }).join('');
+}
+
+function renderContent(){
+  if(currentTab==='dashboard') return renderCards();
+  if(currentTab==='shipments') return renderShipmentsTable();
+  if(currentTab==='grading')   return renderGradingQueue();
+  if(currentTab==='claims')    return renderClaims();
+  if(currentTab==='clean')     return renderClean();
+}
+
+/* ── Shipments tab: dense inventory table — filter, sort, paginate ── */
+var shipView={status:'all', cov:'all', sort:'eta_desc'};
+function setShipFilter(k,v){ shipView[k]=v; pageState.shipments=0; render(); }
+function setShipSort(v){ shipView.sort=v; pageState.shipments=0; render(); }
+function renderShipmentsTable(){
+  var list = visibleShipments().filter(function(s){
+    if(shipView.status!=='all' && s.status!==shipView.status) return false;
+    if(shipView.cov!=='all' && s.coverage!==shipView.cov) return false;
     return true;
   });
-  var selected = selectedCN ? containers.find(function(c){return c.cn===selectedCN;}) : null;
-
-  var containersView = ce('div',null,
-    ce('div',{style:{display:'flex',gap:'6px',marginBottom:'10px',flexWrap:'wrap',alignItems:'center'}},
-      [['all','All'],['hascqc','Has CQC'],['ungraded','Ungraded'],['claims','Claims']].map(function(f){
-        return ce('span',{key:f[0],className:'pill'+(filter===f[0]?' sel':''),onClick:function(){setFilter(f[0]);}}, f[1]);
-      }),
-      ce('input',{className:'form-input',style:{width:'220px',marginLeft:'auto',padding:'5px 10px',fontSize:'13px'},placeholder:'Search container / client…',value:q,onChange:function(e){setQ(e.target.value);}})
-    ),
-    ce('div',{className:'card',style:{overflow:'auto'}},
-      ce('table',null,
-        ce('thead',null, ce('tr',null,
-          ce('th',null,'Container'), ce('th',null,'Client'), ce('th',null,'ETA'),
-          ce('th',null,'CQC'), ce('th',null,'Gap'), ce('th',null,'Grade'), ce('th',null,'Claims')
-        )),
-        ce('tbody',null,
-          filtered.slice(0,200).map(function(c){
-            var g = (local.grades[c.cn]||{}).grade;
-            var nClaims = local.claims.filter(function(cl){return cl.cn===c.cn;}).length;
-            var flagged = c.cqcs.some(function(r){return r.potential_claim;});
-            return ce('tr',{key:c.cn,className:'click'+(selectedCN===c.cn?' rowsel':''),onClick:function(){ setSelectedCN(selectedCN===c.cn?null:c.cn); }},
-              ce('td',{className:'mono',style:{fontSize:'12px',color:'var(--text)'}}, c.cn, c.notInShipments?ce('span',{style:{color:'var(--text3)',fontFamily:'var(--font-body)',fontSize:'10px'}},' (CQC only)'):null),
-              ce('td',null, c.client||'—'),
-              ce('td',null, fmtDate(c.eta)),
-              ce('td',null, c.latestCqc ? scoreBadge(c.latestCqc.score) : ce('span',{style:{color:'var(--text3)',fontSize:'12px'}},'—')),
-              ce('td',{style:{color: c.gap!==null&&c.gap>2?'var(--red)':'var(--text2)'}}, c.gap!==null?(c.gap>0?'+':'')+fmtPct(c.gap):'—'),
-              ce('td',null, gradeBadge(g)),
-              ce('td',null,
-                nClaims>0 ? Badge('b-fail', nClaims+(nClaims>1?' claims':' claim')) : (flagged ? Badge('b-warn','flagged') : ce('span',{style:{color:'var(--text3)'}},'—'))
-              )
-            );
-          })
-        )
-      ),
-      filtered.length>200 ? ce('div',{style:{padding:'8px 12px',fontSize:'11px',color:'var(--text3)'}},'Showing first 200 of '+filtered.length+' — use search to narrow.') : null
-    ),
-    selected ? ce(DetailPanel,{container:selected, local:local, onGrade:onGrade, onNewClaim:setModalC, onClaimStatus:onClaimStatus, onClaimDelete:onClaimDelete}) : ce('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'10px'}},'Click a container to open its detail panel.')
-  );
-
-  return ce('div',{className:'wrap'},
-    header,
-    tab==='today' ? todayView : containersView,
-    modalC ? ce(ClaimModal,{container:modalC, onClose:function(){setModalC(null);}, onSave:onClaimSave}) : null
-  );
+  if(shipView.sort==='eta_desc') list.sort(function(a,b){return b.sortKey-a.sortKey;});
+  else if(shipView.sort==='eta_asc') list.sort(function(a,b){return a.sortKey-b.sortKey;});
+  else if(shipView.sort==='score_desc') list.sort(function(a,b){return scoreNum(b)-scoreNum(a);});
+  else if(shipView.sort==='gap_desc') list.sort(function(a,b){return gapNum(b)-gapNum(a);});
+  var page=pageState.shipments;
+  var slice=list.slice(page*PER_PAGE,(page+1)*PER_PAGE);
+  function fp(group,val,label){ return '<span class="fpill'+(shipView[group]===val?' active':'')+'" onclick="setShipFilter(\''+group+'\',\''+val+'\')">'+label+'</span>'; }
+  var filters='<div class="filter-row">'+
+    '<span class="filter-group">'+fp('status','all','All')+fp('status','delivered','Delivered')+fp('status','in_transit','In transit')+'</span>'+
+    '<span class="filter-group">'+fp('cov','all','All quality')+fp('cov','cqc','CQC')+fp('cov','graded','CRM-graded')+fp('cov','none','No data')+'</span>'+
+    '<select class="form-select sort-select" onchange="setShipSort(this.value)">'+
+      [['eta_desc','Newest ETA'],['eta_asc','Oldest ETA'],['score_desc','Worst score first'],['gap_desc','Biggest gap first']].map(function(o){
+        return '<option value="'+o[0]+'"'+(shipView.sort===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
+    '</select></div>';
+  var rows=slice.map(function(s){
+    return '<tr class="click" onclick="openShipDetail(\''+s.cn+'\')">'+
+      '<td><span class="lot">'+s.cn+'</span>'+(s.split?' <span class="sc-split">split</span>':'')+'</td>'+
+      '<td>'+s.client+'<div class="cell-sub">'+s.sub+' · '+regionLabel[s.region]+'</div></td>'+
+      '<td>'+shipProduct(s)+'</td><td>'+(s.varieties?s.varieties.join(' / '):s.variety)+'</td>'+
+      '<td>'+s.eta+'</td><td>'+statusBadge(s.status,s.statusLabel)+'</td>'+
+      '<td>'+qualityCell(s)+'</td>'+
+      '<td class="lot" style="color:'+(gapNum(s)>2?'var(--red)':'var(--text2)')+'">'+(s.cqc?s.cqc.gap:'—')+'</td>'+
+      '<td>'+(s.claim?claimBadge(s.claim):'<span class="cell-sub">—</span>')+'</td>'+
+      '<td class="right"><button class="btn '+(s.claim?'btn-secondary':'btn-primary')+' btn-sm" onclick="event.stopPropagation();openClaim(\''+s.cn+'\')">'+(s.claim?'View claim':'Raise claim')+'</button></td></tr>';
+  }).join('');
+  var head='<div class="section-title"><span class="section-title-bar"></span>Shipments '+
+    '<span class="section-count">'+list.length.toLocaleString()+' in view · click a row for the full record</span></div>';
+  document.getElementById('viewContent').innerHTML = head+filters+
+    (list.length? '<div class="table-wrap"><table class="wl"><thead><tr>'+
+      '<th>Container</th><th>Client</th><th>Product</th><th>Variety</th><th>ETA</th><th>Status</th><th>Quality</th><th>Gap</th><th>Claim</th><th class="right">Action</th>'+
+      '</tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,page,'shipments')
+    : '<div class="table-wrap"><div class="empty-state">No shipments match these filters.</div></div>');
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(ce(App));
+/* ── Grading queue: all containers WITHOUT a CQC, combined ── */
+function renderGradingQueue(){
+  var list = visibleShipments().filter(noCqc);
+  var head = '<div class="section-title"><span class="section-title-bar"></span>Grading queue '+
+    '<span class="section-count">'+list.length+' containers without a CQC</span></div>';
+  if(!list.length){ document.getElementById('viewContent').innerHTML = head+'<div class="table-wrap"><div class="empty-state">Every container in this region has a CQC report — nothing to grade.</div></div>'; return; }
+  list.sort(function(a,b){ return (needsGrading(b)?1:0)-(needsGrading(a)?1:0) || b.sortKey-a.sortKey; });
+  var gPage=pageState.grading;
+  var rows = list.slice(gPage*PER_PAGE,(gPage+1)*PER_PAGE).map(function(s){
+    var gs = needsGrading(s)
+      ? '<span class="badge b-warn">Needs grading</span>'
+      : '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+s.graded.grade+'</span>';
+    var insp = s.insp ? (s.insp.defect+' · '+s.insp.decision) : '—';
+    var btn = '<button class="btn '+(needsGrading(s)?'btn-primary':'btn-secondary')+' btn-sm" onclick="openGrade(\''+s.cn+'\',\''+s.client+'\')">'+(needsGrading(s)?'Grade':'Edit grade')+'</button>';
+    return '<tr><td><span class="lot">'+s.cn+'</span>'+(s.split?' <span class="sc-split">split</span>':'')+'</td>'+
+      '<td>'+s.client+'<div class="cell-sub">'+s.sub+' · '+regionLabel[s.region]+'</div></td>'+
+      '<td>'+s.variety+'</td><td>'+s.eta+'</td>'+
+      '<td class="cell-sub">'+insp+'</td>'+
+      '<td>'+gs+'</td><td class="right">'+btn+'</td></tr>';
+  }).join('');
+  document.getElementById('viewContent').innerHTML = head+
+    '<div class="table-wrap"><table class="wl"><thead><tr>'+
+    '<th>Container</th><th>Client</th><th>Variety</th><th>ETA</th><th>Export insp</th><th>Grading</th><th class="right">Action</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,gPage,'grading');
+}
+
+/* ── Claims: all containers WITH a claim, combined ── */
+function renderClaims(){
+  var list = visibleShipments().filter(hasClaim);
+  var head = '<div class="section-title"><span class="section-title-bar"></span>Claims '+
+    '<span class="section-count">'+list.length+' containers with a claim</span></div>';
+  if(!list.length){ document.getElementById('viewContent').innerHTML = head+'<div class="table-wrap"><div class="empty-state">No claims raised in this region.</div></div>'; return; }
+  var lc = {open:['b-fail','Open'], ack:['b-warn','Acknowledged'], settled:['b-pass','Settled'], rejected:['b-neutral','Rejected']};
+  var lcOrder={open:0,ack:1,settled:2,rejected:3};
+  list.sort(function(a,b){ return lcOrder[a.claim.status]-lcOrder[b.claim.status] || b.sortKey-a.sortKey; });
+  var cPage=pageState.claims;
+  var rows = list.slice(cPage*PER_PAGE,(cPage+1)*PER_PAGE).map(function(s){
+    var m = lc[s.claim.status];
+    var ev = s.cqc ? s.cqc.id : (s.coverage==='graded' ? 'CRM grading' : '—');
+    var valCell = s.claim.potential ? '<span class="badge b-warn">potential</span>' : '<span class="lot">'+s.claim.value+'</span>';
+    return '<tr><td><span class="lot">'+s.cn+'</span></td>'+
+      '<td>'+s.client+'<div class="cell-sub">'+s.sub+' · '+regionLabel[s.region]+'</div></td>'+
+      '<td class="right">'+valCell+'</td>'+
+      '<td><span class="badge '+m[0]+'">'+m[1]+'</span></td>'+
+      '<td class="lot cell-sub">'+ev+'</td>'+
+      '<td class="right"><button class="btn btn-secondary btn-sm" onclick="openClaim(\''+s.cn+'\',\''+s.client+'\')">View</button></td></tr>';
+  }).join('');
+  document.getElementById('viewContent').innerHTML = head+
+    '<div class="table-wrap"><table class="wl"><thead><tr>'+
+    '<th>Container</th><th>Client</th><th class="right">Value</th><th>Lifecycle</th><th>Evidence</th><th class="right">Action</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,cPage,'claims');
+}
+
+/* ── Clean: no claim + not flagged as a claim risk ── */
+function renderClean(){
+  var list = visibleShipments().filter(isClean);
+  var head = '<div class="section-title"><span class="section-title-bar"></span>Clean '+
+    '<span class="section-count">'+list.length+' containers · no claims, no flags</span></div>';
+  if(!list.length){ document.getElementById('viewContent').innerHTML = head+'<div class="table-wrap"><div class="empty-state">No clean containers — every shipment here has a claim or a flag.</div></div>'; return; }
+  list.sort(function(a,b){ return b.sortKey-a.sortKey; });
+  var clPage=pageState.clean;
+  var rows = list.slice(clPage*PER_PAGE,(clPage+1)*PER_PAGE).map(function(s){
+    var q = s.cqc ? '<span class="badge '+(s.cqc.score<=2?'b-pass':'b-warn')+'">CQC · Score '+s.cqc.score+'</span>'
+      : (s.coverage==='graded' ? '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+s.graded.grade+'</span>'
+      : '<span class="cell-sub">no quality data</span>');
+    return '<tr><td><span class="lot">'+s.cn+'</span></td>'+
+      '<td>'+s.client+'<div class="cell-sub">'+s.sub+' · '+regionLabel[s.region]+'</div></td>'+
+      '<td>'+s.eta+'</td><td>'+s.statusLabel+'</td>'+
+      '<td>'+q+'</td><td class="right"><span class="badge b-pass">Clean</span></td></tr>';
+  }).join('');
+  document.getElementById('viewContent').innerHTML = head+
+    '<div class="table-wrap"><table class="wl"><thead><tr>'+
+    '<th>Container</th><th>Client</th><th>ETA</th><th>Status</th><th>Quality</th><th class="right">Bill</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,clPage,'clean');
+}
+
+function streamBox(label, bodyHtml, onclickJs){
+  var link = onclickJs ? ' link' : '';
+  var open = onclickJs ? '<span class="stream-open">open ↗</span>' : '';
+  var attr = onclickJs ? ' onclick="'+onclickJs+'"' : '';
+  return '<div class="stream-box'+link+'"'+attr+'>'+
+    '<div class="stream-head"><div class="stream-label">'+label+'</div>'+open+'</div>'+bodyHtml+'</div>';
+}
+
+/* ── Sub-client scorecards (Dashboard) — aggregated for volume ── */
+var showAllSubs=false;
+function toggleSubs(){ showAllSubs=!showAllSubs; render(); }
+function renderScorecards(){
+  var list = visibleShipments();
+  var groups={}, order=[];
+  list.forEach(function(s){ if(!groups[s.sub]){ groups[s.sub]={sub:s.sub,client:s.client,ships:[]}; order.push(s.sub); } groups[s.sub].ships.push(s); });
+  order.sort(function(a,b){ return groups[b].ships.length-groups[a].ships.length; });
+  var visible = showAllSubs ? order : order.slice(0,8);
+  var cards = visible.map(function(k){
+    var g=groups[k];
+    var scores;
+    if(g.ships.length<=6){
+      scores = '<div class="scorecard-scores">'+g.ships.map(function(s){
+        if(s.cqc) return '<span class="sc-chip '+(s.cqc.score<=2?'good':(s.cqc.score===3?'fair':'poor'))+'" title="CQC score '+s.cqc.score+'">'+s.cqc.score+'</span>';
+        if(s.coverage==='graded') return '<span class="sc-chip graded" title="CRM-graded">'+s.graded.grade+'</span>';
+        return '<span class="sc-chip none" title="no quality data">–</span>';
+      }).join('')+'</div>';
+    } else {
+      var d={g:0,f:0,p:0,gr:0,n:0};
+      g.ships.forEach(function(s){
+        if(s.cqc){ if(s.cqc.score<=2)d.g++; else if(s.cqc.score===3)d.f++; else d.p++; }
+        else if(s.coverage==='graded')d.gr++; else d.n++;
+      });
+      var seg=function(n,cls){ return n?'<span class="'+cls+'" style="flex:'+n+'"></span>':''; };
+      var leg=function(n,cls,label){ return n?'<i><b class="'+cls+'"></b>'+n+' '+label+'</i>':''; };
+      scores = '<div><div class="dist">'+seg(d.g,'dg')+seg(d.f,'df')+seg(d.p,'dp')+seg(d.gr,'dgr')+seg(d.n,'dn')+'</div>'+
+        '<div class="dist-legend">'+leg(d.g,'dg','good')+leg(d.f,'df','fair')+leg(d.p,'dp','poor')+leg(d.gr,'dgr','graded')+leg(d.n,'dn','no data')+'</div></div>';
+    }
+    var claims=g.ships.filter(hasClaim).length;
+    return '<div class="scorecard" onclick="openSubDrill(\''+k.replace(/'/g,"\\'")+'\')">'+
+      '<div class="scorecard-top"><div style="min-width:0"><div class="scorecard-sub">'+g.sub+'</div><div class="scorecard-client">'+g.client+'</div></div>'+
+        '<span class="scorecard-count">'+g.ships.length.toLocaleString()+'<small> shp</small></span></div>'+
+      scores+
+      '<div class="scorecard-foot">'+(claims?'<span class="badge b-fail">'+claims+' claim'+(claims>1?'s':'')+'</span>':'<span class="cell-sub">no claims</span>')+
+        '<span class="scorecard-open">view shipments →</span></div>'+
+    '</div>';
+  }).join('');
+  var more = order.length>8
+    ? '<div class="more-subs" onclick="toggleSubs()">'+(showAllSubs?'Show top 8 only':'+ '+(order.length-8)+' more sub-clients')+'</div>'
+    : '';
+  return '<div class="section-title" style="padding-top:6px"><span class="section-title-bar"></span>Sub-client scorecards '+
+    '<span class="section-count">'+order.length+' sub-clients · sorted by volume</span></div>'+
+    '<div class="scorecard-grid">'+cards+more+'</div>';
+}
+function openSubDrill(sub){
+  var list=visibleShipments().filter(function(s){ return s.sub===sub; });
+  list.sort(function(a,b){ return b.sortKey-a.sortKey; });
+  var client=list[0]?list[0].client:'';
+  var total=list.length, capped=total>80;
+  if(capped) list=list.slice(0,80);
+  var rows=list.map(function(s){
+    var q = s.cqc ? '<span class="badge '+(s.cqc.score<=2?'b-pass':(s.cqc.score===3?'b-warn':'b-fail'))+'">Score '+s.cqc.score+'</span>'
+      : (s.coverage==='graded'?'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+s.graded.grade+'</span>':'<span class="cell-sub">no data</span>');
+    var cl = s.claim ? claimBadge(s.claim) : '<span class="cell-sub">—</span>';
+    return '<tr><td><span class="lot">'+s.cn+'</span></td><td class="lot cell-sub">'+shipInvoice(s)+'</td><td>'+(s.varieties?s.varieties.join(' / '):s.variety)+'</td><td>'+s.eta+'</td><td>'+q+'</td><td>'+cl+'</td></tr>';
+  }).join('');
+  var html='<div class="dlv-head"><div><div class="dlv-id" style="font-family:var(--font-body);font-size:18px">'+sub+'</div>'+
+      '<div class="dlv-meta">'+client+' · '+total.toLocaleString()+' shipments</div></div></div>'+
+    '<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Invoice #</th><th>Variety</th><th>ETA</th><th>CQC</th><th>Claim</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    (capped?'<div class="hint" style="margin-top:8px">Showing the latest 80 — search or the Shipments tab for the rest.</div>':'');
+  showDlv(sub, html);
+}
+
+/* ── Shipment detail drawer (in-CRM, region-scoped — CRM members never leave the page) ── */
+function dCell(k,v,mono){ return '<div class="detail-cell"><div class="detail-k">'+k+'</div><div class="detail-v'+(mono?' mono':'')+'">'+(v||'—')+'</div></div>'; }
+function dSec(title, cells){ return '<div class="section-title" style="margin-top:14px"><span class="section-title-bar"></span>'+title+'</div><div class="detail-grid">'+cells+'</div>'; }
+function openShipDetail(cn){
+  var s=shipByCn(cn); if(!s) return;
+  var pallets = Math.round(s.cartons/252);
+  var gross = Math.round((s.netKg||0)*1.09);
+  var vars = s.varieties ? s.varieties.join(' / ') : s.variety;
+  var head = '<div class="dlv-head"><div><div class="dlv-id">'+s.cn+'</div>'+
+      '<div class="dlv-meta">'+s.client+' · '+s.sub+' · '+regionLabel[s.region]+'</div></div>'+
+      statusBadge(s.status,s.statusLabel)+'</div>';
+  var lock = '<div class="scope-lock">🔒 Full shipment record, shown inside CRM and scoped to your region — no jump to the all-shipments module.</div>';
+  var actions = '<div style="display:flex;gap:8px;margin-bottom:12px">'+
+    '<button class="btn btn-primary btn-sm" onclick="closeDlv();openClaim(\''+s.cn+'\')">'+(s.claim?'View claim':'Raise claim')+'</button>'+
+    (s.coverage!=='cqc' ? '<button class="btn btn-secondary btn-sm" onclick="closeDlv();openGrade(\''+s.cn+'\',\''+s.client.replace(/'/g,"\\'")+'\')">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>' : '')+
+    '</div>';
+  var voyage = dSec('Voyage & logistics',
+    dCell('Vessel',s.vessel)+dCell('Shipping line','Maersk Line')+
+    dCell('Booking no','MSK4471'+String(s.cartons).slice(0,3),true)+dCell('Invoice no',shipInvoice(s),true)+
+    dCell('Departure port','Alexandria, EG')+dCell('Receiving port',s.port)+
+    dCell('Receiving country',shipCountry(s))+dCell('Product',shipProduct(s))+
+    dCell('ETD','05 Jul')+dCell('ETA',s.eta)+
+    dCell('Arrival',s.status==='delivered'?s.eta:'in transit')+dCell('Shipping status',s.statusLabel));
+  var commercial = dSec('Commercial',
+    dCell('Client',s.client)+dCell('Sub-client',s.sub)+
+    dCell('Shipper','Daltex Corp')+dCell('Forwarding agent','Blue Water')+
+    dCell('Carta',s.split?'2 (split)':'1',true)+dCell('Region',regionLabel[s.region]));
+  var product = dSec('Product',
+    dCell('Variety',vars)+dCell('Daltex class','Class I')+
+    dCell('Brand','Daltex')+dCell('Size','L (18–20mm)')+
+    dCell('Carton type','4.5 kg punnet')+dCell('Carton net wt','4.5 kg',true)+
+    dCell('Traceability code','1425'+String(s.cartons).slice(0,4)+'0913',true)+dCell('Farm source','Plot 09 · Sector 13'));
+  var citrus = shipProduct(s)==='Citrus';
+  var rowsHtml = (s.rows||[]).map(function(r){
+    return '<tr><td>'+r.variety+'</td><td>'+r.mix+'</td><td class="lot cell-sub">'+r.farm+'</td><td>'+r.ph+'</td><td>'+r.ctype+'</td>'+
+      '<td class="lot right">'+r.cartons.toLocaleString()+'</td><td class="lot right">'+r.netKg.toLocaleString()+'</td></tr>';
+  }).join('');
+  var comp = s.rows && s.rows.length ?
+    '<div class="section-title" style="margin-top:14px"><span class="section-title-bar"></span>Container composition '+
+      '<span class="section-count">'+s.rows.length+' row'+(s.rows.length>1?'s':'')+'</span></div>'+
+    '<div class="table-wrap"><table class="wl"><thead><tr>'+
+      '<th>Variety</th><th>'+(citrus?'Size':'Single / Mixed')+'</th><th>Farm</th><th>Packhouse</th><th>Carton type</th><th class="right">Cartons</th><th class="right">Net kg</th>'+
+      '</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'+
+    '<div class="hint">A new row is created whenever packhouse, farm, variety, '+(citrus?'size':'single/mixed')+', carton type, container # or loading date changes. Same container # loaded again beyond ±7 days = a new voyage.</div>'
+    : '';
+  var qty = dSec('Quantities · totals across '+((s.rows||[]).length||1)+' row'+(((s.rows||[]).length||1)>1?'s':''),
+    dCell('Cartons',s.cartons.toLocaleString(),true)+dCell('Pallets',pallets,true)+
+    dCell('Net weight',(s.netKg||0).toLocaleString()+' kg',true)+dCell('Gross weight',gross.toLocaleString()+' kg',true));
+  showDlv('Shipment', head+lock+actions+comp+voyage+commercial+product+qty);
+}
+
+function renderCards(){
+  var list = visibleShipments();
+  var att = list.map(function(s){ var a=attentionInfo(s); return a?{s:s,a:a}:null; }).filter(Boolean)
+    .sort(function(x,y){ return y.a.p-x.a.p; });
+  var cards = att.slice(0,6).map(function(x){ return x.s; }).map(function(s){
+    var attn = s.claim && (s.claim.status==='open') ? ' attn' : '';
+    var inspLine = s.insp
+      ? '<div class="stream-line"><span class="mono">'+s.insp.id+'</span> · '+s.insp.defect+' defect · '+s.insp.decision+'</div>'
+      : '<div class="stream-empty">no matched inspection</div>';
+    var cqcLine;
+    if(s.cqc){
+      cqcLine = '<div class="stream-line" style="margin-bottom:5px">'+scoreBadgeHtml(s.cqc)+'</div>'+
+        '<div class="stream-line"><span class="mono">'+s.cqc.id+'</span> · '+s.cqc.defect+' defect · gap '+s.cqc.gap+'</div>';
+    } else if(s.coverage==='graded'){
+      cqcLine = '<div class="stream-line"><span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+s.graded.grade+'</span></div>'+
+        '<div class="stream-line" style="margin-top:5px">Cause: '+s.graded.cause+'</div>';
+    } else {
+      cqcLine = '<div class="stream-empty">no CQC received</div>';
+    }
+    var actions = (s.coverage==='none' || s.coverage==='graded')
+      ? '<button class="btn btn-secondary btn-sm" onclick="openGrade(\''+s.cn+'\',\''+s.client+'\')">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>'
+      : '';
+    actions += '<button class="btn btn-primary btn-sm" onclick="openClaim(\''+s.cn+'\',\''+s.client+'\')">'+(s.claim?'View claim':'Raise claim')+'</button>';
+
+    return '<div class="ship-card'+attn+'">'+
+      '<div class="sc-head"><div class="sc-head-top">'+
+        '<div><span class="sc-container clickable" onclick="openShipDetail(\''+s.cn+'\')">'+s.cn+'</span>'+(s.split?'<span class="sc-split">split carta</span>':'')+
+          '<div class="sc-meta">'+s.vessel+' · ETA '+s.eta+' · '+s.port+'</div></div>'+
+        '<span class="region-chip">'+regionLabel[s.region]+'</span>'+
+      '</div>'+
+      '<div class="sc-client">'+s.client+' <span class="sub">· '+s.sub+' · '+(s.varieties?s.varieties.join(' / '):s.variety)+' · '+s.cartons.toLocaleString()+' ctn'+(s.rows&&s.rows.length>1?' · '+s.rows.length+' rows':'')+'</span></div>'+
+      '</div>'+
+      '<div class="sc-body">'+
+        '<div class="sc-status">'+statusBadge(s.status,s.statusLabel)+claimBadge(s.claim)+'</div>'+
+        '<div class="sc-update">'+s.update+'</div>'+
+        '<div class="stream">'+
+          streamBox('Export inspection', inspLine, s.insp?"openInsp('"+s.cn+"')":null)+
+          streamBox('Client QC on arrival', cqcLine, s.cqc?"openCqc('"+s.cn+"')":null)+
+        '</div>'+
+      '</div>'+
+      '<div class="sc-foot">'+coverageBadge(s)+'<div class="sc-actions">'+actions+'</div></div>'+
+    '</div>';
+  }).join('');
+  var head = '<div class="attn-head"><div class="section-title" style="margin:0"><span class="section-title-bar"></span>Needs attention '+
+    '<span class="section-count">'+att.length.toLocaleString()+' of '+list.length.toLocaleString()+' shipments</span></div>'+
+    '<span class="link-btn" onclick="setTab(\'shipments\')">All shipments ('+list.length.toLocaleString()+') →</span></div>';
+  var body = att.length
+    ? '<div class="card-grid">'+cards+'</div>'+
+      (att.length>6 ? '<div class="hint" style="text-align:center;margin-top:10px">Showing the top 6 — open claims first, then CQC flags, then coverage gaps. The rest live in the Shipments tab.</div>' : '')
+    : '<div class="table-wrap"><div class="empty-state">Nothing needs attention — open claims, CQC flags and delivered-without-quality-data land here.</div></div>';
+  document.getElementById('viewContent').innerHTML = renderScorecards() + head + body;
+}
+
+var currentTab = 'dashboard';
+function setTab(id){ currentTab=id; resetPages(); render(); }
+function setRegion(id){ currentRegion=id; resetPages(); showAllSubs=false; render(); }
+function onSearch(v){ currentQuery=(v||'').trim(); document.getElementById('crmSearchWrap').classList.toggle('has-q', !!currentQuery); resetPages(); render(); }
+function clearSearch(){ document.getElementById('crmSearch').value=''; onSearch(''); }
+function render(){ renderRegions(); renderProducts(); renderKpis(); renderTabs(); renderContent(); }
+
+/* ── Deep-link stand-in views (mockup): represent Vision's universal inspection / CQC viewers ── */
+function shipByCn(cn){ return SHIPMENTS.filter(function(s){ return s.cn===cn; })[0]; }
+function kpiStrip(items){
+  return '<div class="kpi-grid" style="margin-bottom:14px">'+items.map(function(x){
+    return '<div class="kpi"><div class="kpi-label">'+x[0]+'</div><div class="kpi-value" style="font-size:22px">'+x[1]+'</div>'+
+      (x[2]?'<div class="kpi-sub">'+x[2]+'</div>':'')+'</div>';
+  }).join('')+'</div>';
+}
+function wlTable(cols, rows){
+  return '<div class="table-wrap"><table class="wl"><thead><tr>'+cols.map(function(c){return '<th'+(c[1]?' class="right"':'')+'>'+c[0]+'</th>';}).join('')+'</tr></thead><tbody>'+
+    rows.map(function(r){return '<tr>'+r.map(function(c,i){return '<td'+(cols[i][1]?' class="right"':'')+'>'+c+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>';
+}
+function showDlv(title, html){ document.getElementById('dlvTitle').textContent=title; document.getElementById('dlvBody').innerHTML=html; document.getElementById('dlv').classList.add('open'); }
+function closeDlv(){ document.getElementById('dlv').classList.remove('open'); }
+(function(){ var d=document.getElementById('dlv'); if(d) d.addEventListener('click', function(e){ if(e.target===d) closeDlv(); }); })();
+
+function openInsp(cn){
+  var s=shipByCn(cn); if(!s||!s.insp) return;
+  var dec='<span class="badge '+(s.insp.decision==='Approved'?'b-pass':'b-warn')+'">'+s.insp.decision+'</span>';
+  var html='<div class="standin"><b>Stand-in</b> In the app this is the same universal inspection view opened from Shipments &amp; Client QC (setView(\'fg\') → this batch). Values below are illustrative.</div>'+
+    '<div class="dlv-head"><div><div class="dlv-id">'+s.insp.id+'</div><div class="dlv-meta">'+s.cn+' · '+s.client+' · '+s.variety+' · '+s.cartons.toLocaleString()+' ctn</div></div>'+dec+'</div>'+
+    kpiStrip([['Total defect',s.insp.defect,'pallet-weighted'],['Brix','17.4°',''],['Pallets','20',''],['Samples','60','']])+
+    '<div class="section-title"><span class="section-title-bar"></span>Defect breakdown</div>'+
+    wlTable([['Defect',0],['Pallets affected',0],['%',1]],[
+      ['Decay / rot','4','0.8%'],['Soft / overripe','6','1.1%'],['Shatter / loose','3','0.6%'],['Split / cracked','2','0.3%'],
+      ['<b>Total</b>','','<b>'+s.insp.defect+'</b>']])+
+    '<div class="section-title" style="margin-top:16px"><span class="section-title-bar"></span>Pallets</div>'+
+    wlTable([['Pallet',0],['Cartons',1],['Defect',1],['Verdict',1]],[
+      ['<span class="lot">P-01</span>','252','2.6%','Pass'],['<span class="lot">P-02</span>','252','3.4%','Pass'],
+      ['<span class="lot">P-03</span>','252','3.9%','Pass'],['<span class="lot">P-04</span>','240','2.1%','Pass']]);
+  showDlv('Inspections', html);
+}
+function openCqc(cn){
+  var s=shipByCn(cn); if(!s||!s.cqc) return;
+  var sc='<span class="badge '+(s.cqc.score<=2?'b-pass':(s.cqc.score===3?'b-warn':'b-fail'))+'">Score '+s.cqc.score+' · '+s.cqc.scoreLabel+'</span>';
+  var html='<div class="standin"><b>Stand-in</b> In the app this is the same Client QC report view opened from Shipments (cqcLink → setView(\'clientqc\')). Values below are illustrative.</div>'+
+    '<div class="dlv-head"><div><div class="dlv-id">'+s.cqc.id+'</div><div class="dlv-meta">'+s.cn+' · '+s.client+' · '+s.sub+' · '+s.variety+'</div></div>'+sc+'</div>'+
+    kpiStrip([['Total defect',s.cqc.defect,''],['Gap vs export',s.cqc.gap,'arrival − loading'],['Max temp','9.2°C',''],['Claim flag',s.cqc.flag?'Yes':'No','']])+
+    '<div class="section-title"><span class="section-title-bar"></span>Arrival defect readings</div>'+
+    wlTable([['Defect',0],['%',1]],[['Decay / rot','4.2%'],['Soft / overripe berries','3.6%'],['Shatter / loose','2.1%'],['Mould / botrytis','1.5%'],['<b>Total</b>','<b>'+s.cqc.defect+'</b>']])+
+    '<div class="section-title" style="margin-top:16px"><span class="section-title-bar"></span>Client comments</div>'+
+    '<div class="card" style="padding:12px 14px;font-size:13px;color:var(--text2);line-height:1.55">Decay concentrated in stems on arrival; 2 pallets rejected by the receiver. Reefer download shows a cold-chain break mid-transit.</div>'+
+    '<div class="section-title" style="margin-top:16px"><span class="section-title-bar"></span>Attachments</div>'+
+    '<div class="photos"><div class="photo">arrival-1.jpg</div><div class="photo">arrival-2.jpg</div><div class="photo">reefer-log.pdf</div></div>';
+  showDlv('Client QC', html);
+}
+
+/* ── Modals ── */
+function fieldBlock(label, inner){ return '<div><label class="form-label">'+label+'</label>'+inner+'</div>'; }
+function buildPartFields(s){
+  var subs = s.subs || [s.sub];
+  var subInner = subs.length>1
+    ? '<select class="form-select">'+subs.map(function(x){return '<option>'+x+'</option>';}).join('')+'</select>'
+    : '<div class="ctx-val">'+subs[0]+'<span class="ctx-tag">from shipment</span></div>';
+  var citrus = shipProduct(s)==='Citrus';
+  var rowsHtml = (s.rows||[]).map(function(r){
+    return '<label class="row-opt"><input type="checkbox" data-ctn="'+r.cartons+'" data-kg="'+r.netKg+'" onchange="rowSelChanged()"/>'+
+      '<span class="row-opt-main"><b>'+r.variety+'</b> · '+r.mix+' · <span class="mono">'+r.farm+'</span> · '+r.ph+' · '+r.ctype+'</span>'+
+      '<span class="row-opt-qty">'+r.cartons.toLocaleString()+' ctn · '+r.netKg.toLocaleString()+' kg</span></label>';
+  }).join('');
+  var totalNet = s.netKg || 0;
+  var pctEnabled = totalNet>0;
+  var pctInput = pctEnabled
+    ? '<input class="form-input mono" id="partNetPct" inputmode="decimal" placeholder="optional" oninput="syncNet(\'pct\')"/>'
+    : '<input class="form-input mono" id="partNetPct" placeholder="net weight not on file" disabled/>';
+  return '<div style="margin-bottom:10px">'+fieldBlock('Sub-client', subInner)+'</div>'+
+    '<div style="margin-bottom:10px"><label class="form-label">Affected rows</label>'+
+      '<div class="row-sel" id="rowSel">'+rowsHtml+'</div>'+
+      '<div class="hint">Tick the composition row(s) the claim is about — pins it to variety'+(citrus?', size':'')+', farm and packhouse for the claims-vs-QC loop. Quantities below prefill from the selection (editable).</div></div>'+
+    '<div class="grid2" style="margin-bottom:10px">'+
+      fieldBlock('Cartons affected','<input class="form-input mono" id="partCartons" inputmode="numeric" placeholder="optional"/>')+
+      fieldBlock('Pallets affected','<input class="form-input mono" inputmode="numeric" placeholder="optional"/>')+'</div>'+
+    '<div class="grid2" id="netWrap" data-total="'+totalNet+'">'+
+      fieldBlock('Net weight impacted (kg)','<input class="form-input mono" id="partNetKg" inputmode="decimal" placeholder="optional" oninput="syncNet(\'kg\')"/>')+
+      fieldBlock('% of net weight', pctInput)+'</div>'+
+    '<div class="hint">All part-of-load fields optional.'+(pctEnabled
+      ? ' Shipment net weight <b>'+totalNet.toLocaleString()+' kg</b> (sum of its rows) — weight and % update each other.'
+      : ' Net weight not recorded on this shipment — enter kg directly.')+'</div>';
+}
+var toastTimer=null;
+function toast(html){ var t=document.getElementById('toast'); t.innerHTML=html; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove('show'); },3200); }
+function cancelClaim(){
+  closeModal('claimModal');
+  toast('Claim <b>cancelled</b> — removed from open claims, kept in history as Cancelled (not Rejected).');
+}
+function rowSelChanged(){
+  var boxes=document.querySelectorAll('#rowSel input:checked');
+  var ctn=0, kg=0;
+  [].forEach.call(boxes, function(b){ ctn+=Number(b.getAttribute('data-ctn'))||0; kg+=Number(b.getAttribute('data-kg'))||0; });
+  var c=document.getElementById('partCartons'), k=document.getElementById('partNetKg');
+  if(boxes.length){ c.value=ctn; k.value=kg; } else { c.value=''; k.value=''; }
+  syncNet('kg');
+}
+function syncNet(from){
+  var wrap=document.getElementById('netWrap'); if(!wrap) return;
+  var total=parseFloat(wrap.getAttribute('data-total'))||0; if(!total) return;
+  var kg=document.getElementById('partNetKg'), pct=document.getElementById('partNetPct');
+  if(from==='kg'){
+    var v=parseFloat(kg.value);
+    pct.value = (kg.value===''||isNaN(v)) ? '' : (Math.round(v/total*1000)/10);
+  } else {
+    var p=parseFloat(pct.value);
+    kg.value = (pct.value===''||isNaN(p)) ? '' : Math.round(total*p/100);
+  }
+}
+function openClaim(cn, client){
+  var s = shipByCn(cn);
+  document.getElementById('claimSub').textContent = cn+' · '+(client||(s&&s.client)||'');
+  document.getElementById('partBody').innerHTML = s ? buildPartFields(s) : '';
+  document.getElementById('wholeSum').innerHTML = s ? buildWholeSum(s) : '';
+  setScope('whole');
+  var pf=document.getElementById('potFlag'); if(pf){ pf.checked=false; togglePotential(); }
+  document.getElementById('claimModal').classList.add('open');
+}
+function togglePotential(){
+  var on = document.getElementById('potFlag').checked;
+  var v = document.getElementById('claimValue'), c = document.getElementById('claimCurrency');
+  v.disabled = on; c.disabled = on;
+  if(on){ v.value=''; v.placeholder='to be confirmed'; } else { v.placeholder='optional'; }
+  document.getElementById('valueRow').style.opacity = on ? '.5' : '1';
+}
+function openGrade(cn, client){ document.getElementById('gradeSub').textContent = cn+' · '+client; document.getElementById('gradeModal').classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+[].forEach.call(document.querySelectorAll('.modal-bg'), function(m){
+  m.addEventListener('click', function(e){ if(e.target===m) m.classList.remove('open'); });
+});
+
+function setLifecycle(lc){
+  [].forEach.call(document.querySelectorAll('#claimLifecycle .lc-step'), function(el){
+    el.className = 'lc-step' + (el.getAttribute('data-lc')===lc ? ' sel-'+lc : '');
+  });
+}
+function setGrade(g){
+  [].forEach.call(document.querySelectorAll('#gradeModal .grade-pill'), function(el){
+    el.className = 'grade-pill' + (el.textContent===g ? ' sel' : '');
+  });
+}
+function setScope(sc){
+  document.getElementById('scopeWhole').className = 'pill'+(sc==='whole'?' sel':'');
+  document.getElementById('scopePart').className = 'pill'+(sc==='part'?' sel':'');
+  document.getElementById('partFields').className = 'part-fields'+(sc==='part'?' show':'');
+  document.getElementById('wholeSum').className = 'scope-sum'+(sc==='whole'?' show':'');
+}
+function buildWholeSum(s){
+  var vars = s.varieties || [s.variety];
+  var vtxt = vars.length>1 ? 'all varieties ('+vars.join(', ')+')' : vars[0];
+  return '<span class="ev-check">✓</span><span>Covers the <b>whole container</b> — '+vtxt+' · '+s.cartons.toLocaleString()+' ctn</span>';
+}
+/* ── evidence file upload (mockup) ── */
+var evAttached = [];
+function fmtSize(b){ if(b<1024) return b+' B'; if(b<1048576) return (Math.round(b/102.4)/10)+' KB'; return (Math.round(b/104857.6)/10)+' MB'; }
+function renderEvFiles(){
+  document.getElementById('evFiles').innerHTML = evAttached.map(function(f,i){
+    return '<div class="ev-file"><span class="ev-fic">📎</span><span class="ev-fname">'+f.name+'</span>'+
+      '<span class="ev-fsize">'+fmtSize(f.size)+'</span>'+
+      '<span class="ev-fx" onclick="removeEvFile('+i+')">×</span></div>';
+  }).join('');
+}
+function removeEvFile(i){ evAttached.splice(i,1); renderEvFiles(); }
+function addEvFiles(fileList){
+  [].forEach.call(fileList, function(f){ evAttached.push({name:f.name, size:f.size}); });
+  renderEvFiles();
+}
+(function(){
+  var input = document.getElementById('evFile');
+  var dz = document.getElementById('dropzone');
+  if(input) input.addEventListener('change', function(){ addEvFiles(input.files); input.value=''; });
+  if(dz){
+    ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add('drag'); }); });
+    ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove('drag'); }); });
+    dz.addEventListener('drop', function(e){ if(e.dataTransfer && e.dataTransfer.files) addEvFiles(e.dataTransfer.files); });
+  }
+})();
+render();
 </script>
 </body>
 </html>
