@@ -232,6 +232,17 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .scope-sum b{color:var(--text)}
 .chk{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);cursor:pointer;user-select:none}
 .chk input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0}
+/* claim modal: section headers + closing block + audit trail */
+.msec{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin:15px 0 9px;padding-top:13px;border-top:1px solid var(--border)}
+.closing-block{border:1px solid var(--green-border);background:var(--green-bg);border-radius:8px;padding:11px;margin-bottom:10px}
+.closing-block .form-label{color:var(--green)}
+.audit{display:flex;flex-direction:column}
+.audit-item{display:flex;gap:9px;padding:5px 0;font-size:12px;align-items:flex-start}
+.audit-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:4px;flex-shrink:0;position:relative}
+.audit-item:not(:last-child) .audit-dot:after{content:'';position:absolute;left:3px;top:8px;width:2px;height:100%;background:var(--border)}
+.audit-main{color:var(--text2);flex:1}
+.audit-main b{color:var(--text);font-weight:600}
+.audit-when{color:var(--text3);font-size:11px;white-space:nowrap;font-family:var(--font-mono)}
 
 /* evidence link */
 .evidence{display:flex;flex-direction:column;gap:6px}
@@ -493,83 +504,92 @@ table.wl tbody tr.click{cursor:pointer}
       <div class="modal-sub" id="claimSub">MSKU 7841203 · Fresh Fields Ltd</div>
     </div>
     <div class="modal-body">
-      <div class="form-row">
-        <label class="form-label">Lifecycle status</label>
+      <!-- STATUS -->
+      <div class="msec" style="border-top:none;padding-top:0;margin-top:0">Status</div>
+      <div class="form-row" style="margin-bottom:10px">
+        <label class="form-label">Lifecycle</label>
         <div class="lifecycle" id="claimLifecycle">
           <div class="lc-step sel-open" data-lc="open" onclick="setLifecycle('open')"><span class="lc-n">Active</span>Open</div>
           <span class="lc-arrow">→</span>
           <div class="lc-step" data-lc="closed" onclick="setLifecycle('closed')"><span class="lc-n">Done</span>Closed</div>
         </div>
-        <div class="hint">Two states: Open → Closed. Closing is timestamped with who closed it; use the notes for the outcome. "Cancel claim" below removes one opened in error.</div>
+      </div>
+      <div class="grid3" style="margin-bottom:10px">
+        <div><label class="form-label">Raised</label><div class="ctx-val" id="claimRaised">—</div></div>
+        <div><label class="form-label">Response deadline</label><input class="form-input" type="date" id="claimDeadline" value="2026-07-29"/></div>
+        <div><label class="form-label">Closed</label><div class="ctx-val" id="claimClosedOn">—</div></div>
+      </div>
+      <div class="closing-block" id="closingFields" style="display:none">
+        <div class="grid2">
+          <div><label class="form-label">Resolution type</label>
+            <select class="form-select" id="claimResolution"><option>Credit note</option><option>Replacement shipment</option><option>Price adjustment</option><option>Goodwill gesture</option><option>Insurance claim</option><option>Rejected — no fault</option></select></div>
+          <div><label class="form-label">Settled value</label><input class="form-input mono" id="settledValue" inputmode="decimal" placeholder="agreed amount"/></div>
+        </div>
       </div>
 
-      <div class="form-row">
+      <!-- DETAILS -->
+      <div class="msec">Claim details</div>
+      <div class="form-row" style="margin-bottom:10px">
         <label class="form-label">B/L number <span style="color:var(--red)">*</span></label>
         <input class="form-input mono" id="blNumber" placeholder="e.g. MAEU236451078"/>
         <div class="hint" id="blHint" style="display:none;color:var(--red)">B/L number is required to save a claim.</div>
       </div>
-
-      <div class="form-row">
-        <label class="form-label">Claim value</label>
-        <label class="chk"><input type="checkbox" id="potFlag" onchange="togglePotential()"/><span>Potential claim — flag now, value to be confirmed</span></label>
-        <div class="grid3" id="valueRow" style="margin-top:8px">
-          <div style="grid-column:span 2"><input class="form-input mono" id="claimValue" inputmode="decimal" placeholder="optional"/></div>
-          <div><select class="form-select" id="claimCurrency"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option></select></div>
-        </div>
+      <div class="grid2" style="margin-bottom:10px">
+        <div><label class="form-label">Reason</label>
+          <select class="form-select"><option>Decay / rot on arrival</option><option>Temperature abuse in transit</option><option>Soft / overripe berries</option><option>Shatter / loose berries</option><option>Short weight</option><option>Wrong variety / spec</option><option>Late arrival / missed market</option><option>Documentation</option><option>Other</option></select></div>
+        <div><label class="form-label">Client's claim ref <span style="text-transform:none;font-weight:400;color:var(--text3)">(optional)</span></label><input class="form-input mono" placeholder="their reference #"/></div>
+      </div>
+      <div class="grid2" style="margin-bottom:0">
+        <div><label class="form-label">Claimant</label><input class="form-input" placeholder="contact name"/></div>
+        <div><label class="form-label">Claimant email</label><input class="form-input" type="email" placeholder="name@client.com"/></div>
       </div>
 
-      <div class="form-row">
-        <label class="form-label">Scope</label>
-        <div class="pill-row">
-          <span class="pill sel" id="scopeWhole" onclick="setScope('whole')">Whole container</span>
-          <span class="pill" id="scopePart" onclick="setScope('part')">Part of load</span>
-        </div>
-        <div class="scope-sum show" id="wholeSum"></div>
-        <div class="part-fields" id="partFields"><div id="partBody"></div></div>
+      <!-- VALUE -->
+      <div class="msec">Value</div>
+      <label class="chk" style="margin-bottom:9px"><input type="checkbox" id="potFlag" onchange="togglePotential()"/><span>Potential claim — flag now, value to be confirmed</span></label>
+      <div class="grid3" id="valueRow">
+        <div style="grid-column:span 2"><label class="form-label">Claimed value</label><input class="form-input mono" id="claimValue" inputmode="decimal" placeholder="what the client is claiming"/></div>
+        <div><label class="form-label">Currency</label><select class="form-select" id="claimCurrency"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option></select></div>
       </div>
 
-      <div class="form-row">
-        <label class="form-label">Reason</label>
-        <select class="form-select">
-          <option>Decay / rot on arrival</option>
-          <option>Temperature abuse in transit</option>
-          <option>Soft / overripe berries</option>
-          <option>Shatter / loose berries</option>
-          <option>Short weight</option>
-          <option>Wrong variety / spec</option>
-          <option>Late arrival / missed market</option>
-          <option>Documentation</option>
-          <option>Other</option>
-        </select>
+      <!-- SCOPE -->
+      <div class="msec">Scope</div>
+      <div class="pill-row">
+        <span class="pill sel" id="scopeWhole" onclick="setScope('whole')">Whole container</span>
+        <span class="pill" id="scopePart" onclick="setScope('part')">Part of load</span>
       </div>
+      <div class="scope-sum show" id="wholeSum"></div>
+      <div class="part-fields" id="partFields"><div id="partBody"></div></div>
 
-      <div class="form-row">
-        <label class="form-label">Quality evidence</label>
-        <div class="ev-cqc">
-          <span class="ev-check">✓</span>
-          <span class="ev-main"><span class="ev-code">CQC-2026-0142</span> <span class="ev-desc">— Score 4 (Poor) · 11.4% defect · arrival temp 9.2°C</span></span>
-          <span class="ev-link">open ↗</span>
-        </div>
-        <label class="dropzone" id="dropzone">
-          <input type="file" id="evFile" accept=".pdf,image/*" multiple style="display:none"/>
-          <div class="dz-ic">⬆</div>
-          <div class="dz-text"><b>Drop a file</b> or <span class="dz-browse">browse</span></div>
-          <div class="dz-sub">PDF, image or screenshot — client email, arrival photos, rejection note</div>
-        </label>
-        <div class="ev-files" id="evFiles"></div>
-        <div class="ev-ref">
-          <span class="ev-ref-label">Reference</span>
-          <span class="ev-code">GR-2026-0318</span>
-          <span class="ev-desc">Export inspection · 3.1% · Approved</span>
-          <span class="ev-link" style="margin-left:auto">open ↗</span>
-        </div>
-        <div class="hint">The CQC report is the quality evidence; the export inspection is shown for reference only. Upload client emails, arrival photos or rejection notes as supporting files.</div>
+      <!-- EVIDENCE -->
+      <div class="msec">Quality evidence &amp; attachments</div>
+      <div class="ev-cqc">
+        <span class="ev-check">✓</span>
+        <span class="ev-main"><span class="ev-code">CQC-2026-0142</span> <span class="ev-desc">— Score 4 (Poor) · 11.4% defect · arrival temp 9.2°C</span></span>
+        <span class="ev-link">open ↗</span>
       </div>
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="evFile" accept=".pdf,image/*" multiple style="display:none"/>
+        <div class="dz-ic">⬆</div>
+        <div class="dz-text"><b>Drop a file</b> or <span class="dz-browse">browse</span></div>
+        <div class="dz-sub">PDF, image or screenshot — client email, arrival photos, rejection note</div>
+      </label>
+      <div class="ev-files" id="evFiles"></div>
+      <div class="ev-ref">
+        <span class="ev-ref-label">Reference</span>
+        <span class="ev-code">GR-2026-0318</span>
+        <span class="ev-desc">Export inspection · 3.1% · Approved</span>
+        <span class="ev-link" style="margin-left:auto">open ↗</span>
+      </div>
+      <div class="hint">The CQC report is the quality evidence; the export inspection is reference only. Upload client emails, arrival photos or rejection notes.</div>
 
-      <div class="form-row" style="margin-bottom:0">
-        <label class="form-label">Notes</label>
-        <textarea class="form-ta" style="height:64px;resize:vertical" placeholder="Client rejected 2 pallets on arrival; decay concentrated in stems…"></textarea>
-      </div>
+      <!-- NOTES -->
+      <div class="msec">Notes</div>
+      <textarea class="form-ta" style="height:60px;resize:vertical" placeholder="Client rejected 2 pallets on arrival; decay concentrated in stems…"></textarea>
+
+      <!-- AUDIT -->
+      <div class="msec">History</div>
+      <div class="audit" id="claimAudit"></div>
     </div>
     <div class="modal-foot" style="justify-content:space-between">
       <span class="link-btn" style="color:var(--red)" title="Removes a claim opened in error — kept in history as Cancelled (distinct from Rejected)" onclick="cancelClaim()">Cancel claim</span>
@@ -1667,13 +1687,35 @@ function syncNet(from){
     kg.value = (pct.value===''||isNaN(p)) ? '' : Math.round(total*p/100);
   }
 }
+function claimRef(cn){ return 'CLM-2026-'+String(cn).replace(/[^0-9]/g,'').slice(-4); }
+function buildClaimAudit(s){
+  var owner=(REGIONS.find(function(r){return r.id===s.region;})||{}).owner||'CRM';
+  var items=[];
+  var existing = s.claim;
+  items.push({m:'<b>Raised</b> by Mona Adel (CRM)', w:'12 Jul 2026'});
+  if(existing && existing.potential) items.push({m:'Flagged as <b>potential</b> — value to be confirmed', w:'12 Jul 2026'});
+  items.push({m:'Response deadline set — <b>29 Jul 2026</b>', w:'12 Jul 2026'});
+  if(existing && existing.status==='closed') items.push({m:'<b>Closed</b> by '+owner+' · resolution <b>Credit note</b>', w:'15 Jul 2026'});
+  return items.map(function(it){
+    return '<div class="audit-item"><span class="audit-dot"></span><span class="audit-main">'+it.m+'</span><span class="audit-when">'+it.w+'</span></div>';
+  }).join('');
+}
 function openClaim(cn, client){
   var s = shipByCn(cn);
-  document.getElementById('claimSub').textContent = cn+' · '+(client||(s&&s.client)||'');
+  var existing = s && s.claim;
+  document.getElementById('claimSub').textContent = claimRef(cn)+' · '+cn+' · '+(client||(s&&s.client)||'');
   document.getElementById('partBody').innerHTML = s ? buildPartFields(s) : '';
   document.getElementById('wholeSum').innerHTML = s ? buildWholeSum(s) : '';
   setScope('whole');
-  var pf=document.getElementById('potFlag'); if(pf){ pf.checked=false; togglePotential(); }
+  document.getElementById('claimRaised').textContent = existing ? '12 Jul 2026' : (existing===null && s ? 'today' : 'today');
+  document.getElementById('claimAudit').innerHTML = s ? buildClaimAudit(s) : '';
+  /* value prefill from existing claim */
+  var pf=document.getElementById('potFlag');
+  if(pf){ pf.checked = !!(existing && existing.potential); togglePotential(); }
+  var cv=document.getElementById('claimValue');
+  if(cv && !(existing && existing.potential)) cv.value = existing && existing.value ? String(existing.value).replace(/[^0-9.,]/g,'') : '';
+  /* lifecycle from existing */
+  setLifecycle(existing ? existing.status : 'open');
   var bl=document.getElementById('blNumber'); if(bl){ bl.value=''; bl.style.borderColor=''; document.getElementById('blHint').style.display='none'; }
   document.getElementById('claimModal').classList.add('open');
 }
@@ -1694,6 +1736,10 @@ function setLifecycle(lc){
   [].forEach.call(document.querySelectorAll('#claimLifecycle .lc-step'), function(el){
     el.className = 'lc-step' + (el.getAttribute('data-lc')===lc ? ' sel-'+lc : '');
   });
+  var closing=document.getElementById('closingFields');
+  if(closing) closing.style.display = lc==='closed' ? 'block' : 'none';
+  var closedOn=document.getElementById('claimClosedOn');
+  if(closedOn) closedOn.textContent = lc==='closed' ? 'today' : '—';
 }
 function setGrade(g){
   [].forEach.call(document.querySelectorAll('#gradeModal .grade-pill'), function(el){
