@@ -14830,6 +14830,15 @@ window.CRM = (function(){
     var cards='<div class="scorecard-grid" style="margin-bottom:16px">'+REGIONS.filter(function(r){return r.id!=='all';}).map(function(r){
       return '<div class="scorecard" style="cursor:default"><div class="scorecard-top"><div><div class="scorecard-sub">'+esc(r.label)+'</div><div class="scorecard-client">'+(r.owner?'Owner · '+esc(r.owner):(r.id==='unassigned'?'needs a rule':''))+'</div></div><span class="scorecard-count">'+(counts[r.id]||0).toLocaleString()+'<small> shp</small></span></div></div>';
     }).join('')+'</div>';
+    // Unassigned breakdown by client — the actionable lever (most unassigned have no country, so the country map can't reach them)
+    var scoped=baseFiltered('region');
+    var unByClient={}, unNoCountry=0, unTotal=0;
+    scoped.forEach(function(s){ if(s.region==='unassigned'){ unTotal++; unByClient[s.client]=(unByClient[s.client]||0)+1; if(!s.country) unNoCountry++; } });
+    var unClients=Object.keys(unByClient).sort(function(a,b){return unByClient[b]-unByClient[a];});
+    var unRows=unClients.slice(0,20).map(function(c){
+      return '<tr><td class="nm">'+esc(c)+'</td><td class="num">'+unByClient[c]+' shp</td><td class="right"><select class="scope-dd" onchange="CRM.setClientOverride(\''+q1(c)+'\',this.value)"><option value="">— assign region —</option>'+regionOptions('',false)+'</select></td></tr>';
+    }).join('');
+    var unassignedPanel=unTotal?('<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Unassigned · '+unTotal.toLocaleString()+' shipments · assign with a client rule'+(unNoCountry?' · <span style="color:var(--amber)">'+unNoCountry.toLocaleString()+' have no country on the shipment</span> — the country map below can\'t reach them, a client rule is the fix':'')+'</div><table class="rk"><tbody>'+unRows+'</tbody></table>'+(unClients.length>20?'<div class="hint">Showing the top 20 of '+unClients.length+' unassigned clients. Assigning a client rule moves every shipment for that client.</div>':'')+'</div>'):'';
     var clientKeys=Object.keys(REGION_OVERRIDES.client);
     var allClients=Array.from(new Set(SHIPMENTS.map(function(s){return s.client;}))).sort();
     var clientRows=clientKeys.length?clientKeys.map(function(c){
@@ -14857,7 +14866,7 @@ window.CRM = (function(){
     var unmappedRows=unmappedKeys.map(function(raw){ return '<tr><td class="nm">'+esc(raw)+' <span class="pchip warn">'+unmapped[raw]+' in view</span></td><td class="right">'+bandSel(0,"CRM.setScoreBand('"+q1(raw)+"',this.value)",true)+'</td><td></td></tr>'; }).join('');
     var addBand='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add mapping:</span><input class="scope-dd" id="sbRaw" placeholder="raw score text (e.g. BLUE)" style="max-width:200px"/><select class="scope-dd" id="sbBand">'+[1,2,3,4,5].map(function(n){return '<option value="'+n+'"'+(n===2?' selected':'')+'>'+n+' · '+bandNames[n]+'</option>';}).join('')+'</select><button class="btn btn-secondary btn-sm" onclick="CRM.addScoreBandFromForm()">Add</button></div>';
     var scoreBandPanel='<div class="pulse-panel" style="margin-top:12px"><div class="pp-title">Score bands · raw CQC score → 1–5 canonical'+(unmappedKeys.length?' · <span style="color:var(--red)">'+unmappedKeys.length+' unmapped in view</span>':'')+'</div>'+(unmappedKeys.length?'<table class="rk"><tbody>'+unmappedRows+'</tbody></table><div class="divider" style="margin:10px 0"></div>':'')+'<table class="rk"><tbody>'+bandRows+'</tbody></table>'+addBand+'</div>';
-    vc.innerHTML=head+cards+clientPanel+countryPanel+scoreBandPanel;
+    vc.innerHTML=head+cards+unassignedPanel+clientPanel+countryPanel+scoreBandPanel;
   }
 
   function renderContent(){
@@ -15116,6 +15125,7 @@ window.CRM = (function(){
     op.then(function(res){ if(res&&res.error){ toast('Override failed — '+esc(res.error.message)); return; } toast('Country rule updated.'); reloadOverridesAndVoyages(); });
   }
   function setClientOverride(client,region){
+    if(!region) return;
     var op = region==='__none' ? SB.from('region_overrides').delete().eq('scope','client').eq('key',client)
       : SB.from('region_overrides').upsert({scope:'client',key:client,region_id:region,set_by:USER&&USER.id||null},{onConflict:'scope,key'});
     op.then(function(res){ if(res&&res.error){ toast('Override failed — '+esc(res.error.message)); return; } toast('Client rule updated.'); reloadOverridesAndVoyages(); });
