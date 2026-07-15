@@ -17264,7 +17264,7 @@ function App(){
   var phInfo=(config.packhouses||[]).find(function(p){return p.id===phId;})||{name:'',color:'#2b5c3f',initials:phId?phId.slice(0,2).toUpperCase():'--'};
   var phLoading=phId&&!phInfo.name;
   var cur=availViews.find(function(v){return v.id===view;})||availViews[0]||{label:'',id:''};
-  var needsCropPH=perms.viewFG&&(!cropId||!phId)&&view!=='home'&&view!=='admin'&&view!=='analytics'&&view!=='export'&&view!=='clientqc'&&view!=='escalation'&&view!=='shipments';
+  var needsCropPH=perms.viewFG&&(!cropId||!phId)&&view!=='home'&&view!=='admin'&&view!=='analytics'&&view!=='export'&&view!=='clientqc'&&view!=='escalation'&&view!=='shipments'&&view!=='crm';
   var needsCQCLanding=!perms.viewFG&&perms.viewClientQC&&view==='clientqc'&&false; /* handled inside ClientQCMgmt */
 
   function mkSidebar(){
