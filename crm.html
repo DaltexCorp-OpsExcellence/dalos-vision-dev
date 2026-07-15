@@ -60,9 +60,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .page-inner{max-width:1180px;margin:0 auto}
 
 /* ── Region switcher ── */
-.region-bar{display:flex;align-items:center;gap:10px;margin:14px 0;flex-wrap:wrap}
-.region-switch{display:flex;gap:3px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:3px}
-.region-btn{padding:5px 12px;border-radius:7px;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border:1px solid transparent;white-space:nowrap;transition:.15s}
+/* ── Unified segmented bars: scope bars (Region/Product) + page tabs share one family ── */
+.region-bar{display:flex;align-items:center;gap:8px;margin:14px 0 10px;flex-wrap:wrap}
+.region-switch{display:inline-flex;align-items:center;gap:2px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:3px}
+.seg-lbl{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:0 7px 0 9px;user-select:none}
+.region-btn{padding:5px 11px;border-radius:7px;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border:1px solid transparent;white-space:nowrap;transition:.15s}
 .region-btn:hover{color:var(--text2)}
 .region-btn.active{background:var(--card);color:var(--accent);border-color:var(--border);font-weight:600}
 .region-btn .rcount{font-family:var(--font-mono);font-size:10px;opacity:.7;margin-left:5px}
@@ -274,14 +276,14 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .hint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.4}
 .divider{height:1px;background:var(--border);margin:16px 0}
 
-/* ── View tabs — the page changer, deliberately prominent ── */
-.tabs{display:inline-flex;gap:4px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:16px;flex-wrap:wrap;max-width:100%}
-.tab{padding:9px 18px;font-size:14px;font-weight:600;color:var(--text3);border-radius:9px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:.15s;border:1px solid transparent}
+/* ── View tabs — same segmented family as the scope bars; nav role = green active fill ── */
+.tabs{display:inline-flex;gap:2px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:3px;margin:2px 0 14px;flex-wrap:wrap;max-width:100%}
+.tab{padding:7px 14px;font-size:13px;font-weight:600;color:var(--text3);border-radius:8px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:.15s;border:1px solid transparent}
 .tab:hover{color:var(--text);background:var(--card)}
-.tab.active{background:var(--accent);color:#fff;box-shadow:0 2px 10px rgba(43,92,63,.32)}
-.tab .tcount{font-family:var(--font-mono);font-size:11px;background:var(--card);color:var(--text2);border:1px solid var(--border);border-radius:20px;padding:0 7px;line-height:17px}
+.tab.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(43,92,63,.28)}
+.tab .tcount{font-family:var(--font-mono);font-size:10px;background:var(--card);color:var(--text2);border:1px solid var(--border);border-radius:20px;padding:0 6px;line-height:15px}
 .tab.active .tcount{background:rgba(255,255,255,.2);color:#fff;border-color:transparent}
-@media(max-width:767px){.tab{padding:8px 12px;font-size:13px}}
+@media(max-width:767px){.tab{padding:6px 11px;font-size:12px}}
 
 /* ── Tables (worklists) ── */
 .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow-x:auto}
@@ -418,11 +420,11 @@ table.wl tbody tr.click{cursor:pointer}
           <span class="crm-search-clear" onclick="clearSearch()">&times;</span>
         </div>
 
-        <!-- KPIs -->
-        <div class="kpi-grid" id="kpiGrid"></div>
-
-        <!-- View tabs -->
+        <!-- View tabs (the page changer — above the KPIs) -->
         <div class="tabs" id="viewTabs"></div>
+
+        <!-- KPIs (follow the Shipments filters when that tab is active) -->
+        <div class="kpi-grid" id="kpiGrid"></div>
 
         <!-- Content (cards or worklist table) -->
         <div id="viewContent"></div>
@@ -809,7 +811,7 @@ function renderRegions(){
   var counts = {};
   base.forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
   counts.all = base.length;
-  document.getElementById('regionSwitch').innerHTML = REGIONS.map(function(r){
+  document.getElementById('regionSwitch').innerHTML = '<span class="seg-lbl">Region</span>'+REGIONS.map(function(r){
     return '<span class="region-btn'+(r.id===currentRegion?' active':'')+'" onclick="setRegion(\''+r.id+'\')">'+r.label+
       (r.admin?' <span class="rcount">admin</span>':'')+
       '<span class="rcount">'+(counts[r.id]||0)+'</span></span>';
@@ -849,13 +851,15 @@ function renderProducts(){
   list.forEach(function(s){ var p=shipProduct(s); counts[p]=(counts[p]||0)+1; });
   var opts=[['all','All products',list.length]];
   Object.keys(counts).sort().forEach(function(p){ opts.push([p,p,counts[p]]); });
-  document.getElementById('productSwitch').innerHTML = opts.map(function(o){
+  document.getElementById('productSwitch').innerHTML = '<span class="seg-lbl">Product</span>'+opts.map(function(o){
     return '<span class="region-btn'+(currentProduct===o[0]?' active':'')+'" onclick="setProduct(\''+o[0]+'\')">'+o[1]+'<span class="rcount">'+o[2]+'</span></span>';
   }).join('');
 }
 
 function renderKpis(){
-  var list = visibleShipments();
+  /* on the Shipments tab the KPIs follow the active table filters */
+  var filtered = currentTab==='shipments' && shipActiveFilterCount()>0;
+  var list = filtered ? visibleShipments().filter(shipFilterMatch) : visibleShipments();
   var cqcCount = list.filter(function(s){return s.coverage==='cqc';}).length;
   var gradedCount = list.filter(function(s){return s.coverage==='graded';}).length;
   var covered = cqcCount + gradedCount;
@@ -863,7 +867,7 @@ function renderKpis(){
   var openClaims = list.filter(function(s){return s.claim && (s.claim.status==='open'||s.claim.status==='ack');}).length;
   var noData = list.filter(function(s){return s.coverage==='none';}).length;
   document.getElementById('kpiGrid').innerHTML =
-    kpi('Shipments', list.length, currentRegion==='all'?'across all regions':'in region') +
+    kpi('Shipments', list.length.toLocaleString(), filtered?'matching filters':(currentRegion==='all'?'across all regions':'in region')) +
     kpi('Quality coverage', covPct+'%', cqcCount+' CQC · '+gradedCount+' CRM-graded') +
     kpi('Open claims', openClaims, openClaims?'need action':'none pending', openClaims?'down':'') +
     kpi('No quality data', noData, noData?'gap — grade or chase CQC':'fully covered', noData?'down':'up');
@@ -955,24 +959,26 @@ function setShipFilter(k,v){
 }
 function resetShipFilters(){ SHIP_FILTER_KEYS.forEach(function(k){ shipView[k]='all'; }); pageState.shipments=0; render(); }
 function setShipSort(v){ shipView.sort=v; pageState.shipments=0; render(); }
+function shipActiveFilterCount(){ return SHIP_FILTER_KEYS.filter(function(k){ return shipView[k]!=='all'; }).length; }
+function shipFilterMatch(s){
+  if(shipView.status!=='all' && s.status!==shipView.status) return false;
+  if(shipView.client!=='all' && s.client!==shipView.client) return false;
+  if(shipView.sub!=='all' && s.sub!==shipView.sub) return false;
+  if(shipView.variety!=='all' && (s.varieties||[s.variety]).indexOf(shipView.variety)<0) return false;
+  if(shipView.country!=='all' && shipCountry(s)!==shipView.country) return false;
+  if(shipView.score!=='all'){
+    if(shipView.score==='none'){ if(s.cqc) return false; }
+    else if(!s.cqc || String(s.cqc.score)!==shipView.score) return false;
+  }
+  if(shipView.claim==='yes' && !s.claim) return false;
+  if(shipView.claim==='no' && s.claim) return false;
+  if(shipView.graded==='yes' && s.coverage!=='graded') return false;
+  if(shipView.graded==='no' && s.coverage==='graded') return false;
+  return true;
+}
 function renderShipmentsTable(){
   var base = visibleShipments(); /* region/product/search scoped — filter options come from here */
-  var list = base.filter(function(s){
-    if(shipView.status!=='all' && s.status!==shipView.status) return false;
-    if(shipView.client!=='all' && s.client!==shipView.client) return false;
-    if(shipView.sub!=='all' && s.sub!==shipView.sub) return false;
-    if(shipView.variety!=='all' && (s.varieties||[s.variety]).indexOf(shipView.variety)<0) return false;
-    if(shipView.country!=='all' && shipCountry(s)!==shipView.country) return false;
-    if(shipView.score!=='all'){
-      if(shipView.score==='none'){ if(s.cqc) return false; }
-      else if(!s.cqc || String(s.cqc.score)!==shipView.score) return false;
-    }
-    if(shipView.claim==='yes' && !s.claim) return false;
-    if(shipView.claim==='no' && s.claim) return false;
-    if(shipView.graded==='yes' && s.coverage!=='graded') return false;
-    if(shipView.graded==='no' && s.coverage==='graded') return false;
-    return true;
-  });
+  var list = base.filter(shipFilterMatch);
   if(shipView.sort==='eta_desc') list.sort(function(a,b){return b.sortKey-a.sortKey;});
   else if(shipView.sort==='eta_asc') list.sort(function(a,b){return a.sortKey-b.sortKey;});
   else if(shipView.sort==='score_desc') list.sort(function(a,b){return scoreNum(b)-scoreNum(a);});
@@ -994,7 +1000,7 @@ function renderShipmentsTable(){
   var varieties=uniq(base.reduce(function(a,s){return a.concat(s.varieties||[s.variety]);},[]));
   var countries=uniq(base.map(function(s){return shipCountry(s);}));
   var mk=function(v){return [v,v];};
-  var activeCount=SHIP_FILTER_KEYS.filter(function(k){return shipView[k]!=='all';}).length;
+  var activeCount=shipActiveFilterCount();
   var filters='<div class="filter-row">'+
     '<span class="filter-group">'+fp('status','all','All')+fp('status','delivered','Delivered')+fp('status','in_transit','In transit')+'</span>'+
     fsel('client','Client',clients.map(mk))+
