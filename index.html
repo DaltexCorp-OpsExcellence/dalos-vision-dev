@@ -8001,9 +8001,9 @@ function ExportView(props){
 ═══════════════════════════════════════ */
 var ROLES = {
   admin:       {label:'Admin',                color:'#1e2d22',badge:'#2b5c3f',
-                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, giveAccess:true}},
+                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, giveAccess:true}},
   power_user:  {label:'Power User',           color:'#0f5a52',badge:'#159085',
-                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, giveAccess:false}},
+                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, giveAccess:false}},
   board:       {label:'Senior Board',         color:'#2a0a5a',badge:'#6a10b0',
                 perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:false,viewExport:false,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:true, escalate:false,allPackhouses:true, viewShipments:true}},
   qc_manager:  {label:'QC Manager',           color:'#2b5c3f',badge:'#4a8c62',
@@ -8025,7 +8025,7 @@ var PERM_LABELS = {
   viewFG:'View inspections',createFG:'Create inspections',editFG:'Edit inspections',
   approveFG:'Approve / reject',viewClientQC:'View client reports',createClientQC:'Submit client reports',
   viewExport:'Export data',viewAnalytics:'Analytics dashboard',viewAdmin:'User management',viewConfig:'System configuration',
-  viewEscalation:'Board review / escalation queue',escalate:'Escalate batches',allPackhouses:'All packhouses',viewShipments:'View shipments'
+  viewEscalation:'Board review / escalation queue',escalate:'Escalate batches',allPackhouses:'All packhouses',viewShipments:'View shipments',viewCRM:'CRM (claims & regions)'
 };
 var INITIAL_USERS = []; /* Demo users removed — users load from Supabase */
 
@@ -14387,8 +14387,1291 @@ var IPATHS={
   analytics:'M0 0h1v15h15v1H0V0zm10 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4.9l-3.613 4.417a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61L13.445 4H10.5a.5.5 0 0 1-.5-.5z',
   export:'M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5zm7.793-5.628a.5.5 0 0 1 .707 0l3.5 3.5a.5.5 0 0 1-.707.707L9 6.121V13.5a.5.5 0 0 1-1 0V6.12L5.707 8.48a.5.5 0 0 1-.707-.707l3.5-3.5z',
   escalation:'M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z',
-  admin:'M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'
+  admin:'M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  crm:'M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002a.274.274 0 0 1-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'
 };
+
+/* CRM MODULE (Step 3 - ported from crm.html mockup) */
+/* ═══════════════════════════════════════════════════════════════════════════
+   DalOS Vision — CRM module (ported from the approved crm.html mockup)
+   Rendered as an isolated DOM "island" inside a .crmv wrapper. All styling is
+   scoped to .crmv; all globals live on window.CRM. Reads live crm_voyages /
+   crm_shipment_rows (region-gated server-side), writes crm_claims / crm_gradings
+   / region_overrides. Season-scoped via CRM.init({seasonId}).
+   ═══════════════════════════════════════════════════════════════════════════ */
+window.CRM = (function(){
+  var SB=null, SEASON=null, IS_ADMIN=false, USER=null, ROOT=null, MOUNTED=false;
+  var SHIPMENTS=[], REGIONS=[], regionLabel={}, regionOwner={};
+  var COUNTRY_REGION={}, REGION_OVERRIDES={country:{},client:{},shipment:{}};
+  /* 13 countries served by >1 region — can't auto-resolve; kept for the admin panel flag. */
+  var COUNTRY_OVERLAP={bahrain:['cis','ne'],canada:['cis','ga'],jibouti:['cis','ga'],jordan:['cis','ga'],panama:['cis','ga'],russia:['cis','go'],ksa:['cis','ne'],slovenia:['cis','ne','uk'],kuwait:['ne','ga'],qatar:['ne','ga'],'south africa':['ne','ga'],spain:['ne','ga'],uae:['ne','ga']};
+
+  var currentTab='dashboard', currentRegion='all', currentProduct='all', currentQuery='';
+  var showAllSubs=false, pulseOpen=true;
+  var PER_PAGE=50;
+  var pageState={shipments:0, grading:0, claims:0, clean:0};
+
+  /* ── small utils ── */
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function q1(s){ return String(s==null?'':s).replace(/'/g,"\\'"); }
+  function $(id){ return ROOT?ROOT.querySelector('#'+id):null; }
+  function num(v){ return (v==null||isNaN(v))?0:Number(v); }
+  function pct(v){ return (v==null||v==='')?null:(Math.round(Number(v)*10)/10)+'%'; }
+  var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function parseDate(d){ if(!d) return null; var t=Date.parse(d); return isNaN(t)?null:new Date(t); }
+  function fmtDate(d){ var x=parseDate(d); return x?(x.getUTCDate()+' '+MONTHS[x.getUTCMonth()]):'—'; }
+  function fmtLong(d){ var x=parseDate(d); return x?(x.getUTCDate()+' '+MONTHS[x.getUTCMonth()]+' '+x.getUTCFullYear()):'—'; }
+  function dayKey(d){ var x=parseDate(d); return x?Math.floor(x.getTime()/86400000):0; }
+  var TODAY_KEY=Math.floor(Date.now()/86400000);
+  var CUR={USD:'$',EUR:'€',GBP:'£',EGP:'E£'};
+  function curSym(c){ return CUR[c]||(c?c+' ':'$'); }
+  function fmtMoney(v,c){ if(v==null||v==='') return null; return curSym(c)+Number(v).toLocaleString(); }
+  function toast(html){ var t=$('crmToast'); if(!t) return; t.innerHTML=html; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove('show'); },3200); }
+
+  /* ── quality bands (canonical 1..5) ── */
+  var BANDS={1:{n:'Excellent',cls:'b-pass'},2:{n:'Good',cls:'b-pass'},3:{n:'Fair',cls:'b-warn'},4:{n:'Poor',cls:'b-fail'},5:{n:'Reject',cls:'b-fail'}};
+  function bandBadge(score, rawTitle){
+    var b=BANDS[score]||{n:'Unclassified',cls:'b-neutral'};
+    var tail=score?' <span style="opacity:.65;font-family:var(--font-mono);font-size:10px">'+esc(score)+'</span>':'';
+    return '<span class="badge '+b.cls+'" title="'+esc(rawTitle||('band '+(score||'—')+' ('+b.n+')'))+'">'+b.n+tail+'</span>';
+  }
+  function statusBadge(s,label){ var cls=s==='delivered'?'b-pass':(s==='in_transit'?'b-esc':'b-neutral'); return '<span class="badge '+cls+'">'+esc(label)+'</span>'; }
+  function claimBadge(c){ if(!c) return ''; var map={open:['b-fail','Claim open'],closed:['b-neutral','Claim closed']}; var m=map[c.status]||map.open; return '<span class="badge '+m[0]+'">'+m[1]+' · '+(c.potential?'potential':esc(c.value||'—'))+'</span>'; }
+  function coverageBadge(c){
+    if(c.coverage==='cqc') return '<span class="coverage cov-cqc"><span class="cov-dot"></span>CQC · '+((BANDS[c.cqc&&c.cqc.score]||{}).n||'—')+'</span>';
+    if(c.coverage==='graded') return '<span class="coverage cov-graded"><span class="cov-dot"></span>CRM-graded · '+esc(c.graded.grade)+'</span>';
+    return '<span class="coverage cov-none"><span class="cov-dot"></span>No quality data</span>';
+  }
+
+  /* ── data mapping: crm_voyages row → internal shipment shape ── */
+  function mapVoyage(r){
+    var varieties=(r.variety_display||'').split(' / ').filter(Boolean);
+    var s={
+      key:r.container_key, cn:r.container_number||r.container_key,
+      client:r.client||'—', sub:r.subclient||'—', country:r.country||'',
+      region:r.region_id||'unassigned', product:r.product_id?(r.product_id.charAt(0).toUpperCase()+r.product_id.slice(1)):'—',
+      variety:varieties[0]||'—', varieties:varieties.length>1?varieties:null,
+      cartons:num(r.carton_count), pallets:num(r.pallet_count), netKg:num(r.net_weight), grossKg:num(r.gross_weight),
+      vessel:r.vessel||'—', shippingLine:r.shipping_line||'—', port:r.receiving_port||'—', departurePort:r.departure_port||'—',
+      eta:fmtDate(r.eta), etaRaw:r.eta, etd:fmtDate(r.etd), arrival:fmtDate(r.arrival_date),
+      invoice:r.invoice_no||'', booking:r.booking_no||'', shipper:r.shipper||'', agent:r.agent||'',
+      brand:r.brand||'', size:r.size||'', dclass:r.daltex_class||'', trace:r.traceability_code||'', farmSource:r.farm_source||'',
+      split:!!r.split, rowCount:num(r.row_count), cartaCount:num(r.carta_count),
+      status:r.status, statusLabel:r.status==='delivered'?'Delivered':'In transit',
+      sortKey:dayKey(r.eta||r.arrival_date||r.etd),
+      coverage:r.coverage, insp:null, cqc:null, graded:null, claim:null, rows:null,
+      cqcId:r.cqc_id||null, inspId:r.insp_id||null, gradingId:r.grading_id||null, claimId:r.claim_id||null,
+      claimRefRaw:r.claim_ref||null
+    };
+    if(r.insp_id) s.insp={id:r.insp_id, defect:(pct(r.insp_defect)||'—'), decision:r.insp_decision==='A'?'Approved':(r.insp_decision||'—')};
+    if(r.cqc_id) s.cqc={id:r.cqc_number||r.cqc_id, score:r.cqc_band||0, scoreRaw:r.cqc_score_raw||'', scoreLabel:(BANDS[r.cqc_band]||{}).n||'Unclassified',
+      defect:(pct(r.cqc_defect)||'—'), gap:(r.cqc_gap==null?'—':((r.cqc_gap>0?'+':'')+(Math.round(r.cqc_gap*10)/10)+'%')), gapNum:num(r.cqc_gap), maxTemp:r.cqc_max_temp, flag:!!r.cqc_flag};
+    if(r.grading_id) s.graded={grade:r.grade, cause:r.grade_cause||'—'};
+    if(r.claim_id && r.claim_status && r.claim_status!=='cancelled'){
+      s.claim={status:r.claim_status==='open'?'open':'closed', rawStatus:r.claim_status, potential:!!r.claim_potential,
+        value:fmtMoney(r.claim_value,r.claim_currency), rawValue:r.claim_value, currency:r.claim_currency||'USD'};
+    }
+    if(s.coverage==='graded'&&!s.graded) s.graded={grade:'—',cause:'—'};
+    return s;
+  }
+
+  function shipByKey(k){ for(var i=0;i<SHIPMENTS.length;i++){ if(SHIPMENTS[i].key===k) return SHIPMENTS[i]; } return null; }
+
+  /* ── derived / classification ── */
+  function shipProduct(s){ return s.product||'—'; }
+  function shipCountry(s){ return s.country||'—'; }
+  function shipInvoice(s){ return s.invoice||('DX-INV-'+String(s.cn).replace(/[^0-9]/g,'')); }
+  function noCqc(s){ return s.coverage!=='cqc'; }
+  function needsGrading(s){ return s.coverage==='none'; }
+  function hasClaim(s){ return !!s.claim; }
+  function isFlagged(s){ return !!(s.cqc && s.cqc.flag); }
+  function isClean(s){ return !s.claim && !isFlagged(s); }
+  function scoreNum(s){ if(s.cqc) return s.cqc.score; if(s.coverage==='graded') return ({A:2,B:3,C:4})[s.graded.grade]||3; return 0; }
+  function gapNum(s){ return s.cqc?s.cqc.gapNum:0; }
+  function attentionInfo(s){
+    if(s.claim && s.claim.status==='open') return {p:3,label:'claim open'};
+    if(isFlagged(s) && !s.claim) return {p:2,label:'CQC claim flag'};
+    if(s.coverage==='none' && s.status==='delivered') return {p:1,label:'delivered · no quality data'};
+    return null;
+  }
+
+  /* ── region resolution (client-side mirror for the admin panel counts) ── */
+  function regionForCountry(co){ var k=(co||'').toString().trim().toLowerCase(); return REGION_OVERRIDES.country[k]||COUNTRY_REGION[k]||null; }
+
+  /* ── scoping cascade: region → product → search ── */
+  function matchesQuery(s){
+    if(!currentQuery) return true;
+    var qq=currentQuery.toLowerCase();
+    var hay=[s.cn,s.client,s.sub,shipInvoice(s),(s.varieties?s.varieties.join(' '):s.variety),shipProduct(s),shipCountry(s),s.port].join(' ').toLowerCase();
+    return hay.indexOf(qq)>=0;
+  }
+  function baseFiltered(exclude){
+    return SHIPMENTS.filter(function(s){
+      if(exclude!=='region' && !(currentRegion==='all' || s.region===currentRegion)) return false;
+      if(exclude!=='product' && !(currentProduct==='all' || shipProduct(s)===currentProduct)) return false;
+      return matchesQuery(s);
+    });
+  }
+  function visibleShipments(){ return baseFiltered(null); }
+
+  /* ── switchers ── */
+  function resetPages(){ pageState={shipments:0,grading:0,claims:0,clean:0}; }
+  function renderRegions(){
+    var base=baseFiltered('region'), counts={};
+    base.forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
+    counts.all=base.length;
+    var el=$('regionSel'); if(!el) return;
+    el.innerHTML='<select class="scope-dd" onchange="CRM.setRegion(this.value)">'+REGIONS.map(function(r){
+      return '<option value="'+r.id+'"'+(r.id===currentRegion?' selected':'')+'>Region: '+esc(r.label)+(r.admin?' (admin)':'')+' · '+(counts[r.id]||0)+'</option>';
+    }).join('')+'</select>';
+  }
+  function renderProducts(){
+    var list=baseFiltered('product'), counts={};
+    list.forEach(function(s){ var p=shipProduct(s); counts[p]=(counts[p]||0)+1; });
+    var opts=[['all','All products',list.length]];
+    Object.keys(counts).sort().forEach(function(p){ opts.push([p,p,counts[p]]); });
+    var el=$('productSel'); if(!el) return;
+    el.innerHTML='<select class="scope-dd" onchange="CRM.setProduct(this.value)">'+opts.map(function(o){
+      return '<option value="'+esc(o[0])+'"'+(currentProduct===o[0]?' selected':'')+'>Product: '+esc(o[1])+' · '+o[2]+'</option>';
+    }).join('')+'</select>';
+  }
+
+  function kpi(label,val,sub,cls){ return '<div class="kpi"><div class="kpi-label">'+label+'</div><div class="kpi-value">'+val+'</div><div class="kpi-sub '+(cls||'')+'">'+sub+'</div></div>'; }
+  function renderKpis(){
+    var g=$('kpiGrid'); if(!g) return;
+    if(currentTab==='dashboard'){ g.innerHTML=''; return; }
+    var filtered=currentTab==='shipments' && shipActiveFilterCount()>0;
+    var list=filtered?visibleShipments().filter(shipFilterMatch):visibleShipments();
+    var cqcCount=list.filter(function(s){return s.coverage==='cqc';}).length;
+    var gradedCount=list.filter(function(s){return s.coverage==='graded';}).length;
+    var covered=cqcCount+gradedCount, covPct=list.length?Math.round(covered/list.length*100):0;
+    var openClaims=list.filter(function(s){return s.claim&&s.claim.status==='open';}).length;
+    var noData=list.filter(function(s){return s.coverage==='none';}).length;
+    g.innerHTML=
+      kpi('Shipments',list.length.toLocaleString(),filtered?'matching filters':(currentRegion==='all'?'across all regions':'in region'))+
+      kpi('Quality coverage',covPct+'%',cqcCount+' CQC · '+gradedCount+' CRM-graded')+
+      kpi('Open claims',openClaims,openClaims?'need action':'none pending',openClaims?'down':'')+
+      kpi('No quality data',noData,noData?'gap — grade or chase CQC':'fully covered',noData?'down':'up');
+  }
+
+  function renderTabs(){
+    var el=$('viewTabs'); if(!el) return;
+    var list=visibleShipments();
+    var attCount=list.filter(function(s){return !!attentionInfo(s);}).length;
+    var openClaims=list.filter(function(s){return s.claim&&s.claim.status==='open';}).length;
+    var unassigned=SHIPMENTS.filter(function(s){return s.region==='unassigned';}).length;
+    var tabs=[{id:'dashboard',label:'Dashboard',dot:attCount},{id:'shipments',label:'Shipments'},{id:'grading',label:'Grading'},{id:'claims',label:'Claims',dot:openClaims},{id:'clean',label:'Clean'}];
+    if(IS_ADMIN && currentRegion==='all') tabs.push({id:'regions',label:'Region mapping',dot:unassigned});
+    el.innerHTML=tabs.map(function(t){
+      return '<span class="tab2'+(t.id===currentTab?' on':'')+'" onclick="CRM.setTab(\''+t.id+'\')">'+t.label+(t.dot?'<span class="ndot">'+(t.dot>99?'99+':t.dot)+'</span>':'')+'</span>';
+    }).join('');
+  }
+
+  /* ── pagination ── */
+  function pagerHtml(total,page,key){
+    if(total<=PER_PAGE) return '';
+    var pages=Math.ceil(total/PER_PAGE), from=page*PER_PAGE+1, to=Math.min(total,(page+1)*PER_PAGE);
+    return '<div class="pager"><span>'+from.toLocaleString()+'–'+to.toLocaleString()+' of '+total.toLocaleString()+'</span><span class="pager-btns">'+
+      '<button '+(page===0?'disabled':'')+' class="btn btn-secondary btn-sm" onclick="CRM.setPage(\''+key+'\','+(page-1)+')">‹ Prev</button>'+
+      '<button '+(page>=pages-1?'disabled':'')+' class="btn btn-secondary btn-sm" onclick="CRM.setPage(\''+key+'\','+(page+1)+')">Next ›</button></span></div>';
+  }
+
+  /* ── quality cells ── */
+  function qualityCell(s){
+    if(s.cqc) return bandBadge(s.cqc.score, s.cqc.scoreRaw?('raw: '+s.cqc.scoreRaw):'');
+    if(s.coverage==='graded') return '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+esc(s.graded.grade)+'</span>';
+    return '<span class="cell-sub">no data</span>';
+  }
+  function qualityCellLinked(s){
+    var qc=s.cqc?'<span class="qlink" title="Open CQC report" onclick="event.stopPropagation();CRM.openCqc(\''+s.key+'\')">'+qualityCell(s)+'</span>':qualityCell(s);
+    var insp=s.insp?'<div class="cell-sub lot ilink" style="margin-top:3px" title="Open export inspection" onclick="event.stopPropagation();CRM.openInsp(\''+s.key+'\')">'+esc(s.insp.id)+' ↗</div>':'';
+    return qc+insp;
+  }
+
+  /* ── Shipments tab ── */
+  var SHIP_FILTER_KEYS=['status','client','sub','variety','country','score','claim','graded'];
+  var shipView={status:'all',client:'all',sub:'all',variety:'all',country:'all',score:'all',claim:'all',graded:'all',sort:'eta_desc'};
+  function shipActiveFilterCount(){ return SHIP_FILTER_KEYS.filter(function(k){return shipView[k]!=='all';}).length; }
+  function shipFilterMatch(s){
+    if(shipView.status!=='all'&&s.status!==shipView.status) return false;
+    if(shipView.client!=='all'&&s.client!==shipView.client) return false;
+    if(shipView.sub!=='all'&&s.sub!==shipView.sub) return false;
+    if(shipView.variety!=='all'&&(s.varieties||[s.variety]).indexOf(shipView.variety)<0) return false;
+    if(shipView.country!=='all'&&shipCountry(s)!==shipView.country) return false;
+    if(shipView.score!=='all'){ if(shipView.score==='none'){ if(s.cqc) return false; } else if(!s.cqc||String(s.cqc.score)!==shipView.score) return false; }
+    if(shipView.claim==='yes'&&!s.claim) return false;
+    if(shipView.claim==='no'&&s.claim) return false;
+    if(shipView.graded==='yes'&&s.coverage!=='graded') return false;
+    if(shipView.graded==='no'&&s.coverage==='graded') return false;
+    return true;
+  }
+  function renderShipmentsTable(){
+    var vc=$('viewContent'); if(!vc) return;
+    var base=visibleShipments();
+    var list=base.filter(shipFilterMatch);
+    if(shipView.sort==='eta_desc') list.sort(function(a,b){return b.sortKey-a.sortKey;});
+    else if(shipView.sort==='eta_asc') list.sort(function(a,b){return a.sortKey-b.sortKey;});
+    else if(shipView.sort==='score_desc') list.sort(function(a,b){return scoreNum(b)-scoreNum(a);});
+    else if(shipView.sort==='gap_desc') list.sort(function(a,b){return gapNum(b)-gapNum(a);});
+    var page=pageState.shipments, slice=list.slice(page*PER_PAGE,(page+1)*PER_PAGE);
+    function fp(group,val,label){ return '<span class="fpill'+(shipView[group]===val?' active':'')+'" onclick="CRM.setShipFilter(\''+group+'\',\''+val+'\')">'+label+'</span>'; }
+    function fsel(key,label,opts){
+      var cur=String(shipView[key]);
+      return '<select class="form-select flt-select" onchange="CRM.setShipFilter(\''+key+'\',this.value)">'+
+        '<option value="all"'+(cur==='all'?' selected':'')+'>'+label+': All</option>'+
+        opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(cur===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>';
+    }
+    var uniq=function(arr){ return Array.from(new Set(arr)).sort(); };
+    var clients=uniq(base.map(function(s){return s.client;}));
+    var subsBase=shipView.client==='all'?base:base.filter(function(s){return s.client===shipView.client;});
+    var subs=uniq(subsBase.map(function(s){return s.sub;}));
+    var varieties=uniq(base.reduce(function(a,s){return a.concat(s.varieties||[s.variety]);},[]));
+    var countries=uniq(base.map(function(s){return shipCountry(s);}));
+    var mk=function(v){return [v,v];};
+    var activeCount=shipActiveFilterCount();
+    var filters='<div class="filter-row">'+
+      '<span class="filter-group">'+fp('status','all','All')+fp('status','delivered','Delivered')+fp('status','in_transit','In transit')+'</span>'+
+      fsel('client','Client',clients.map(mk))+fsel('sub','Sub-client',subs.map(mk))+fsel('variety','Variety',varieties.map(mk))+fsel('country','Country',countries.map(mk))+
+      fsel('score','Score',[['1','1 · Excellent'],['2','2 · Good'],['3','3 · Fair'],['4','4 · Poor'],['5','5 · Reject'],['none','No CQC']])+
+      fsel('claim','Claim',[['yes','Claim raised'],['no','No claim']])+fsel('graded','Graded',[['yes','CRM-graded'],['no','Not graded']])+
+      (activeCount?'<span class="link-btn" onclick="CRM.resetShipFilters()">Clear filters ('+activeCount+')</span>':'')+
+      '<select class="form-select sort-select" onchange="CRM.setShipSort(this.value)">'+
+        [['eta_desc','Newest ETA'],['eta_asc','Oldest ETA'],['score_desc','Worst score first'],['gap_desc','Biggest gap first']].map(function(o){return '<option value="'+o[0]+'"'+(shipView.sort===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
+      '</select></div>';
+    var rows=slice.map(function(s){
+      return '<tr class="click" onclick="CRM.openShipDetail(\''+s.key+'\')">'+
+        '<td><span class="lot">'+esc(s.cn)+'</span>'+(s.split?' <span class="sc-split">split</span>':'')+'</td>'+
+        '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
+        '<td>'+esc(shipProduct(s))+'</td><td>'+esc(s.varieties?s.varieties.join(' / '):s.variety)+'</td>'+
+        '<td>'+esc(s.eta)+'</td><td>'+statusBadge(s.status,s.statusLabel)+'</td>'+
+        '<td>'+qualityCellLinked(s)+'</td>'+
+        '<td class="lot" style="color:'+(gapNum(s)>2?'var(--red)':'var(--text2)')+'">'+(s.cqc?s.cqc.gap:'—')+'</td>'+
+        '<td>'+(s.claim?claimBadge(s.claim):'<span class="cell-sub">—</span>')+'</td>'+
+        '<td class="right"><button class="btn '+(s.claim?'btn-secondary':'btn-primary')+' btn-sm" onclick="event.stopPropagation();CRM.openClaim(\''+s.key+'\')">'+(s.claim?'View claim':'Raise claim')+'</button></td></tr>';
+    }).join('');
+    var head='<div class="section-title"><span class="section-title-bar"></span>Shipments <span class="section-count">'+list.length.toLocaleString()+' in view · click a row for the full record</span></div>';
+    vc.innerHTML=head+filters+(list.length?'<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Client</th><th>Product</th><th>Variety</th><th>ETA</th><th>Status</th><th>Quality</th><th>Gap</th><th>Claim</th><th class="right">Action</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,page,'shipments'):'<div class="table-wrap"><div class="empty-state">No shipments match these filters.</div></div>');
+  }
+
+  /* ── Grading queue ── */
+  function renderGradingQueue(){
+    var vc=$('viewContent'); if(!vc) return;
+    var list=visibleShipments().filter(noCqc);
+    var head='<div class="section-title"><span class="section-title-bar"></span>Grading queue <span class="section-count">'+list.length+' containers without a CQC</span></div>';
+    if(!list.length){ vc.innerHTML=head+'<div class="table-wrap"><div class="empty-state">Every container in this scope has a CQC report — nothing to grade.</div></div>'; return; }
+    list.sort(function(a,b){ return (needsGrading(b)?1:0)-(needsGrading(a)?1:0) || b.sortKey-a.sortKey; });
+    var gPage=pageState.grading;
+    var rows=list.slice(gPage*PER_PAGE,(gPage+1)*PER_PAGE).map(function(s){
+      var gs=needsGrading(s)?'<span class="badge b-warn">Needs grading</span>':'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+esc(s.graded.grade)+'</span>';
+      var insp=s.insp?'<span class="ilink" title="Open export inspection" onclick="CRM.openInsp(\''+s.key+'\')">'+esc(s.insp.defect)+' · '+esc(s.insp.decision)+' ↗</span>':'—';
+      var btn='<button class="btn '+(needsGrading(s)?'btn-primary':'btn-secondary')+' btn-sm" onclick="CRM.openGrade(\''+s.key+'\')">'+(needsGrading(s)?'Grade':'Edit grade')+'</button>';
+      return '<tr><td><span class="lot">'+esc(s.cn)+'</span>'+(s.split?' <span class="sc-split">split</span>':'')+'</td>'+
+        '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
+        '<td>'+esc(s.variety)+'</td><td>'+esc(s.eta)+'</td><td class="cell-sub">'+insp+'</td><td>'+gs+'</td><td class="right">'+btn+'</td></tr>';
+    }).join('');
+    vc.innerHTML=head+'<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Client</th><th>Variety</th><th>ETA</th><th>Export insp</th><th>Grading</th><th class="right">Action</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,gPage,'grading');
+  }
+
+  /* ── Claims ── */
+  function renderClaims(){
+    var vc=$('viewContent'); if(!vc) return;
+    var list=visibleShipments().filter(hasClaim);
+    var head='<div class="section-title"><span class="section-title-bar"></span>Claims <span class="section-count">'+list.length+' containers with a claim</span></div>';
+    if(!list.length){ vc.innerHTML=head+'<div class="table-wrap"><div class="empty-state">No claims raised in this scope.</div></div>'; return; }
+    var lc={open:['b-fail','Open'],closed:['b-neutral','Closed']}, lcOrder={open:0,closed:1};
+    list.sort(function(a,b){ return lcOrder[a.claim.status]-lcOrder[b.claim.status] || b.sortKey-a.sortKey; });
+    var cPage=pageState.claims;
+    var rows=list.slice(cPage*PER_PAGE,(cPage+1)*PER_PAGE).map(function(s){
+      var m=lc[s.claim.status]||lc.open;
+      var ev=s.cqc?esc(s.cqc.id):(s.coverage==='graded'?'CRM grading':'—');
+      var valCell=s.claim.potential?'<span class="badge b-warn">potential</span>':'<span class="lot">'+esc(s.claim.value||'—')+'</span>';
+      return '<tr><td><span class="lot">'+esc(s.cn)+'</span></td>'+
+        '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
+        '<td class="right">'+valCell+'</td><td><span class="badge '+m[0]+'">'+m[1]+'</span></td>'+
+        '<td class="lot cell-sub">'+ev+'</td><td class="right"><button class="btn btn-secondary btn-sm" onclick="CRM.openClaim(\''+s.key+'\')">View</button></td></tr>';
+    }).join('');
+    vc.innerHTML=head+'<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Client</th><th class="right">Value</th><th>Status</th><th>Evidence</th><th class="right">Action</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,cPage,'claims');
+  }
+
+  /* ── Clean ── */
+  function renderClean(){
+    var vc=$('viewContent'); if(!vc) return;
+    var list=visibleShipments().filter(isClean);
+    var head='<div class="section-title"><span class="section-title-bar"></span>Clean <span class="section-count">'+list.length+' containers · no claims, no flags</span></div>';
+    if(!list.length){ vc.innerHTML=head+'<div class="table-wrap"><div class="empty-state">No clean containers — every shipment here has a claim or a flag.</div></div>'; return; }
+    list.sort(function(a,b){ return b.sortKey-a.sortKey; });
+    var clPage=pageState.clean;
+    var rows=list.slice(clPage*PER_PAGE,(clPage+1)*PER_PAGE).map(function(s){
+      var qc=s.cqc?bandBadge(s.cqc.score):(s.coverage==='graded'?'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+esc(s.graded.grade)+'</span>':'<span class="cell-sub">no quality data</span>');
+      return '<tr><td><span class="lot">'+esc(s.cn)+'</span></td>'+
+        '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
+        '<td>'+esc(s.eta)+'</td><td>'+esc(s.statusLabel)+'</td><td>'+qc+'</td><td class="right"><span class="badge b-pass">Clean</span></td></tr>';
+    }).join('');
+    vc.innerHTML=head+'<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Client</th><th>ETA</th><th>Status</th><th>Quality</th><th class="right">Bill</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,clPage,'clean');
+  }
+
+  /* ── Dashboard: region pulse + scorecards + attention cards ── */
+  function streamBox(label,bodyHtml,onclickJs){
+    var link=onclickJs?' link':'', open=onclickJs?'<span class="stream-open">open ↗</span>':'', attr=onclickJs?' onclick="'+onclickJs+'"':'';
+    return '<div class="stream-box'+link+'"'+attr+'><div class="stream-head"><div class="stream-label">'+label+'</div>'+open+'</div>'+bodyHtml+'</div>';
+  }
+  function renderScorecards(){
+    var list=visibleShipments(), groups={}, order=[];
+    list.forEach(function(s){ if(!groups[s.sub]){ groups[s.sub]={sub:s.sub,client:s.client,ships:[]}; order.push(s.sub); } groups[s.sub].ships.push(s); });
+    order.sort(function(a,b){ return groups[b].ships.length-groups[a].ships.length; });
+    var visible=showAllSubs?order:order.slice(0,8);
+    var cards=visible.map(function(k){
+      var g=groups[k], scores;
+      if(g.ships.length<=6){
+        scores='<div class="scorecard-scores">'+g.ships.map(function(s){
+          if(s.cqc) return '<span class="sc-chip '+(s.cqc.score&&s.cqc.score<=2?'good':(s.cqc.score===3?'fair':(s.cqc.score?'poor':'none')))+'" title="CQC · '+((BANDS[s.cqc.score]||{}).n||'')+'">'+(s.cqc.score||'?')+'</span>';
+          if(s.coverage==='graded') return '<span class="sc-chip graded" title="CRM-graded">'+esc(s.graded.grade)+'</span>';
+          return '<span class="sc-chip none" title="no quality data">–</span>';
+        }).join('')+'</div>';
+      } else {
+        var d={g:0,f:0,p:0,gr:0,n:0};
+        g.ships.forEach(function(s){ if(s.cqc){ if(s.cqc.score&&s.cqc.score<=2)d.g++; else if(s.cqc.score===3)d.f++; else d.p++; } else if(s.coverage==='graded')d.gr++; else d.n++; });
+        var seg=function(n,cls){ return n?'<span class="'+cls+'" style="flex:'+n+'"></span>':''; };
+        var leg=function(n,cls,label){ return n?'<i><b class="'+cls+'"></b>'+n+' '+label+'</i>':''; };
+        scores='<div><div class="dist">'+seg(d.g,'dg')+seg(d.f,'df')+seg(d.p,'dp')+seg(d.gr,'dgr')+seg(d.n,'dn')+'</div><div class="dist-legend">'+leg(d.g,'dg','good')+leg(d.f,'df','fair')+leg(d.p,'dp','poor')+leg(d.gr,'dgr','graded')+leg(d.n,'dn','no data')+'</div></div>';
+      }
+      var claims=g.ships.filter(hasClaim).length;
+      return '<div class="scorecard" onclick="CRM.openSubDrill(\''+q1(k)+'\')"><div class="scorecard-top"><div style="min-width:0"><div class="scorecard-sub">'+esc(g.sub)+'</div><div class="scorecard-client">'+esc(g.client)+'</div></div><span class="scorecard-count">'+g.ships.length.toLocaleString()+'<small> shp</small></span></div>'+scores+'<div class="scorecard-foot">'+(claims?'<span class="badge b-fail">'+claims+' claim'+(claims>1?'s':'')+'</span>':'<span class="cell-sub">no claims</span>')+'<span class="scorecard-open">view shipments →</span></div></div>';
+    }).join('');
+    var more=order.length>8?'<div class="more-subs" onclick="CRM.toggleSubs()">'+(showAllSubs?'Show top 8 only':'+ '+(order.length-8)+' more sub-clients')+'</div>':'';
+    return '<div class="section-title" style="padding-top:6px"><span class="section-title-bar"></span>Sub-client scorecards <span class="section-count">'+order.length+' sub-clients · sorted by volume</span></div><div class="scorecard-grid">'+cards+more+'</div>';
+  }
+
+  function pAvg(arr){ return arr.length?Math.round(arr.reduce(function(a,b){return a+b;},0)/arr.length*10)/10:null; }
+  function claimAmt(v){ return num(v); }
+  function sumsAdd(map,c){ if(!c.rawValue||c.potential) return; var k=curSym(c.currency); map[k]=(map[k]||0)+claimAmt(c.rawValue); }
+  function sumsFmt(map){ var ks=Object.keys(map); if(!ks.length) return '—'; return ks.map(function(k){ var v=map[k]; return k+(v>=1000?(Math.round(v/100)/10)+'k':Math.round(v)); }).join(' + '); }
+  function renderRegionPulse(){
+    var list=visibleShipments();
+    var title='Region pulse — '+(currentRegion==='all'?'all regions':(regionLabel[currentRegion]||currentRegion));
+    var head='<div class="attn-head" style="margin-top:2px"><div class="section-title" style="margin:0"><span class="section-title-bar"></span>'+title+' <span class="section-count">'+list.length.toLocaleString()+' shipments in scope</span></div><span class="link-btn" onclick="CRM.togglePulse()">'+(pulseOpen?'Hide stats':'Show stats')+'</span></div>';
+    if(!pulseOpen||!list.length) return head;
+    var cartons=0,netKg=0; list.forEach(function(s){ cartons+=s.cartons; netKg+=s.netKg; });
+    var transit=list.filter(function(s){return s.status==='in_transit';});
+    var arriving=transit.filter(function(s){return s.sortKey>=TODAY_KEY && s.sortKey<=TODAY_KEY+7;}).length;
+    var delivered=list.filter(function(s){return s.status==='delivered';}).length;
+    var claims=list.filter(hasClaim), openC=claims.filter(function(s){return s.claim.status==='open';}), closedC=claims.filter(function(s){return s.claim.status==='closed';});
+    var potC=claims.filter(function(s){return s.claim.potential;}).length;
+    var openSums={},closedSums={}; openC.forEach(function(s){sumsAdd(openSums,s.claim);}); closedC.forEach(function(s){sumsAdd(closedSums,s.claim);});
+    var cqcN=list.filter(function(s){return s.coverage==='cqc';}).length, grN=list.filter(function(s){return s.coverage==='graded';}).length;
+    var noneList=list.filter(function(s){return s.coverage==='none';}), noneDelivered=noneList.filter(function(s){return s.status==='delivered';}).length;
+    var tiles='<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'+
+      kpi('Shipments',list.length.toLocaleString(),cartons.toLocaleString()+' ctn · '+Math.round(netKg/1000).toLocaleString()+' t net')+
+      kpi('In transit',transit.length,arriving?arriving+' arriving ≤ 7 days':'none arriving this week',arriving?'up':'')+
+      kpi('Delivered',delivered,(list.length?Math.round(delivered/list.length*100):0)+'% of shipments')+
+      kpi('Claims',claims.length,openC.length+' open · '+potC+' potential',openC.length?'down':'')+
+      kpi('Graded',cqcN+grN,cqcN+' CQC · '+grN+' CRM-graded')+
+      kpi('Ungraded',noneList.length,noneDelivered?noneDelivered+' already delivered — chase CQC / grade':'all still in transit',noneDelivered?'down':'up')+'</div>';
+    var sc=[0,0,0,0,0,0],grades={A:0,B:0,C:0},gaps=[],scores=[],flags=0;
+    list.forEach(function(s){ if(s.cqc){ if(s.cqc.score) sc[s.cqc.score]++; scores.push(s.cqc.score); gaps.push(gapNum(s)); if(s.cqc.flag&&!s.claim) flags++; } else if(s.coverage==='graded' && grades[s.graded.grade]!=null) grades[s.graded.grade]++; });
+    var gradeTotal=grades.A+grades.B+grades.C, maxCol=Math.max(sc[1],sc[2],sc[3],sc[4],sc[5],gradeTotal,1);
+    function col(n,color,label){ return '<div class="pcol"><span style="height:'+Math.max(3,Math.round(n/maxCol*52))+'px;background:'+color+'"></span><i>'+label+'·'+n+'</i></div>'; }
+    var claimsPanel='<div class="pulse-panel"><div class="pp-title">Claims pipeline · 2-state</div><div class="pipe"><span class="pstep" style="background:var(--red-bg);color:var(--red)">Open<b>'+openC.length+'</b><small>'+sumsFmt(openSums)+'</small></span><span class="pstep" style="background:var(--bg2);color:var(--text2)">Closed<b>'+closedC.length+'</b><small>'+sumsFmt(closedSums)+'</small></span></div><div class="pleg"><i>'+potC+' potential (value TBD)</i><i>claim rate '+(list.length?Math.round(claims.length/list.length*1000)/10:0)+'%</i></div></div>';
+    var qualityPanel='<div class="pulse-panel"><div class="pp-title">Quality mix · CQC scores &amp; CRM grades</div><div class="pcols">'+col(sc[1],'#4a8c62','Exc')+col(sc[2],'#7db894','Good')+col(sc[3],'#e8c87a','Fair')+col(sc[4],'#c86060','Poor')+col(sc[5],'#b03030','Rej')+col(gradeTotal,'#b490e0','ABC')+'</div><div class="pleg"><i>avg score '+(pAvg(scores.filter(Boolean))||'—')+'</i><i>avg gap '+(pAvg(gaps)!==null?'+'+pAvg(gaps)+'%':'—')+'</i>'+(flags?'<i style="color:var(--red)">'+flags+' CQC flags un-actioned</i>':'')+(gradeTotal?'<i>grades '+grades.A+'A / '+grades.B+'B / '+grades.C+'C</i>':'')+'</div></div>';
+    var flowPanel='<div class="pulse-panel"><div class="pp-title">Status &amp; coverage flow</div><div class="flowbar"><span style="flex:'+transit.length+';background:#a0b4e8"></span><span style="flex:'+delivered+';background:#4a8c62"></span></div><div class="pleg" style="margin-bottom:9px"><i><b style="background:#a0b4e8"></b>'+transit.length+' in transit</i><i><b style="background:#4a8c62"></b>'+delivered+' delivered</i></div><div class="flowbar"><span style="flex:'+cqcN+';background:#4a8c62"></span><span style="flex:'+grN+';background:#b490e0"></span><span style="flex:'+noneList.length+';background:#bcb8ae"></span></div><div class="pleg"><i><b style="background:#4a8c62"></b>'+cqcN+' CQC</i><i><b style="background:#b490e0"></b>'+grN+' CRM-graded</i><i><b style="background:#bcb8ae"></b>'+noneList.length+' no data</i></div></div>';
+    function rank(rows,maxN,go){
+      return '<table class="rk">'+rows.map(function(r){
+        var chip=r.open>0?'<span class="pchip warn">'+r.open+' open</span>':(r.rate!==undefined?'<span class="pchip '+(r.rate>10?'warn':'ok')+'">'+r.rate+'% claims</span>':'<span class="pchip mut">no claims</span>');
+        return '<tr'+(go?' class="go" onclick="CRM.pulseGo(\''+go+'\',\''+q1(r.k)+'\')"':'')+'><td class="nm">'+esc(r.k)+'</td><td style="width:30%"><div class="bar"><span style="width:'+Math.round(r.n/maxN*100)+'%"></span></div></td><td class="num">'+r.n.toLocaleString()+' '+(r.unit||'shp')+'</td><td class="num">'+(r.avg!==null?'avg '+r.avg:'—')+'</td><td style="text-align:right">'+chip+'</td></tr>';
+      }).join('')+'</table>';
+    }
+    function groupStats(keyFn){
+      var g={};
+      list.forEach(function(s){ (keyFn(s)||[]).forEach(function(k){ if(!k) return; if(!g[k]) g[k]={k:k,n:0,scores:[],claims:0,open:0}; g[k].n++; if(s.cqc&&s.cqc.score) g[k].scores.push(s.cqc.score); if(s.claim){ g[k].claims++; if(s.claim.status==='open') g[k].open++; } }); });
+      return Object.keys(g).map(function(k){ var r=g[k]; r.avg=pAvg(r.scores); r.rate=Math.round(r.claims/r.n*100); return r; }).sort(function(a,b){return b.n-a.n;}).slice(0,6);
+    }
+    var byClient=groupStats(function(s){return [s.client];});
+    var byVariety=groupStats(function(s){return s.varieties||[s.variety];});
+    var maxC=byClient.length?byClient[0].n:1, maxV=byVariety.length?byVariety[0].n:1;
+    var breakdowns='<div class="pulse-panels"><div class="pulse-panel"><div class="pp-title">By client · click → filtered list</div>'+rank(byClient,maxC,'client')+'</div><div class="pulse-panel"><div class="pp-title">By variety · click → filtered list</div>'+rank(byVariety,maxV,'variety')+'</div></div>';
+    var compare='';
+    if(currentRegion==='all'){
+      var rg={};
+      list.forEach(function(s){ if(!rg[s.region]) rg[s.region]={n:0,t:0,d:0,open:0,cov:0,scores:[],claims:0}; var r=rg[s.region]; r.n++; if(s.status==='in_transit')r.t++; else r.d++; if(s.coverage!=='none')r.cov++; if(s.cqc&&s.cqc.score)r.scores.push(s.cqc.score); if(s.claim){ r.claims++; if(s.claim.status==='open')r.open++; } });
+      var rrows=Object.keys(rg).sort().map(function(id){ var r=rg[id]; return '<tr class="go" onclick="CRM.setRegion(\''+id+'\')"><td class="nm">'+esc(regionLabel[id]||id)+'</td><td class="num">'+r.n+'</td><td class="num">'+r.t+'</td><td class="num">'+r.d+'</td><td class="num" style="color:'+(r.open?'var(--red)':'var(--text2)')+'">'+r.open+'</td><td class="num">'+Math.round(r.cov/r.n*100)+'%</td><td class="num">'+(pAvg(r.scores)||'—')+'</td><td class="num">'+(Math.round(r.claims/r.n*1000)/10)+'%</td></tr>'; }).join('');
+      compare='<div class="pulse-panel" style="margin-bottom:16px"><div class="pp-title">All-regions comparison · click a region to focus</div><table class="rk"><tr style="font-weight:700;color:var(--text3)"><td>Region</td><td class="num">Shp</td><td class="num">Transit</td><td class="num">Delivered</td><td class="num">Open claims</td><td class="num">Coverage</td><td class="num">Avg score</td><td class="num">Claim rate</td></tr>'+rrows+'</table></div>';
+    }
+    return head+tiles+'<div class="pulse-panels">'+claimsPanel+qualityPanel+flowPanel+'</div>'+breakdowns+compare;
+  }
+
+  function renderCards(){
+    var vc=$('viewContent'); if(!vc) return;
+    var list=visibleShipments();
+    var att=list.map(function(s){ var a=attentionInfo(s); return a?{s:s,a:a}:null; }).filter(Boolean).sort(function(x,y){ return y.a.p-x.a.p; });
+    var cards=att.slice(0,6).map(function(x){return x.s;}).map(function(s){
+      var attn=s.claim&&s.claim.status==='open'?' attn':'';
+      var inspLine=s.insp?'<div class="stream-line"><span class="mono">'+esc(s.insp.id)+'</span> · '+esc(s.insp.defect)+' defect · '+esc(s.insp.decision)+'</div>':'<div class="stream-empty">no matched inspection</div>';
+      var cqcLine;
+      if(s.cqc){ cqcLine='<div class="stream-line" style="margin-bottom:5px">'+bandBadge(s.cqc.score)+'</div><div class="stream-line"><span class="mono">'+esc(s.cqc.id)+'</span> · '+esc(s.cqc.defect)+' defect · gap '+esc(s.cqc.gap)+'</div>'; }
+      else if(s.coverage==='graded'){ cqcLine='<div class="stream-line"><span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+esc(s.graded.grade)+'</span></div><div class="stream-line" style="margin-top:5px">Cause: '+esc(s.graded.cause)+'</div>'; }
+      else { cqcLine='<div class="stream-empty">no CQC received</div>'; }
+      var actions=(s.coverage==='none'||s.coverage==='graded')?'<button class="btn btn-secondary btn-sm" onclick="CRM.openGrade(\''+s.key+'\')">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>':'';
+      actions+='<button class="btn btn-primary btn-sm" onclick="CRM.openClaim(\''+s.key+'\')">'+(s.claim?'View claim':'Raise claim')+'</button>';
+      return '<div class="ship-card'+attn+'"><div class="sc-head"><div class="sc-head-top"><div><span class="sc-container clickable" onclick="CRM.openShipDetail(\''+s.key+'\')">'+esc(s.cn)+'</span>'+(s.split?'<span class="sc-split">split carta</span>':'')+'<div class="sc-meta">'+esc(s.vessel)+' · ETA '+esc(s.eta)+' · '+esc(s.port)+'</div></div><span class="region-chip">'+esc(regionLabel[s.region]||s.region)+'</span></div><div class="sc-client">'+esc(s.client)+' <span class="sub">· '+esc(s.sub)+' · '+esc(s.varieties?s.varieties.join(' / '):s.variety)+' · '+s.cartons.toLocaleString()+' ctn'+(s.rowCount>1?' · '+s.rowCount+' rows':'')+'</span></div></div><div class="sc-body"><div class="sc-status">'+statusBadge(s.status,s.statusLabel)+claimBadge(s.claim)+'</div><div class="stream">'+streamBox('Export inspection',inspLine,s.insp?"CRM.openInsp('"+s.key+"')":null)+streamBox('Client QC on arrival',cqcLine,s.cqc?"CRM.openCqc('"+s.key+"')":null)+'</div></div><div class="sc-foot">'+coverageBadge(s)+'<div class="sc-actions">'+actions+'</div></div></div>';
+    }).join('');
+    var head='<div class="attn-head"><div class="section-title" style="margin:0"><span class="section-title-bar"></span>Needs attention <span class="section-count">'+att.length.toLocaleString()+' of '+list.length.toLocaleString()+' shipments</span></div><span class="link-btn" onclick="CRM.setTab(\'shipments\')">All shipments ('+list.length.toLocaleString()+') →</span></div>';
+    var body=att.length?'<div class="card-grid">'+cards+'</div>'+(att.length>6?'<div class="hint" style="text-align:center;margin-top:10px">Showing the top 6 — open claims first, then CQC flags, then coverage gaps. The rest live in the Shipments tab.</div>':''):'<div class="table-wrap"><div class="empty-state">Nothing needs attention — open claims, CQC flags and delivered-without-quality-data land here.</div></div>';
+    vc.innerHTML=renderRegionPulse()+renderScorecards()+head+body;
+  }
+
+  /* ── Region mapping admin panel (writes region_overrides live) ── */
+  function regionOptions(cur,includeUnassigned){
+    return REGIONS.filter(function(r){ return r.id!=='all' && (includeUnassigned||r.id!=='unassigned'); }).map(function(r){ return '<option value="'+r.id+'"'+(cur===r.id?' selected':'')+'>'+esc(r.label)+'</option>'; }).join('');
+  }
+  function renderRegionMapping(){
+    var vc=$('viewContent'); if(!vc) return;
+    var counts={}; SHIPMENTS.forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
+    var head='<div class="section-title" style="margin-top:2px"><span class="section-title-bar"></span>Region mapping <span class="section-count">seeded from Regions 2026 · overwrite assignments here</span></div>';
+    var cards='<div class="scorecard-grid" style="margin-bottom:16px">'+REGIONS.filter(function(r){return r.id!=='all';}).map(function(r){
+      return '<div class="scorecard" style="cursor:default"><div class="scorecard-top"><div><div class="scorecard-sub">'+esc(r.label)+'</div><div class="scorecard-client">'+(r.owner?'Owner · '+esc(r.owner):(r.id==='unassigned'?'needs a rule':''))+'</div></div><span class="scorecard-count">'+(counts[r.id]||0).toLocaleString()+'<small> shp</small></span></div></div>';
+    }).join('')+'</div>';
+    var clientKeys=Object.keys(REGION_OVERRIDES.client);
+    var allClients=Array.from(new Set(SHIPMENTS.map(function(s){return s.client;}))).sort();
+    var clientRows=clientKeys.length?clientKeys.map(function(c){
+      return '<tr><td class="nm">'+esc(c)+'</td><td class="cell-sub">override</td><td class="right"><select class="scope-dd" onchange="CRM.setClientOverride(\''+q1(c)+'\',this.value)">'+regionOptions(REGION_OVERRIDES.client[c])+'<option value="__none">✕ remove rule</option></select></td></tr>';
+    }).join(''):'<tr><td class="cell-sub" colspan="3">No client overrides yet.</td></tr>';
+    var addClient='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add client rule:</span><select class="scope-dd" id="ovClient"><option value="">Client…</option>'+allClients.map(function(c){return '<option>'+esc(c)+'</option>';}).join('')+'</select><select class="scope-dd" id="ovClientRegion">'+regionOptions('ne')+'</select><button class="btn btn-secondary btn-sm" onclick="CRM.addClientOverrideFromForm()">Add</button></div>';
+    var clientPanel='<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Client overrides · win over country defaults</div><table class="rk"><tbody>'+clientRows+'</tbody></table>'+addClient+'</div>';
+    var allCountries=Object.keys(COUNTRY_REGION).concat(Object.keys(COUNTRY_OVERLAP)); allCountries.sort();
+    var used={}; SHIPMENTS.forEach(function(s){ var k=(s.country||'').toLowerCase(); if(k) used[k]=(used[k]||0)+1; });
+    var rows=allCountries.map(function(k){
+      var overlap=COUNTRY_OVERLAP[k], eff=REGION_OVERRIDES.country[k]||COUNTRY_REGION[k]||null;
+      var name=k.replace(/\b\w/g,function(m){return m.toUpperCase();});
+      var flag=overlap&&!REGION_OVERRIDES.country[k]?'<span class="pchip warn">⚠ needs rule · '+overlap.map(function(x){return esc(regionLabel[x]||x);}).join(' / ')+'</span>':(REGION_OVERRIDES.country[k]?'<span class="pchip ok">override</span>':'<span class="pchip mut">default</span>');
+      var sel='<select class="scope-dd" onchange="CRM.setCountryOverride(\''+q1(k)+'\',this.value)">'+(overlap&&!eff?'<option value="__def" selected>— pick region —</option>':'')+regionOptions(eff)+(REGION_OVERRIDES.country[k]?'<option value="__def">↺ back to file default</option>':'')+'</select>';
+      return '<tr><td class="nm">'+esc(name)+'</td><td class="cell-sub">'+(used[k]?used[k]+' shp':'—')+'</td><td>'+flag+'</td><td class="right">'+sel+'</td></tr>';
+    }).join('');
+    var countryPanel='<div class="pulse-panel"><div class="pp-title">Country → region · '+Object.keys(COUNTRY_REGION).length+' mapped · '+Object.keys(COUNTRY_OVERLAP).length+' overlaps need a rule</div><div style="max-height:360px;overflow:auto"><table class="rk"><tbody>'+rows+'</tbody></table></div></div>';
+    vc.innerHTML=head+cards+clientPanel+countryPanel;
+  }
+
+  function renderContent(){
+    if(currentTab==='regions' && !(IS_ADMIN&&currentRegion==='all')) currentTab='dashboard';
+    if(currentTab==='dashboard') return renderCards();
+    if(currentTab==='shipments') return renderShipmentsTable();
+    if(currentTab==='grading')   return renderGradingQueue();
+    if(currentTab==='claims')    return renderClaims();
+    if(currentTab==='clean')     return renderClean();
+    if(currentTab==='regions')   return renderRegionMapping();
+  }
+  function render(){ if(!MOUNTED) return; renderRegions(); renderProducts(); renderKpis(); renderTabs(); renderContent(); }
+
+  /* ── drawer (deep-link stand-ins → real summary data) ── */
+  function showDlv(title,html){ $('dlvTitle').textContent=title; $('dlvBody').innerHTML=html; $('dlv').classList.add('open'); }
+  function closeDlv(){ var d=$('dlv'); if(d) d.classList.remove('open'); }
+  function kpiStrip(items){ return '<div class="kpi-grid" style="margin-bottom:14px">'+items.map(function(x){ return '<div class="kpi"><div class="kpi-label">'+x[0]+'</div><div class="kpi-value" style="font-size:22px">'+x[1]+'</div>'+(x[2]?'<div class="kpi-sub">'+x[2]+'</div>':'')+'</div>'; }).join('')+'</div>'; }
+  function openInsp(k){
+    var s=shipByKey(k); if(!s||!s.insp) return;
+    var dec='<span class="badge '+(s.insp.decision==='Approved'?'b-pass':'b-warn')+'">'+esc(s.insp.decision)+'</span>';
+    var html='<div class="standin"><b>Open in module</b> Full export inspection lives in the Inspections module — this is the CRM summary. Inspection <span class="mono">'+esc(s.insp.id)+'</span>.</div>'+
+      '<div class="dlv-head"><div><div class="dlv-id">'+esc(s.insp.id)+'</div><div class="dlv-meta">'+esc(s.cn)+' · '+esc(s.client)+' · '+esc(s.variety)+' · '+s.cartons.toLocaleString()+' ctn</div></div>'+dec+'</div>'+
+      kpiStrip([['Total defect',esc(s.insp.defect),'pallet-weighted'],['Decision',esc(s.insp.decision),''],['Cartons',s.cartons.toLocaleString(),''],['Pallets',(s.pallets||'—').toLocaleString(),'']]);
+    showDlv('Inspection',html);
+  }
+  function openCqc(k){
+    var s=shipByKey(k); if(!s||!s.cqc) return;
+    var sc=bandBadge(s.cqc.score,'raw score: "'+s.cqc.scoreRaw+'"');
+    var html='<div class="standin"><b>Open in module</b> Full Client QC report lives in the Client QC module — this is the CRM summary. Report <span class="mono">'+esc(s.cqc.id)+'</span>.</div>'+
+      '<div class="dlv-head"><div><div class="dlv-id">'+esc(s.cqc.id)+'</div><div class="dlv-meta">'+esc(s.cn)+' · '+esc(s.client)+' · '+esc(s.sub)+' · '+esc(s.variety)+'</div></div>'+sc+'</div>'+
+      kpiStrip([['Total defect',esc(s.cqc.defect),''],['Gap vs export',esc(s.cqc.gap),'arrival − loading'],['Max temp',(s.cqc.maxTemp!=null?s.cqc.maxTemp+'°C':'—'),''],['Claim flag',s.cqc.flag?'Yes':'No','']]);
+    showDlv('Client QC',html);
+  }
+
+  /* ── shipment detail drawer (with live composition rows) ── */
+  function dCell(kk,v,mono){ return '<div class="detail-cell"><div class="detail-k">'+kk+'</div><div class="detail-v'+(mono?' mono':'')+'">'+(v==null||v===''?'—':esc(v))+'</div></div>'; }
+  function dSec(title,cells){ return '<div class="section-title" style="margin-top:14px"><span class="section-title-bar"></span>'+title+'</div><div class="detail-grid">'+cells+'</div>'; }
+  function renderShipDetail(s){
+    var citrus=shipProduct(s)==='Citrus';
+    var head='<div class="dlv-head"><div><div class="dlv-id">'+esc(s.cn)+'</div><div class="dlv-meta">'+esc(s.client)+' · '+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></div>'+statusBadge(s.status,s.statusLabel)+'</div>';
+    var lock='<div class="scope-lock">🔒 Full shipment record, shown inside CRM and scoped to your region.</div>';
+    var actions='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="CRM.closeDlv();CRM.openClaim(\''+s.key+'\')">'+(s.claim?'View claim':'Raise claim')+'</button>'+
+      (s.coverage!=='cqc'?'<button class="btn btn-secondary btn-sm" onclick="CRM.closeDlv();CRM.openGrade(\''+s.key+'\')">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>':'')+
+      (s.insp?'<button class="btn btn-secondary btn-sm" onclick="CRM.openInsp(\''+s.key+'\')">Export inspection ↗</button>':'')+
+      (s.cqc?'<button class="btn btn-secondary btn-sm" onclick="CRM.openCqc(\''+s.key+'\')">CQC report ↗</button>':'')+'</div>';
+    var voyage=dSec('Voyage & logistics',dCell('Vessel',s.vessel)+dCell('Shipping line',s.shippingLine)+dCell('Booking no',s.booking,true)+dCell('Invoice no',s.invoice,true)+dCell('Departure port',s.departurePort)+dCell('Receiving port',s.port)+dCell('Receiving country',shipCountry(s))+dCell('Product',shipProduct(s))+dCell('ETD',s.etd)+dCell('ETA',s.eta)+dCell('Arrival',s.arrival)+dCell('Shipping status',s.statusLabel));
+    var commercial=dSec('Commercial',dCell('Client',s.client)+dCell('Sub-client',s.sub)+dCell('Shipper',s.shipper||'Daltex Corp')+dCell('Forwarding agent',s.agent)+dCell('Carta',s.split?s.cartaCount+' (split)':'1',true)+dCell('Region',regionLabel[s.region]||s.region));
+    var product=dSec('Product',dCell('Variety',s.varieties?s.varieties.join(' / '):s.variety)+dCell('Daltex class',s.dclass)+dCell('Brand',s.brand)+dCell('Size',s.size)+dCell('Traceability code',s.trace,true)+dCell('Farm source',s.farmSource));
+    var comp='';
+    if(s.rows&&s.rows.length){
+      var rowsHtml=s.rows.map(function(r){ return '<tr><td>'+esc(r.variety)+'</td><td>'+esc(r.mix)+'</td><td class="lot cell-sub">'+esc(r.farm)+'</td><td>'+esc(r.ph)+'</td><td>'+esc(r.ctype)+'</td><td class="lot right">'+num(r.cartons).toLocaleString()+'</td><td class="lot right">'+num(r.netKg).toLocaleString()+'</td></tr>'; }).join('');
+      comp='<div class="section-title" style="margin-top:14px"><span class="section-title-bar"></span>Container composition <span class="section-count">'+s.rows.length+' row'+(s.rows.length>1?'s':'')+'</span></div><div class="table-wrap"><table class="wl"><thead><tr><th>Variety</th><th>'+(citrus?'Size':'Single / Mixed')+'</th><th>Farm</th><th>Packhouse</th><th>Carton type</th><th class="right">Cartons</th><th class="right">Net kg</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div><div class="hint">A new row is created whenever packhouse, farm, variety, '+(citrus?'size':'single/mixed')+', carton type, container # or loading date changes.</div>';
+    } else { comp='<div class="hint" style="margin-top:14px">Loading composition rows…</div>'; }
+    var qty=dSec('Quantities · totals across '+(s.rowCount||1)+' row'+((s.rowCount||1)>1?'s':''),dCell('Cartons',s.cartons.toLocaleString(),true)+dCell('Pallets',(s.pallets||'—').toLocaleString(),true)+dCell('Net weight',s.netKg.toLocaleString()+' kg',true)+dCell('Gross weight',(s.grossKg||0).toLocaleString()+' kg',true));
+    return head+lock+actions+comp+voyage+commercial+product+qty;
+  }
+  function openShipDetail(k){
+    var s=shipByKey(k); if(!s) return;
+    showDlv('Shipment',renderShipDetail(s));
+    ensureRows(s).then(function(){ if($('dlv').classList.contains('open')) $('dlvBody').innerHTML=renderShipDetail(s); });
+  }
+  function openSubDrill(sub){
+    var list=visibleShipments().filter(function(s){return s.sub===sub;});
+    list.sort(function(a,b){return b.sortKey-a.sortKey;});
+    var client=list[0]?list[0].client:'', total=list.length, capped=total>80; if(capped) list=list.slice(0,80);
+    var rows=list.map(function(s){
+      var qc=s.cqc?'<span class="qlink" title="Open CQC report" onclick="CRM.openCqc(\''+s.key+'\')">'+bandBadge(s.cqc.score)+'</span>':(s.coverage==='graded'?'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+esc(s.graded.grade)+'</span>':'<span class="cell-sub">no data</span>');
+      var cl=s.claim?claimBadge(s.claim):'<span class="cell-sub">—</span>';
+      return '<tr><td><span class="lot">'+esc(s.cn)+'</span></td><td class="lot cell-sub">'+esc(shipInvoice(s))+'</td><td>'+esc(s.varieties?s.varieties.join(' / '):s.variety)+'</td><td>'+esc(s.eta)+'</td><td>'+qc+'</td><td>'+cl+'</td></tr>';
+    }).join('');
+    var html='<div class="dlv-head"><div><div class="dlv-id" style="font-family:var(--font-body);font-size:18px">'+esc(sub)+'</div><div class="dlv-meta">'+esc(client)+' · '+total.toLocaleString()+' shipments</div></div></div><div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Invoice #</th><th>Variety</th><th>ETA</th><th>CQC</th><th>Claim</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(capped?'<div class="hint" style="margin-top:8px">Showing the latest 80 — search or the Shipments tab for the rest.</div>':'');
+    showDlv(sub,html);
+  }
+
+  /* ── composition rows: lazy fetch from crm_shipment_rows ── */
+  function ensureRows(s){
+    if(s.rows) return Promise.resolve(s.rows);
+    return SB.from('crm_shipment_rows').select('variety,variety_type,farm_source,pack_house,carton_type,carton_count,net_weight').eq('season_id',SEASON).eq('container_key',s.key).then(function(res){
+      var data=(res&&res.data)||[];
+      s.rows=data.map(function(r){ return {variety:r.variety||'—', mix:r.variety_type||'Single', farm:r.farm_source||'—', ph:r.pack_house||'—', ctype:r.carton_type||'—', cartons:num(r.carton_count), netKg:num(r.net_weight)}; });
+      return s.rows;
+    }).catch(function(){ s.rows=[]; return s.rows; });
+  }
+
+  /* ── Claim modal ── */
+  var claimCtx=null, claimLifecycle='open', claimScope='whole';
+  function buildWholeSum(s){ var vars=s.varieties||[s.variety]; var vtxt=vars.length>1?'all varieties ('+vars.join(', ')+')':vars[0]; return '<span class="ev-check">✓</span><span>Covers the <b>whole container</b> — '+esc(vtxt)+' · '+s.cartons.toLocaleString()+' ctn</span>'; }
+  function buildPartFields(s){
+    var citrus=shipProduct(s)==='Citrus';
+    var rowsHtml=(s.rows||[]).map(function(r){ return '<label class="row-opt"><input type="checkbox" data-ctn="'+num(r.cartons)+'" data-kg="'+num(r.netKg)+'" onchange="CRM.rowSelChanged()"/><span class="row-opt-main"><b>'+esc(r.variety)+'</b> · '+esc(r.mix)+' · <span class="mono">'+esc(r.farm)+'</span> · '+esc(r.ph)+' · '+esc(r.ctype)+'</span><span class="row-opt-qty">'+num(r.cartons).toLocaleString()+' ctn · '+num(r.netKg).toLocaleString()+' kg</span></label>'; }).join('');
+    if(!rowsHtml) rowsHtml='<div class="cell-sub">No composition rows on file for this container.</div>';
+    var totalNet=s.netKg||0, pctEnabled=totalNet>0;
+    var pctInput=pctEnabled?'<input class="form-input mono" id="partNetPct" inputmode="decimal" placeholder="optional" oninput="CRM.syncNet(\'pct\')"/>':'<input class="form-input mono" id="partNetPct" placeholder="net weight not on file" disabled/>';
+    return '<div style="margin-bottom:10px"><label class="form-label">Sub-client</label><div class="ctx-val">'+esc(s.sub)+'<span class="ctx-tag">from shipment</span></div></div>'+
+      '<div style="margin-bottom:10px"><label class="form-label">Affected rows</label><div class="row-sel" id="rowSel">'+rowsHtml+'</div><div class="hint">Tick the composition row(s) the claim is about — pins it to variety'+(citrus?', size':'')+', farm and packhouse. Quantities below prefill from the selection (editable).</div></div>'+
+      '<div class="grid2" style="margin-bottom:10px"><div><label class="form-label">Cartons affected</label><input class="form-input mono" id="partCartons" inputmode="numeric" placeholder="optional"/></div><div><label class="form-label">Pallets affected</label><input class="form-input mono" inputmode="numeric" placeholder="optional"/></div></div>'+
+      '<div class="grid2" id="netWrap" data-total="'+totalNet+'"><div><label class="form-label">Net weight impacted (kg)</label><input class="form-input mono" id="partNetKg" inputmode="decimal" placeholder="optional" oninput="CRM.syncNet(\'kg\')"/></div><div><label class="form-label">% of net weight</label>'+pctInput+'</div></div>'+
+      '<div class="hint">All part-of-load fields optional.'+(pctEnabled?' Shipment net weight <b>'+totalNet.toLocaleString()+' kg</b> — weight and % update each other.':' Net weight not recorded — enter kg directly.')+'</div>';
+  }
+  function buildClaimAudit(s){
+    var owner=regionOwner[s.region]||'CRM';
+    var items=[];
+    if(s.claim){
+      items.push({m:'<b>Raised</b> — claim on file',w:s.claimRefRaw?esc(s.claimRefRaw):''});
+      if(s.claim.potential) items.push({m:'Flagged as <b>potential</b> — value to be confirmed',w:''});
+      if(s.claim.status==='closed') items.push({m:'<b>Closed</b> · owner '+esc(owner),w:''});
+    } else {
+      items.push({m:'New claim — this will be the first entry.',w:''});
+    }
+    return items.map(function(it){ return '<div class="audit-item"><span class="audit-dot"></span><span class="audit-main">'+it.m+'</span><span class="audit-when">'+it.w+'</span></div>'; }).join('');
+  }
+  function setLifecycle(lc){
+    claimLifecycle=lc;
+    [].forEach.call(ROOT.querySelectorAll('#claimLifecycle .lc-step'),function(el){ el.className='lc-step'+(el.getAttribute('data-lc')===lc?' sel-'+lc:''); });
+    var closing=$('closingFields'); if(closing) closing.style.display=lc==='closed'?'block':'none';
+    var closedOn=$('claimClosedOn'); if(closedOn) closedOn.textContent=lc==='closed'?'today':'—';
+  }
+  function setScope(sc){
+    claimScope=sc;
+    $('scopeWhole').className='pill'+(sc==='whole'?' sel':'');
+    $('scopePart').className='pill'+(sc==='part'?' sel':'');
+    $('partFields').className='part-fields'+(sc==='part'?' show':'');
+    $('wholeSum').className='scope-sum'+(sc==='whole'?' show':'');
+  }
+  function togglePotential(){
+    var on=$('potFlag').checked, v=$('claimValue'), c=$('claimCurrency');
+    v.disabled=on; c.disabled=on;
+    if(on){ v.value=''; v.placeholder='to be confirmed'; } else { v.placeholder='what the client is claiming'; }
+    $('valueRow').style.opacity=on?'.5':'1';
+  }
+  function rowSelChanged(){
+    var boxes=ROOT.querySelectorAll('#rowSel input:checked'), ctn=0, kg=0;
+    [].forEach.call(boxes,function(b){ ctn+=Number(b.getAttribute('data-ctn'))||0; kg+=Number(b.getAttribute('data-kg'))||0; });
+    var c=$('partCartons'), k=$('partNetKg');
+    if(boxes.length){ c.value=ctn; k.value=kg; } else { c.value=''; k.value=''; }
+    syncNet('kg');
+  }
+  function syncNet(from){
+    var wrap=$('netWrap'); if(!wrap) return;
+    var total=parseFloat(wrap.getAttribute('data-total'))||0; if(!total) return;
+    var kg=$('partNetKg'), pctEl=$('partNetPct');
+    if(from==='kg'){ var v=parseFloat(kg.value); pctEl.value=(kg.value===''||isNaN(v))?'':(Math.round(v/total*1000)/10); }
+    else { var p=parseFloat(pctEl.value); kg.value=(pctEl.value===''||isNaN(p))?'':Math.round(total*p/100); }
+  }
+  function openClaim(k){
+    var s=shipByKey(k); claimCtx=s; if(!s) return;
+    var existing=s.claim;
+    $('claimSub').textContent=(s.claimRefRaw||'New claim')+' · '+s.cn+' · '+s.client;
+    $('claimRaised').textContent=existing?'on file':'today';
+    $('claimAudit').innerHTML=buildClaimAudit(s);
+    $('wholeSum').innerHTML=buildWholeSum(s);
+    ensureRows(s).then(function(){ if($('partBody')) $('partBody').innerHTML=buildPartFields(s); });
+    $('partBody').innerHTML=buildPartFields(s);
+    setScope('whole');
+    var pf=$('potFlag'); if(pf){ pf.checked=!!(existing&&existing.potential); togglePotential(); }
+    var cv=$('claimValue'); if(cv&&!(existing&&existing.potential)) cv.value=existing&&existing.rawValue!=null?String(existing.rawValue):'';
+    var cc=$('claimCurrency'); if(cc&&existing&&existing.currency) cc.value=existing.currency;
+    setLifecycle(existing?existing.rawStatus:'open');
+    var bl=$('blNumber'); if(bl){ bl.value=''; bl.style.borderColor=''; $('blHint').style.display='none'; }
+    // CQC evidence line
+    var evEl=$('claimEvidence');
+    if(evEl){
+      if(s.cqc) evEl.innerHTML='<div class="ev-cqc"><span class="ev-check">✓</span><span class="ev-main"><span class="ev-code">'+esc(s.cqc.id)+'</span> <span class="ev-desc">— '+esc(s.cqc.scoreLabel)+' · '+esc(s.cqc.defect)+' defect'+(s.cqc.gap!=='—'?' · gap '+esc(s.cqc.gap):'')+'</span></span></div>';
+      else evEl.innerHTML='<div class="ev-cqc-empty">No CQC report on file — attach client evidence below or grade the container.</div>';
+    }
+    var refEl=$('claimRef'); if(refEl) refEl.innerHTML=s.insp?'<span class="ev-ref-label">Reference</span><span class="ev-code">'+esc(s.insp.id)+'</span><span class="ev-desc">Export inspection · '+esc(s.insp.defect)+' · '+esc(s.insp.decision)+'</span>':'';
+    $('claimModal').classList.add('open');
+  }
+  function cancelClaim(){
+    if(!claimCtx||!claimCtx.claimId){ closeModal('claimModal'); toast('Nothing to cancel — claim not yet saved.'); return; }
+    SB.from('crm_claims').update({status:'cancelled'}).eq('id',claimCtx.claimId).then(function(res){
+      closeModal('claimModal');
+      if(res&&res.error){ toast('Cancel failed — '+esc(res.error.message)); return; }
+      toast('Claim <b>cancelled</b> — kept in history as Cancelled.');
+      reload();
+    });
+  }
+  function saveClaim(){
+    var s=claimCtx; if(!s){ closeModal('claimModal'); return; }
+    var bl=$('blNumber');
+    if(!bl.value.trim()){ bl.style.borderColor='var(--red)'; $('blHint').style.display='block'; bl.focus(); return; }
+    var potential=$('potFlag').checked;
+    var valRaw=$('claimValue').value.replace(/[^0-9.]/g,'');
+    var payload={
+      season_id:SEASON, product_id:(s.product||'').toLowerCase()||null, container_number:s.cn,
+      voyage_key:s.key, client:s.client==='—'?null:s.client, sub_client:s.sub==='—'?null:s.sub,
+      country:s.country||null, bl_number:bl.value.trim(),
+      scope:claimScope, status:claimLifecycle, potential:potential,
+      reason:$('claimReason')?$('claimReason').value:null,
+      claimed_value:potential||!valRaw?null:Number(valRaw), claimed_currency:$('claimCurrency').value,
+      claimant_name:$('claimClaimant')?($('claimClaimant').value||null):null,
+      claimant_email:$('claimClaimantEmail')?($('claimClaimantEmail').value||null):null,
+      client_ref:$('claimClientRef')?($('claimClientRef').value||null):null,
+      cqc_report_id:s.cqcId||null, response_deadline:($('claimDeadline')&&$('claimDeadline').value)?$('claimDeadline').value:null, notes:$('claimNotes')?($('claimNotes').value||null):null,
+      created_by:USER&&USER.id||null
+    };
+    if(claimLifecycle==='closed'){ payload.resolution_type=$('claimResolution')?$('claimResolution').value:null; var sv=$('settledValue')?$('settledValue').value.replace(/[^0-9.]/g,''):''; payload.settled_value=sv?Number(sv):null; payload.settled_currency=$('claimCurrency').value; payload.closed_at=new Date().toISOString(); payload.closed_by=USER&&USER.id||null; }
+    var btn=$('claimSaveBtn'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+    var pr = s.claimId ? SB.from('crm_claims').update(payload).eq('id',s.claimId).select('id,claim_ref') : SB.from('crm_claims').insert(payload).select('id,claim_ref');
+    pr.then(function(res){
+      if(btn){ btn.disabled=false; btn.textContent='Save claim'; }
+      if(res&&res.error){ toast('Save failed — '+esc(res.error.message)); return; }
+      var row=(res&&res.data&&res.data[0])||{};
+      var cid=row.id||s.claimId;
+      // audit event
+      if(cid) SB.from('crm_claim_events').insert({claim_id:cid, event:s.claimId?'updated':'raised', detail:'BL '+payload.bl_number+(claimLifecycle==='closed'?' · closed':''), actor:USER&&USER.id||null}).then(function(){});
+      closeModal('claimModal');
+      toast('Claim saved · <b>'+esc(row.claim_ref||payload.bl_number)+'</b>');
+      reload();
+    });
+  }
+
+  /* ── Grade modal ── */
+  var gradeCtx=null, gradeSel='B';
+  function setGrade(g){ gradeSel=g; [].forEach.call(ROOT.querySelectorAll('#gradeModal .grade-pill'),function(el){ el.className='grade-pill'+(el.textContent.trim()===g?' sel':''); }); }
+  function openGrade(k){
+    var s=shipByKey(k); gradeCtx=s; if(!s) return;
+    $('gradeSub').textContent=(s.gradingId?'Edit grade':'New grade')+' · '+s.cn+' · '+s.client;
+    $('gradeCtx').innerHTML='<span class="mono">'+esc(s.cn)+'</span> · '+esc(s.varieties?s.varieties.join(' / '):s.variety)+' · '+esc(shipCountry(s))+' · '+esc(regionLabel[s.region]||s.region)+' · '+s.cartons.toLocaleString()+' ctn';
+    var g=s.graded && s.graded.grade!=='—'?s.graded:null;
+    $('gradeAudit').innerHTML=g?'<div class="audit-item"><span class="audit-dot"></span><span class="audit-main"><b>Graded '+esc(g.grade)+'</b> · '+esc(g.cause)+'</span><span class="audit-when"></span></div>':'<div class="audit-item"><span class="audit-dot" style="background:var(--border2)"></span><span class="audit-main cell-sub">Not graded yet — this will be the first entry.</span></div>';
+    setGrade(g?g.grade:'B');
+    if($('gradeCause')&&g&&g.cause&&g.cause!=='—') $('gradeCause').value=g.cause;
+    if($('gradeComments')) $('gradeComments').value='';
+    $('gradeModal').classList.add('open');
+  }
+  function saveGrade(){
+    var s=gradeCtx; if(!s){ closeModal('gradeModal'); return; }
+    var payload={ season_id:SEASON, product_id:(s.product||'').toLowerCase()||null, container_number:s.cn, voyage_key:s.key,
+      client:s.client==='—'?null:s.client, country:s.country||null, grade:gradeSel,
+      cause:$('gradeCause')?$('gradeCause').value:null, comments:$('gradeComments')?($('gradeComments').value||null):null,
+      graded_by:USER&&USER.id||null };
+    var btn=$('gradeSaveBtn'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+    var pr = s.gradingId ? SB.from('crm_gradings').update(payload).eq('id',s.gradingId).select('id,grade_ref') : SB.from('crm_gradings').insert(payload).select('id,grade_ref');
+    pr.then(function(res){
+      if(btn){ btn.disabled=false; btn.textContent='Save grading'; }
+      if(res&&res.error){ toast('Save failed — '+esc(res.error.message)); return; }
+      var row=(res&&res.data&&res.data[0])||{};
+      closeModal('gradeModal');
+      toast('Grading saved · <b>'+esc(row.grade_ref||('Grade '+gradeSel))+'</b>');
+      reload();
+    });
+  }
+  function closeModal(id){ var m=$(id); if(m) m.classList.remove('open'); }
+
+  /* ── region override writes ── */
+  function reloadOverridesAndVoyages(){ return loadOverrides().then(loadVoyages).then(render); }
+  function setCountryOverride(country,region){
+    var k=country.toLowerCase();
+    var op = region==='__def' ? SB.from('region_overrides').delete().eq('scope','country').eq('key',k)
+      : SB.from('region_overrides').upsert({scope:'country',key:k,region_id:region,set_by:USER&&USER.id||null},{onConflict:'scope,key'});
+    op.then(function(res){ if(res&&res.error){ toast('Override failed — '+esc(res.error.message)); return; } toast('Country rule updated.'); reloadOverridesAndVoyages(); });
+  }
+  function setClientOverride(client,region){
+    var op = region==='__none' ? SB.from('region_overrides').delete().eq('scope','client').eq('key',client)
+      : SB.from('region_overrides').upsert({scope:'client',key:client,region_id:region,set_by:USER&&USER.id||null},{onConflict:'scope,key'});
+    op.then(function(res){ if(res&&res.error){ toast('Override failed — '+esc(res.error.message)); return; } toast('Client rule updated.'); reloadOverridesAndVoyages(); });
+  }
+  function addClientOverrideFromForm(){ var c=$('ovClient').value; if(c) setClientOverride(c,$('ovClientRegion').value); }
+
+  /* ── setters ── */
+  function setTab(id){ currentTab=id; resetPages(); render(); }
+  function setRegion(id){ currentRegion=id; resetPages(); showAllSubs=false; render(); }
+  function setProduct(p){ currentProduct=p; resetPages(); showAllSubs=false; render(); }
+  function onSearch(v){ currentQuery=(v||'').trim(); var w=$('crmSearchWrap'); if(w) w.classList.toggle('has-q',!!currentQuery); resetPages(); render(); }
+  function clearSearch(){ var el=$('crmSearch'); if(el) el.value=''; onSearch(''); }
+  function setShipFilter(k,v){ shipView[k]=v; if(k==='client') shipView.sub='all'; pageState.shipments=0; render(); }
+  function resetShipFilters(){ SHIP_FILTER_KEYS.forEach(function(k){ shipView[k]='all'; }); pageState.shipments=0; render(); }
+  function setShipSort(v){ shipView.sort=v; pageState.shipments=0; render(); }
+  function setPage(k,p){ pageState[k]=p; render(); var t=$('viewTabs'); if(t) t.scrollIntoView({block:'nearest'}); }
+  function toggleSubs(){ showAllSubs=!showAllSubs; render(); }
+  function togglePulse(){ pulseOpen=!pulseOpen; render(); }
+  function pulseGo(k,v){ currentTab='shipments'; SHIP_FILTER_KEYS.forEach(function(x){ shipView[x]='all'; }); shipView[k]=v; resetPages(); render(); }
+
+  /* ── data loading ── */
+  function loadRegions(){
+    return SB.from('regions').select('id,label,owner,is_bucket').then(function(res){
+      var db=(res&&res.data)||[];
+      db.sort(function(a,b){ if(a.is_bucket!==b.is_bucket) return a.is_bucket?1:-1; return (a.label||'').localeCompare(b.label||''); });
+      REGIONS=[{id:'all',label:'All regions',admin:true}].concat(db.map(function(r){ return {id:r.id,label:r.label,owner:r.owner,admin:!!r.is_bucket}; }));
+      regionLabel={}; regionOwner={};
+      REGIONS.forEach(function(r){ regionLabel[r.id]=r.label; if(r.owner) regionOwner[r.id]=r.owner; });
+    });
+  }
+  function loadCountryMap(){
+    return SB.from('region_country_map').select('country_lc,region_id').then(function(res){
+      COUNTRY_REGION={}; ((res&&res.data)||[]).forEach(function(r){ COUNTRY_REGION[r.country_lc]=r.region_id; });
+    });
+  }
+  function loadOverrides(){
+    return SB.from('region_overrides').select('scope,key,region_id').then(function(res){
+      REGION_OVERRIDES={country:{},client:{},shipment:{}};
+      ((res&&res.data)||[]).forEach(function(r){ if(REGION_OVERRIDES[r.scope]) REGION_OVERRIDES[r.scope][r.key]=r.region_id; });
+    });
+  }
+  function loadVoyages(){
+    var out=[];
+    function page(from){
+      return SB.from('crm_voyages').select('*').eq('season_id',SEASON).order('eta',{ascending:false,nullsFirst:false}).range(from,from+999).then(function(res){
+        if(res&&res.error) throw res.error;
+        var data=(res&&res.data)||[];
+        out=out.concat(data);
+        if(data.length===1000) return page(from+1000);
+        SHIPMENTS=out.map(mapVoyage);
+      });
+    }
+    return page(0);
+  }
+
+  /* ── template + listeners ── */
+  function template(){ return ''
+    +'<div class="crm-header" style="display:flex;justify-content:center;padding:12px 16px 0"><div class="tabs2" id="viewTabs"></div></div>'
+    +'<div class="subbar"><div class="subbar-inner">'
+    +'<div class="crm-search crm-search-input" id="crmSearchWrap"><span class="crm-search-ic">🔍</span>'
+    +'<input id="crmSearch" oninput="CRM.onSearch(this.value)" placeholder="Search client, sub-client, container #, invoice #, variety, product, country or port…"/>'
+    +'<span class="crm-search-clear" onclick="CRM.clearSearch()">&times;</span></div>'
+    +'<span id="regionSel"></span><span id="productSel"></span></div></div>'
+    +'<div class="page"><div class="page-inner">'
+    +'<div class="region-note" style="margin:0 0 10px">Regions from <b>Regions 2026</b> · members are locked to their region (admins see all). Region resolves per shipment: shipment override → client override → country default → Unassigned.'+(IS_ADMIN?' <span class="link-btn" onclick="CRM.setTab(\'regions\')">Manage region mapping →</span>':'')+'</div>'
+    +'<div class="kpi-grid" id="kpiGrid"></div><div id="viewContent"><div class="empty-state">Loading…</div></div>'
+    +'</div></div>'
+    +'<div class="toast" id="crmToast"></div>'
+    +'<div class="dlv" id="dlv"><div class="dlv-panel"><div class="dlv-top"><span class="dlv-title" id="dlvTitle">Record</span><span class="dlv-x" onclick="CRM.closeDlv()">&times;</span></div><div class="dlv-body"><div class="dlv-inner" id="dlvBody"></div></div></div></div>'
+    +claimModalHtml()
+    +gradeModalHtml();
+  }
+  function claimModalHtml(){ return ''
+    +'<div class="modal-bg" id="claimModal"><div class="modal"><div class="modal-head"><span class="modal-x" onclick="CRM.closeModal(\'claimModal\')">&times;</span><div class="modal-title">Raise a claim</div><div class="modal-sub" id="claimSub">—</div></div><div class="modal-body">'
+    +'<div class="msec" style="border-top:none;padding-top:0;margin-top:0">Status</div><div class="form-row" style="margin-bottom:10px"><label class="form-label">Lifecycle</label><div class="lifecycle" id="claimLifecycle"><div class="lc-step sel-open" data-lc="open" onclick="CRM.setLifecycle(\'open\')"><span class="lc-n">Active</span>Open</div><span class="lc-arrow">→</span><div class="lc-step" data-lc="closed" onclick="CRM.setLifecycle(\'closed\')"><span class="lc-n">Done</span>Closed</div></div></div>'
+    +'<div class="grid3" style="margin-bottom:10px"><div><label class="form-label">Raised</label><div class="ctx-val" id="claimRaised">—</div></div><div><label class="form-label">Response deadline</label><input class="form-input" type="date" id="claimDeadline"/></div><div><label class="form-label">Closed</label><div class="ctx-val" id="claimClosedOn">—</div></div></div>'
+    +'<div class="closing-block" id="closingFields" style="display:none"><div class="grid2"><div><label class="form-label">Resolution type</label><select class="form-select" id="claimResolution"><option>Credit note</option><option>Replacement shipment</option><option>Price adjustment</option><option>Goodwill gesture</option><option>Insurance claim</option><option>Rejected — no fault</option></select></div><div><label class="form-label">Settled value</label><input class="form-input mono" id="settledValue" inputmode="decimal" placeholder="agreed amount"/></div></div></div>'
+    +'<div class="msec">Claim details</div><div class="form-row" style="margin-bottom:10px"><label class="form-label">B/L number <span style="color:var(--red)">*</span></label><input class="form-input mono" id="blNumber" placeholder="e.g. MAEU236451078"/><div class="hint" id="blHint" style="display:none;color:var(--red)">B/L number is required to save a claim.</div></div>'
+    +'<div class="grid2" style="margin-bottom:10px"><div><label class="form-label">Reason</label><select class="form-select" id="claimReason"><option>Decay / rot on arrival</option><option>Temperature abuse in transit</option><option>Soft / overripe berries</option><option>Shatter / loose berries</option><option>Short weight</option><option>Wrong variety / spec</option><option>Late arrival / missed market</option><option>Documentation</option><option>Other</option></select></div><div><label class="form-label">Client\'s claim ref <span style="text-transform:none;font-weight:400;color:var(--text3)">(optional)</span></label><input class="form-input mono" id="claimClientRef" placeholder="their reference #"/></div></div>'
+    +'<div class="grid2" style="margin-bottom:0"><div><label class="form-label">Claimant</label><input class="form-input" id="claimClaimant" placeholder="contact name"/></div><div><label class="form-label">Claimant email</label><input class="form-input" id="claimClaimantEmail" type="email" placeholder="name@client.com"/></div></div>'
+    +'<div class="msec">Value</div><label class="chk" style="margin-bottom:9px"><input type="checkbox" id="potFlag" onchange="CRM.togglePotential()"/><span>Potential claim — flag now, value to be confirmed</span></label><div class="grid3" id="valueRow"><div style="grid-column:span 2"><label class="form-label">Claimed value</label><input class="form-input mono" id="claimValue" inputmode="decimal" placeholder="what the client is claiming"/></div><div><label class="form-label">Currency</label><select class="form-select" id="claimCurrency"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option></select></div></div>'
+    +'<div class="msec">Scope</div><div class="pill-row"><span class="pill sel" id="scopeWhole" onclick="CRM.setScope(\'whole\')">Whole container</span><span class="pill" id="scopePart" onclick="CRM.setScope(\'part\')">Part of load</span></div><div class="scope-sum show" id="wholeSum"></div><div class="part-fields" id="partFields"><div id="partBody"></div></div>'
+    +'<div class="msec">Quality evidence &amp; attachments</div><div id="claimEvidence"></div>'
+    +'<label class="dropzone" id="dropzone"><input type="file" id="evFile" accept=".pdf,image/*" multiple style="display:none"/><div class="dz-ic">⬆</div><div class="dz-text"><b>Drop a file</b> or <span class="dz-browse">browse</span></div><div class="dz-sub">PDF, image or screenshot — client email, arrival photos, rejection note</div></label><div class="ev-files" id="evFiles"></div>'
+    +'<div class="ev-ref" id="claimRef"></div><div class="hint">The CQC report is the quality evidence; the export inspection is reference only.</div>'
+    +'<div class="msec">Notes</div><textarea class="form-ta" id="claimNotes" style="height:60px;resize:vertical" placeholder="Client rejected 2 pallets on arrival; decay concentrated in stems…"></textarea>'
+    +'<div class="msec">History</div><div class="audit" id="claimAudit"></div>'
+    +'</div><div class="modal-foot" style="justify-content:space-between"><span class="link-btn" style="color:var(--red)" title="Removes a claim opened in error — kept in history as Cancelled" onclick="CRM.cancelClaim()">Cancel claim</span><span style="display:flex;gap:8px"><button class="btn btn-secondary" onclick="CRM.closeModal(\'claimModal\')">Close</button><button class="btn btn-primary" id="claimSaveBtn" onclick="CRM.saveClaim()">Save claim</button></span></div></div></div>';
+  }
+  function gradeModalHtml(){ return ''
+    +'<div class="modal-bg" id="gradeModal"><div class="modal"><div class="modal-head"><span class="modal-x" onclick="CRM.closeModal(\'gradeModal\')">&times;</span><div class="modal-title">CRM grading</div><div class="modal-sub" id="gradeSub">—</div></div><div class="modal-body">'
+    +'<div class="badge b-neutral" style="margin-bottom:12px">No CQC on file — record a quick CRM grade as the quality read</div><div class="ctx-val" id="gradeCtx" style="margin-bottom:14px;font-size:12px">—</div>'
+    +'<div class="form-row"><label class="form-label">Grade</label><div class="pill-row" style="margin-bottom:0"><span class="grade-pill" onclick="CRM.setGrade(\'A\')">A</span><span class="grade-pill sel" onclick="CRM.setGrade(\'B\')">B</span><span class="grade-pill" onclick="CRM.setGrade(\'C\')">C</span></div></div>'
+    +'<div class="form-row"><label class="form-label">Cause of grade</label><select class="form-select" id="gradeCause"><option>Field / pre-harvest</option><option selected>Cold chain / transit</option><option>Packing</option><option>Overripe at loading</option><option>Undetermined</option></select></div>'
+    +'<div class="form-row"><label class="form-label">Comments</label><textarea class="form-ta" id="gradeComments" style="height:72px;resize:vertical" placeholder="Container arrived without a CQC report; graded from photos + client feedback…"></textarea></div>'
+    +'<div class="msec">History</div><div class="audit" id="gradeAudit"></div>'
+    +'</div><div class="modal-foot"><button class="btn btn-secondary" onclick="CRM.closeModal(\'gradeModal\')">Cancel</button><button class="btn btn-primary" id="gradeSaveBtn" onclick="CRM.saveGrade()">Save grading</button></div></div></div>';
+  }
+
+  function attachListeners(){
+    var d=$('dlv'); if(d) d.addEventListener('click',function(e){ if(e.target===d) closeDlv(); });
+    [].forEach.call(ROOT.querySelectorAll('.modal-bg'),function(m){ m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('open'); }); });
+  }
+
+  /* ── lifecycle ── */
+  function reload(){ return loadVoyages().then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
+  function init(opts){
+    SB=opts.supabase; SEASON=opts.seasonId; IS_ADMIN=!!opts.isAdmin; USER=opts.currentUser||null; ROOT=opts.root; MOUNTED=true;
+    currentTab='dashboard'; currentRegion='all'; currentProduct='all'; currentQuery=''; showAllSubs=false; pulseOpen=true; resetPages();
+    ROOT.innerHTML=template();
+    attachListeners();
+    Promise.all([loadRegions(),loadCountryMap(),loadOverrides()]).then(loadVoyages).then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; });
+  }
+  function setSeason(seasonId){ SEASON=seasonId; if(MOUNTED) reload(); }
+  function teardown(){ MOUNTED=false; ROOT=null; }
+
+  return {
+    init:init, setSeason:setSeason, teardown:teardown, reload:reload,
+    setTab:setTab, setRegion:setRegion, setProduct:setProduct, onSearch:onSearch, clearSearch:clearSearch,
+    setShipFilter:setShipFilter, resetShipFilters:resetShipFilters, setShipSort:setShipSort, setPage:setPage,
+    toggleSubs:toggleSubs, togglePulse:togglePulse, pulseGo:pulseGo, openSubDrill:openSubDrill,
+    openShipDetail:openShipDetail, openInsp:openInsp, openCqc:openCqc, closeDlv:closeDlv,
+    openClaim:openClaim, openGrade:openGrade, closeModal:closeModal, saveClaim:saveClaim, saveGrade:saveGrade, cancelClaim:cancelClaim,
+    setLifecycle:setLifecycle, setGrade:setGrade, setScope:setScope, togglePotential:togglePotential, syncNet:syncNet, rowSelChanged:rowSelChanged,
+    setCountryOverride:setCountryOverride, setClientOverride:setClientOverride, addClientOverrideFromForm:addClientOverrideFromForm
+  };
+})();
+/* ── CRM island CSS (scoped to .crmv) — injected once ── */
+function injectCrmCss(){
+  if(document.getElementById('crm-island-styles')) return;
+  var st=document.createElement('style'); st.id='crm-island-styles';
+  st.textContent=`
+.crmv{
+  --bg:#f0ede6;--bg2:#e8e4da;--bg3:#ddd8cc;
+  --sidebar:#1e2d22;--sidebar2:#263529;
+  --sidebar-text:#c8d4c0;--sidebar-muted:#6a8068;
+  --accent:#2b5c3f;--accent2:#4a8c62;
+  --amber:#b87820;--amber-bg:#fdf3e0;--amber-border:#e8c87a;
+  --red:#b03030;--red-bg:#faeaea;--red-border:#e8a0a0;
+  --green:#1e6b3a;--green-bg:#e8f5ec;--green-border:#8ecba4;
+  --text:#1a1a17;--text2:#4a4840;--text3:#7a7668;
+  --border:#d0cbbe;--border2:#bcb8ae;--card:#ffffff;
+  --font-display:'DM Serif Display',serif;
+  --font-body:'Instrument Sans',sans-serif;
+  --font-mono:'DM Mono',monospace;
+  --r:8px;--r2:12px;
+  --sidebar-w:218px;
+}
+.crmv *{box-sizing:border-box;margin:0;padding:0}
+.crmv{font-family:var(--font-body);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+.crmv .app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Sidebar ── */
+.crmv .sidebar{width:var(--sidebar-w);background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;padding:16px 0}
+.crmv .logo{padding:0 18px 16px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:12px}
+.crmv .logo-name{font-family:var(--font-display);font-size:19px;color:#fff;line-height:1}
+.crmv .logo-crop{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--sidebar-muted);margin-top:5px;display:flex;align-items:center;gap:6px}
+.crmv .crop-dot{width:6px;height:6px;border-radius:50%;background:#7b4bd6}
+/* season switcher — matches Vision's sidebar pattern (index.html ~L15973) */
+.crmv .season-box{margin-top:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:6px 10px}
+.crmv .season-box-lbl{font-size:9px;color:var(--sidebar-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px}
+.crmv .season-box select{font-size:12px;font-weight:700;color:#fff;background:transparent;border:none;outline:none;cursor:pointer;font-family:var(--font-body);padding:0;width:100%}
+.crmv .season-box select option{color:var(--text)}
+.crmv .nav-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--sidebar-muted);padding:12px 18px 5px;font-weight:600}
+.crmv .nav-item{display:flex;align-items:center;gap:9px;padding:8px 18px;font-size:13px;color:var(--sidebar-text);cursor:pointer;transition:.15s}
+.crmv .nav-item svg{width:14px;height:14px;opacity:.65;flex-shrink:0}
+.crmv .nav-item:hover{background:var(--sidebar2)}
+.crmv .nav-item.active{background:var(--accent);color:#fff;font-weight:500}
+.crmv .nav-item.active svg{opacity:1}
+.crmv .nav-spacer{margin-top:auto}
+
+/* ── Main ── */
+.crmv .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.crmv .topbar{height:50px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;gap:12px}
+.crmv .topbar-title{font-family:var(--font-display);font-size:17px}
+.crmv .topbar-right{display:flex;align-items:center;gap:12px}
+.crmv .staging-badge{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#ff6b35 0%,#f7c948 100%);color:#fff;padding:5px 14px 5px 10px;border-radius:20px;box-shadow:0 3px 14px rgba(255,107,53,.45);font-size:10px;font-family:'Courier New',monospace;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
+.crmv .staging-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.9);display:inline-block;flex-shrink:0;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+.crmv .avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+
+.crmv .page{flex:1;overflow-y:auto;padding:0 16px 40px}
+.crmv .page-inner{max-width:1180px;margin:0 auto}
+
+/* ── Region switcher ── */
+/* ── Unified segmented bars: scope bars (Region/Product) + page tabs share one family ── */
+.crmv .region-bar{display:flex;align-items:center;gap:8px;margin:14px 0 10px;flex-wrap:wrap}
+.crmv .region-switch{display:inline-flex;align-items:center;gap:2px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:3px}
+.crmv .seg-lbl{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:0 7px 0 9px;user-select:none}
+.crmv .region-btn{padding:5px 11px;border-radius:7px;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border:1px solid transparent;white-space:nowrap;transition:.15s}
+.crmv .region-btn:hover{color:var(--text2)}
+.crmv .region-btn.active{background:var(--card);color:var(--accent);border-color:var(--border);font-weight:600}
+.crmv .region-btn .rcount{font-family:var(--font-mono);font-size:10px;opacity:.7;margin-left:5px}
+.crmv .region-note{font-size:11px;color:var(--text3);font-style:italic}
+.crmv .season-sel{width:auto !important;padding:7px 10px !important;font-size:12px !important;border-radius:9px !important;font-weight:500}
+.crmv .crm-search{position:relative}
+.crmv .crm-search-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.crmv .crm-search-input{position:relative;flex:1;min-width:220px}
+.crmv .crm-search-input input{width:100%;padding:9px 32px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:13px;color:var(--text);font-family:var(--font-body);outline:none}
+.crmv .crm-search-input input:focus{border-color:var(--accent)}
+.crmv .crm-search-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.55}
+.crmv .crm-search-clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text3);font-size:17px;line-height:1;display:none}
+.crmv .crm-search.has-q .crm-search-clear{display:block}
+.crmv .crm-search.has-q .crm-search-clear:hover{color:var(--text)}
+.crmv .scope-dd{padding:8px 10px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:12px;font-weight:500;color:var(--text2);font-family:var(--font-body);outline:none;cursor:pointer;max-width:240px}
+.crmv .scope-dd:focus{border-color:var(--accent)}
+
+/* ── KPIs ── */
+.crmv .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.crmv .kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:12px 14px}
+.crmv .kpi-label{font-size:11px;color:var(--text3);margin-bottom:4px}
+.crmv .kpi-value{font-family:var(--font-display);font-size:26px;line-height:1}
+.crmv .kpi-sub{font-size:11px;margin-top:4px;color:var(--text3)}
+.crmv .kpi-sub.down{color:var(--red)}
+.crmv .kpi-sub.up{color:var(--green)}
+
+/* ── Section title ── */
+.crmv .section-title{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);margin:6px 0 10px}
+.crmv .section-title-bar{width:20px;height:2px;background:var(--accent);border-radius:2px}
+.crmv .section-count{font-family:var(--font-mono);color:var(--text3);font-weight:400;letter-spacing:0}
+
+/* ── Shipment cards ── */
+.crmv .card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.crmv .ship-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;display:flex;flex-direction:column;transition:.15s}
+.crmv .ship-card.attn{border-color:var(--red-border)}
+.crmv .sc-head{padding:12px 14px 10px;border-bottom:1px solid var(--border)}
+.crmv .sc-head-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+.crmv .sc-container{font-family:var(--font-mono);font-size:14px;font-weight:500;color:var(--text)}
+.crmv .sc-split{font-family:var(--font-body);font-size:10px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-border);padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:1px}
+.crmv .sc-meta{font-size:12px;color:var(--text3)}
+.crmv .sc-client{font-size:13px;color:var(--text);font-weight:500;margin-top:2px}
+.crmv .sc-client .sub{color:var(--text3);font-weight:400}
+.crmv .region-chip{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px;background:var(--bg2);color:var(--text2);border:1px solid var(--border);white-space:nowrap}
+
+.crmv .sc-body{padding:10px 14px;display:flex;flex-direction:column;gap:9px;flex:1}
+.crmv .sc-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.crmv .sc-update{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px}
+.crmv .dot-sep{color:var(--border2)}
+
+.crmv .stream{display:flex;gap:8px}
+.crmv .stream-box{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;min-width:0}
+.crmv .stream-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:4px}
+.crmv .stream-line{font-size:12px;color:var(--text2)}
+.crmv .stream-line .mono{font-family:var(--font-mono);color:var(--text)}
+.crmv .stream-empty{font-size:11px;color:var(--text3);font-style:italic}
+.crmv .stream-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px}
+.crmv .stream-head .stream-label{margin-bottom:0}
+.crmv .stream-open{font-size:9px;color:var(--accent);font-weight:600;white-space:nowrap;opacity:0;transition:.15s}
+.crmv .stream-box.link{cursor:pointer}
+.crmv .stream-box.link:hover{border-color:var(--accent);background:var(--green-bg)}
+.crmv .stream-box.link:hover .stream-open{opacity:1}
+.crmv .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--sidebar);color:#fff;padding:9px 14px;border-radius:8px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.28);z-index:80;display:none;align-items:center;gap:8px;max-width:90%}
+.crmv .toast.show{display:flex}
+.crmv .toast b{font-family:var(--font-mono);font-weight:500}
+/* deep-link stand-in — right-side popup panel (matches Shipments detail) */
+.crmv .dlv{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:none;justify-content:flex-end}
+.crmv .dlv.open{display:flex}
+.crmv .dlv-panel{width:560px;max-width:94vw;height:100%;background:var(--bg);box-shadow:-4px 0 22px rgba(0,0,0,.20);display:flex;flex-direction:column;animation:dlvIn .24s cubic-bezier(.32,.72,0,1)}
+@keyframes dlvIn{from{transform:translateX(36px);opacity:.5}to{transform:translateX(0);opacity:1}}
+.crmv .dlv-top{height:50px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;flex-shrink:0}
+.crmv .dlv-title{font-family:var(--font-display);font-size:17px}
+.crmv .dlv-x{cursor:pointer;color:var(--text3);font-size:22px;line-height:1;padding:2px 4px}
+.crmv .dlv-x:hover{color:var(--text)}
+.crmv .dlv-body{flex:1;overflow-y:auto;padding:16px}
+.crmv .dlv-inner{max-width:none}
+.crmv .dlv .kpi-grid{grid-template-columns:repeat(2,1fr)}
+.crmv .dlv table.wl{min-width:0}
+.crmv .standin{background:var(--bg2);border:1px dashed var(--border2);color:var(--text2);font-size:12px;padding:9px 13px;border-radius:8px;margin-bottom:14px;display:flex;gap:8px;align-items:center;line-height:1.4}
+.crmv .standin b{color:var(--text);text-transform:uppercase;letter-spacing:.05em;font-size:10px;background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);padding:2px 7px;border-radius:20px;flex-shrink:0}
+.crmv .dlv-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.crmv .dlv-id{font-family:var(--font-mono);font-size:16px;font-weight:500;color:var(--text)}
+.crmv .dlv-meta{font-size:13px;color:var(--text3);margin-top:3px}
+.crmv .photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.crmv .photo{width:96px;height:72px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px}
+
+.crmv .sc-foot{padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg)}
+.crmv .coverage{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;border:1px solid}
+.crmv .cov-cqc{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.crmv .cov-graded{background:#f0e8ff;color:#6a10b0;border-color:#c090e0}
+.crmv .cov-none{background:var(--bg2);color:var(--text3);border-color:var(--border2)}
+.crmv .cov-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.crmv .sc-actions{display:flex;gap:6px}
+
+/* ── Badges ── */
+.crmv .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;border:1px solid}
+.crmv .b-pass{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.crmv .b-warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+.crmv .b-fail{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.crmv .b-neutral{background:var(--bg2);color:var(--text2);border-color:var(--border)}
+.crmv .b-hold{background:#fff3e0;color:#b06010;border-color:#e8c090}
+.crmv .b-esc{background:#e8eeff;color:#2a50c0;border-color:#a0b4e8}
+.crmv .mono{font-family:var(--font-mono)}
+
+/* ── Buttons ── */
+.crmv .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;white-space:nowrap;background:var(--card);color:var(--text2);transition:.15s;font-family:var(--font-body)}
+.crmv .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.crmv .btn-primary:hover{background:var(--accent2)}
+.crmv .btn-secondary{border-color:var(--border2);color:var(--text2)}
+.crmv .btn-secondary:hover{background:var(--bg2)}
+.crmv .btn-sm{padding:4px 10px;font-size:12px}
+
+/* ── Modal / forms ── */
+.crmv .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:none;align-items:center;justify-content:center;padding:16px}
+.crmv .modal-bg.open{display:flex}
+.crmv .modal{background:var(--card);border-radius:14px;max-width:520px;width:100%;max-height:92vh;overflow-y:auto}
+.crmv .modal-head{padding:16px 20px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);z-index:2}
+.crmv .modal-title{font-family:var(--font-display);font-size:19px}
+.crmv .modal-sub{font-family:var(--font-mono);font-size:12px;color:var(--text3);margin-top:3px}
+.crmv .modal-body{padding:16px 20px}
+.crmv .modal-foot{padding:12px 20px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card)}
+.crmv .modal-x{float:right;cursor:pointer;color:var(--text3);font-size:20px;line-height:1;padding:2px 4px;margin:-2px -4px 0 0}
+.crmv .modal-x:hover{color:var(--text)}
+
+.crmv .form-label{display:block;font-size:10px;text-transform:uppercase;font-weight:600;letter-spacing:.05em;color:var(--text3);margin-bottom:5px}
+.crmv .form-input,.crmv .form-select,.crmv .form-ta{width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--card);outline:none;font-size:14px;color:var(--text);font-family:var(--font-body)}
+.crmv .form-input:focus,.crmv .form-select:focus,.crmv .form-ta:focus{border-color:var(--accent)}
+.crmv .form-input.mono{font-family:var(--font-mono)}
+.crmv .form-row{margin-bottom:14px}
+.crmv .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.crmv .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* lifecycle segmented */
+.crmv .lifecycle{display:flex;gap:4px;margin-bottom:4px}
+.crmv .lc-step{flex:1;text-align:center;padding:8px 6px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3);position:relative}
+.crmv .lc-step .lc-n{display:block;font-size:9px;letter-spacing:.06em;text-transform:uppercase;opacity:.7;margin-bottom:2px}
+.crmv .lc-step.sel-open{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+.crmv .lc-step.sel-ack{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
+.crmv .lc-step.sel-settled{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.crmv .lc-step.sel-rejected{background:var(--bg2);border-color:var(--border2);color:var(--text2)}
+.crmv .lc-step.sel-closed{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.crmv .lc-arrow{align-self:center;color:var(--border2);font-size:12px}
+
+/* scope pills */
+.crmv .pill{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3)}
+.crmv .pill.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+.crmv .pill-row{display:flex;gap:6px;margin-bottom:12px}
+.crmv .grade-pill{padding:6px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text3)}
+.crmv .grade-pill.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+.crmv .part-fields{display:none}
+.crmv .part-fields.show{display:block}
+.crmv .ctx-val{padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);min-height:37px;display:flex;align-items:center;gap:6px}
+/* claim: composition-row picker */
+.crmv .row-sel{display:flex;flex-direction:column;gap:5px}
+.crmv .row-opt{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--border2);border-radius:7px;cursor:pointer;font-size:12px;background:var(--card)}
+.crmv .row-opt:has(input:checked){border-color:var(--accent);background:var(--green-bg)}
+.crmv .row-opt input{width:14px;height:14px;accent-color:var(--accent);margin:0;flex-shrink:0;cursor:pointer}
+.crmv .row-opt-main{flex:1;min-width:0;color:var(--text2);line-height:1.45}
+.crmv .row-opt-main b{color:var(--text);font-weight:600}
+.crmv .row-opt-main .mono{font-family:var(--font-mono)}
+.crmv .row-opt-qty{font-family:var(--font-mono);font-size:11px;color:var(--text3);white-space:nowrap}
+.crmv .ctx-tag{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);background:var(--card);border:1px solid var(--border);padding:1px 6px;border-radius:20px;margin-left:auto;white-space:nowrap}
+.crmv .scope-sum{display:none;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--green-border);background:var(--green-bg);border-radius:7px;font-size:12px;color:var(--text2);line-height:1.4}
+.crmv .scope-sum.show{display:flex}
+.crmv .scope-sum .ev-check{width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.crmv .scope-sum b{color:var(--text)}
+.crmv .chk{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);cursor:pointer;user-select:none}
+.crmv .chk input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0}
+/* claim modal: section headers + closing block + audit trail */
+.crmv .msec{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin:15px 0 9px;padding-top:13px;border-top:1px solid var(--border)}
+.crmv .closing-block{border:1px solid var(--green-border);background:var(--green-bg);border-radius:8px;padding:11px;margin-bottom:10px}
+.crmv .closing-block .form-label{color:var(--green)}
+.crmv .audit{display:flex;flex-direction:column}
+.crmv .audit-item{display:flex;gap:9px;padding:5px 0;font-size:12px;align-items:flex-start}
+.crmv .audit-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:4px;flex-shrink:0;position:relative}
+.crmv .audit-item:not(:last-child) .audit-dot:after{content:'';position:absolute;left:3px;top:8px;width:2px;height:100%;background:var(--border)}
+.crmv .audit-main{color:var(--text2);flex:1}
+.crmv .audit-main b{color:var(--text);font-weight:600}
+.crmv .audit-when{color:var(--text3);font-size:11px;white-space:nowrap;font-family:var(--font-mono)}
+
+/* evidence link */
+.crmv .evidence{display:flex;flex-direction:column;gap:6px}
+.crmv .ev-opt{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--border2);border-radius:7px;cursor:pointer;font-size:12px}
+.crmv .ev-opt.sel{border-color:var(--accent);background:var(--green-bg)}
+.crmv .ev-opt .ev-radio{width:15px;height:15px;border-radius:50%;border:2px solid var(--border2);flex-shrink:0}
+.crmv .ev-opt.sel .ev-radio{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 2px #fff}
+.crmv .ev-opt .ev-main{flex:1}
+.crmv .ev-opt .ev-code{font-family:var(--font-mono);color:var(--text);font-size:12px}
+.crmv .ev-opt .ev-desc{color:var(--text3);font-size:11px}
+.crmv .ev-link{color:var(--accent);font-size:11px;text-decoration:underline;cursor:pointer;white-space:nowrap}
+.crmv .ev-code{font-family:var(--font-mono);color:var(--text);font-size:12px}
+.crmv .ev-desc{color:var(--text3);font-size:11px}
+/* linked CQC (the evidence) */
+.crmv .ev-cqc{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--green-border);background:var(--green-bg);border-radius:7px;font-size:12px}
+.crmv .ev-cqc .ev-check{width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.crmv .ev-cqc .ev-main{flex:1;min-width:0}
+.crmv .ev-cqc-empty{display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px dashed var(--border2);border-radius:7px;font-size:12px;color:var(--text3)}
+/* upload dropzone */
+.crmv .dropzone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;padding:16px 12px;margin-top:8px;border:1.5px dashed var(--border2);border-radius:8px;cursor:pointer;transition:.15s;background:var(--bg)}
+.crmv .dropzone:hover,.crmv .dropzone.drag{border-color:var(--accent);background:var(--green-bg)}
+.crmv .dz-ic{font-size:18px;color:var(--text3);line-height:1}
+.crmv .dz-text{font-size:12px;color:var(--text2)}
+.crmv .dz-text b{color:var(--text);font-weight:600}
+.crmv .dz-browse{color:var(--accent);text-decoration:underline}
+.crmv .dz-sub{font-size:10px;color:var(--text3)}
+.crmv .ev-files{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.crmv .ev-file{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--card)}
+.crmv .ev-file .ev-fic{color:var(--accent)}
+.crmv .ev-file .ev-fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
+.crmv .ev-file .ev-fsize{color:var(--text3);font-size:10px;font-family:var(--font-mono)}
+.crmv .ev-file .ev-fx{cursor:pointer;color:var(--text3);font-size:14px}
+.crmv .ev-file .ev-fx:hover{color:var(--red)}
+/* reference (accessible, not evidence) */
+.crmv .ev-ref{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:9px;border-top:1px solid var(--border);font-size:11px}
+.crmv .ev-ref-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+
+/* defect grid (grading form) */
+.crmv .defect-hdr{display:grid;grid-template-columns:1fr 90px;gap:8px;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600;padding:0 2px 6px}
+.crmv .defect-row{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;padding:3px 0}
+.crmv .defect-row label{font-size:13px;color:var(--text2)}
+.crmv .defect-row .form-input{padding:6px 8px;font-family:var(--font-mono);font-size:12px;text-align:right}
+.crmv .defect-total{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;background:var(--bg2);border-radius:6px;padding:8px;margin-top:6px}
+.crmv .defect-total label{font-size:12px;font-weight:600;color:var(--text)}
+.crmv .defect-total .val{font-family:var(--font-mono);font-size:14px;font-weight:600;text-align:right;padding-right:8px}
+
+.crmv .hint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.4}
+.crmv .divider{height:1px;background:var(--border);margin:16px 0}
+
+/* ── Option 2B: tabs live IN the topbar as centered segments; red badges = actual work ── */
+.crmv .tabs2{display:inline-flex;gap:1px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:2px;margin:0 auto;flex-wrap:nowrap}
+.crmv .tab2{position:relative;padding:5px 13px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--text3);cursor:pointer;white-space:nowrap;transition:.15s;border:1px solid transparent}
+.crmv .tab2:hover{color:var(--text);background:var(--card)}
+.crmv .tab2.on{background:var(--accent);color:#fff;box-shadow:0 1px 6px rgba(43,92,63,.3)}
+.crmv .ndot{position:absolute;top:-6px;right:-5px;background:var(--red);color:#fff;font-size:8.5px;font-weight:700;font-family:var(--font-mono);border-radius:9px;padding:1px 5px;line-height:1.4;border:2px solid var(--bg)}
+/* slim second row fused under the topbar: search + scopes, always visible */
+.crmv .subbar{background:var(--bg);border-bottom:1px solid var(--border);padding:7px 16px;flex-shrink:0;box-shadow:0 5px 7px -6px rgba(0,0,0,.1)}
+.crmv .subbar-inner{max-width:1180px;margin:0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+@media(max-width:900px){.crmv .tabs2{overflow-x:auto;max-width:52vw}}
+@media(max-width:767px){.crmv .tab2{padding:4px 9px;font-size:11px}.crmv .topbar-title{display:none}}
+
+/* ── Tables (worklists) ── */
+.crmv .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow-x:auto}
+.crmv table.wl{width:100%;border-collapse:collapse;min-width:640px}
+.crmv table.wl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);font-weight:600;padding:9px 12px;border-bottom:2px solid var(--border2);white-space:nowrap}
+.crmv table.wl td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);vertical-align:middle}
+.crmv table.wl tbody tr:last-child td{border-bottom:none}
+.crmv table.wl tbody tr:hover td{background:var(--bg)}
+.crmv .lot{font-family:var(--font-mono);font-size:12px;color:var(--text);white-space:nowrap}
+.crmv .cell-sub{font-size:11px;color:var(--text3)}
+.crmv .empty-state{padding:34px 16px;text-align:center;color:var(--text3);font-size:13px}
+.crmv .right{text-align:right}
+
+/* ── Sub-client scorecards ── */
+.crmv .scorecard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:10px;margin-bottom:18px}
+.crmv .scorecard{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:12px 13px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:9px}
+.crmv .scorecard:hover{border-color:var(--accent);box-shadow:0 3px 14px rgba(0,0,0,.07)}
+.crmv .scorecard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.crmv .scorecard-sub{font-size:14px;font-weight:600;color:var(--text)}
+.crmv .scorecard-client{font-size:11px;color:var(--text3)}
+.crmv .scorecard-count{font-family:var(--font-display);font-size:24px;line-height:1;color:var(--text);white-space:nowrap}
+.crmv .scorecard-count small{font-family:var(--font-body);font-size:10px;color:var(--text3);font-weight:500}
+.crmv .scorecard-scores{display:flex;flex-wrap:wrap;gap:4px}
+.crmv .sc-chip{min-width:22px;height:22px;padding:0 5px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;font-family:var(--font-mono);border:1px solid}
+.crmv .sc-chip.good{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.crmv .sc-chip.fair{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+.crmv .sc-chip.poor{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.crmv .sc-chip.graded{background:#f0e8ff;color:#6a10b0;border-color:#c090e0}
+.crmv .sc-chip.none{background:var(--bg2);color:var(--text3);border-color:var(--border2)}
+.crmv .scorecard-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--border);padding-top:8px}
+.crmv .scorecard-open{font-size:11px;color:var(--accent);font-weight:600;white-space:nowrap}
+
+/* ── Shipment detail (in-CRM drawer) ── */
+.crmv .sc-container.clickable{cursor:pointer}
+.crmv .sc-container.clickable:hover{color:var(--accent);text-decoration:underline}
+.crmv .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:2px}
+.crmv .detail-cell{background:var(--card);padding:8px 11px;min-width:0}
+.crmv .detail-k{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);font-weight:600;margin-bottom:2px}
+.crmv .detail-v{font-size:13px;color:var(--text);word-break:break-word}
+.crmv .detail-v.mono{font-family:var(--font-mono)}
+.crmv .scope-lock{display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px dashed var(--border2);background:var(--bg2);border-radius:7px;font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.4}
+
+/* ── Scale UX: filters, pager, distribution bars, triage ── */
+.crmv .filter-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.crmv .filter-group{display:flex;gap:3px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:3px}
+.crmv .fpill{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border:1px solid transparent;white-space:nowrap}
+.crmv .fpill:hover{color:var(--text2)}
+.crmv .fpill.active{background:var(--card);color:var(--accent);border-color:var(--border);font-weight:600}
+.crmv .sort-select{margin-left:auto;width:auto !important;padding:6px 10px !important;font-size:12px !important}
+.crmv .flt-select{width:auto !important;max-width:170px;padding:6px 8px !important;font-size:12px !important;border-radius:8px !important;color:var(--text2)}
+.crmv .pager{display:flex;justify-content:space-between;align-items:center;padding:10px 2px 0;font-size:12px;color:var(--text3)}
+.crmv .pager-btns{display:flex;gap:6px}
+.crmv .pager button[disabled]{opacity:.4;cursor:default;pointer-events:none}
+.crmv table.wl tbody tr.click{cursor:pointer}
+.crmv .qlink{cursor:pointer;display:inline-block}
+.crmv .qlink:hover{filter:brightness(.9)}
+.crmv .ilink{cursor:pointer;white-space:nowrap}
+.crmv .ilink:hover{color:var(--accent);text-decoration:underline}
+.crmv .dist{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--bg2)}
+.crmv .dist span{display:block;height:100%}
+.crmv .dg{background:#4a8c62}.crmv .df{background:#e8c87a}.crmv .dp{background:#c86060}.crmv .dgr{background:#b490e0}.crmv .dn{background:var(--border2)}
+.crmv .dist-legend{display:flex;gap:9px;flex-wrap:wrap;font-size:10px;color:var(--text3);margin-top:5px}
+.crmv .dist-legend i{font-style:normal;display:inline-flex;align-items:center;gap:3px}
+.crmv .dist-legend b{width:7px;height:7px;border-radius:2px;display:inline-block}
+.crmv .attn-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:2px 0 10px;flex-wrap:wrap}
+.crmv .link-btn{font-size:12px;color:var(--accent);font-weight:600;cursor:pointer;white-space:nowrap}
+.crmv .link-btn:hover{text-decoration:underline}
+.crmv .more-subs{grid-column:1/-1;text-align:center;padding:9px;border:1px dashed var(--border2);border-radius:var(--r2);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;background:var(--bg2)}
+.crmv .more-subs:hover{border-color:var(--accent)}
+
+/* ── Region pulse (Dashboard stats) ── */
+.crmv .pulse-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-bottom:16px}
+.crmv .pulse-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:11px 13px;min-width:0}
+.crmv .pp-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:9px}
+.crmv .pipe{display:flex;gap:5px;align-items:stretch;margin-bottom:7px}
+.crmv .pstep{flex:1;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:600;min-width:0}
+.crmv .pstep b{display:block;font-family:var(--font-display);font-size:18px;font-weight:400;line-height:1.2}
+.crmv .pstep small{font-family:var(--font-mono);font-size:9.5px;opacity:.85;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crmv .pleg{display:flex;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--text3)}
+.crmv .pleg i{font-style:normal;display:inline-flex;align-items:center;gap:4px}
+.crmv .pleg b{width:8px;height:8px;border-radius:2px;display:inline-block}
+.crmv .pcols{display:flex;gap:6px;align-items:flex-end;height:58px;margin-bottom:5px}
+.crmv .pcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;min-width:0}
+.crmv .pcol span{width:100%;border-radius:3px 3px 0 0}
+.crmv .pcol i{font-style:normal;font-size:9px;color:var(--text3);font-family:var(--font-mono);white-space:nowrap}
+.crmv .flowbar{display:flex;height:11px;border-radius:6px;overflow:hidden;margin-bottom:6px;background:var(--bg2)}
+.crmv .flowbar span{height:100%}
+.crmv .rk{width:100%;border-collapse:collapse}
+.crmv .rk td{padding:5px 4px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--bg2)}
+.crmv .rk tr:last-child td{border-bottom:none}
+.crmv .rk tr.go{cursor:pointer}
+.crmv .rk tr.go:hover td{background:var(--bg)}
+.crmv .rk .nm{font-weight:600;color:var(--text);white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+.crmv .rk .num{font-family:var(--font-mono);font-size:11px;text-align:right;white-space:nowrap}
+.crmv .rk .bar{height:7px;border-radius:4px;background:var(--bg2);overflow:hidden;min-width:50px}
+.crmv .rk .bar span{display:block;height:100%;background:var(--accent);opacity:.72}
+.crmv .pchip{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:9px;white-space:nowrap}
+.crmv .pchip.warn{background:var(--red-bg);color:var(--red)}
+.crmv .pchip.ok{background:var(--green-bg);color:var(--green)}
+.crmv .pchip.mut{background:var(--bg2);color:var(--text3)}
+
+/* ── Responsive ── */
+@media(max-width:1024px){
+  .crmv .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .crmv .card-grid{grid-template-columns:1fr}
+}
+@media(max-width:767px){
+  .crmv .sidebar{display:none}
+  .crmv .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .crmv .card-grid{grid-template-columns:1fr}
+  .crmv .stream{flex-direction:column}
+  .crmv .grid2,.crmv .grid3{grid-template-columns:1fr}
+  .crmv input,.crmv select,.crmv textarea{font-size:16px !important}
+}
+
+/* ── host-integration overrides: island flows inside Vision's page scroll ── */
+.crmv{min-height:100%}
+.crmv .page{overflow:visible;padding:0 16px 40px}
+.crmv .crm-header{display:flex;justify-content:center;padding:12px 16px 0}
+`;
+  document.head.appendChild(st);
+}
+
+/* ── CRM view: mounts the island, wires live data, tracks season ── */
+var CRM_FALLBACK_SEASON='19482d39-6074-4c60-b772-ced5df1ffdcb';
+function CRMView(props){
+  var ref=React.useRef(null);
+  var cfg=props.config||{};
+  var seasonId=cfg.trueActiveSeasonId||cfg.activeSeasonId||CRM_FALLBACK_SEASON;
+  var cu=props.currentUser||{};
+  var isAdmin=cu.role==='admin'||cu.role==='power_user';
+  React.useEffect(function(){
+    injectCrmCss();
+    if(ref.current&&window.CRM){
+      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu});
+    }
+    return function(){ if(window.CRM) window.CRM.teardown(); };
+  },[]);
+  React.useEffect(function(){ if(window.CRM) window.CRM.setSeason(seasonId); },[seasonId]);
+  return ce('div',{className:'crmv',ref:ref});
+}
+
 
 function App(){
   /* FIX (re-send guard): last dispatch time per inspection id, in App scope where
@@ -15952,6 +17235,7 @@ function App(){
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & claims'});
+  if(perms.viewCRM)          availViews.push({id:'crm',        label:'CRM',               sub:'Claims & regions'});
   if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'Inspections Analytics',      sub:'Dashboard'});
   if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Board Review',      sub:'Escalation queue'});
   if(perms.viewAdmin)        availViews.push({id:'admin',      label:'Admin',             sub:'Users & access'});
@@ -16140,6 +17424,7 @@ function App(){
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
+        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
