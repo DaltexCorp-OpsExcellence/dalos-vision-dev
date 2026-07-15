@@ -610,7 +610,8 @@ table.wl tbody tr.click{cursor:pointer}
       <div class="modal-sub" id="gradeSub">TCLU 5590118 · Mediterra Import SA</div>
     </div>
     <div class="modal-body">
-      <div class="badge b-neutral" style="margin-bottom:14px">No CQC on file — record a quick CRM grade</div>
+      <div class="badge b-neutral" style="margin-bottom:12px">No CQC on file — record a quick CRM grade as the quality read</div>
+      <div class="ctx-val" id="gradeCtx" style="margin-bottom:14px;font-size:12px">—</div>
 
       <div class="form-row">
         <label class="form-label">Grade</label>
@@ -626,10 +627,13 @@ table.wl tbody tr.click{cursor:pointer}
         <select class="form-select"><option>Field / pre-harvest</option><option selected>Cold chain / transit</option><option>Packing</option><option>Overripe at loading</option><option>Undetermined</option></select>
       </div>
 
-      <div class="form-row" style="margin-bottom:0">
+      <div class="form-row">
         <label class="form-label">Comments</label>
-        <textarea class="form-ta" style="height:80px;resize:vertical" placeholder="Container arrived without a CQC report; graded from photos + client feedback…"></textarea>
+        <textarea class="form-ta" style="height:72px;resize:vertical" placeholder="Container arrived without a CQC report; graded from photos + client feedback…"></textarea>
       </div>
+
+      <div class="msec">History</div>
+      <div class="audit" id="gradeAudit"></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-secondary" onclick="closeModal('gradeModal')">Cancel</button>
@@ -1726,7 +1730,20 @@ function togglePotential(){
   if(on){ v.value=''; v.placeholder='to be confirmed'; } else { v.placeholder='optional'; }
   document.getElementById('valueRow').style.opacity = on ? '.5' : '1';
 }
-function openGrade(cn, client){ document.getElementById('gradeSub').textContent = cn+' · '+client; document.getElementById('gradeModal').classList.add('open'); }
+function openGrade(cn, client){
+  var s = shipByCn(cn);
+  var ref = 'CRM-GRD-2026-'+String(cn).replace(/[^0-9]/g,'').slice(-4);
+  document.getElementById('gradeSub').textContent = ref+' · '+cn+' · '+(client||(s&&s.client)||'');
+  if(s){
+    document.getElementById('gradeCtx').innerHTML = '<span class="mono">'+s.cn+'</span> · '+(s.varieties?s.varieties.join(' / '):s.variety)+' · '+shipCountry(s)+' · '+regionLabel[s.region]+' · '+s.cartons.toLocaleString()+' ctn';
+    var g=s.graded;
+    document.getElementById('gradeAudit').innerHTML = g
+      ? '<div class="audit-item"><span class="audit-dot"></span><span class="audit-main"><b>Graded '+g.grade+'</b> by Mona Adel (CRM) · '+g.cause+'</span><span class="audit-when">14 Jul 2026</span></div>'
+      : '<div class="audit-item"><span class="audit-dot" style="background:var(--border2)"></span><span class="audit-main cell-sub">Not graded yet — this will be the first entry.</span></div>';
+    if(g) setGrade(g.grade);
+  }
+  document.getElementById('gradeModal').classList.add('open');
+}
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 [].forEach.call(document.querySelectorAll('.modal-bg'), function(m){
   m.addEventListener('click', function(e){ if(e.target===m) m.classList.remove('open'); });
