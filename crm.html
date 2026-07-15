@@ -458,7 +458,7 @@ table.wl tbody tr.click{cursor:pointer}
 
     <div class="page">
       <div class="page-inner">
-        <div class="region-note" style="margin:0 0 10px">Placeholder regions — real names TBD; members will be locked to their region (admins see all). Region resolves per shipment (client → sub-client → override cascade).</div>
+        <div class="region-note" style="margin:0 0 10px">Regions from <b>Regions 2026</b> · members are locked to their region (admins see all). Region resolves per shipment: shipment override → client override → country default → Unassigned. <span class="link-btn" onclick="setTab('regions')">Manage region mapping →</span></div>
 
         <!-- KPIs (follow the Shipments filters when that tab is active) -->
         <div class="kpi-grid" id="kpiGrid"></div>
@@ -620,115 +620,114 @@ table.wl tbody tr.click{cursor:pointer}
 
 <script>
 /* ── Placeholder regions (names TBD — scaffold region-agnostic) ── */
+/* ── Regions: seeded from "Regions 2026.xlsx" (Reporting Region + CRM owner, 1:1) ── */
 var REGIONS = [
   {id:'all', label:'All regions', admin:true},
-  {id:'r1',  label:'Region A'},
-  {id:'r2',  label:'Region B'},
-  {id:'r3',  label:'Region C'},
-  {id:'r4',  label:'Region D'}
+  {id:'ne',  label:'Northern Europe', owner:'Amer_EUR'},
+  {id:'ga',  label:'Gulf & Asia',     owner:'Abeer'},
+  {id:'cis', label:'Russia & CIS',    owner:'RANDA'},
+  {id:'uk',  label:'UK',              owner:'Amer-UK'},
+  {id:'go',  label:'Greece & other',  owner:'Safaa'},
+  {id:'unassigned', label:'Unassigned', admin:true}
 ];
 
-/* ── Placeholder shipment data ── */
+/* Country → region default (44 countries that map to exactly one region in the file). */
+var COUNTRY_REGION={argentina:'cis',belarus:'cis',brazil:'cis',"costa rica":'cis',croatia:'cis',curacao:'cis',czechia:'cis',guatemala:'cis',latvia:'cis',lithuania:'cis',mauritius:'cis',poland:'cis',reunion:'cis',romania:'cis',ukraine:'cis',vaietnam:'cis',belgium:'ne',denmark:'ne',finland:'ne',france:'ne',germany:'ne',italy:'ne',netherlands:'ne',norway:'ne',portugal:'ne',sweden:'ne',switzerland:'ne',australia:'ga',china:'ga','hong kong':'ga',india:'ga',indonsia:'ga',jaban:'ga',malaysia:'ga',malta:'ga','new zealand':'ga',singapore:'ga','south sudan':'ga',vietnam:'ga',ireland:'uk',uk:'uk',greece:'go',kazakhstan:'go',lebanon:'go'};
+/* 13 countries served by >1 region — cannot auto-resolve; need a client/shipment override rule. */
+var COUNTRY_OVERLAP={bahrain:['cis','ne'],canada:['cis','ga'],jibouti:['cis','ga'],jordan:['cis','ga'],panama:['cis','ga'],russia:['cis','go'],ksa:['cis','ne'],slovenia:['cis','ne','uk'],kuwait:['ne','ga'],qatar:['ne','ga'],'south africa':['ne','ga'],spain:['ne','ga'],uae:['ne','ga']};
+
+/* ── Region override store — THE place Tarek overwrites assignments (admin "Region mapping" panel) ──
+   Resolution cascade: shipment override → client override → country default → (overlap/unknown) → Unassigned. */
+var REGION_OVERRIDES={
+  country:{},                                                 /* resolve an overlap country globally */
+  client:{ 'Gulf Fresh Trading':'ga', 'Volga Foods':'cis' },  /* seed rules resolving overlap-country clients */
+  shipment:{}                                                 /* one-off per container */
+};
+function regionForCountry(co){ var k=(co||'').toString().trim().toLowerCase(); return REGION_OVERRIDES.country[k]||COUNTRY_REGION[k]||null; }
+function resolveRegion(s){
+  if(REGION_OVERRIDES.shipment[s.cn]) return REGION_OVERRIDES.shipment[s.cn];
+  if(REGION_OVERRIDES.client[s.client]) return REGION_OVERRIDES.client[s.client];
+  return regionForCountry(s.country) || 'unassigned';
+}
+
+/* ── Curated sample shipments (region resolved from country + overrides below) ── */
 var SHIPMENTS = [
-  {
-    cn:'MSKU 7841203', region:'r1', client:'Fresh Fields Ltd', sub:'Manchester DC',
-    vessel:'MSC Ambra', eta:'12 Jul', port:'Southampton', variety:'Crimson Seedless', varieties:['Crimson Seedless','Sweet Globe'], cartons:5040, netKg:22176,
+  { cn:'MSKU 7841203', client:'Fresh Fields Ltd', sub:'Manchester DC', country:'UK', cur:'£',
+    vessel:'MSC Ambra', eta:'12 Jul', port:'Damietta', variety:'Crimson Seedless', varieties:['Crimson Seedless','Sweet Globe'], cartons:5040, netKg:22176,
     status:'delivered', statusLabel:'Delivered', update:'Client confirmed offload · 2d ago',
     insp:{id:'GR-2026-0318', defect:'3.1%', decision:'Approved'},
     cqc:{id:'CQC-2026-0142', score:4, scoreLabel:'Poor', defect:'11.4%', gap:'+8.3%', flag:true},
-    coverage:'cqc', claim:{status:'open', value:'$14,200'}
-  },
-  {
-    cn:'TGHU 2205567', region:'r1', client:'Fresh Fields Ltd', sub:'London RDC',
-    vessel:'MSC Ambra', eta:'12 Jul', port:'Southampton', variety:'Sweet Globe', cartons:4980, netKg:21414,
+    coverage:'cqc', claim:{status:'open', value:'£14,200'} },
+  { cn:'TGHU 2205567', client:'Fresh Fields Ltd', sub:'London RDC', country:'UK', cur:'£',
+    vessel:'MSC Ambra', eta:'12 Jul', port:'Damietta', variety:'Sweet Globe', cartons:4980, netKg:21414,
     status:'delivered', statusLabel:'Delivered', update:'On time · 3d ago',
     insp:{id:'GR-2026-0319', defect:'2.4%', decision:'Approved'},
     cqc:{id:'CQC-2026-0140', score:1, scoreLabel:'Excellent', defect:'2.9%', gap:'+0.5%', flag:false},
-    coverage:'cqc', claim:null
-  },
-  {
-    cn:'MSKU 7841250', region:'r1', client:'Fresh Fields Ltd', sub:'Manchester DC',
-    vessel:'MSC Ambra', eta:'12 Jul', port:'Southampton', variety:'Sweet Globe', cartons:5010, netKg:22044,
-    status:'delivered', statusLabel:'Delivered', update:'On time · 3d ago',
-    insp:{id:'GR-2026-0320', defect:'2.7%', decision:'Approved'},
-    cqc:{id:'CQC-2026-0145', score:2, scoreLabel:'Good', defect:'3.8%', gap:'+1.1%', flag:false},
-    coverage:'cqc', claim:null
-  },
-  {
-    cn:'MSKU 7841268', region:'r1', client:'Fresh Fields Ltd', sub:'Manchester DC',
-    vessel:'Maersk Cardiff', eta:'18 Jul', port:'Southampton', variety:'Crimson Seedless', cartons:4950, netKg:21780,
-    status:'delivered', statusLabel:'Delivered', update:'Awaiting quality feedback · 1d ago',
-    insp:{id:'GR-2026-0331', defect:'3.0%', decision:'Approved'},
-    cqc:{id:'CQC-2026-0149', score:3, scoreLabel:'Fair', defect:'6.2%', gap:'+3.2%', flag:true},
-    coverage:'cqc', claim:null
-  },
-  {
-    cn:'TGHU 2205590', region:'r1', client:'Fresh Fields Ltd', sub:'London RDC',
-    vessel:'Maersk Cardiff', eta:'18 Jul', port:'Southampton', variety:'Sweet Globe', cartons:5080, netKg:22352,
-    status:'delivered', statusLabel:'Delivered', update:'On time · 1d ago',
-    insp:{id:'GR-2026-0332', defect:'2.3%', decision:'Approved'},
-    cqc:{id:'CQC-2026-0150', score:1, scoreLabel:'Excellent', defect:'2.6%', gap:'+0.3%', flag:false},
-    coverage:'cqc', claim:null
-  },
-  {
-    cn:'MRKU 4418890', region:'r2', client:'Mediterra Import SA', sub:'Rungis',
-    vessel:'CMA Loire', eta:'09 Jul', port:'Marseille', variety:'Arra 15', cartons:5120, netKg:23040,
+    coverage:'cqc', claim:null },
+  { cn:'MRKU 4418890', client:'Mediterra Import SA', sub:'Rungis', country:'France', cur:'€',
+    vessel:'CMA Loire', eta:'09 Jul', port:'Alexandria', variety:'Arra 15', cartons:5120, netKg:23040,
     status:'delivered', statusLabel:'Delivered', update:'Awaiting quality feedback · 5d ago',
     insp:{id:'GR-2026-0301', defect:'2.8%', decision:'Approved'},
     cqc:{id:'CQC-2026-0138', score:3, scoreLabel:'Fair', defect:'6.7%', gap:'+3.9%', flag:true},
-    coverage:'cqc', claim:{status:'open', value:'€6,900'}
-  },
-  {
-    cn:'TCLU 5590118', region:'r2', client:'Mediterra Import SA', sub:'Perpignan',
-    vessel:'CMA Loire', eta:'09 Jul', port:'Marseille', variety:'Timco', cartons:4760, netKg:21420,
+    coverage:'cqc', claim:{status:'open', value:'€6,900'} },
+  { cn:'TCLU 5590118', client:'Mediterra Import SA', sub:'Perpignan', country:'France', cur:'€',
+    vessel:'CMA Loire', eta:'09 Jul', port:'Alexandria', variety:'Timco', cartons:4760, netKg:21420,
     status:'delivered', statusLabel:'Delivered', update:'No CQC received · 5d ago',
-    insp:{id:'GR-2026-0302', defect:'3.4%', decision:'Approved'},
-    cqc:null,
-    coverage:'graded', graded:{grade:'B', cause:'Cold chain / transit'}, claim:{status:'open', potential:true}
-  },
-  {
-    cn:'HLXU 9930042', region:'r3', client:'NordFrukt AB', sub:'Helsingborg',
-    vessel:'Maersk Kotka', eta:'16 Jul', port:'Gothenburg', variety:'Allison', cartons:5010, netKg:22545,
+    insp:{id:'GR-2026-0302', defect:'3.4%', decision:'Approved'}, cqc:null,
+    coverage:'graded', graded:{grade:'B', cause:'Cold chain / transit'}, claim:{status:'open', potential:true} },
+  { cn:'HLXU 9930042', client:'NordFrukt AB', sub:'Helsingborg', country:'Sweden', cur:'€',
+    vessel:'Maersk Kotka', eta:'16 Jul', port:'Alexandria', variety:'Allison', cartons:5010, netKg:22545,
     status:'in_transit', statusLabel:'In transit', update:'ETA in 2d · reefer 4.2°C', reefer:true,
-    insp:{id:'GR-2026-0327', defect:'1.9%', decision:'Approved'},
-    cqc:null, coverage:'none', claim:null
-  },
-  {
-    cn:'MSMU 6612374', region:'r3', client:'NordFrukt AB', sub:'Oslo',
-    vessel:'Maersk Kotka', eta:'16 Jul', port:'Gothenburg', variety:'Crimson Seedless', cartons:4890, netKg:21516,
+    insp:{id:'GR-2026-0327', defect:'1.9%', decision:'Approved'}, cqc:null, coverage:'none', claim:null },
+  { cn:'MSMU 6612374', client:'NordFrukt AB', sub:'Stockholm', country:'Sweden', cur:'€',
+    vessel:'Maersk Kotka', eta:'16 Jul', port:'Alexandria', variety:'Crimson Seedless', cartons:4890, netKg:21516,
     split:true, status:'in_transit', statusLabel:'In transit', update:'Split carta (2 lots) · matched on container',
-    insp:{id:'GR-2026-0326', defect:'2.2%', decision:'Approved'},
-    cqc:null, coverage:'none', claim:null
-  },
-  {
-    cn:'OOLU 1120665', region:'r4', client:'Pacific Produce Inc', sub:'New Jersey',
-    vessel:'OOCL Napoli', eta:'02 Jul', port:'Newark', variety:'Sweet Celebration', cartons:5200, netKg:23400,
+    insp:{id:'GR-2026-0326', defect:'2.2%', decision:'Approved'}, cqc:null, coverage:'none', claim:null },
+  { cn:'OOLU 1120665', client:'Gulf Fresh Trading', sub:'Dubai', country:'UAE', cur:'$',
+    vessel:'OOCL Napoli', eta:'02 Jul', port:'Port Said', variety:'Sweet Celebration', cartons:5200, netKg:23400,
     status:'delivered', statusLabel:'Delivered', update:'Claim closed · 1d ago',
     insp:{id:'GR-2026-0288', defect:'2.6%', decision:'Approved'},
     cqc:{id:'CQC-2026-0129', score:3, scoreLabel:'Fair', defect:'5.9%', gap:'+3.3%', flag:true},
-    coverage:'cqc', claim:{status:'closed', value:'$4,500'}
-  },
-  {
-    cn:'OOLU 1120671', region:'r4', client:'Pacific Produce Inc', sub:'Los Angeles',
-    vessel:'OOCL Napoli', eta:'02 Jul', port:'Newark', variety:'Autumn Crisp', cartons:5150, netKg:22660,
+    coverage:'cqc', claim:{status:'closed', value:'$4,500'} },
+  { cn:'SUDU 4471902', client:'Asia Pacific Fruits', sub:'Singapore', country:'Singapore', cur:'$',
+    vessel:'Ever Glory', eta:'02 Jul', port:'Port Said', variety:'Autumn Crisp', cartons:5150, netKg:22660,
     status:'delivered', statusLabel:'Delivered', update:'Claim closed — QC cleared · 1d ago',
     insp:{id:'GR-2026-0289', defect:'2.1%', decision:'Approved'},
     cqc:{id:'CQC-2026-0130', score:2, scoreLabel:'Good', defect:'3.4%', gap:'+1.3%', flag:false},
-    coverage:'cqc', claim:{status:'closed', value:'$3,000'}
-  }
+    coverage:'cqc', claim:{status:'closed', value:'$3,000'} },
+  { cn:'CMAU 8823440', client:'Volga Foods', sub:'Moscow', country:'Russia', cur:'$',
+    vessel:'MSC Riona', eta:'11 Jul', port:'Alexandria', variety:'Sweet Globe', cartons:4990, netKg:21956,
+    status:'delivered', statusLabel:'Delivered', update:'On time · 4d ago',
+    insp:{id:'GR-2026-0341', defect:'2.5%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0161', score:2, scoreLabel:'Good', defect:'3.6%', gap:'+1.1%', flag:false},
+    coverage:'cqc', claim:null },
+  { cn:'TRHU 1290337', client:'Adriatic Import', sub:'Ljubljana', country:'Slovenia', cur:'€',
+    vessel:'CMA Loire', eta:'14 Jul', port:'Alexandria', variety:'Crimson Seedless', cartons:4870, netKg:21428,
+    status:'delivered', statusLabel:'Delivered', update:'Awaiting quality feedback · 1d ago',
+    insp:{id:'GR-2026-0344', defect:'3.3%', decision:'Approved'},
+    cqc:{id:'CQC-2026-0164', score:4, scoreLabel:'Poor', defect:'10.1%', gap:'+6.8%', flag:true},
+    coverage:'cqc', claim:{status:'open', value:'€8,400'} }
 ];
 
 /* ── Synthetic fleet (mockup only): scale to hundreds of shipments so views are designed for real volume ── */
 (function(){
+  /* real countries from the file: mostly unique-mapping; UAE/Russia are overlaps resolved by client override; Slovenia left unresolved → Unassigned */
   var BOOK=[
-    {client:'Fresh Fields Ltd', region:'r1', subs:['Manchester DC','London RDC','Birmingham Hub'], ports:['Southampton','Felixstowe'], country:'United Kingdom', cur:'£'},
-    {client:'Albion Fresh', region:'r1', subs:['Leeds DC','Glasgow Depot'], ports:['Southampton'], country:'United Kingdom', cur:'£'},
-    {client:'Mediterra Import SA', region:'r2', subs:['Rungis','Perpignan','Lyon Marché'], ports:['Marseille','Le Havre'], country:'France', cur:'€'},
-    {client:'Iberia Frutas SL', region:'r2', subs:['Madrid Central','Valencia DC'], ports:['Algeciras'], country:'Spain', cur:'€'},
-    {client:'NordFrukt AB', region:'r3', subs:['Helsingborg','Oslo','Stockholm'], ports:['Gothenburg'], country:'Sweden', cur:'€'},
-    {client:'Baltic Fresh OÜ', region:'r3', subs:['Tallinn'], ports:['Gothenburg'], country:'Estonia', cur:'€'},
-    {client:'Pacific Produce Inc', region:'r4', subs:['New Jersey','Los Angeles','Houston'], ports:['Newark','Long Beach'], country:'United States', cur:'$'},
-    {client:'Maple Fresh Foods', region:'r4', subs:['Toronto DC'], ports:['Montreal'], country:'Canada', cur:'$'}
+    {client:'Mediterra Import SA', subs:['Rungis','Perpignan','Lyon Marché'], ports:['Alexandria','Damietta'], country:'France', cur:'€'},
+    {client:'Rhein Frucht GmbH', subs:['Hamburg','Köln'], ports:['Alexandria'], country:'Germany', cur:'€'},
+    {client:'Holland Fresh BV', subs:['Rotterdam','Venlo'], ports:['Alexandria','Damietta'], country:'Netherlands', cur:'€'},
+    {client:'NordFrukt AB', subs:['Helsingborg','Stockholm'], ports:['Alexandria'], country:'Sweden', cur:'€'},
+    {client:'Asia Pacific Fruits', subs:['Singapore'], ports:['Port Said'], country:'Singapore', cur:'$'},
+    {client:'Lotus Produce', subs:['Mumbai','Delhi'], ports:['Port Said'], country:'India', cur:'$'},
+    {client:'Gulf Fresh Trading', subs:['Dubai','Abu Dhabi'], ports:['Port Said'], country:'UAE', cur:'$'},
+    {client:'PolFrukt Sp', subs:['Warsaw'], ports:['Alexandria'], country:'Poland', cur:'€'},
+    {client:'Kyiv Fresh', subs:['Kyiv'], ports:['Alexandria'], country:'Ukraine', cur:'$'},
+    {client:'Volga Foods', subs:['Moscow','St Petersburg'], ports:['Alexandria'], country:'Russia', cur:'$'},
+    {client:'Fresh Fields Ltd', subs:['Manchester DC','London RDC','Birmingham Hub'], ports:['Damietta'], country:'UK', cur:'£'},
+    {client:'Albion Fresh', subs:['Leeds','Glasgow'], ports:['Damietta'], country:'UK', cur:'£'},
+    {client:'Hellenic Produce', subs:['Athens','Thessaloniki'], ports:['Alexandria'], country:'Greece', cur:'€'},
+    {client:'Levant Foods', subs:['Beirut'], ports:['Alexandria'], country:'Lebanon', cur:'$'},
+    {client:'Adriatic Import', subs:['Ljubljana'], ports:['Alexandria'], country:'Slovenia', cur:'€'}
   ];
   var GRAPE_VARS=['Crimson Seedless','Sweet Globe','Arra 15','Timco','Allison','Autumn Crisp','Sweet Celebration','Prime'];
   var CITRUS_VARS=['Valencia','Navel','Murcott'];
@@ -762,8 +761,8 @@ var SHIPMENTS = [
     else if(cqc && cqc.score===3 && rnd()<0.18) claim={status:'open', value:b.cur+(2+Math.floor(rnd()*8))+','+pick(['000','500'])};
     else if(cqc && cqc.flag && rnd()<0.3) claim={status:'open', potential:true};
     SHIPMENTS.push({
-      cn:pick(PREF)+' '+(1000000+Math.floor(rnd()*9000000)), region:b.region, client:b.client, sub:pick(b.subs),
-      vessel:pick(VESSELS), eta:day+' '+m[0], port:pick(b.ports), country:b.country, product:citrus?'Citrus':'Grapes',
+      cn:pick(PREF)+' '+(1000000+Math.floor(rnd()*9000000)), client:b.client, sub:pick(b.subs),
+      vessel:pick(VESSELS), eta:day+' '+m[0], port:pick(b.ports), country:b.country, cur:b.cur, product:citrus?'Citrus':'Grapes',
       variety:pick(citrus?CITRUS_VARS:GRAPE_VARS), cartons:cartons, netKg:Math.round(cartons*4.4), split:rnd()<0.04,
       status:delivered?'delivered':'in_transit', statusLabel:delivered?'Delivered':'In transit',
       update:delivered?pick(['On time','Client confirmed offload','Awaiting quality feedback'])+' · '+(1+Math.floor(rnd()*9))+'d ago':'ETA in '+(1+Math.floor(rnd()*12))+'d',
@@ -816,9 +815,13 @@ var SHIPMENTS = [
     var distinct=Object.keys(usedVars);
     if(distinct.length>1) s.varieties=distinct;
   });
-})();
 
-var currentRegion = 'r1';
+  /* resolve every shipment's region on the fly (never stored) */
+  SHIPMENTS.forEach(function(s){ s.region=resolveRegion(s); });
+})();
+function reresolveRegions(){ SHIPMENTS.forEach(function(s){ s.region=resolveRegion(s); }); }
+
+var currentRegion = 'all';
 
 function statusBadge(s, label){
   var cls = s==='delivered' ? 'b-pass' : (s==='in_transit' ? 'b-esc' : 'b-neutral');
@@ -971,6 +974,7 @@ function renderTabs(){
   var attCount = list.filter(function(s){return !!attentionInfo(s);}).length;
   var openClaims = list.filter(function(s){return s.claim && s.claim.status==='open';}).length;
   /* 2B: no count chips in labels — red badges surface only actual work */
+  var unassigned = SHIPMENTS.filter(function(s){return s.region==='unassigned';}).length;
   var tabs = [
     {id:'dashboard', label:'Dashboard', dot:attCount},
     {id:'shipments', label:'Shipments'},
@@ -978,6 +982,8 @@ function renderTabs(){
     {id:'claims',    label:'Claims', dot:openClaims},
     {id:'clean',     label:'Clean'}
   ];
+  /* admin-only region-mapping tab (badge = shipments currently Unassigned) */
+  if(currentRegion==='all') tabs.push({id:'regions', label:'Region mapping', dot:unassigned});
   document.getElementById('viewTabs').innerHTML = tabs.map(function(t){
     return '<span class="tab2'+(t.id===currentTab?' on':'')+'" onclick="setTab(\''+t.id+'\')">'+t.label+
       (t.dot?'<span class="ndot">'+(t.dot>99?'99+':t.dot)+'</span>':'')+'</span>';
@@ -985,11 +991,68 @@ function renderTabs(){
 }
 
 function renderContent(){
+  if(currentTab==='regions' && currentRegion!=='all') currentTab='dashboard';
   if(currentTab==='dashboard') return renderCards();
   if(currentTab==='shipments') return renderShipmentsTable();
   if(currentTab==='grading')   return renderGradingQueue();
   if(currentTab==='claims')    return renderClaims();
   if(currentTab==='clean')     return renderClean();
+  if(currentTab==='regions'){ document.getElementById('viewContent').innerHTML = renderRegionMapping(); return; }
+}
+
+/* ── Region mapping admin panel — seed from Regions 2026, overwrite assignments here ── */
+function regionOptions(cur, includeUnassigned){
+  return REGIONS.filter(function(r){ return r.id!=='all' && (includeUnassigned||r.id!=='unassigned'); })
+    .map(function(r){ return '<option value="'+r.id+'"'+(cur===r.id?' selected':'')+'>'+r.label+'</option>'; }).join('');
+}
+function setCountryOverride(country,region){ var k=country.toLowerCase(); if(region==='__def') delete REGION_OVERRIDES.country[k]; else REGION_OVERRIDES.country[k]=region; reresolveRegions(); render(); }
+function setClientOverride(client,region){ if(region==='__none') delete REGION_OVERRIDES.client[client]; else REGION_OVERRIDES.client[client]=region; reresolveRegions(); render(); }
+function renderRegionMapping(){
+  var counts={}; SHIPMENTS.forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
+  var head='<div class="section-title" style="margin-top:2px"><span class="section-title-bar"></span>Region mapping '+
+    '<span class="section-count">seeded from Regions 2026 · overwrite assignments here</span></div>';
+
+  /* region cards */
+  var cards='<div class="scorecard-grid" style="margin-bottom:16px">'+REGIONS.filter(function(r){return r.id!=='all';}).map(function(r){
+    return '<div class="scorecard" style="cursor:default"><div class="scorecard-top"><div><div class="scorecard-sub">'+r.label+'</div>'+
+      '<div class="scorecard-client">'+(r.owner?'Owner · '+r.owner:(r.id==='unassigned'?'needs a rule':''))+'</div></div>'+
+      '<span class="scorecard-count">'+(counts[r.id]||0).toLocaleString()+'<small> shp</small></span></div></div>';
+  }).join('')+'</div>';
+
+  /* client overrides */
+  var clientKeys=Object.keys(REGION_OVERRIDES.client);
+  var allClients=Array.from(new Set(SHIPMENTS.map(function(s){return s.client;}))).sort();
+  var clientRows=clientKeys.length?clientKeys.map(function(c){
+    return '<tr><td class="nm">'+c+'</td><td class="cell-sub">override</td>'+
+      '<td class="right"><select class="scope-dd" onchange="setClientOverride(\''+c.replace(/'/g,"\\'")+'\',this.value)">'+regionOptions(REGION_OVERRIDES.client[c])+'<option value="__none">✕ remove rule</option></select></td></tr>';
+  }).join(''):'<tr><td class="cell-sub" colspan="3">No client overrides yet.</td></tr>';
+  var addClient='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add client rule:</span>'+
+    '<select class="scope-dd" id="ovClient"><option value="">Client…</option>'+allClients.map(function(c){return '<option>'+c+'</option>';}).join('')+'</select>'+
+    '<select class="scope-dd" id="ovClientRegion">'+regionOptions('ne')+'</select>'+
+    '<button class="btn btn-secondary btn-sm" onclick="var c=document.getElementById(\'ovClient\').value; if(c) setClientOverride(c,document.getElementById(\'ovClientRegion\').value)">Add</button></div>';
+  var clientPanel='<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Client overrides · win over country defaults</div>'+
+    '<table class="rk"><tbody>'+clientRows+'</tbody></table>'+addClient+'</div>';
+
+  /* country table — overlaps flagged */
+  var allCountries=Object.keys(COUNTRY_REGION).concat(Object.keys(COUNTRY_OVERLAP));
+  allCountries.sort();
+  var used={}; SHIPMENTS.forEach(function(s){ var k=(s.country||'').toLowerCase(); used[k]=(used[k]||0)+1; });
+  var rows=allCountries.map(function(k){
+    var overlap=COUNTRY_OVERLAP[k];
+    var eff=REGION_OVERRIDES.country[k]||COUNTRY_REGION[k]||null;
+    var name=k.replace(/\b\w/g,function(m){return m.toUpperCase();});
+    var flag = overlap && !REGION_OVERRIDES.country[k]
+      ? '<span class="pchip warn">⚠ needs rule · '+overlap.map(function(x){return regionLabel[x];}).join(' / ')+'</span>'
+      : (REGION_OVERRIDES.country[k]?'<span class="pchip ok">override</span>':'<span class="pchip mut">default</span>');
+    var sel='<select class="scope-dd" onchange="setCountryOverride(\''+k+'\',this.value)">'+
+      (overlap&&!eff?'<option value="__def" selected>— pick region —</option>':'')+
+      regionOptions(eff)+(REGION_OVERRIDES.country[k]?'<option value="__def">↺ back to file default</option>':'')+'</select>';
+    return '<tr><td class="nm">'+name+'</td><td class="cell-sub">'+(used[k]?used[k]+' shp':'—')+'</td><td>'+flag+'</td><td class="right">'+sel+'</td></tr>';
+  }).join('');
+  var countryPanel='<div class="pulse-panel"><div class="pp-title">Country → region · '+Object.keys(COUNTRY_REGION).length+' mapped · '+Object.keys(COUNTRY_OVERLAP).length+' overlaps need a rule</div>'+
+    '<div style="max-height:360px;overflow:auto"><table class="rk"><tbody>'+rows+'</tbody></table></div></div>';
+
+  return head+cards+clientPanel+countryPanel;
 }
 
 /* ── Shipments tab: dense inventory table — filter, sort, paginate ── */
