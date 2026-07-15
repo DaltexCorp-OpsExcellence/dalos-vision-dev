@@ -462,6 +462,12 @@ table.wl tbody tr.click{cursor:pointer}
       </div>
 
       <div class="form-row">
+        <label class="form-label">B/L number <span style="color:var(--red)">*</span></label>
+        <input class="form-input mono" id="blNumber" placeholder="e.g. MAEU236451078"/>
+        <div class="hint" id="blHint" style="display:none;color:var(--red)">B/L number is required to save a claim.</div>
+      </div>
+
+      <div class="form-row">
         <label class="form-label">Claim value</label>
         <label class="chk"><input type="checkbox" id="potFlag" onchange="togglePotential()"/><span>Potential claim — flag now, value to be confirmed</span></label>
         <div class="grid3" id="valueRow" style="margin-top:8px">
@@ -527,7 +533,7 @@ table.wl tbody tr.click{cursor:pointer}
       <span class="link-btn" style="color:var(--red)" title="Removes a claim opened in error — kept in history as Cancelled (distinct from Rejected)" onclick="cancelClaim()">Cancel claim</span>
       <span style="display:flex;gap:8px">
         <button class="btn btn-secondary" onclick="closeModal('claimModal')">Close</button>
-        <button class="btn btn-primary" onclick="closeModal('claimModal')">Save claim</button>
+        <button class="btn btn-primary" onclick="saveClaim()">Save claim</button>
       </span>
     </div>
   </div>
@@ -1311,6 +1317,17 @@ function cancelClaim(){
   closeModal('claimModal');
   toast('Claim <b>cancelled</b> — removed from open claims, kept in history as Cancelled (not Rejected).');
 }
+function saveClaim(){
+  var bl=document.getElementById('blNumber');
+  if(!bl.value.trim()){
+    bl.style.borderColor='var(--red)';
+    document.getElementById('blHint').style.display='block';
+    bl.focus();
+    return;
+  }
+  closeModal('claimModal');
+  toast('Claim saved · B/L <b>'+bl.value.trim()+'</b> (mockup — not persisted)');
+}
 function rowSelChanged(){
   var boxes=document.querySelectorAll('#rowSel input:checked');
   var ctn=0, kg=0;
@@ -1338,6 +1355,7 @@ function openClaim(cn, client){
   document.getElementById('wholeSum').innerHTML = s ? buildWholeSum(s) : '';
   setScope('whole');
   var pf=document.getElementById('potFlag'); if(pf){ pf.checked=false; togglePotential(); }
+  var bl=document.getElementById('blNumber'); if(bl){ bl.value=''; bl.style.borderColor=''; document.getElementById('blHint').style.display='none'; }
   document.getElementById('claimModal').classList.add('open');
 }
 function togglePotential(){
