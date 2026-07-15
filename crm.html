@@ -830,12 +830,16 @@ function claimBadge(c){
   var m = map[c.status]||map.open;
   return '<span class="badge '+m[0]+'">'+m[1]+' · '+(c.potential?'potential':c.value)+'</span>';
 }
-function scoreBadgeHtml(cqc){
-  var cls = cqc.score<=2 ? 'b-pass' : (cqc.score===3 ? 'b-warn' : 'b-fail');
-  return '<span class="badge '+cls+'">Score '+cqc.score+' · '+cqc.scoreLabel+'</span>';
+/* Canonical quality bands: every raw score format (number, name, colour) maps here.
+   Real build: client_qc_reports.score stays raw; a mapping table computes score_band. */
+var BANDS={1:{n:'Excellent',cls:'b-pass'},2:{n:'Good',cls:'b-pass'},3:{n:'Fair',cls:'b-warn'},4:{n:'Poor',cls:'b-fail'},5:{n:'Reject',cls:'b-fail'}};
+function bandBadge(score, rawTitle){
+  var b=BANDS[score]||{n:'Unclassified',cls:'b-neutral'};
+  return '<span class="badge '+b.cls+'" title="'+(rawTitle||('raw: '+score+' ('+b.n+')'))+'">'+b.n+' <span style="opacity:.65;font-family:var(--font-mono);font-size:10px">'+score+'</span></span>';
 }
+function scoreBadgeHtml(cqc){ return bandBadge(cqc.score); }
 function coverageBadge(c){
-  if(c.coverage==='cqc') return '<span class="coverage cov-cqc"><span class="cov-dot"></span>CQC · Score '+c.cqc.score+'</span>';
+  if(c.coverage==='cqc') return '<span class="coverage cov-cqc"><span class="cov-dot"></span>CQC · '+((BANDS[c.cqc.score]||{}).n||c.cqc.score)+'</span>';
   if(c.coverage==='graded') return '<span class="coverage cov-graded"><span class="cov-dot"></span>CRM-graded · '+c.graded.grade+'</span>';
   return '<span class="coverage cov-none"><span class="cov-dot"></span>No quality data</span>';
 }
@@ -934,7 +938,7 @@ function attentionInfo(s){
 function scoreNum(s){ if(s.cqc) return s.cqc.score; if(s.coverage==='graded') return ({A:2,B:3,C:4})[s.graded.grade]||3; return 0; }
 function gapNum(s){ return s.cqc ? (parseFloat(s.cqc.gap)||0) : 0; }
 function qualityCell(s){
-  if(s.cqc) return '<span class="badge '+(s.cqc.score<=2?'b-pass':(s.cqc.score===3?'b-warn':'b-fail'))+'">Score '+s.cqc.score+'</span>';
+  if(s.cqc) return bandBadge(s.cqc.score);
   if(s.coverage==='graded') return '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+s.graded.grade+'</span>';
   return '<span class="cell-sub">no data</span>';
 }
@@ -1046,7 +1050,7 @@ function renderShipmentsTable(){
     fsel('sub','Sub-client',subs.map(mk))+
     fsel('variety','Variety',varieties.map(mk))+
     fsel('country','Country',countries.map(mk))+
-    fsel('score','Score',[['1','Score 1'],['2','Score 2'],['3','Score 3'],['4','Score 4'],['5','Score 5'],['none','No CQC']])+
+    fsel('score','Score',[['1','1 · Excellent'],['2','2 · Good'],['3','3 · Fair'],['4','4 · Poor'],['5','5 · Reject'],['none','No CQC']])+
     fsel('claim','Claim',[['yes','Claim raised'],['no','No claim']])+
     fsel('graded','Graded',[['yes','CRM-graded'],['no','Not graded']])+
     (activeCount?'<span class="link-btn" onclick="resetShipFilters()">Clear filters ('+activeCount+')</span>':'')+
@@ -1136,7 +1140,7 @@ function renderClean(){
   list.sort(function(a,b){ return b.sortKey-a.sortKey; });
   var clPage=pageState.clean;
   var rows = list.slice(clPage*PER_PAGE,(clPage+1)*PER_PAGE).map(function(s){
-    var q = s.cqc ? '<span class="badge '+(s.cqc.score<=2?'b-pass':'b-warn')+'">CQC · Score '+s.cqc.score+'</span>'
+    var q = s.cqc ? bandBadge(s.cqc.score)
       : (s.coverage==='graded' ? '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+s.graded.grade+'</span>'
       : '<span class="cell-sub">no quality data</span>');
     return '<tr><td><span class="lot">'+s.cn+'</span></td>'+
@@ -1172,7 +1176,7 @@ function renderScorecards(){
     var scores;
     if(g.ships.length<=6){
       scores = '<div class="scorecard-scores">'+g.ships.map(function(s){
-        if(s.cqc) return '<span class="sc-chip '+(s.cqc.score<=2?'good':(s.cqc.score===3?'fair':'poor'))+'" title="CQC score '+s.cqc.score+'">'+s.cqc.score+'</span>';
+        if(s.cqc) return '<span class="sc-chip '+(s.cqc.score<=2?'good':(s.cqc.score===3?'fair':'poor'))+'" title="CQC · '+((BANDS[s.cqc.score]||{}).n||'')+'">'+s.cqc.score+'</span>';
         if(s.coverage==='graded') return '<span class="sc-chip graded" title="CRM-graded">'+s.graded.grade+'</span>';
         return '<span class="sc-chip none" title="no quality data">–</span>';
       }).join('')+'</div>';
@@ -1210,7 +1214,7 @@ function openSubDrill(sub){
   var total=list.length, capped=total>80;
   if(capped) list=list.slice(0,80);
   var rows=list.map(function(s){
-    var q = s.cqc ? '<span class="qlink" title="Open CQC report" onclick="openCqc(\''+s.cn+'\')"><span class="badge '+(s.cqc.score<=2?'b-pass':(s.cqc.score===3?'b-warn':'b-fail'))+'">Score '+s.cqc.score+'</span></span>'
+    var q = s.cqc ? '<span class="qlink" title="Open CQC report" onclick="openCqc(\''+s.cn+'\')">'+bandBadge(s.cqc.score)+'</span>'
       : (s.coverage==='graded'?'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+s.graded.grade+'</span>':'<span class="cell-sub">no data</span>');
     var cl = s.claim ? claimBadge(s.claim) : '<span class="cell-sub">—</span>';
     return '<tr><td><span class="lot">'+s.cn+'</span></td><td class="lot cell-sub">'+shipInvoice(s)+'</td><td>'+(s.varieties?s.varieties.join(' / '):s.variety)+'</td><td>'+s.eta+'</td><td>'+q+'</td><td>'+cl+'</td></tr>';
@@ -1340,7 +1344,7 @@ function renderRegionPulse(){
     '</div>'+
     '<div class="pleg"><i>'+potC+' potential (value TBD)</i><i>claim rate '+(Math.round(claims.length/list.length*1000)/10)+'%</i></div></div>';
   var qualityPanel='<div class="pulse-panel"><div class="pp-title">Quality mix · CQC scores &amp; CRM grades</div>'+
-    '<div class="pcols">'+col(sc[1],'#4a8c62','1')+col(sc[2],'#7db894','2')+col(sc[3],'#e8c87a','3')+col(sc[4],'#c86060','4')+col(sc[5],'#b03030','5')+col(gradeTotal,'#b490e0','ABC')+'</div>'+
+    '<div class="pcols">'+col(sc[1],'#4a8c62','Exc')+col(sc[2],'#7db894','Good')+col(sc[3],'#e8c87a','Fair')+col(sc[4],'#c86060','Poor')+col(sc[5],'#b03030','Rej')+col(gradeTotal,'#b490e0','ABC')+'</div>'+
     '<div class="pleg"><i>avg score '+(pAvg(scores)||'—')+'</i><i>avg gap '+(pAvg(gaps)!==null?'+'+pAvg(gaps)+'%':'—')+'</i>'+
     (flags?'<i style="color:var(--red)">'+flags+' CQC flags un-actioned</i>':'')+
     (gradeTotal?'<i>grades '+grades.A+'A / '+grades.B+'B / '+grades.C+'C</i>':'')+'</div></div>';
@@ -1518,7 +1522,7 @@ function openInsp(cn){
 }
 function openCqc(cn){
   var s=shipByCn(cn); if(!s||!s.cqc) return;
-  var sc='<span class="badge '+(s.cqc.score<=2?'b-pass':(s.cqc.score===3?'b-warn':'b-fail'))+'">Score '+s.cqc.score+' · '+s.cqc.scoreLabel+'</span>';
+  var sc=bandBadge(s.cqc.score, 'raw score text: "'+s.cqc.score+' ('+s.cqc.scoreLabel+')"');
   var html='<div class="standin"><b>Stand-in</b> In the app this is the same Client QC report view opened from Shipments (cqcLink → setView(\'clientqc\')). Values below are illustrative.</div>'+
     '<div class="dlv-head"><div><div class="dlv-id">'+s.cqc.id+'</div><div class="dlv-meta">'+s.cn+' · '+s.client+' · '+s.sub+' · '+s.variety+'</div></div>'+sc+'</div>'+
     kpiStrip([['Total defect',s.cqc.defect,''],['Gap vs export',s.cqc.gap,'arrival − loading'],['Max temp','9.2°C',''],['Claim flag',s.cqc.flag?'Yes':'No','']])+
