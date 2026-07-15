@@ -70,13 +70,17 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .region-btn .rcount{font-family:var(--font-mono);font-size:10px;opacity:.7;margin-left:5px}
 .region-note{font-size:11px;color:var(--text3);font-style:italic}
 .season-sel{width:auto !important;padding:7px 10px !important;font-size:12px !important;border-radius:9px !important;font-weight:500}
-.crm-search{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 0;margin-bottom:8px;box-shadow:0 6px 8px -6px rgba(0,0,0,.12)}
-.crm-search input{width:100%;padding:9px 32px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:13px;color:var(--text);font-family:var(--font-body);outline:none}
-.crm-search input:focus{border-color:var(--accent)}
+.crm-search{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 0;margin-bottom:6px;box-shadow:0 6px 8px -6px rgba(0,0,0,.12)}
+.crm-search-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.crm-search-input{position:relative;flex:1;min-width:220px}
+.crm-search-input input{width:100%;padding:9px 32px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:13px;color:var(--text);font-family:var(--font-body);outline:none}
+.crm-search-input input:focus{border-color:var(--accent)}
 .crm-search-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.55}
 .crm-search-clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text3);font-size:17px;line-height:1;display:none}
 .crm-search.has-q .crm-search-clear{display:block}
 .crm-search.has-q .crm-search-clear:hover{color:var(--text)}
+.scope-dd{padding:8px 10px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:12px;font-weight:500;color:var(--text2);font-family:var(--font-body);outline:none;cursor:pointer;max-width:240px}
+.scope-dd:focus{border-color:var(--accent)}
 
 /* ── KPIs ── */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
@@ -406,22 +410,22 @@ table.wl tbody tr.click{cursor:pointer}
     <div class="page">
       <div class="page-inner">
 
-        <!-- Region · product scoping (season is chosen in the sidebar, like the rest of Vision) -->
-        <div class="region-bar">
-          <div class="region-switch" id="regionSwitch"></div>
-          <div class="region-switch" id="productSwitch"></div>
-          <span class="region-note">Placeholder regions — real names TBD. Region resolved on the fly per shipment (client → sub-client → override cascade).</span>
-        </div>
+        <!-- View tabs — the page changer leads the page (Option B) -->
+        <div class="tabs" id="viewTabs" style="margin-top:14px"></div>
 
-        <!-- Search -->
+        <!-- Search + scope dropdowns: one sticky row below the tabs -->
         <div class="crm-search" id="crmSearchWrap">
-          <span class="crm-search-ic">🔍</span>
-          <input id="crmSearch" oninput="onSearch(this.value)" placeholder="Search client, sub-client, container #, invoice #, variety, product, country or port…"/>
-          <span class="crm-search-clear" onclick="clearSearch()">&times;</span>
+          <div class="crm-search-row">
+            <div class="crm-search-input">
+              <span class="crm-search-ic">🔍</span>
+              <input id="crmSearch" oninput="onSearch(this.value)" placeholder="Search client, sub-client, container #, invoice #, variety, product, country or port…"/>
+              <span class="crm-search-clear" onclick="clearSearch()">&times;</span>
+            </div>
+            <span id="regionSel"></span>
+            <span id="productSel"></span>
+          </div>
         </div>
-
-        <!-- View tabs (the page changer — above the KPIs) -->
-        <div class="tabs" id="viewTabs"></div>
+        <div class="region-note" style="margin:0 0 10px">Placeholder regions — real names TBD; members will be locked to their region (admins see all). Region resolves per shipment (client → sub-client → override cascade).</div>
 
         <!-- KPIs (follow the Shipments filters when that tab is active) -->
         <div class="kpi-grid" id="kpiGrid"></div>
@@ -811,11 +815,11 @@ function renderRegions(){
   var counts = {};
   base.forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
   counts.all = base.length;
-  document.getElementById('regionSwitch').innerHTML = '<span class="seg-lbl">Region</span>'+REGIONS.map(function(r){
-    return '<span class="region-btn'+(r.id===currentRegion?' active':'')+'" onclick="setRegion(\''+r.id+'\')">'+r.label+
-      (r.admin?' <span class="rcount">admin</span>':'')+
-      '<span class="rcount">'+(counts[r.id]||0)+'</span></span>';
-  }).join('');
+  /* Option B: region as a compact dropdown — members are region-locked anyway; admins pick here */
+  document.getElementById('regionSel').innerHTML =
+    '<select class="scope-dd" onchange="setRegion(this.value)">'+REGIONS.map(function(r){
+      return '<option value="'+r.id+'"'+(r.id===currentRegion?' selected':'')+'>Region: '+r.label+(r.admin?' (admin)':'')+' · '+(counts[r.id]||0)+'</option>';
+    }).join('')+'</select>';
 }
 
 /* derived fields (stand in for real shipments columns) */
@@ -851,9 +855,10 @@ function renderProducts(){
   list.forEach(function(s){ var p=shipProduct(s); counts[p]=(counts[p]||0)+1; });
   var opts=[['all','All products',list.length]];
   Object.keys(counts).sort().forEach(function(p){ opts.push([p,p,counts[p]]); });
-  document.getElementById('productSwitch').innerHTML = '<span class="seg-lbl">Product</span>'+opts.map(function(o){
-    return '<span class="region-btn'+(currentProduct===o[0]?' active':'')+'" onclick="setProduct(\''+o[0]+'\')">'+o[1]+'<span class="rcount">'+o[2]+'</span></span>';
-  }).join('');
+  document.getElementById('productSel').innerHTML =
+    '<select class="scope-dd" onchange="setProduct(this.value)">'+opts.map(function(o){
+      return '<option value="'+o[0]+'"'+(currentProduct===o[0]?' selected':'')+'>Product: '+o[1]+' · '+o[2]+'</option>';
+    }).join('')+'</select>';
 }
 
 function renderKpis(){
