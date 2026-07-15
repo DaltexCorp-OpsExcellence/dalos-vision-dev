@@ -330,6 +330,7 @@ table.wl tbody tr:hover td{background:var(--bg)}
 .fpill:hover{color:var(--text2)}
 .fpill.active{background:var(--card);color:var(--accent);border-color:var(--border);font-weight:600}
 .sort-select{margin-left:auto;width:auto !important;padding:6px 10px !important;font-size:12px !important}
+.flt-select{width:auto !important;max-width:170px;padding:6px 8px !important;font-size:12px !important;border-radius:8px !important;color:var(--text2)}
 .pager{display:flex;justify-content:space-between;align-items:center;padding:10px 2px 0;font-size:12px;color:var(--text3)}
 .pager-btns{display:flex;gap:6px}
 .pager button[disabled]{opacity:.4;cursor:default;pointer-events:none}
@@ -944,13 +945,31 @@ function renderContent(){
 }
 
 /* ── Shipments tab: dense inventory table — filter, sort, paginate ── */
-var shipView={status:'all', cov:'all', sort:'eta_desc'};
-function setShipFilter(k,v){ shipView[k]=v; pageState.shipments=0; render(); }
+var SHIP_FILTER_KEYS=['status','client','sub','variety','country','score','claim','graded'];
+var shipView={status:'all', client:'all', sub:'all', variety:'all', country:'all', score:'all', claim:'all', graded:'all', sort:'eta_desc'};
+function setShipFilter(k,v){
+  shipView[k]=v;
+  if(k==='client') shipView.sub='all'; /* sub-client cascades from client */
+  pageState.shipments=0; render();
+}
+function resetShipFilters(){ SHIP_FILTER_KEYS.forEach(function(k){ shipView[k]='all'; }); pageState.shipments=0; render(); }
 function setShipSort(v){ shipView.sort=v; pageState.shipments=0; render(); }
 function renderShipmentsTable(){
-  var list = visibleShipments().filter(function(s){
+  var base = visibleShipments(); /* region/product/search scoped — filter options come from here */
+  var list = base.filter(function(s){
     if(shipView.status!=='all' && s.status!==shipView.status) return false;
-    if(shipView.cov!=='all' && s.coverage!==shipView.cov) return false;
+    if(shipView.client!=='all' && s.client!==shipView.client) return false;
+    if(shipView.sub!=='all' && s.sub!==shipView.sub) return false;
+    if(shipView.variety!=='all' && (s.varieties||[s.variety]).indexOf(shipView.variety)<0) return false;
+    if(shipView.country!=='all' && shipCountry(s)!==shipView.country) return false;
+    if(shipView.score!=='all'){
+      if(shipView.score==='none'){ if(s.cqc) return false; }
+      else if(!s.cqc || String(s.cqc.score)!==shipView.score) return false;
+    }
+    if(shipView.claim==='yes' && !s.claim) return false;
+    if(shipView.claim==='no' && s.claim) return false;
+    if(shipView.graded==='yes' && s.coverage!=='graded') return false;
+    if(shipView.graded==='no' && s.coverage==='graded') return false;
     return true;
   });
   if(shipView.sort==='eta_desc') list.sort(function(a,b){return b.sortKey-a.sortKey;});
@@ -960,9 +979,31 @@ function renderShipmentsTable(){
   var page=pageState.shipments;
   var slice=list.slice(page*PER_PAGE,(page+1)*PER_PAGE);
   function fp(group,val,label){ return '<span class="fpill'+(shipView[group]===val?' active':'')+'" onclick="setShipFilter(\''+group+'\',\''+val+'\')">'+label+'</span>'; }
+  function fsel(key,label,opts){
+    var cur=String(shipView[key]);
+    return '<select class="form-select flt-select" onchange="setShipFilter(\''+key+'\',this.value)">'+
+      '<option value="all"'+(cur==='all'?' selected':'')+'>'+label+': All</option>'+
+      opts.map(function(o){ return '<option value="'+o[0]+'"'+(cur===String(o[0])?' selected':'')+'>'+o[1]+'</option>'; }).join('')+
+      '</select>';
+  }
+  var uniq=function(arr){ return Array.from(new Set(arr)).sort(); };
+  var clients=uniq(base.map(function(s){return s.client;}));
+  var subsBase = shipView.client==='all' ? base : base.filter(function(s){return s.client===shipView.client;});
+  var subs=uniq(subsBase.map(function(s){return s.sub;}));
+  var varieties=uniq(base.reduce(function(a,s){return a.concat(s.varieties||[s.variety]);},[]));
+  var countries=uniq(base.map(function(s){return shipCountry(s);}));
+  var mk=function(v){return [v,v];};
+  var activeCount=SHIP_FILTER_KEYS.filter(function(k){return shipView[k]!=='all';}).length;
   var filters='<div class="filter-row">'+
     '<span class="filter-group">'+fp('status','all','All')+fp('status','delivered','Delivered')+fp('status','in_transit','In transit')+'</span>'+
-    '<span class="filter-group">'+fp('cov','all','All quality')+fp('cov','cqc','CQC')+fp('cov','graded','CRM-graded')+fp('cov','none','No data')+'</span>'+
+    fsel('client','Client',clients.map(mk))+
+    fsel('sub','Sub-client',subs.map(mk))+
+    fsel('variety','Variety',varieties.map(mk))+
+    fsel('country','Country',countries.map(mk))+
+    fsel('score','Score',[['1','Score 1'],['2','Score 2'],['3','Score 3'],['4','Score 4'],['5','Score 5'],['none','No CQC']])+
+    fsel('claim','Claim',[['yes','Claim raised'],['no','No claim']])+
+    fsel('graded','Graded',[['yes','CRM-graded'],['no','Not graded']])+
+    (activeCount?'<span class="link-btn" onclick="resetShipFilters()">Clear filters ('+activeCount+')</span>':'')+
     '<select class="form-select sort-select" onchange="setShipSort(this.value)">'+
       [['eta_desc','Newest ETA'],['eta_asc','Oldest ETA'],['score_desc','Worst score first'],['gap_desc','Biggest gap first']].map(function(o){
         return '<option value="'+o[0]+'"'+(shipView.sort===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
