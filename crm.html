@@ -204,6 +204,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .lc-step.sel-ack{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
 .lc-step.sel-settled{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 .lc-step.sel-rejected{background:var(--bg2);border-color:var(--border2);color:var(--text2)}
+.lc-step.sel-closed{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 .lc-arrow{align-self:center;color:var(--border2);font-size:12px}
 
 /* scope pills */
@@ -361,6 +362,37 @@ table.wl tbody tr.click{cursor:pointer}
 .more-subs{grid-column:1/-1;text-align:center;padding:9px;border:1px dashed var(--border2);border-radius:var(--r2);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;background:var(--bg2)}
 .more-subs:hover{border-color:var(--accent)}
 
+/* ── Region pulse (Dashboard stats) ── */
+.pulse-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-bottom:16px}
+.pulse-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:11px 13px;min-width:0}
+.pp-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:9px}
+.pipe{display:flex;gap:5px;align-items:stretch;margin-bottom:7px}
+.pstep{flex:1;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:600;min-width:0}
+.pstep b{display:block;font-family:var(--font-display);font-size:18px;font-weight:400;line-height:1.2}
+.pstep small{font-family:var(--font-mono);font-size:9.5px;opacity:.85;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pleg{display:flex;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--text3)}
+.pleg i{font-style:normal;display:inline-flex;align-items:center;gap:4px}
+.pleg b{width:8px;height:8px;border-radius:2px;display:inline-block}
+.pcols{display:flex;gap:6px;align-items:flex-end;height:58px;margin-bottom:5px}
+.pcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;min-width:0}
+.pcol span{width:100%;border-radius:3px 3px 0 0}
+.pcol i{font-style:normal;font-size:9px;color:var(--text3);font-family:var(--font-mono);white-space:nowrap}
+.flowbar{display:flex;height:11px;border-radius:6px;overflow:hidden;margin-bottom:6px;background:var(--bg2)}
+.flowbar span{height:100%}
+.rk{width:100%;border-collapse:collapse}
+.rk td{padding:5px 4px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--bg2)}
+.rk tr:last-child td{border-bottom:none}
+.rk tr.go{cursor:pointer}
+.rk tr.go:hover td{background:var(--bg)}
+.rk .nm{font-weight:600;color:var(--text);white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+.rk .num{font-family:var(--font-mono);font-size:11px;text-align:right;white-space:nowrap}
+.rk .bar{height:7px;border-radius:4px;background:var(--bg2);overflow:hidden;min-width:50px}
+.rk .bar span{display:block;height:100%;background:var(--accent);opacity:.72}
+.pchip{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:9px;white-space:nowrap}
+.pchip.warn{background:var(--red-bg);color:var(--red)}
+.pchip.ok{background:var(--green-bg);color:var(--green)}
+.pchip.mut{background:var(--bg2);color:var(--text3)}
+
 /* ── Responsive ── */
 @media(max-width:1024px){
   .kpi-grid{grid-template-columns:repeat(2,1fr)}
@@ -464,14 +496,11 @@ table.wl tbody tr.click{cursor:pointer}
       <div class="form-row">
         <label class="form-label">Lifecycle status</label>
         <div class="lifecycle" id="claimLifecycle">
-          <div class="lc-step sel-open" data-lc="open" onclick="setLifecycle('open')"><span class="lc-n">Step 1</span>Open</div>
+          <div class="lc-step sel-open" data-lc="open" onclick="setLifecycle('open')"><span class="lc-n">Active</span>Open</div>
           <span class="lc-arrow">→</span>
-          <div class="lc-step" data-lc="ack" onclick="setLifecycle('ack')"><span class="lc-n">Step 2</span>Acknowledged</div>
-          <span class="lc-arrow">→</span>
-          <div class="lc-step" data-lc="settled" onclick="setLifecycle('settled')"><span class="lc-n">Resolve</span>Settled</div>
-          <div class="lc-step" data-lc="rejected" onclick="setLifecycle('rejected')"><span class="lc-n">Resolve</span>Rejected</div>
+          <div class="lc-step" data-lc="closed" onclick="setLifecycle('closed')"><span class="lc-n">Done</span>Closed</div>
         </div>
-        <div class="hint">Open → Acknowledged (under review) → Settled or Rejected. History is timestamped on each transition.</div>
+        <div class="hint">Two states: Open → Closed. Closing is timestamped with who closed it; use the notes for the outcome. "Cancel claim" below removes one opened in error.</div>
       </div>
 
       <div class="form-row">
@@ -647,7 +676,7 @@ var SHIPMENTS = [
     status:'delivered', statusLabel:'Delivered', update:'Awaiting quality feedback · 5d ago',
     insp:{id:'GR-2026-0301', defect:'2.8%', decision:'Approved'},
     cqc:{id:'CQC-2026-0138', score:3, scoreLabel:'Fair', defect:'6.7%', gap:'+3.9%', flag:true},
-    coverage:'cqc', claim:{status:'ack', value:'€6,900'}
+    coverage:'cqc', claim:{status:'open', value:'€6,900'}
   },
   {
     cn:'TCLU 5590118', region:'r2', client:'Mediterra Import SA', sub:'Perpignan',
@@ -674,18 +703,18 @@ var SHIPMENTS = [
   {
     cn:'OOLU 1120665', region:'r4', client:'Pacific Produce Inc', sub:'New Jersey',
     vessel:'OOCL Napoli', eta:'02 Jul', port:'Newark', variety:'Sweet Celebration', cartons:5200, netKg:23400,
-    status:'delivered', statusLabel:'Delivered', update:'Claim settled · 1d ago',
+    status:'delivered', statusLabel:'Delivered', update:'Claim closed · 1d ago',
     insp:{id:'GR-2026-0288', defect:'2.6%', decision:'Approved'},
     cqc:{id:'CQC-2026-0129', score:3, scoreLabel:'Fair', defect:'5.9%', gap:'+3.3%', flag:true},
-    coverage:'cqc', claim:{status:'settled', value:'$4,500'}
+    coverage:'cqc', claim:{status:'closed', value:'$4,500'}
   },
   {
     cn:'OOLU 1120671', region:'r4', client:'Pacific Produce Inc', sub:'Los Angeles',
     vessel:'OOCL Napoli', eta:'02 Jul', port:'Newark', variety:'Autumn Crisp', cartons:5150, netKg:22660,
-    status:'delivered', statusLabel:'Delivered', update:'Claim rejected — QC cleared · 1d ago',
+    status:'delivered', statusLabel:'Delivered', update:'Claim closed — QC cleared · 1d ago',
     insp:{id:'GR-2026-0289', defect:'2.1%', decision:'Approved'},
     cqc:{id:'CQC-2026-0130', score:2, scoreLabel:'Good', defect:'3.4%', gap:'+1.3%', flag:false},
-    coverage:'cqc', claim:{status:'rejected', value:'$3,000'}
+    coverage:'cqc', claim:{status:'closed', value:'$3,000'}
   }
 ];
 
@@ -729,8 +758,8 @@ var SHIPMENTS = [
       graded={grade:pick(['A','B','B','C']), cause:pick(['Cold chain / transit','Field / pre-harvest','Packing','Undetermined'])};
     }
     var claim=null;
-    if(cqc && cqc.score>=4 && rnd()<0.65) claim={status:pick(['open','open','ack','settled','rejected']), value:b.cur+(3+Math.floor(rnd()*18))+','+pick(['000','200','400','500','800'])};
-    else if(cqc && cqc.score===3 && rnd()<0.18) claim={status:pick(['open','ack']), value:b.cur+(2+Math.floor(rnd()*8))+','+pick(['000','500'])};
+    if(cqc && cqc.score>=4 && rnd()<0.65) claim={status:pick(['open','open','open','closed','closed']), value:b.cur+(3+Math.floor(rnd()*18))+','+pick(['000','200','400','500','800'])};
+    else if(cqc && cqc.score===3 && rnd()<0.18) claim={status:'open', value:b.cur+(2+Math.floor(rnd()*8))+','+pick(['000','500'])};
     else if(cqc && cqc.flag && rnd()<0.3) claim={status:'open', potential:true};
     SHIPMENTS.push({
       cn:pick(PREF)+' '+(1000000+Math.floor(rnd()*9000000)), region:b.region, client:b.client, sub:pick(b.subs),
@@ -797,8 +826,8 @@ function statusBadge(s, label){
 }
 function claimBadge(c){
   if(!c) return '';
-  var map = {open:['b-fail','Claim open'], ack:['b-warn','Claim acknowledged'], settled:['b-pass','Claim settled'], rejected:['b-neutral','Claim rejected']};
-  var m = map[c.status];
+  var map = {open:['b-fail','Claim open'], closed:['b-neutral','Claim closed']};
+  var m = map[c.status]||map.open;
   return '<span class="badge '+m[0]+'">'+m[1]+' · '+(c.potential?'potential':c.value)+'</span>';
 }
 function scoreBadgeHtml(cqc){
@@ -863,6 +892,8 @@ function renderProducts(){
 }
 
 function renderKpis(){
+  /* dashboard: the Region-pulse tiles replace the global KPI row */
+  if(currentTab==='dashboard'){ document.getElementById('kpiGrid').innerHTML=''; return; }
   /* on the Shipments tab the KPIs follow the active table filters */
   var filtered = currentTab==='shipments' && shipActiveFilterCount()>0;
   var list = filtered ? visibleShipments().filter(shipFilterMatch) : visibleShipments();
@@ -870,7 +901,7 @@ function renderKpis(){
   var gradedCount = list.filter(function(s){return s.coverage==='graded';}).length;
   var covered = cqcCount + gradedCount;
   var covPct = list.length ? Math.round(covered/list.length*100) : 0;
-  var openClaims = list.filter(function(s){return s.claim && (s.claim.status==='open'||s.claim.status==='ack');}).length;
+  var openClaims = list.filter(function(s){return s.claim && s.claim.status==='open';}).length;
   var noData = list.filter(function(s){return s.coverage==='none';}).length;
   document.getElementById('kpiGrid').innerHTML =
     kpi('Shipments', list.length.toLocaleString(), filtered?'matching filters':(currentRegion==='all'?'across all regions':'in region')) +
@@ -895,7 +926,7 @@ REGIONS.forEach(function(r){ regionLabel[r.id]=r.label; });
 
 /* triage priority: what needs a human today */
 function attentionInfo(s){
-  if(s.claim && (s.claim.status==='open'||s.claim.status==='ack')) return {p:3, label:'claim '+s.claim.status};
+  if(s.claim && s.claim.status==='open') return {p:3, label:'claim open'};
   if(isFlagged(s) && !s.claim) return {p:2, label:'CQC claim flag'};
   if(s.coverage==='none' && s.status==='delivered') return {p:1, label:'delivered · no quality data'};
   return null;
@@ -934,7 +965,7 @@ function pagerHtml(total,page,key){
 function renderTabs(){
   var list = visibleShipments();
   var attCount = list.filter(function(s){return !!attentionInfo(s);}).length;
-  var openClaims = list.filter(function(s){return s.claim && (s.claim.status==='open'||s.claim.status==='ack');}).length;
+  var openClaims = list.filter(function(s){return s.claim && s.claim.status==='open';}).length;
   /* 2B: no count chips in labels — red badges surface only actual work */
   var tabs = [
     {id:'dashboard', label:'Dashboard', dot:attCount},
@@ -1075,8 +1106,8 @@ function renderClaims(){
   var head = '<div class="section-title"><span class="section-title-bar"></span>Claims '+
     '<span class="section-count">'+list.length+' containers with a claim</span></div>';
   if(!list.length){ document.getElementById('viewContent').innerHTML = head+'<div class="table-wrap"><div class="empty-state">No claims raised in this region.</div></div>'; return; }
-  var lc = {open:['b-fail','Open'], ack:['b-warn','Acknowledged'], settled:['b-pass','Settled'], rejected:['b-neutral','Rejected']};
-  var lcOrder={open:0,ack:1,settled:2,rejected:3};
+  var lc = {open:['b-fail','Open'], closed:['b-neutral','Closed']};
+  var lcOrder={open:0,closed:1};
   list.sort(function(a,b){ return lcOrder[a.claim.status]-lcOrder[b.claim.status] || b.sortKey-a.sortKey; });
   var cPage=pageState.claims;
   var rows = list.slice(cPage*PER_PAGE,(cPage+1)*PER_PAGE).map(function(s){
@@ -1092,7 +1123,7 @@ function renderClaims(){
   }).join('');
   document.getElementById('viewContent').innerHTML = head+
     '<div class="table-wrap"><table class="wl"><thead><tr>'+
-    '<th>Container</th><th>Client</th><th class="right">Value</th><th>Lifecycle</th><th>Evidence</th><th class="right">Action</th>'+
+    '<th>Container</th><th>Client</th><th class="right">Value</th><th>Status</th><th>Evidence</th><th class="right">Action</th>'+
     '</tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,cPage,'claims');
 }
 
@@ -1244,6 +1275,155 @@ function openShipDetail(cn){
   showDlv('Shipment', head+lock+actions+comp+voyage+commercial+product+qty);
 }
 
+/* ── Region pulse: stats for the current region (or all regions) ── */
+var TODAY_KEY=715; /* mock "today" = 15 Jul; real build: from Date */
+var pulseOpen=true;
+function togglePulse(){ pulseOpen=!pulseOpen; render(); }
+function pulseGo(k,v){
+  currentTab='shipments';
+  SHIP_FILTER_KEYS.forEach(function(x){ shipView[x]='all'; });
+  shipView[k]=v; resetPages(); render();
+}
+function pAvg(arr){ return arr.length ? Math.round(arr.reduce(function(a,b){return a+b;},0)/arr.length*10)/10 : null; }
+function claimAmt(v){ return parseFloat(String(v||'').replace(/[^0-9.]/g,''))||0; }
+function sumsAdd(map,c){ if(!c.value||c.potential) return; var s=String(c.value).charAt(0); map[s]=(map[s]||0)+claimAmt(c.value); }
+function sumsFmt(map){
+  var ks=Object.keys(map); if(!ks.length) return '—';
+  return ks.map(function(k){ var v=map[k]; return k+(v>=1000?(Math.round(v/100)/10)+'k':Math.round(v)); }).join(' + ');
+}
+function renderRegionPulse(){
+  var list=visibleShipments();
+  var title='Region pulse — '+(currentRegion==='all'?'all regions':regionLabel[currentRegion]);
+  var head='<div class="attn-head" style="margin-top:2px"><div class="section-title" style="margin:0"><span class="section-title-bar"></span>'+title+
+    ' <span class="section-count">'+list.length.toLocaleString()+' shipments in scope</span></div>'+
+    '<span class="link-btn" onclick="togglePulse()">'+(pulseOpen?'Hide stats':'Show stats')+'</span></div>';
+  if(!pulseOpen || !list.length) return head;
+
+  /* tiles */
+  var cartons=0, netKg=0; list.forEach(function(s){ cartons+=s.cartons||0; netKg+=s.netKg||0; });
+  var transit=list.filter(function(s){return s.status==='in_transit';});
+  var arriving=transit.filter(function(s){return s.sortKey>=TODAY_KEY && s.sortKey<=TODAY_KEY+7;}).length;
+  var delivered=list.filter(function(s){return s.status==='delivered';}).length;
+  var claims=list.filter(hasClaim);
+  var openC=claims.filter(function(s){return s.claim.status==='open';});
+  var closedC=claims.filter(function(s){return s.claim.status==='closed';});
+  var potC=claims.filter(function(s){return s.claim.potential;}).length;
+  var openSums={}, closedSums={};
+  openC.forEach(function(s){ sumsAdd(openSums,s.claim); });
+  closedC.forEach(function(s){ sumsAdd(closedSums,s.claim); });
+  var cqcN=list.filter(function(s){return s.coverage==='cqc';}).length;
+  var grN=list.filter(function(s){return s.coverage==='graded';}).length;
+  var noneList=list.filter(function(s){return s.coverage==='none';});
+  var noneDelivered=noneList.filter(function(s){return s.status==='delivered';}).length;
+  var tiles='<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'+
+    kpi('Shipments', list.length.toLocaleString(), cartons.toLocaleString()+' ctn · '+Math.round(netKg/1000).toLocaleString()+' t net')+
+    kpi('In transit', transit.length, arriving?arriving+' arriving ≤ 7 days':'none arriving this week', arriving?'up':'')+
+    kpi('Delivered', delivered, Math.round(delivered/list.length*100)+'% of shipments')+
+    kpi('Claims', claims.length, openC.length+' open · '+potC+' potential', openC.length?'down':'')+
+    kpi('Graded', cqcN+grN, cqcN+' CQC · '+grN+' CRM-graded')+
+    kpi('Ungraded', noneList.length, noneDelivered?noneDelivered+' already delivered — chase CQC / grade':'all still in transit', noneDelivered?'down':'up')+
+    '</div>';
+
+  /* mixes */
+  var sc=[0,0,0,0,0,0], grades={A:0,B:0,C:0}, gaps=[], scores=[], flags=0;
+  list.forEach(function(s){
+    if(s.cqc){ sc[s.cqc.score]++; scores.push(s.cqc.score); gaps.push(gapNum(s)); if(s.cqc.flag && !s.claim) flags++; }
+    else if(s.coverage==='graded') grades[s.graded.grade]=(grades[s.graded.grade]||0)+1;
+  });
+  var gradeTotal=grades.A+grades.B+grades.C;
+  var maxCol=Math.max(sc[1],sc[2],sc[3],sc[4],sc[5],gradeTotal,1);
+  function col(n,color,label){ return '<div class="pcol"><span style="height:'+Math.max(3,Math.round(n/maxCol*52))+'px;background:'+color+'"></span><i>'+label+'·'+n+'</i></div>'; }
+  var claimsPanel='<div class="pulse-panel"><div class="pp-title">Claims pipeline · 2-state</div>'+
+    '<div class="pipe">'+
+      '<span class="pstep" style="background:var(--red-bg);color:var(--red)">Open<b>'+openC.length+'</b><small>'+sumsFmt(openSums)+'</small></span>'+
+      '<span class="pstep" style="background:var(--bg2);color:var(--text2)">Closed<b>'+closedC.length+'</b><small>'+sumsFmt(closedSums)+'</small></span>'+
+    '</div>'+
+    '<div class="pleg"><i>'+potC+' potential (value TBD)</i><i>claim rate '+(Math.round(claims.length/list.length*1000)/10)+'%</i></div></div>';
+  var qualityPanel='<div class="pulse-panel"><div class="pp-title">Quality mix · CQC scores &amp; CRM grades</div>'+
+    '<div class="pcols">'+col(sc[1],'#4a8c62','1')+col(sc[2],'#7db894','2')+col(sc[3],'#e8c87a','3')+col(sc[4],'#c86060','4')+col(sc[5],'#b03030','5')+col(gradeTotal,'#b490e0','ABC')+'</div>'+
+    '<div class="pleg"><i>avg score '+(pAvg(scores)||'—')+'</i><i>avg gap '+(pAvg(gaps)!==null?'+'+pAvg(gaps)+'%':'—')+'</i>'+
+    (flags?'<i style="color:var(--red)">'+flags+' CQC flags un-actioned</i>':'')+
+    (gradeTotal?'<i>grades '+grades.A+'A / '+grades.B+'B / '+grades.C+'C</i>':'')+'</div></div>';
+  var flowPanel='<div class="pulse-panel"><div class="pp-title">Status &amp; coverage flow</div>'+
+    '<div class="flowbar"><span style="flex:'+transit.length+';background:#a0b4e8"></span><span style="flex:'+delivered+';background:#4a8c62"></span></div>'+
+    '<div class="pleg" style="margin-bottom:9px"><i><b style="background:#a0b4e8"></b>'+transit.length+' in transit</i><i><b style="background:#4a8c62"></b>'+delivered+' delivered</i></div>'+
+    '<div class="flowbar"><span style="flex:'+cqcN+';background:#4a8c62"></span><span style="flex:'+grN+';background:#b490e0"></span><span style="flex:'+noneList.length+';background:#bcb8ae"></span></div>'+
+    '<div class="pleg"><i><b style="background:#4a8c62"></b>'+cqcN+' CQC</i><i><b style="background:#b490e0"></b>'+grN+' CRM-graded</i><i><b style="background:#bcb8ae"></b>'+noneList.length+' no data</i></div></div>';
+
+  /* breakdowns */
+  function rank(rows, maxN, go){
+    return '<table class="rk">'+rows.map(function(r){
+      var chip = r.open>0 ? '<span class="pchip warn">'+r.open+' open</span>'
+        : (r.rate!==undefined ? '<span class="pchip '+(r.rate>10?'warn':'ok')+'">'+r.rate+'% claims</span>' : '<span class="pchip mut">no claims</span>');
+      return '<tr'+(go?' class="go" onclick="pulseGo(\''+go+'\',\''+String(r.k).replace(/'/g,"\\'")+'\')"':'')+'>'+
+        '<td class="nm">'+r.k+'</td>'+
+        '<td style="width:30%"><div class="bar"><span style="width:'+Math.round(r.n/maxN*100)+'%"></span></div></td>'+
+        '<td class="num">'+r.n.toLocaleString()+' '+(r.unit||'shp')+'</td>'+
+        '<td class="num">'+(r.avg!==null?'avg '+r.avg:'—')+'</td>'+
+        '<td style="text-align:right">'+chip+'</td></tr>';
+    }).join('')+'</table>';
+  }
+  function groupStats(keyFn){
+    var g={};
+    list.forEach(function(s){
+      (keyFn(s)||[]).forEach(function(k){
+        if(!g[k]) g[k]={k:k,n:0,scores:[],claims:0,open:0};
+        g[k].n++;
+        if(s.cqc) g[k].scores.push(s.cqc.score);
+        if(s.claim){ g[k].claims++; if(s.claim.status==='open') g[k].open++; }
+      });
+    });
+    return Object.keys(g).map(function(k){ var r=g[k]; r.avg=pAvg(r.scores); r.rate=Math.round(r.claims/r.n*100); return r; })
+      .sort(function(a,b){return b.n-a.n;}).slice(0,6);
+  }
+  var byClient=groupStats(function(s){return [s.client];});
+  var byVariety=groupStats(function(s){return s.varieties||[s.variety];});
+  var phG={};
+  list.forEach(function(s){
+    (s.rows||[]).forEach(function(r){
+      if(!phG[r.ph]) phG[r.ph]={k:r.ph,n:0,scores:[],claims:0,open:0};
+      phG[r.ph].n++;
+      if(s.cqc) phG[r.ph].scores.push(s.cqc.score);
+      if(s.claim) phG[r.ph].claims++;
+    });
+  });
+  var byPh=Object.keys(phG).map(function(k){ var r=phG[k]; r.avg=pAvg(r.scores); r.rate=Math.round(r.claims/r.n*100); r.unit='rows'; return r; })
+    .sort(function(a,b){return b.n-a.n;}).slice(0,6);
+  var maxC=byClient.length?byClient[0].n:1, maxV=byVariety.length?byVariety[0].n:1, maxP=byPh.length?byPh[0].n:1;
+  var breakdowns='<div class="pulse-panels">'+
+    '<div class="pulse-panel"><div class="pp-title">By client · click → filtered list</div>'+rank(byClient,maxC,'client')+'</div>'+
+    '<div class="pulse-panel"><div class="pp-title">By variety · click → filtered list</div>'+rank(byVariety,maxV,'variety')+'</div>'+
+    '<div class="pulse-panel"><div class="pp-title">By packhouse · from composition rows</div>'+rank(byPh,maxP,null)+'</div>'+
+    '</div>';
+
+  /* all-regions comparison (admin view only) */
+  var compare='';
+  if(currentRegion==='all'){
+    var rg={};
+    list.forEach(function(s){
+      if(!rg[s.region]) rg[s.region]={n:0,t:0,d:0,open:0,cov:0,scores:[],claims:0};
+      var r=rg[s.region]; r.n++;
+      if(s.status==='in_transit') r.t++; else r.d++;
+      if(s.coverage!=='none') r.cov++;
+      if(s.cqc) r.scores.push(s.cqc.score);
+      if(s.claim){ r.claims++; if(s.claim.status==='open') r.open++; }
+    });
+    var rows=Object.keys(rg).sort().map(function(id){
+      var r=rg[id];
+      return '<tr class="go" onclick="setRegion(\''+id+'\')"><td class="nm">'+regionLabel[id]+'</td>'+
+        '<td class="num">'+r.n+'</td><td class="num">'+r.t+'</td><td class="num">'+r.d+'</td>'+
+        '<td class="num" style="color:'+(r.open?'var(--red)':'var(--text2)')+'">'+r.open+'</td>'+
+        '<td class="num">'+Math.round(r.cov/r.n*100)+'%</td>'+
+        '<td class="num">'+(pAvg(r.scores)||'—')+'</td>'+
+        '<td class="num">'+(Math.round(r.claims/r.n*1000)/10)+'%</td></tr>';
+    }).join('');
+    compare='<div class="pulse-panel" style="margin-bottom:16px"><div class="pp-title">All-regions comparison · click a region to focus</div>'+
+      '<table class="rk"><tr style="font-weight:700;color:var(--text3)"><td>Region</td><td class="num">Shp</td><td class="num">Transit</td><td class="num">Delivered</td><td class="num">Open claims</td><td class="num">Coverage</td><td class="num">Avg score</td><td class="num">Claim rate</td></tr>'+rows+'</table></div>';
+  }
+
+  return head+tiles+'<div class="pulse-panels">'+claimsPanel+qualityPanel+flowPanel+'</div>'+breakdowns+compare;
+}
+
 function renderCards(){
   var list = visibleShipments();
   var att = list.map(function(s){ var a=attentionInfo(s); return a?{s:s,a:a}:null; }).filter(Boolean)
@@ -1294,7 +1474,7 @@ function renderCards(){
     ? '<div class="card-grid">'+cards+'</div>'+
       (att.length>6 ? '<div class="hint" style="text-align:center;margin-top:10px">Showing the top 6 — open claims first, then CQC flags, then coverage gaps. The rest live in the Shipments tab.</div>' : '')
     : '<div class="table-wrap"><div class="empty-state">Nothing needs attention — open claims, CQC flags and delivered-without-quality-data land here.</div></div>';
-  document.getElementById('viewContent').innerHTML = renderScorecards() + head + body;
+  document.getElementById('viewContent').innerHTML = renderRegionPulse() + renderScorecards() + head + body;
 }
 
 var currentTab = 'dashboard';
