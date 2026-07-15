@@ -70,7 +70,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .region-btn .rcount{font-family:var(--font-mono);font-size:10px;opacity:.7;margin-left:5px}
 .region-note{font-size:11px;color:var(--text3);font-style:italic}
 .season-sel{width:auto !important;padding:7px 10px !important;font-size:12px !important;border-radius:9px !important;font-weight:500}
-.crm-search{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 0;margin-bottom:6px;box-shadow:0 6px 8px -6px rgba(0,0,0,.12)}
+.crm-search{position:relative}
 .crm-search-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .crm-search-input{position:relative;flex:1;min-width:220px}
 .crm-search-input input{width:100%;padding:9px 32px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:13px;color:var(--text);font-family:var(--font-body);outline:none}
@@ -280,8 +280,10 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .hint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.4}
 .divider{height:1px;background:var(--border);margin:16px 0}
 
-/* ── View tabs — same segmented family as the scope bars; nav role = green active fill ── */
-.tabs{display:inline-flex;gap:2px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:3px;margin:2px 0 14px;flex-wrap:wrap;max-width:100%}
+/* ── View tabs — same segmented family as the scope bars; nav role = green active fill.
+     Sticky: pins under the topbar like a page-level top bar; the search row stacks beneath it. ── */
+.tabs-wrap{position:sticky;top:0;z-index:21;background:var(--bg);padding:10px 0 8px;margin-bottom:6px;box-shadow:0 6px 8px -6px rgba(0,0,0,.12)}
+.tabs{display:inline-flex;gap:2px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:3px;flex-wrap:wrap;max-width:100%;margin-bottom:8px}
 .tab{padding:7px 14px;font-size:13px;font-weight:600;color:var(--text3);border-radius:8px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:.15s;border:1px solid transparent}
 .tab:hover{color:var(--text);background:var(--card)}
 .tab.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(43,92,63,.28)}
@@ -410,10 +412,9 @@ table.wl tbody tr.click{cursor:pointer}
     <div class="page">
       <div class="page-inner">
 
-        <!-- View tabs — the page changer leads the page (Option B) -->
-        <div class="tabs" id="viewTabs" style="margin-top:14px"></div>
-
-        <!-- Search + scope dropdowns: one sticky row below the tabs -->
+        <!-- Sticky page header: tabs + search/scope row pin together under the topbar -->
+        <div class="tabs-wrap">
+        <div class="tabs" id="viewTabs"></div>
         <div class="crm-search" id="crmSearchWrap">
           <div class="crm-search-row">
             <div class="crm-search-input">
@@ -425,6 +426,7 @@ table.wl tbody tr.click{cursor:pointer}
             <span id="productSel"></span>
           </div>
         </div>
+        </div><!-- /tabs-wrap -->
         <div class="region-note" style="margin:0 0 10px">Placeholder regions — real names TBD; members will be locked to their region (admins see all). Region resolves per shipment (client → sub-client → override cascade).</div>
 
         <!-- KPIs (follow the Shipments filters when that tab is active) -->
