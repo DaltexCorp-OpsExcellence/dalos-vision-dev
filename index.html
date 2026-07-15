@@ -8015,7 +8015,7 @@ var ROLES = {
   inspector:   {label:'Inspector',            color:'#3a6a3a',badge:'#5a9a5a',
                 perms:{viewFG:true, createFG:true, editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false, viewShipments:false}},
   commercial:  {label:'Commercial / Export',  color:'#7a5010',badge:'#b87820',
-                perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true}},
+                perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true, viewCRM:true}},
   client_qc:   {label:'Client QC Management',color:'#1a4a7a',badge:'#2a6aaa',
                 perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true}},
   executive:   {label:'Executive',            color:'#8a1a1a',badge:'#b03030',
@@ -14402,7 +14402,7 @@ var IPATHS={
 window.CRM = (function(){
   var SB=null, SEASON=null, IS_ADMIN=false, USER=null, ROOT=null, MOUNTED=false;
   var SHIPMENTS=[], REGIONS=[], regionLabel={}, regionOwner={};
-  var COUNTRY_REGION={}, REGION_OVERRIDES={country:{},client:{},shipment:{}};
+  var COUNTRY_REGION={}, REGION_OVERRIDES={country:{},client:{},shipment:{}}, BAND_MAP={};
   /* 13 countries served by >1 region — can't auto-resolve; kept for the admin panel flag. */
   var COUNTRY_OVERLAP={bahrain:['cis','ne'],canada:['cis','ga'],jibouti:['cis','ga'],jordan:['cis','ga'],panama:['cis','ga'],russia:['cis','go'],ksa:['cis','ne'],slovenia:['cis','ne','uk'],kuwait:['ne','ga'],qatar:['ne','ga'],'south africa':['ne','ga'],spain:['ne','ga'],uae:['ne','ga']};
 
@@ -14847,7 +14847,17 @@ window.CRM = (function(){
       return '<tr><td class="nm">'+esc(name)+'</td><td class="cell-sub">'+(used[k]?used[k]+' shp':'—')+'</td><td>'+flag+'</td><td class="right">'+sel+'</td></tr>';
     }).join('');
     var countryPanel='<div class="pulse-panel"><div class="pp-title">Country → region · '+Object.keys(COUNTRY_REGION).length+' mapped · '+Object.keys(COUNTRY_OVERLAP).length+' overlaps need a rule</div><div style="max-height:360px;overflow:auto"><table class="rk"><tbody>'+rows+'</tbody></table></div></div>';
-    vc.innerHTML=head+cards+clientPanel+countryPanel;
+    // score-band mapping panel
+    var bandNames={1:'Excellent',2:'Good',3:'Fair',4:'Poor',5:'Reject'};
+    function bandSel(cur,onchg,withPick){ return '<select class="scope-dd" onchange="'+onchg+'">'+(withPick?'<option value="">— pick band —</option>':'')+[1,2,3,4,5].map(function(n){return '<option value="'+n+'"'+(cur===n?' selected':'')+'>'+n+' · '+bandNames[n]+'</option>';}).join('')+'</select>'; }
+    var bandKeys=Object.keys(BAND_MAP).sort();
+    var bandRows=bandKeys.length?bandKeys.map(function(raw){ return '<tr><td class="nm">'+esc(raw)+'</td><td class="right">'+bandSel(BAND_MAP[raw],"CRM.setScoreBand('"+q1(raw)+"',this.value)")+'</td><td class="right"><span class="link-btn" style="color:var(--red)" onclick="CRM.removeScoreBand(\''+q1(raw)+'\')">remove</span></td></tr>'; }).join(''):'<tr><td class="cell-sub" colspan="3">No score bands mapped yet.</td></tr>';
+    var unmapped={}; SHIPMENTS.forEach(function(s){ if(s.cqc&&!s.cqc.score&&s.cqc.scoreRaw){ var lc=s.cqc.scoreRaw.toLowerCase().trim(); if(!(lc in BAND_MAP)) unmapped[lc]=(unmapped[lc]||0)+1; } });
+    var unmappedKeys=Object.keys(unmapped).sort();
+    var unmappedRows=unmappedKeys.map(function(raw){ return '<tr><td class="nm">'+esc(raw)+' <span class="pchip warn">'+unmapped[raw]+' in view</span></td><td class="right">'+bandSel(0,"CRM.setScoreBand('"+q1(raw)+"',this.value)",true)+'</td><td></td></tr>'; }).join('');
+    var addBand='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add mapping:</span><input class="scope-dd" id="sbRaw" placeholder="raw score text (e.g. BLUE)" style="max-width:200px"/><select class="scope-dd" id="sbBand">'+[1,2,3,4,5].map(function(n){return '<option value="'+n+'"'+(n===2?' selected':'')+'>'+n+' · '+bandNames[n]+'</option>';}).join('')+'</select><button class="btn btn-secondary btn-sm" onclick="CRM.addScoreBandFromForm()">Add</button></div>';
+    var scoreBandPanel='<div class="pulse-panel" style="margin-top:12px"><div class="pp-title">Score bands · raw CQC score → 1–5 canonical'+(unmappedKeys.length?' · <span style="color:var(--red)">'+unmappedKeys.length+' unmapped in view</span>':'')+'</div>'+(unmappedKeys.length?'<table class="rk"><tbody>'+unmappedRows+'</tbody></table><div class="divider" style="margin:10px 0"></div>':'')+'<table class="rk"><tbody>'+bandRows+'</tbody></table>'+addBand+'</div>';
+    vc.innerHTML=head+cards+clientPanel+countryPanel+scoreBandPanel;
   }
 
   function renderContent(){
@@ -15095,6 +15105,10 @@ window.CRM = (function(){
 
   /* ── region override writes ── */
   function reloadOverridesAndVoyages(){ return loadOverrides().then(loadVoyages).then(render); }
+  function reloadBandsAndVoyages(){ return loadScoreBands().then(loadVoyages).then(render); }
+  function setScoreBand(raw,band){ if(!band) return; SB.from('crm_score_bands').upsert({raw_lc:String(raw).toLowerCase().trim(),band:Number(band)},{onConflict:'raw_lc'}).then(function(res){ if(res&&res.error){ toast('Band save failed — '+esc(res.error.message)); return; } toast('Score band updated.'); reloadBandsAndVoyages(); }); }
+  function removeScoreBand(raw){ SB.from('crm_score_bands').delete().eq('raw_lc',String(raw).toLowerCase().trim()).then(function(res){ if(res&&res.error){ toast('Remove failed — '+esc(res.error.message)); return; } toast('Score band removed.'); reloadBandsAndVoyages(); }); }
+  function addScoreBandFromForm(){ var raw=$('sbRaw')?$('sbRaw').value.trim():''; var band=$('sbBand')?$('sbBand').value:''; if(!raw){ toast('Enter the raw score text.'); return; } setScoreBand(raw,band); }
   function setCountryOverride(country,region){
     var k=country.toLowerCase();
     var op = region==='__def' ? SB.from('region_overrides').delete().eq('scope','country').eq('key',k)
@@ -15141,6 +15155,11 @@ window.CRM = (function(){
     return SB.from('region_overrides').select('scope,key,region_id').then(function(res){
       REGION_OVERRIDES={country:{},client:{},shipment:{}};
       ((res&&res.data)||[]).forEach(function(r){ if(REGION_OVERRIDES[r.scope]) REGION_OVERRIDES[r.scope][r.key]=r.region_id; });
+    });
+  }
+  function loadScoreBands(){
+    return SB.from('crm_score_bands').select('raw_lc,band').then(function(res){
+      BAND_MAP={}; ((res&&res.data)||[]).forEach(function(r){ BAND_MAP[r.raw_lc]=r.band; });
     });
   }
   function loadVoyages(){
@@ -15213,7 +15232,7 @@ window.CRM = (function(){
     currentTab='dashboard'; currentRegion='all'; currentProduct='all'; currentQuery=''; showAllSubs=false; pulseOpen=true; resetPages();
     ROOT.innerHTML=template();
     attachListeners();
-    Promise.all([loadRegions(),loadCountryMap(),loadOverrides()]).then(loadVoyages).then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; });
+    Promise.all([loadRegions(),loadCountryMap(),loadOverrides(),loadScoreBands()]).then(loadVoyages).then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; });
   }
   function setSeason(seasonId){ SEASON=seasonId; if(MOUNTED) reload(); }
   function teardown(){ MOUNTED=false; ROOT=null; }
@@ -15226,7 +15245,8 @@ window.CRM = (function(){
     openShipDetail:openShipDetail, openInsp:openInsp, openCqc:openCqc, closeDlv:closeDlv,
     openClaim:openClaim, openGrade:openGrade, closeModal:closeModal, saveClaim:saveClaim, saveGrade:saveGrade, cancelClaim:cancelClaim,
     setLifecycle:setLifecycle, setGrade:setGrade, setScope:setScope, togglePotential:togglePotential, syncNet:syncNet, rowSelChanged:rowSelChanged,
-    setCountryOverride:setCountryOverride, setClientOverride:setClientOverride, addClientOverrideFromForm:addClientOverrideFromForm
+    setCountryOverride:setCountryOverride, setClientOverride:setClientOverride, addClientOverrideFromForm:addClientOverrideFromForm,
+    setScoreBand:setScoreBand, removeScoreBand:removeScoreBand, addScoreBandFromForm:addScoreBandFromForm
   };
 })();
 /* ── CRM island CSS (scoped to .crmv) — injected once ── */
