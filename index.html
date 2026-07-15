@@ -14559,7 +14559,7 @@ window.CRM = (function(){
     var list=visibleShipments();
     var attCount=list.filter(function(s){return !!attentionInfo(s);}).length;
     var openClaims=list.filter(function(s){return s.claim&&s.claim.status==='open';}).length;
-    var unassigned=SHIPMENTS.filter(function(s){return s.region==='unassigned';}).length;
+    var unassigned=list.filter(function(s){return s.region==='unassigned';}).length;
     var tabs=[{id:'dashboard',label:'Dashboard',dot:attCount},{id:'shipments',label:'Shipments'},{id:'grading',label:'Grading'},{id:'claims',label:'Claims',dot:openClaims},{id:'clean',label:'Clean'}];
     if(IS_ADMIN && currentRegion==='all') tabs.push({id:'regions',label:'Region mapping',dot:unassigned});
     el.innerHTML=tabs.map(function(t){
@@ -14825,7 +14825,7 @@ window.CRM = (function(){
   }
   function renderRegionMapping(){
     var vc=$('viewContent'); if(!vc) return;
-    var counts={}; SHIPMENTS.forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
+    var counts={}; baseFiltered('region').forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
     var head='<div class="section-title" style="margin-top:2px"><span class="section-title-bar"></span>Region mapping <span class="section-count">seeded from Regions 2026 · overwrite assignments here</span></div>';
     var cards='<div class="scorecard-grid" style="margin-bottom:16px">'+REGIONS.filter(function(r){return r.id!=='all';}).map(function(r){
       return '<div class="scorecard" style="cursor:default"><div class="scorecard-top"><div><div class="scorecard-sub">'+esc(r.label)+'</div><div class="scorecard-client">'+(r.owner?'Owner · '+esc(r.owner):(r.id==='unassigned'?'needs a rule':''))+'</div></div><span class="scorecard-count">'+(counts[r.id]||0).toLocaleString()+'<small> shp</small></span></div></div>';
@@ -14838,7 +14838,7 @@ window.CRM = (function(){
     var addClient='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add client rule:</span><select class="scope-dd" id="ovClient"><option value="">Client…</option>'+allClients.map(function(c){return '<option>'+esc(c)+'</option>';}).join('')+'</select><select class="scope-dd" id="ovClientRegion">'+regionOptions('ne')+'</select><button class="btn btn-secondary btn-sm" onclick="CRM.addClientOverrideFromForm()">Add</button></div>';
     var clientPanel='<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Client overrides · win over country defaults</div><table class="rk"><tbody>'+clientRows+'</tbody></table>'+addClient+'</div>';
     var allCountries=Object.keys(COUNTRY_REGION).concat(Object.keys(COUNTRY_OVERLAP)); allCountries.sort();
-    var used={}; SHIPMENTS.forEach(function(s){ var k=(s.country||'').toLowerCase(); if(k) used[k]=(used[k]||0)+1; });
+    var used={}; baseFiltered('region').forEach(function(s){ var k=(s.country||'').toLowerCase(); if(k) used[k]=(used[k]||0)+1; });
     var rows=allCountries.map(function(k){
       var overlap=COUNTRY_OVERLAP[k], eff=REGION_OVERRIDES.country[k]||COUNTRY_REGION[k]||null;
       var name=k.replace(/\b\w/g,function(m){return m.toUpperCase();});
