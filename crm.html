@@ -334,6 +334,10 @@ table.wl tbody tr:hover td{background:var(--bg)}
 .pager-btns{display:flex;gap:6px}
 .pager button[disabled]{opacity:.4;cursor:default;pointer-events:none}
 table.wl tbody tr.click{cursor:pointer}
+.qlink{cursor:pointer;display:inline-block}
+.qlink:hover{filter:brightness(.9)}
+.ilink{cursor:pointer;white-space:nowrap}
+.ilink:hover{color:var(--accent);text-decoration:underline}
 .dist{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--bg2)}
 .dist span{display:block;height:100%}
 .dg{background:#4a8c62}.df{background:#e8c87a}.dp{background:#c86060}.dgr{background:#b490e0}.dn{background:var(--border2)}
@@ -891,6 +895,16 @@ function qualityCell(s){
   if(s.coverage==='graded') return '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+s.graded.grade+'</span>';
   return '<span class="cell-sub">no data</span>';
 }
+/* quality cell with click-through to the CQC / inspection drawers (used in the Shipments table) */
+function qualityCellLinked(s){
+  var q = s.cqc
+    ? '<span class="qlink" title="Open CQC report" onclick="event.stopPropagation();openCqc(\''+s.cn+'\')">'+qualityCell(s)+'</span>'
+    : qualityCell(s);
+  var insp = s.insp
+    ? '<div class="cell-sub lot ilink" style="margin-top:3px" title="Open export inspection" onclick="event.stopPropagation();openInsp(\''+s.cn+'\')">'+s.insp.id+' ↗</div>'
+    : '';
+  return q+insp;
+}
 
 /* pagination */
 var PER_PAGE=50;
@@ -959,7 +973,7 @@ function renderShipmentsTable(){
       '<td>'+s.client+'<div class="cell-sub">'+s.sub+' · '+regionLabel[s.region]+'</div></td>'+
       '<td>'+shipProduct(s)+'</td><td>'+(s.varieties?s.varieties.join(' / '):s.variety)+'</td>'+
       '<td>'+s.eta+'</td><td>'+statusBadge(s.status,s.statusLabel)+'</td>'+
-      '<td>'+qualityCell(s)+'</td>'+
+      '<td>'+qualityCellLinked(s)+'</td>'+
       '<td class="lot" style="color:'+(gapNum(s)>2?'var(--red)':'var(--text2)')+'">'+(s.cqc?s.cqc.gap:'—')+'</td>'+
       '<td>'+(s.claim?claimBadge(s.claim):'<span class="cell-sub">—</span>')+'</td>'+
       '<td class="right"><button class="btn '+(s.claim?'btn-secondary':'btn-primary')+' btn-sm" onclick="event.stopPropagation();openClaim(\''+s.cn+'\')">'+(s.claim?'View claim':'Raise claim')+'</button></td></tr>';
@@ -985,7 +999,7 @@ function renderGradingQueue(){
     var gs = needsGrading(s)
       ? '<span class="badge b-warn">Needs grading</span>'
       : '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+s.graded.grade+'</span>';
-    var insp = s.insp ? (s.insp.defect+' · '+s.insp.decision) : '—';
+    var insp = s.insp ? '<span class="ilink" title="Open export inspection" onclick="openInsp(\''+s.cn+'\')">'+s.insp.defect+' · '+s.insp.decision+' ↗</span>' : '—';
     var btn = '<button class="btn '+(needsGrading(s)?'btn-primary':'btn-secondary')+' btn-sm" onclick="openGrade(\''+s.cn+'\',\''+s.client+'\')">'+(needsGrading(s)?'Grade':'Edit grade')+'</button>';
     return '<tr><td><span class="lot">'+s.cn+'</span>'+(s.split?' <span class="sc-split">split</span>':'')+'</td>'+
       '<td>'+s.client+'<div class="cell-sub">'+s.sub+' · '+regionLabel[s.region]+'</div></td>'+
@@ -1109,7 +1123,7 @@ function openSubDrill(sub){
   var total=list.length, capped=total>80;
   if(capped) list=list.slice(0,80);
   var rows=list.map(function(s){
-    var q = s.cqc ? '<span class="badge '+(s.cqc.score<=2?'b-pass':(s.cqc.score===3?'b-warn':'b-fail'))+'">Score '+s.cqc.score+'</span>'
+    var q = s.cqc ? '<span class="qlink" title="Open CQC report" onclick="openCqc(\''+s.cn+'\')"><span class="badge '+(s.cqc.score<=2?'b-pass':(s.cqc.score===3?'b-warn':'b-fail'))+'">Score '+s.cqc.score+'</span></span>'
       : (s.coverage==='graded'?'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+s.graded.grade+'</span>':'<span class="cell-sub">no data</span>');
     var cl = s.claim ? claimBadge(s.claim) : '<span class="cell-sub">—</span>';
     return '<tr><td><span class="lot">'+s.cn+'</span></td><td class="lot cell-sub">'+shipInvoice(s)+'</td><td>'+(s.varieties?s.varieties.join(' / '):s.variety)+'</td><td>'+s.eta+'</td><td>'+q+'</td><td>'+cl+'</td></tr>';
@@ -1133,9 +1147,11 @@ function openShipDetail(cn){
       '<div class="dlv-meta">'+s.client+' · '+s.sub+' · '+regionLabel[s.region]+'</div></div>'+
       statusBadge(s.status,s.statusLabel)+'</div>';
   var lock = '<div class="scope-lock">🔒 Full shipment record, shown inside CRM and scoped to your region — no jump to the all-shipments module.</div>';
-  var actions = '<div style="display:flex;gap:8px;margin-bottom:12px">'+
+  var actions = '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'+
     '<button class="btn btn-primary btn-sm" onclick="closeDlv();openClaim(\''+s.cn+'\')">'+(s.claim?'View claim':'Raise claim')+'</button>'+
     (s.coverage!=='cqc' ? '<button class="btn btn-secondary btn-sm" onclick="closeDlv();openGrade(\''+s.cn+'\',\''+s.client.replace(/'/g,"\\'")+'\')">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>' : '')+
+    (s.insp ? '<button class="btn btn-secondary btn-sm" onclick="openInsp(\''+s.cn+'\')">Export inspection ↗</button>' : '')+
+    (s.cqc ? '<button class="btn btn-secondary btn-sm" onclick="openCqc(\''+s.cn+'\')">CQC report ↗</button>' : '')+
     '</div>';
   var voyage = dSec('Voyage & logistics',
     dCell('Vessel',s.vessel)+dCell('Shipping line','Maersk Line')+
