@@ -8229,6 +8229,9 @@ function AdminCenter(props){
   var sEmailModal=useState(null); var emailModal=sEmailModal[0]; var setEmailModal=sEmailModal[1];
   var sResetTarget=useState(null); var resetTarget=sResetTarget[0]; var setResetTarget=sResetTarget[1];
   var sResetPw=useState(''); var resetPw=sResetPw[0]; var setResetPw=sResetPw[1];
+  /* CRM region access (region_members) — mirrors packhouse access */
+  var sRegionsList=useState([]); var regionsList=sRegionsList[0]; var setRegionsList=sRegionsList[1];
+  var sRegionMembers=useState({}); var regionMembers=sRegionMembers[0]; var setRegionMembers=sRegionMembers[1];
 
   /* config editing state */
   var sCfgTab=useState('packhouses'); var cfgTab=sCfgTab[0]; var setCfgTab=sCfgTab[1];
@@ -8423,6 +8426,28 @@ function AdminCenter(props){
       return Object.assign({},u,{packhouses:newPhs});
     });});
   }
+  React.useEffect(function(){
+    if(!canGiveAccess) return;
+    supabase.from('regions').select('id,label,is_bucket').order('is_bucket').order('label').then(function(r){ if(r.data) setRegionsList(r.data); });
+    supabase.from('region_members').select('user_id,region_id').then(function(r){
+      if(r.data){ var m={}; r.data.forEach(function(x){ (m[x.user_id]=m[x.user_id]||[]).push(x.region_id); }); setRegionMembers(m); }
+    });
+  },[canGiveAccess]);
+  var regionLabelById={}; regionsList.forEach(function(r){ regionLabelById[r.id]=r.label; });
+  function toggleRegionForUser(uid,regionId){
+    var cur=(regionMembers[uid]||[]).slice();
+    var allIds=regionsList.map(function(r){return r.id;});
+    var next;
+    if(regionId==='__all'){ next=(allIds.length&&cur.length>=allIds.length)?[]:allIds.slice(); }
+    else { var i=cur.indexOf(regionId); next=i>=0?cur.filter(function(x){return x!==regionId;}):cur.concat([regionId]); }
+    setRegionMembers(function(prev){var c=Object.assign({},prev); c[uid]=next; return c;});
+    supabase.from('region_members').delete().eq('user_id',uid).then(function(){
+      if(next.length){
+        var inserts=next.map(function(rid){return {user_id:uid,region_id:rid};});
+        supabase.from('region_members').insert(inserts).then(function(r){ if(r.error) console.error('[DalOS] region access save error:',r.error.message); });
+      }
+    });
+  }
   function doResetPassword(){
     if(!resetPw.trim()||!resetTarget) return;
     var u=users.find(function(x){return x.id===resetTarget;});
@@ -8572,7 +8597,7 @@ function AdminCenter(props){
     canGiveAccess&&tab==='users'&&ce('div',{className:'scroll-card'},
       ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
       ce('table',{style:{minWidth:700}},
-        ce('thead',null,ce('tr',null,ce('th',null,'Name'),ce('th',null,'Email'),ce('th',null,'Role'),ce('th',null,'Packhouse access'),ce('th',null,'Last login'),ce('th',null,'Status'),ce('th',null,'Actions'))),
+        ce('thead',null,ce('tr',null,ce('th',null,'Name'),ce('th',null,'Email'),ce('th',null,'Role'),ce('th',null,'Packhouse access'),ce('th',null,'Region access'),ce('th',null,'Last login'),ce('th',null,'Status'),ce('th',null,'Actions'))),
         ce('tbody',null,
           users.map(function(u){
             var r=ROLES[u.role]||{label:u.role,badge:'#888'};
@@ -8607,6 +8632,25 @@ function AdminCenter(props){
                         :userPHs.map(function(ph){return ce('span',{key:ph,style:{fontSize:10,padding:'1px 7px',borderRadius:10,background:'var(--accent)18',color:'var(--accent)',border:'1px solid var(--accent)30',fontWeight:500}},ph);})
                     )
               ),
+              /* Region access cell (CRM) — mirrors packhouse access */
+              (function(){
+                var rperms=(ROLES[u.role]||{}).perms||{};
+                if(!rperms.viewCRM) return ce('td',null,ce('span',{style:{fontSize:11,color:'var(--text3)',fontStyle:'italic'}},'— no CRM access'));
+                if(u.role==='admin'||u.role==='power_user') return ce('td',null,ce('span',{style:{fontSize:11,color:'var(--text3)',fontStyle:'italic'}},'All regions · '+(u.role==='admin'?'admin':'role')));
+                var mem=regionMembers[u.id]||[];
+                var allIds=regionsList.map(function(r){return r.id;});
+                var hasAllR=allIds.length>0&&mem.length>=allIds.length;
+                if(isEdit) return ce('td',null,ce('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},
+                  ce('button',{className:'btn btn-sm',style:{fontSize:10,background:hasAllR?'var(--accent)':'var(--bg2)',color:hasAllR?'#fff':'var(--text3)',border:'1px solid '+(hasAllR?'var(--accent)':'var(--border2)')},onClick:function(){toggleRegionForUser(u.id,'__all');}},'All'),
+                  regionsList.map(function(rg){
+                    var sel=mem.indexOf(rg.id)>=0;
+                    return ce('button',{key:rg.id,className:'btn btn-sm',style:{fontSize:10,background:sel?'var(--accent)':'var(--bg2)',color:sel?'#fff':'var(--text3)',border:'1px solid '+(sel?'var(--accent)':'var(--border2)')},onClick:function(){toggleRegionForUser(u.id,rg.id);}},rg.label);
+                  })
+                ));
+                if(!mem.length) return ce('td',null,ce('span',{style:{fontSize:11,color:'var(--amber)',fontStyle:'italic'}},'No regions — sees nothing'));
+                if(hasAllR) return ce('td',null,ce('span',{style:{fontSize:11,color:'var(--text3)'}},'All regions'));
+                return ce('td',null,ce('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},mem.map(function(rid){return ce('span',{key:rid,style:{fontSize:10,padding:'1px 8px',borderRadius:10,background:'var(--bg2)',color:'var(--accent)',border:'1px solid var(--border2)',fontWeight:500}},regionLabelById[rid]||rid);})));
+              })(),
               ce('td',{style:{fontSize:11,color:'var(--text3)',fontFamily:'var(--font-mono)',whiteSpace:'nowrap'}},fmtLastLogin(u.lastLogin)),
               ce('td',null,ce('span',{className:'badge badge-'+(u.active?'pass':'neutral')},u.active?'Active':'Inactive')),
               ce('td',null,ce('div',{style:{display:'flex',gap:5,flexWrap:'wrap'}},
