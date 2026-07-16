@@ -8028,6 +8028,16 @@ var PERM_LABELS = {
   viewEscalation:'Board review / escalation queue',escalate:'Escalate batches',allPackhouses:'All packhouses',viewShipments:'View shipments',viewCRM:'CRM (claims & regions)'
 };
 var INITIAL_USERS = []; /* Demo users removed — users load from Supabase */
+/* Format users.last_login (raw ISO/UTC) → readable Cairo-time stamp. */
+function fmtLastLogin(v){
+  if(!v) return '—';
+  if(v==='Never') return 'Never';
+  var d=new Date(v);
+  if(isNaN(d.getTime())) return v;
+  try{
+    return new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Cairo',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(d)+' EG';
+  }catch(e){ return d.toISOString().slice(0,16).replace('T',' ')+' UTC'; }
+}
 
 function SectionEditor(props){
   var sec=props.sec,si=props.si,prod=props.prod||{color:'#3a7a4a'};
@@ -8597,7 +8607,7 @@ function AdminCenter(props){
                         :userPHs.map(function(ph){return ce('span',{key:ph,style:{fontSize:10,padding:'1px 7px',borderRadius:10,background:'var(--accent)18',color:'var(--accent)',border:'1px solid var(--accent)30',fontWeight:500}},ph);})
                     )
               ),
-              ce('td',{style:{fontSize:11,color:'var(--text3)'}},u.lastLogin||'\u2014'),
+              ce('td',{style:{fontSize:11,color:'var(--text3)',fontFamily:'var(--font-mono)',whiteSpace:'nowrap'}},fmtLastLogin(u.lastLogin)),
               ce('td',null,ce('span',{className:'badge badge-'+(u.active?'pass':'neutral')},u.active?'Active':'Inactive')),
               ce('td',null,ce('div',{style:{display:'flex',gap:5,flexWrap:'wrap'}},
                 ce('button',{className:'btn btn-secondary btn-sm',style:{fontSize:11},onClick:function(){setEditId(isEdit?null:u.id);}},isEdit?'Done':'Edit'),
