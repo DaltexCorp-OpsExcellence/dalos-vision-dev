@@ -10165,7 +10165,7 @@ function ClientQCMgmt(props){
           max_tokens:1500,
           messages:[{role:'user',content:[
             contentBlock,
-            {type:'text',text:'This is a client QC intake/inspection report for citrus from Egypt (Daltex). Extract all available data and respond ONLY with a valid JSON object (no markdown, no explanation):\n{\n  "container": "container number e.g. MNBU3564353",\n  "qcReportNumber": "report/PO/batch reference number",\n  "client": "client company name",\n  "subClient": "retailer if mentioned e.g. Lidl, Tesco, Waitrose",\n  "variety": "citrus variety",\n  "lot": "lot number",\n  "traceCode": "traceability code",\n  "ggn": "GGN number",\n  "packhouse": "packhouse name",\n  "inspectionDate": "date in YYYY-MM-DD",\n  "brix": "average brix value as number or null",\n  "avgSize": "average diameter in mm or null",\n  "minSize": "min diameter mm or null",\n  "maxSize": "max diameter mm or null",\n  "totalDefectPct": "total defect % as number or null",\n  "minorDefectPct": "minor defects % as number or null",\n  "majorDefectPct": "major defects % as number or null",\n  "blemishScarringPct": "blemish/scarring/skin damage % or null",\n  "bruisingOilPct": "bruising/oil/rind breakdown % or null",\n  "softnessPct": "softness/puffiness % or null",\n  "colorationPct": "poor coloration/green % or null",\n  "heavyScarringCount": "count of heavy scarring if mentioned or null",\n  "palletsCount": "number of pallets or null",\n  "score": "client score or status e.g. GREEN, AMBER, RED, PASS, FAIL or null",\n  "decision": "A if accepted/pass/green, R if rejected/fail/red, null if unclear",\n  "temperature": "temperature reading if mentioned",\n  "notes": "key QC observations in one sentence"\n}'}
+            {type:'text',text:'This is a client QC intake/inspection report for citrus from Egypt (Daltex). Extract all available data and respond ONLY with a valid JSON object (no markdown, no explanation):\n{\n  "container": "container number e.g. MNBU3564353",\n  "qcReportNumber": "report/PO/batch reference number",\n  "client": "client company name",\n  "subClient": "retailer if mentioned e.g. Lidl, Tesco, Waitrose",\n  "variety": "citrus variety",\n  "lot": "lot number",\n  "traceCode": "traceability code",\n  "ggn": "GGN number",\n  "packhouse": "packhouse name",\n  "inspectionDate": "date in YYYY-MM-DD",\n  "brix": "average brix value as number or null",\n  "avgSize": "average diameter in mm or null",\n  "minSize": "min diameter mm or null",\n  "maxSize": "max diameter mm or null",\n  "totalDefectPct": "total defect % as number or null",\n  "minorDefectPct": "minor defects % as number or null",\n  "majorDefectPct": "major defects % as number or null",\n  "blemishScarringPct": "blemish/scarring/skin damage % or null",\n  "bruisingOilPct": "bruising/oil/rind breakdown % or null",\n  "softnessPct": "softness/puffiness % or null",\n  "colorationPct": "poor coloration/green % or null",\n  "heavyScarringCount": "count of heavy scarring if mentioned or null",\n  "palletsCount": "number of pallets or null",\n  "score": "client score or status e.g. GREEN, AMBER, RED, PASS, FAIL, NFA or null",\n  "decision": "A if accepted/pass/green, R if rejected/fail/red, null if unclear",\n  "temperature": "temperature reading if mentioned",\n  "notes": "key QC observations in one sentence"\n}'}
           ]}]
         })
       })
@@ -10614,7 +10614,7 @@ function ClientQCMgmt(props){
       trace_code:fTrace||null,
       lot_number:fLot||null,
       wax:fWax||null,
-      score:['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL'].indexOf(fScore)>=0?fScore:null,
+      score:['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL','NFA'].indexOf(fScore)>=0?fScore:null,
       brix:parseFloat(fBrix)||null,
       brix_issue:fBrixIssue==='Yes', brix_issue_pct:fBrixIssuePct?parseFloat(fBrixIssuePct):null,
       carton_issue:fCartonIssue==='Yes',
@@ -10790,7 +10790,7 @@ function ClientQCMgmt(props){
     var su=(s||'').toUpperCase();
     if(su==='GREEN'||su==='PASS'||su==='A'||su.includes('GOOD')) return 'var(--green)';
     if(su==='AMBER'||su==='YELLOW'||su==='ORANGE') return 'var(--amber)';
-    if(su==='RED'||su==='FAIL'||su==='R'||su.includes('NOT')) return 'var(--red)';
+    if(su==='RED'||su==='FAIL'||su==='R'||su==='NFA'||su.includes('NOT')) return 'var(--red)';
     return 'var(--text2)';
   }
 
@@ -11357,7 +11357,7 @@ function ClientQCMgmt(props){
               ce('label',{className:'form-label'},'Client score / status'),
               ce('select',{className:'form-select',value:fScore,onChange:function(e){setScore(e.target.value);}},
                 ce('option',{value:''},'— Select —'),
-                ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL','NFA'].map(function(s){return ce('option',{key:s,value:s},s);})
               )
             ),
             fi('Max temperature (\u00b0C)',fMaxTemp,setMaxTemp),
@@ -11813,7 +11813,7 @@ function ClientQCMgmt(props){
                           onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
                         },
                           ce('option',{value:''},'—'),
-                          ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                          ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL','NFA'].map(function(s){return ce('option',{key:s,value:s},s);})
                         )
                       ),
                       /* Notes */
@@ -12094,7 +12094,7 @@ function ClientQCMgmt(props){
                           ce('label',{className:'form-label'},'Client score'),
                           ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
                             ce('option',{value:''},'— Select —'),
-                            ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL'].map(function(s){return ce('option',{key:s,value:s},s);})
+                            ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL','NFA'].map(function(s){return ce('option',{key:s,value:s},s);})
                           )
                         )
                       );
@@ -12498,7 +12498,7 @@ function ClientQCMgmt(props){
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},
                         r.score?ce('span',{style:{display:'inline-block',padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
                           background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',
-                          color:r.score==='GREEN'?'var(--green)':r.score==='RED'?'var(--red)':'var(--amber)'}},r.score)
+                          color:r.score==='GREEN'?'var(--green)':r.score==='RED'||r.score==='NFA'?'var(--red)':'var(--amber)'}},r.score)
                           :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                       ),
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},statusCell(r))
@@ -12526,7 +12526,7 @@ function ClientQCMgmt(props){
                     ),
                     r.score&&ce('span',{style:{padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
                       background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',
-                      color:r.score==='GREEN'?'var(--green)':r.score==='RED'?'var(--red)':'var(--amber)'}},r.score)
+                      color:r.score==='GREEN'?'var(--green)':r.score==='RED'||r.score==='NFA'?'var(--red)':'var(--amber)'}},r.score)
                   ),
                   ce('div',{style:{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4}},
                     ce('span',{style:{color:'var(--text3)'}},'Variety'),
@@ -12552,7 +12552,7 @@ function ClientQCMgmt(props){
             if(!r) return null;
             var matchedB=batches.find(function(b){return b.id===r.batchId;});
             function scoreStyle(s){return {padding:'3px 10px',borderRadius:12,fontSize:12,fontWeight:500,background:s==='GREEN'?'var(--green-bg)':s==='RED'?'#fff0f0':'var(--amber-bg)',color:s==='GREEN'?'var(--green)':s==='RED'?'var(--red)':'var(--amber)'};};
-            return ce('div',{id:'cqc-detail-panel',style:{background:'var(--card)',border:'1px solid var(--border)',borderLeft:'4px solid '+(r.score==='GREEN'?'var(--green)':r.score==='RED'?'var(--red)':r.score==='AMBER'?'var(--amber)':'var(--border)'),borderRadius:'var(--r2)',padding:'16px 18px',marginTop:4,boxShadow:'0 1px 3px rgba(0,0,0,.04)'}},
+            return ce('div',{id:'cqc-detail-panel',style:{background:'var(--card)',border:'1px solid var(--border)',borderLeft:'4px solid '+(r.score==='GREEN'?'var(--green)':r.score==='RED'||r.score==='NFA'?'var(--red)':r.score==='AMBER'?'var(--amber)':'var(--border)'),borderRadius:'var(--r2)',padding:'16px 18px',marginTop:4,boxShadow:'0 1px 3px rgba(0,0,0,.04)'}},
               ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:16}},
                 ce('button',{style:{display:'flex',alignItems:'center',gap:4,color:'var(--text3)',fontSize:13,cursor:'pointer',background:'none',border:'none',padding:0},onClick:function(){setSelRep(null);}},'← Back'),
                 ce('span',{style:{color:'var(--text3)'}},'/ '),
@@ -12645,7 +12645,7 @@ function ClientQCMgmt(props){
                   (function(){
                     var rows=r.sampleRows||[];
                     var g=0,a=0,rd=0,pend=0,majs=[],disp=0;
-                    rows.forEach(function(s){var sc=(s.score||'').toUpperCase();if(sc==='GREEN')g++;else if(sc==='AMBER')a++;else if(sc==='RED')rd++;else pend++;if(s.major>0)majs.push(s.major);if(s.disputed)disp++;});
+                    rows.forEach(function(s){var sc=(s.score||'').toUpperCase();if(sc==='GREEN')g++;else if(sc==='AMBER')a++;else if(sc==='RED'||sc==='NFA')rd++;else pend++;if(s.major>0)majs.push(s.major);if(s.disputed)disp++;});
                     var tot=Math.max(rows.length,1);
                     var seg=function(n,c){return n>0?ce('div',{style:{width:(n/tot*100)+'%',background:c}}):null;};
                     return ce('div',{style:{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
@@ -12782,7 +12782,7 @@ function ClientQCMgmt(props){
                   ce('div',{style:{fontSize:11,color:'var(--text3)'}},r.client+(r.packDate?' · '+r.packDate:''))
                 ),
                 ce('div',{style:{display:'flex',gap:6,alignItems:'center'}},
-                  r.score&&ce('span',{style:{padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',color:r.score==='GREEN'?'var(--green)':r.score==='RED'?'var(--red)':'var(--amber)'}},r.score),
+                  r.score&&ce('span',{style:{padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',color:r.score==='GREEN'?'var(--green)':r.score==='RED'||r.score==='NFA'?'var(--red)':'var(--amber)'}},r.score),
                   r.matched&&ce('span',{style:{background:'var(--green-bg)',color:'var(--green)',border:'1px solid var(--green-border)',borderRadius:6,padding:'2px 7px',fontSize:10,fontWeight:500}},'✓ Matched'),
                   ce('button',{style:{background:'none',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer',lineHeight:1},onClick:function(){setSelRep(null);}},'×')
                 )
@@ -13570,7 +13570,7 @@ function ShipmentsMgmt(props){
             var open=cqcOpen===rep.id;
             var det=cqcDetails[rep.id];
             var sc=(rep.score||'').toUpperCase();
-            var scCol=sc==='GREEN'||sc==='PASS'||sc.indexOf('GOOD')>=0?'var(--green)':sc==='AMBER'||sc==='YELLOW'||sc==='ORANGE'?'var(--amber)':sc==='RED'||sc==='FAIL'?'var(--red)':sc==='BLUE'?'#2563ad':'var(--text2)';
+            var scCol=sc==='GREEN'||sc==='PASS'||sc.indexOf('GOOD')>=0?'var(--green)':sc==='AMBER'||sc==='YELLOW'||sc==='ORANGE'?'var(--amber)':sc==='RED'||sc==='FAIL'||sc==='NFA'?'var(--red)':sc==='BLUE'?'#2563ad':'var(--text2)';
             return ce('div',{key:rep.id,style:{border:'1px solid var(--border)',borderLeft:'3px solid '+scCol,borderRadius:8,marginBottom:8,overflow:'hidden'}},
               ce('div',{style:{padding:'9px 12px',display:'flex',alignItems:'center',gap:8,cursor:'pointer',background:open?'var(--bg2)':'transparent'},onClick:function(){toggleCqcDetail(rep.id);}},
                 ce('span',{style:{fontSize:11,fontWeight:700,color:scCol}},rep.score||'\u2014'),
