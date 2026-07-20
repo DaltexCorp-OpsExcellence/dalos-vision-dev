@@ -557,7 +557,7 @@ table.wl tbody tr.click{cursor:pointer}
       <div class="grid3">
         <div><label class="form-label">Sale price / ton</label><input class="form-input mono" id="salePrice" inputmode="decimal" placeholder="e.g. 1,850" oninput="syncClaimPct()"/></div>
         <div><label class="form-label">Incoterm</label><select class="form-select"><option>FOB</option><option>CFR</option><option>CIF</option><option>DDP</option><option>DAP</option><option>EXW</option><option>FCA</option><option>CPT</option><option>CIP</option></select></div>
-        <div><label class="form-label">Claim % of price</label><div class="ctx-val" id="claimPct">enter price + value</div></div>
+        <div><label class="form-label">Claim % of price</label><input class="form-input mono" id="claimPct" inputmode="decimal" placeholder="auto" oninput="claimPctManual=true;document.getElementById('claimPctBasis').textContent='manual override'"/><div class="hint" id="claimPctBasis" style="margin-top:3px">auto from price × tons</div></div>
       </div>
 
       <!-- CLIENT STANDING -->
@@ -1743,14 +1743,18 @@ var CLIENT_INFO = {
 };
 function clientInfo(name){ return CLIENT_INFO[name] || {vol:'—', tenure:'new / unknown', adh:'fair', dbt:0}; }
 var claimShipNetKg = 0;
+var claimPctManual = false;
 function syncClaimPct(){
   var el=document.getElementById('claimPct'); if(!el) return;
+  var basis=document.getElementById('claimPctBasis');
   var price=parseFloat((document.getElementById('salePrice').value||'').replace(/,/g,''));
   var val=parseFloat((document.getElementById('claimValue').value||'').replace(/,/g,''));
   var tons=(claimShipNetKg||0)/1000;
-  if(!price||!val||!tons){ el.textContent='enter price + value'; return; }
+  if(claimPctManual) return;                         /* member overrode it — leave alone */
+  if(!price||!val||!tons){ el.value=''; if(basis) basis.textContent='auto from sale price × net tons'; return; }
   var cargo=price*tons;
-  el.textContent=(Math.round(val/cargo*1000)/10)+'% of '+Math.round(cargo).toLocaleString()+' cargo value';
+  el.value = Math.round(val/cargo*1000)/10;
+  if(basis) basis.textContent='auto · cargo value '+Math.round(cargo).toLocaleString();
 }
 function openClaim(cn, client){
   var s = shipByCn(cn);
@@ -1771,7 +1775,8 @@ function openClaim(cn, client){
   var bl=document.getElementById('blNumber'); if(bl){ bl.value=''; bl.style.borderColor=''; document.getElementById('blHint').style.display='none'; }
   /* commercial + client standing */
   claimShipNetKg = s ? (s.netKg||0) : 0;
-  document.getElementById('salePrice').value=''; syncClaimPct();
+  claimPctManual = false;
+  document.getElementById('salePrice').value=''; document.getElementById('claimPct').value=''; syncClaimPct();
   var info=clientInfo(client||(s&&s.client));
   document.getElementById('cliVolume').textContent=info.vol;
   document.getElementById('cliTenure').textContent=info.tenure;
