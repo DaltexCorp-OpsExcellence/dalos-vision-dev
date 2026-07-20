@@ -548,8 +548,35 @@ table.wl tbody tr.click{cursor:pointer}
       <div class="msec">Value</div>
       <label class="chk" style="margin-bottom:9px"><input type="checkbox" id="potFlag" onchange="togglePotential()"/><span>Potential claim — flag now, value to be confirmed</span></label>
       <div class="grid3" id="valueRow">
-        <div style="grid-column:span 2"><label class="form-label">Claimed value</label><input class="form-input mono" id="claimValue" inputmode="decimal" placeholder="what the client is claiming"/></div>
+        <div style="grid-column:span 2"><label class="form-label">Claimed value</label><input class="form-input mono" id="claimValue" inputmode="decimal" placeholder="what the client is claiming" oninput="syncClaimPct()"/></div>
         <div><label class="form-label">Currency</label><select class="form-select" id="claimCurrency"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option></select></div>
+      </div>
+
+      <!-- COMMERCIAL -->
+      <div class="msec">Commercial</div>
+      <div class="grid3">
+        <div><label class="form-label">Sale price / ton</label><input class="form-input mono" id="salePrice" inputmode="decimal" placeholder="e.g. 1,850" oninput="syncClaimPct()"/></div>
+        <div><label class="form-label">Incoterm</label><select class="form-select"><option>FOB</option><option>CFR</option><option>CIF</option><option>DDP</option><option>DAP</option><option>EXW</option><option>FCA</option><option>CPT</option><option>CIP</option></select></div>
+        <div><label class="form-label">Claim % of price</label><div class="ctx-val" id="claimPct">enter price + value</div></div>
+      </div>
+
+      <!-- CLIENT STANDING -->
+      <div class="msec">Client standing <span style="text-transform:none;font-weight:400;color:var(--text3)">· from client master (context)</span></div>
+      <div class="grid3" style="margin-bottom:10px">
+        <div><label class="form-label">Total business volume</label><div class="ctx-val" id="cliVolume">—</div></div>
+        <div><label class="form-label">Tenure with Daltex</label><div class="ctx-val" id="cliTenure">—</div></div>
+        <div><label class="form-label">Payment adherence</label>
+          <select class="form-select" id="cliAdherence">
+            <option value="excellent">Excellent — pays early / on time</option>
+            <option value="good">Good — within terms</option>
+            <option value="fair">Fair — occasional delays</option>
+            <option value="poor">Poor — frequently overdue</option>
+            <option value="hold">On hold — blocked / overdue</option>
+          </select></div>
+      </div>
+      <div class="grid2" style="margin-bottom:0">
+        <div><label class="form-label">Current invoice maturity</label><input class="form-input" type="date" id="cliMaturity"/></div>
+        <div><label class="form-label">Days beyond terms</label><div class="ctx-val" id="cliDbt">—</div></div>
       </div>
 
       <!-- SCOPE -->
@@ -1704,6 +1731,27 @@ function buildClaimAudit(s){
     return '<div class="audit-item"><span class="audit-dot"></span><span class="audit-main">'+it.m+'</span><span class="audit-when">'+it.w+'</span></div>';
   }).join('');
 }
+/* client-standing mock (real build: from client master / finance). tenure in years, volume, adherence, days-beyond-terms */
+var CLIENT_INFO = {
+  'Fresh Fields Ltd':   {vol:'£4.2M · 128 cntr', tenure:'9 yrs (since 2017)', adh:'excellent', dbt:0},
+  'Mediterra Import SA':{vol:'€3.1M · 96 cntr',  tenure:'6 yrs (since 2020)', adh:'good', dbt:4},
+  'NordFrukt AB':       {vol:'€1.8M · 61 cntr',  tenure:'4 yrs (since 2022)', adh:'good', dbt:0},
+  'Gulf Fresh Trading': {vol:'$2.6M · 74 cntr',  tenure:'3 yrs (since 2023)', adh:'fair', dbt:18},
+  'Asia Pacific Fruits':{vol:'$1.1M · 33 cntr',  tenure:'2 yrs (since 2024)', adh:'good', dbt:6},
+  'Volga Foods':        {vol:'$2.2M · 68 cntr',  tenure:'5 yrs (since 2021)', adh:'poor', dbt:41},
+  'Adriatic Import':    {vol:'€0.6M · 19 cntr',  tenure:'1 yr (since 2025)',  adh:'fair', dbt:12}
+};
+function clientInfo(name){ return CLIENT_INFO[name] || {vol:'—', tenure:'new / unknown', adh:'fair', dbt:0}; }
+var claimShipNetKg = 0;
+function syncClaimPct(){
+  var el=document.getElementById('claimPct'); if(!el) return;
+  var price=parseFloat((document.getElementById('salePrice').value||'').replace(/,/g,''));
+  var val=parseFloat((document.getElementById('claimValue').value||'').replace(/,/g,''));
+  var tons=(claimShipNetKg||0)/1000;
+  if(!price||!val||!tons){ el.textContent='enter price + value'; return; }
+  var cargo=price*tons;
+  el.textContent=(Math.round(val/cargo*1000)/10)+'% of '+Math.round(cargo).toLocaleString()+' cargo value';
+}
 function openClaim(cn, client){
   var s = shipByCn(cn);
   var existing = s && s.claim;
@@ -1721,6 +1769,17 @@ function openClaim(cn, client){
   /* lifecycle from existing */
   setLifecycle(existing ? existing.status : 'open');
   var bl=document.getElementById('blNumber'); if(bl){ bl.value=''; bl.style.borderColor=''; document.getElementById('blHint').style.display='none'; }
+  /* commercial + client standing */
+  claimShipNetKg = s ? (s.netKg||0) : 0;
+  document.getElementById('salePrice').value=''; syncClaimPct();
+  var info=clientInfo(client||(s&&s.client));
+  document.getElementById('cliVolume').textContent=info.vol;
+  document.getElementById('cliTenure').textContent=info.tenure;
+  document.getElementById('cliAdherence').value=info.adh;
+  document.getElementById('cliDbt').innerHTML = info.dbt>0
+    ? '<span style="color:'+(info.dbt>30?'var(--red)':'var(--amber)')+'">'+info.dbt+' days overdue</span>'
+    : '<span style="color:var(--green)">within terms</span>';
+  document.getElementById('cliMaturity').value = info.dbt>0 ? '2026-06-30' : '2026-08-15';
   document.getElementById('claimModal').classList.add('open');
 }
 function togglePotential(){
