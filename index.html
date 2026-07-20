@@ -7275,6 +7275,19 @@ function HomeView(props){
   var sMenu=useState(false); var menuOpen=sMenu[0]; var setMenuOpen=sMenu[1];
   var sTrans=useState(null); var trans=sTrans[0]; var setTrans=sTrans[1];
   function goto(t){ if(trans) return; setTrans(t); setTimeout(function(){ setView(t.view); }, 460); }
+  /* CRM home stats — region-scoped by crm_voyages RLS (admins all, members their region); fetched async so the heavy view never blocks Home. Only runs for CRM-access users. */
+  var sCrm=useState(null); var crmStats=sCrm[0]; var setCrmStats=sCrm[1];
+  React.useEffect(function(){
+    if(!perms.viewCRM) return;
+    var season=config.trueActiveSeasonId||config.activeSeasonId; if(!season) return;
+    var live=true;
+    var q=function(extra){ var b=supabase.from('crm_voyages').select('claim_status',{count:'exact',head:true}).eq('season_id',season); return extra?extra(b):b; };
+    Promise.all([ q(), q(function(b){return b.eq('claim_status','open');}) ]).then(function(res){
+      if(!live) return;
+      setCrmStats({ total:(res[0]&&res[0].count)||0, open:(res[1]&&res[1].count)||0 });
+    }).catch(function(){ if(live) setCrmStats({total:0,open:0}); });
+    return function(){ live=false; };
+  },[perms.viewCRM, config.activeSeasonId, config.trueActiveSeasonId]);
   var userInitials=(currentUser.name||currentUser.full_name||'').split(' ').map(function(n){return n[0];}).slice(0,2).join('');
   var roleLabel=(currentUser.role||'').charAt(0).toUpperCase()+(currentUser.role||'').slice(1);
 
@@ -7314,10 +7327,16 @@ function HomeView(props){
   if(perms.viewShipments) tiles.push({key:'shipments',view:'shipments',  eyebrow:'Logistics',  label:'Shipments',        icon:'\uD83D\uDEA2', hint:'Records & claims', glow:'#d98a1f', eyebrowColor:'#e8c489'});
   if(perms.viewAnalytics) tiles.push({key:'analytics',view:'analytics',  eyebrow:'Insights',   label:'Inspections Analytics',     icon:'\uD83D\uDCCA', hint:'Season trends', glow:'#3d9e6b', eyebrowColor:'#8fe0ad'});
   if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Board Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
+  if(perms.viewCRM)       tiles.push({key:'crm',       view:'crm',        eyebrow:'Commercial', label:'CRM', glow:'#c07ce8', eyebrowColor:'#d7b6f0',
+      icon:ce('span',{dangerouslySetInnerHTML:{__html:'<svg viewBox="0 0 16 16" fill="currentColor" style="width:1em;height:1em;display:block"><path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002a.274.274 0 0 1-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>'}}),
+      hint:(crmStats?(crmStats.total.toLocaleString()+' in scope \u00b7 '+crmStats.open+' open claim'+(crmStats.open===1?'':'s')):'Claims & regions'),
+      pulse:!!(crmStats&&crmStats.open>0)});
 
   function tileEl(t){
     return ce('div',{key:t.key,className:'dh-tile'+(t.primary?' dh-primary':''),onClick:function(){goto(t);},
-        style:{animation:'dh-rise .6s '+(0.1+tiles.indexOf(t)*0.05)+'s ease both',opacity:0}},
+        style:{animation:'dh-rise .6s '+(0.1+tiles.indexOf(t)*0.05)+'s ease both',opacity:0,
+          /* with 6 tiles (CRM added for admin/power_user) the hero drops its 2-row span so the grid stays a clean 3×2 — otherwise the 6th tile spills past the fixed-height grid */
+          gridRow:(t.primary&&tiles.length>5)?'auto':undefined}},
       t.primary?ce('div',{className:'dh-sheen'}):null,
       ce('div',{className:'dh-glow',style:{background:t.glow}}),
       t.badge?ce('div',{className:'dh-badge'},t.badge):null,
