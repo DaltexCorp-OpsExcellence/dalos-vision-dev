@@ -17649,13 +17649,29 @@ ReactDOM.createRoot(document.getElementById('root')).render(ce(App,null));
     document.addEventListener('click', function(){ wrap.classList.remove('open'); anchor.setAttribute('aria-expanded','false'); });
     var ana = wrap.querySelector('#dsw-ana');
     ana.addEventListener('click', function(e){ e.preventDefault(); location.href = (ana.getAttribute('data-granted')==='1') ? ANALYTICS : WS; });
+    function unlockAnalytics(){ ana.classList.remove('dsw-locked'); ana.setAttribute('data-granted','1'); var lk=document.getElementById('dsw-lock'); if(lk) lk.remove(); }
     function checkAccess(tries){
       try{
+        // Wait for the Supabase client to finish loading before doing anything.
         if(typeof supabase==='undefined' || !supabase.rpc){ if(tries>0) setTimeout(function(){checkAccess(tries-1);},1200); return; }
-        supabase.rpc('has_analytics_access').then(function(a){
-          if(a && !a.error && a.data===true){ ana.classList.remove('dsw-locked'); ana.setAttribute('data-granted','1'); var lk=document.getElementById('dsw-lock'); if(lk) lk.remove(); }
-          else if(tries>0){ setTimeout(function(){checkAccess(tries-1);},1500); }
-        }).catch(function(){ if(tries>0) setTimeout(function(){checkAccess(tries-1);},1500); });
+        // Only ever call has_analytics_access with a live user JWT — a call with no
+        // valid token lands as anon (no EXECUTE) -> 42501. Wait for the session to
+        // hydrate (retry), refresh if expired, and fail closed (leave tile locked)
+        // rather than calling the RPC as anon. The RPC result is authoritative, so
+        // we never retry it.
+        supabase.auth.getSession().then(function(sr){
+          var sess=sr&&sr.data&&sr.data.session;
+          if(!sess||!sess.access_token){ if(tries>0) setTimeout(function(){checkAccess(tries-1);},1200); return; }
+          var ok=sess.expires_at && ((sess.expires_at*1000-Date.now())>15000);
+          var step=ok?Promise.resolve({data:{session:sess}}):supabase.auth.refreshSession();
+          return step.then(function(rr){
+            var vs=rr&&rr.data&&rr.data.session;
+            if(!vs||!vs.access_token){ return; }
+            return supabase.rpc('has_analytics_access').then(function(a){
+              if(a && !a.error && a.data===true){ unlockAnalytics(); }
+            });
+          });
+        }).catch(function(){});
       }catch(_e){}
     }
     checkAccess(3);
