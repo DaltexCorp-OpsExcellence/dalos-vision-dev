@@ -14588,7 +14588,7 @@ window.CRM = (function(){
       split:!!r.split, rowCount:num(r.row_count), cartaCount:num(r.carta_count),
       status:r.status, statusLabel:r.status==='delivered'?'Delivered':'In transit',
       sortKey:dayKey(r.eta||r.arrival_date||r.etd),
-      coverage:r.coverage, insp:null, cqc:null, graded:null, claim:null, rows:null,
+      coverage:r.coverage, insp:null, cqc:null, graded:null, claim:null, rows:null, packHouses:r.pack_houses||[],
       cqcId:r.cqc_id||null, inspId:r.insp_id||null, gradingId:r.grading_id||null, claimId:r.claim_id||null,
       claimRefRaw:r.claim_ref||null
     };
@@ -14916,8 +14916,9 @@ window.CRM = (function(){
     }
     var byClient=groupStats(function(s){return [s.client];});
     var byVariety=groupStats(function(s){return s.varieties||[s.variety];});
-    var maxC=byClient.length?byClient[0].n:1, maxV=byVariety.length?byVariety[0].n:1;
-    var breakdowns='<div class="pulse-panels"><div class="pulse-panel"><div class="pp-title">By client · click → filtered list</div>'+rank(byClient,maxC,'client')+'</div><div class="pulse-panel"><div class="pp-title">By variety · click → filtered list</div>'+rank(byVariety,maxV,'variety')+'</div></div>';
+    var byPh=groupStats(function(s){return s.packHouses||[];}); byPh.forEach(function(r){ r.unit='rows'; });
+    var maxC=byClient.length?byClient[0].n:1, maxV=byVariety.length?byVariety[0].n:1, maxP=byPh.length?byPh[0].n:1;
+    var breakdowns='<div class="pulse-panels"><div class="pulse-panel"><div class="pp-title">By client · click → filtered list</div>'+rank(byClient,maxC,'client')+'</div><div class="pulse-panel"><div class="pp-title">By variety · click → filtered list</div>'+rank(byVariety,maxV,'variety')+'</div><div class="pulse-panel"><div class="pp-title">By packhouse · from composition rows</div>'+rank(byPh,maxP,null)+'</div></div>';
     var compare='';
     if(currentRegion==='all'){
       var rg={};
