@@ -7465,7 +7465,7 @@ var DH_CSS=[
 '.dh-menu-item:hover{background:rgba(255,255,255,.07)}',
 '.dh-menu-danger{color:#f0a89a}',
 '.dh-menu-danger:hover{background:rgba(255,106,82,.12)}',
-'.dh-body{flex:1;position:relative;z-index:5;overflow-y:auto;padding:40px 56px 90px;display:flex;flex-direction:column;justify-content:safe center}',
+'.dh-body{flex:1;position:relative;z-index:5;overflow:hidden;padding:40px 56px 90px;display:flex;flex-direction:column;justify-content:center}',
 '.dh-crest{position:absolute;right:-40px;top:50%;transform:translateY(-50%);width:min(46vw,560px);height:min(46vw,560px);z-index:0;animation:dh-breathe 14s ease-in-out infinite}',
 '.dh-fruit{position:absolute;z-index:1;animation:dh-drift 10s ease-in-out infinite;filter:drop-shadow(0 6px 14px rgba(0,0,0,.3))}',
 '.dh-hero{position:relative;z-index:6;margin-bottom:32px;animation:dh-rise .6s cubic-bezier(.2,.8,.2,1) both}',
@@ -7474,9 +7474,11 @@ var DH_CSS=[
 '.dh-headline{font-family:var(--font-display);font-size:44px;line-height:1.05;color:#f4f1e8;letter-spacing:-.5px;text-shadow:0 2px 30px rgba(0,0,0,.4)}',
 '.dh-accent{background:linear-gradient(120deg,#8fe0ad,#b18cf0);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-style:italic}',
 '.dh-bento{position:relative;z-index:6;display:grid;grid-template-columns:1.5fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:14px;width:100%;max-width:940px;height:min(46vh,420px);min-height:320px}',
-/* 6-tile layout (CRM added for admin/power_user): keep the original two rows at their exact height so the hero + existing tiles are unchanged, and append CRM as a compact full-width third row */
-'.dh-bento6{height:auto;grid-template-rows:calc(min(46vh, 420px) / 2) calc(min(46vh, 420px) / 2) auto}',
-'.dh-bento6 .dh-tile:last-child{grid-column:1 / -1;min-height:96px}',
+/* 6-tile layout (CRM added for admin/power_user): add a 4th column and make Export (left) + CRM (right) tall bookends around the 2×2 of secondaries. Same 2-row height as the 5-tile home — uses horizontal space (previously decorative), so nothing grows vertically or clips on smaller screens */
+'.dh-bento6{grid-template-columns:1.5fr 1fr 1fr 1.15fr;max-width:1180px}',
+'.dh-bento6 .dh-tile:last-child{grid-column:4;grid-row:1 / span 2;background:linear-gradient(160deg,rgba(150,90,210,.16),rgba(10,24,15,.42));border-color:rgba(192,124,232,.26)}',
+'.dh-bento6 .dh-tile:last-child .dh-icon{font-size:34px;color:#e4c4f4}',
+'.dh-bento6 .dh-tile:last-child .dh-title{font-size:22px;font-family:var(--font-display);font-weight:400}',
 '.dh-tile{border-radius:20px;padding:22px;cursor:pointer;position:relative;overflow:hidden;transition:transform .25s cubic-bezier(.3,1.4,.5,1),box-shadow .25s,border-color .25s;display:flex;flex-direction:column;justify-content:space-between;background:rgba(255,255,255,.045);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1)}',
 '.dh-tile:hover{transform:translateY(-5px);border-color:rgba(255,255,255,.24);box-shadow:0 22px 50px rgba(0,0,0,.4)}',
 '.dh-tile:active{transform:translateY(-2px) scale(.99)}',
@@ -7515,7 +7517,7 @@ var DH_CSS=[
 '.dh-veil-icon{font-size:34px;animation:dh-veil-pop .5s .08s ease both;opacity:0;text-shadow:0 0 24px currentColor}',
 '.dh-veil-label{font-family:var(--font-display);font-size:26px;color:#f4f1e8;animation:dh-veil-pop .5s .14s ease both;opacity:0;letter-spacing:-.3px}',
 '.dh-veil-sub{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(244,241,232,.5);animation:dh-veil-pop .5s .2s ease both;opacity:0}',
-'@media(max-width:760px){.dh-page{position:relative;min-height:100vh}.dh-body{padding:22px 16px 28px;justify-content:flex-start;overflow:visible}.dh-aurora{position:fixed}.dh-bento{grid-template-columns:1fr 1fr;grid-template-rows:auto;height:auto;min-height:0;gap:10px}.dh-tile{padding:14px 15px;min-height:0;justify-content:flex-start;gap:10px}.dh-primary{grid-row:auto;grid-column:span 2;min-height:0}.dh-icon{margin-bottom:0}.dh-primary .dh-icon{margin-bottom:4px}.dh-big{font-size:40px;margin-top:6px}.dh-primary .dh-title{font-size:20px}.dh-crest{display:none}.dh-fruit{display:none}.dh-headline{font-size:24px}.dh-hero{margin-bottom:20px}.dh-ribbon{position:relative;left:auto;right:auto;bottom:auto;flex-wrap:wrap;gap:12px 0;margin-top:20px;padding:16px 0 0;border-top:1px solid rgba(255,255,255,.08)}.dh-ri{padding-right:16px;margin-right:16px}.dh-tb{padding:0 14px}.dh-ver{display:none}.dh-pill{padding:0 10px}.dh-season-lbl{display:none}}',
+'@media(max-width:760px){.dh-page{position:relative;min-height:100vh}.dh-body{padding:22px 16px 28px;justify-content:flex-start;overflow:visible}.dh-aurora{position:fixed}.dh-bento{grid-template-columns:1fr 1fr;grid-template-rows:auto;height:auto;min-height:0;gap:10px}.dh-tile{padding:14px 15px;min-height:0;justify-content:flex-start;gap:10px}.dh-primary{grid-row:auto;grid-column:span 2;min-height:0}.dh-icon{margin-bottom:0}.dh-primary .dh-icon{margin-bottom:4px}.dh-big{font-size:40px;margin-top:6px}.dh-primary .dh-title{font-size:20px}.dh-crest{display:none}.dh-fruit{display:none}.dh-headline{font-size:24px}.dh-hero{margin-bottom:20px}.dh-ribbon{position:relative;left:auto;right:auto;bottom:auto;flex-wrap:wrap;gap:12px 0;margin-top:20px;padding:16px 0 0;border-top:1px solid rgba(255,255,255,.08)}.dh-ri{padding-right:16px;margin-right:16px}.dh-tb{padding:0 14px}.dh-ver{display:none}.dh-pill{padding:0 10px}.dh-season-lbl{display:none}.dh-bento6 .dh-tile:last-child{grid-column:auto;grid-row:auto}}',
 '@media(max-width:430px){.dh-bento{grid-template-columns:1fr;gap:9px}.dh-primary{grid-column:auto}.dh-tile{flex-direction:row;align-items:center;gap:13px}.dh-tile>div:last-child{flex:1}.dh-icon{margin-bottom:0;font-size:22px}.dh-eyebrow-t{position:absolute;top:13px;right:14px;font-size:9px;opacity:.7}.dh-primary{flex-direction:column;align-items:stretch}.dh-primary .dh-eyebrow-t{position:relative;top:auto;right:auto}.dh-headline{font-size:22px}.dh-badge{top:auto;bottom:13px;right:14px}.dh-tb-r .dh-pill span{display:none}}'
 ].join('\n');
 
