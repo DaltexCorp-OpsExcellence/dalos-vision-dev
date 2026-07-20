@@ -7281,12 +7281,15 @@ function HomeView(props){
     if(!perms.viewCRM) return;
     var season=config.trueActiveSeasonId||config.activeSeasonId||CRM_FALLBACK_SEASON;
     var live=true;
-    var q=function(extra){ var b=supabase.from('crm_voyages').select('claim_status',{count:'exact'}).eq('season_id',season).limit(1); return extra?extra(b):b; };
-    Promise.all([ q(), q(function(b){return b.eq('claim_status','open');}) ]).then(function(res){
-      if(!live) return;
-      if((res[0]&&res[0].error)||(res[1]&&res[1].error)) return; /* keep the "Claims & regions" placeholder on failure rather than show a misleading 0 */
-      setCrmStats({ total:(res[0]&&res[0].count)||0, open:(res[1]&&res[1].count)||0 });
-    }).catch(function(){});
+    function load(attempt){
+      var q=function(extra){ var b=supabase.from('crm_voyages').select('claim_status',{count:'exact'}).eq('season_id',season).limit(1); return extra?extra(b):b; };
+      Promise.all([ q(), q(function(b){return b.eq('claim_status','open');}) ]).then(function(res){
+        if(!live) return;
+        if((res[0]&&res[0].error)||(res[1]&&res[1].error)){ if(attempt<3) setTimeout(function(){ if(live) load(attempt+1); },1500); return; }
+        setCrmStats({ total:(res[0]&&res[0].count)||0, open:(res[1]&&res[1].count)||0 });
+      }).catch(function(){ if(live&&attempt<3) setTimeout(function(){ if(live) load(attempt+1); },1500); });
+    }
+    load(0);
     return function(){ live=false; };
   },[perms.viewCRM, config.activeSeasonId, config.trueActiveSeasonId]);
   var userInitials=(currentUser.name||currentUser.full_name||'').split(' ').map(function(n){return n[0];}).slice(0,2).join('');
@@ -7339,7 +7342,7 @@ function HomeView(props){
     tiles.forEach(function(t){ if(t.key==='crm')_crm=t; else if(t.key==='fg')_fg=t; else _rest.push(t); });
     if(_crm){
       _crm.primary=true; _crm.extraClass='dh-primary-crm';
-      _crm.big=crmStats?crmStats.total.toLocaleString():'—'; _crm.bigLabel='in scope';
+      _crm.big=crmStats?crmStats.total.toLocaleString():'—'; _crm.bigLabel='in scope'; _crm.bigPending=!crmStats;
       _crm.hint=crmStats?(crmStats.open+' open claim'+(crmStats.open===1?'':'s')):'Claims & regions';
       if(_fg) _fg.primary=false;
       tiles=[_crm].concat(_fg?[_fg]:[]).concat(_rest);
@@ -7357,7 +7360,7 @@ function HomeView(props){
       ce('div',null,
         ce('div',{className:'dh-icon'},t.icon),
         ce('div',{className:'dh-title'},t.label),
-        t.primary?ce('div',{className:'dh-big'},loading?shim(58,46):t.big,ce('small',null,t.bigLabel)):null,
+        t.primary?ce('div',{className:'dh-big'},(loading||t.bigPending)?shim(58,46):t.big,ce('small',null,t.bigLabel)):null,
         ce('div',{className:'dh-hint'},(loading&&t.dynamicHint)?shim(118,11):t.hint)
       )
     );
