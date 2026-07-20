@@ -561,10 +561,10 @@ table.wl tbody tr.click{cursor:pointer}
       </div>
 
       <!-- CLIENT STANDING -->
-      <div class="msec">Client standing <span style="text-transform:none;font-weight:400;color:var(--text3)">· from client master (context)</span></div>
+      <div class="msec">Client standing <span style="text-transform:none;font-weight:400;color:var(--text3)">· manual entry — no live source yet</span></div>
       <div class="grid3" style="margin-bottom:10px">
-        <div><label class="form-label">Total business volume</label><div class="ctx-val" id="cliVolume">—</div></div>
-        <div><label class="form-label">Tenure with Daltex</label><div class="ctx-val" id="cliTenure">—</div></div>
+        <div><label class="form-label">Total business volume</label><input class="form-input" id="cliVolume" placeholder="e.g. $2.6M · 74 cntr"/></div>
+        <div><label class="form-label">Tenure with Daltex</label><input class="form-input" id="cliTenure" placeholder="e.g. 3 yrs (since 2023)"/></div>
         <div><label class="form-label">Payment adherence</label>
           <select class="form-select" id="cliAdherence">
             <option value="excellent">Excellent — pays early / on time</option>
@@ -575,8 +575,8 @@ table.wl tbody tr.click{cursor:pointer}
           </select></div>
       </div>
       <div class="grid2" style="margin-bottom:0">
-        <div><label class="form-label">Current invoice maturity</label><input class="form-input" type="date" id="cliMaturity"/></div>
-        <div><label class="form-label">Days beyond terms</label><div class="ctx-val" id="cliDbt">—</div></div>
+        <div><label class="form-label">Current invoice maturity</label><input class="form-input" type="date" id="cliMaturity" oninput="syncDbt()"/></div>
+        <div><label class="form-label">Days beyond terms <span style="text-transform:none;font-weight:400;color:var(--text3)">(auto)</span></label><div class="ctx-val" id="cliDbt">enter maturity</div></div>
       </div>
 
       <!-- SCOPE -->
@@ -1731,17 +1731,16 @@ function buildClaimAudit(s){
     return '<div class="audit-item"><span class="audit-dot"></span><span class="audit-main">'+it.m+'</span><span class="audit-when">'+it.w+'</span></div>';
   }).join('');
 }
-/* client-standing mock (real build: from client master / finance). tenure in years, volume, adherence, days-beyond-terms */
-var CLIENT_INFO = {
-  'Fresh Fields Ltd':   {vol:'£4.2M · 128 cntr', tenure:'9 yrs (since 2017)', adh:'excellent', dbt:0},
-  'Mediterra Import SA':{vol:'€3.1M · 96 cntr',  tenure:'6 yrs (since 2020)', adh:'good', dbt:4},
-  'NordFrukt AB':       {vol:'€1.8M · 61 cntr',  tenure:'4 yrs (since 2022)', adh:'good', dbt:0},
-  'Gulf Fresh Trading': {vol:'$2.6M · 74 cntr',  tenure:'3 yrs (since 2023)', adh:'fair', dbt:18},
-  'Asia Pacific Fruits':{vol:'$1.1M · 33 cntr',  tenure:'2 yrs (since 2024)', adh:'good', dbt:6},
-  'Volga Foods':        {vol:'$2.2M · 68 cntr',  tenure:'5 yrs (since 2021)', adh:'poor', dbt:41},
-  'Adriatic Import':    {vol:'€0.6M · 19 cntr',  tenure:'1 yr (since 2025)',  adh:'fair', dbt:12}
-};
-function clientInfo(name){ return CLIENT_INFO[name] || {vol:'—', tenure:'new / unknown', adh:'fair', dbt:0}; }
+/* Client standing = manual entry (no live source in Vision yet). Days-beyond-terms auto-derives from the maturity date. */
+function syncDbt(){
+  var el=document.getElementById('cliDbt'); if(!el) return;
+  var m=document.getElementById('cliMaturity').value;
+  if(!m){ el.textContent='enter maturity'; return; }
+  var days=Math.floor((Date.now()-new Date(m).getTime())/86400000);
+  el.innerHTML = days>0
+    ? '<span style="color:'+(days>30?'var(--red)':'var(--amber)')+'">'+days+' days overdue</span>'
+    : '<span style="color:var(--green)">'+(-days)+' days to maturity</span>';
+}
 var claimShipNetKg = 0;
 var claimPctManual = false;
 function syncClaimPct(){
@@ -1777,14 +1776,11 @@ function openClaim(cn, client){
   claimShipNetKg = s ? (s.netKg||0) : 0;
   claimPctManual = false;
   document.getElementById('salePrice').value=''; document.getElementById('claimPct').value=''; syncClaimPct();
-  var info=clientInfo(client||(s&&s.client));
-  document.getElementById('cliVolume').textContent=info.vol;
-  document.getElementById('cliTenure').textContent=info.tenure;
-  document.getElementById('cliAdherence').value=info.adh;
-  document.getElementById('cliDbt').innerHTML = info.dbt>0
-    ? '<span style="color:'+(info.dbt>30?'var(--red)':'var(--amber)')+'">'+info.dbt+' days overdue</span>'
-    : '<span style="color:var(--green)">within terms</span>';
-  document.getElementById('cliMaturity').value = info.dbt>0 ? '2026-06-30' : '2026-08-15';
+  document.getElementById('cliVolume').value='';
+  document.getElementById('cliTenure').value='';
+  document.getElementById('cliAdherence').value='good';
+  document.getElementById('cliMaturity').value='';
+  syncDbt();
   document.getElementById('claimModal').classList.add('open');
 }
 function togglePotential(){
