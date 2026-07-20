@@ -6700,6 +6700,15 @@ function AnalyticsView(props){
 
 
 /* ─── PACKHOUSES & CROPS ─── */
+/* CQC client score / status options — single source for every score dropdown
+   and the save-time whitelist. Sites read (config.cqcScoreOptions||CQC_SCORE_OPTIONS)
+   so this array is a fallback; when the DB reference table (cqc_score_options) is
+   loaded into config, the DB value wins with no further UI edits.
+   ⚠ SYNC RULE: this list MUST stay a subset of the DB CHECK constraint
+   `client_qc_reports_score_check`. Adding a value here without adding it to the
+   constraint makes any report using it fail to save (violates the check). That is
+   exactly what happened with 'NFA'. Prefer the DB-driven path (see cqc_score_options). */
+var CQC_SCORE_OPTIONS = ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL','NFA'];
 /* ─── SYSTEM CONFIG (admin-editable, lives in App state) ─── */
 var INITIAL_CONFIG = {
   packhouses:[
@@ -10680,7 +10689,7 @@ function ClientQCMgmt(props){
       trace_code:fTrace||null,
       lot_number:fLot||null,
       wax:fWax||null,
-      score:['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL','NFA'].indexOf(fScore)>=0?fScore:null,
+      score:(config.cqcScoreOptions||CQC_SCORE_OPTIONS).indexOf(fScore)>=0?fScore:null,
       brix:parseFloat(fBrix)||null,
       brix_issue:fBrixIssue==='Yes', brix_issue_pct:fBrixIssuePct?parseFloat(fBrixIssuePct):null,
       carton_issue:fCartonIssue==='Yes',
@@ -11432,7 +11441,7 @@ function ClientQCMgmt(props){
               ce('label',{className:'form-label'},'Client score / status'),
               ce('select',{className:'form-select',value:fScore,onChange:function(e){setScore(e.target.value);}},
                 ce('option',{value:''},'— Select —'),
-                ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL','NFA'].map(function(s){return ce('option',{key:s,value:s},s);})
+                (config.cqcScoreOptions||CQC_SCORE_OPTIONS).map(function(s){return ce('option',{key:s,value:s},s);})
               )
             ),
             fi('Max temperature (\u00b0C)',fMaxTemp,setMaxTemp),
@@ -11888,7 +11897,7 @@ function ClientQCMgmt(props){
                           onKeyDown:function(e){if(e.key==='Enter'&&e.altKey){e.preventDefault();var nr=parseInt(e.target.getAttribute('data-meta-row'))+1;var nc=e.target.getAttribute('data-meta-col');var t=document.querySelector('.cqc-grid [data-meta-row="'+nr+'"][data-meta-col="'+nc+'"]')||document.querySelector('.cqc-grid [data-meta-row="0"][data-meta-col="'+nc+'"]');if(t)t.focus();}}
                         },
                           ce('option',{value:''},'—'),
-                          ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL','NFA'].map(function(s){return ce('option',{key:s,value:s},s);})
+                          (config.cqcScoreOptions||CQC_SCORE_OPTIONS).map(function(s){return ce('option',{key:s,value:s},s);})
                         )
                       ),
                       /* Notes */
@@ -12169,7 +12178,7 @@ function ClientQCMgmt(props){
                           ce('label',{className:'form-label'},'Client score'),
                           ce('select',{className:'form-select',value:sample.score||'',onChange:function(idx){return function(e){updateCqcSampleField(idx,'score',e.target.value);};}(si)},
                             ce('option',{value:''},'— Select —'),
-                            ['GREEN','AMBER','RED','BLUE','WHITE','YELLOW','EXCELLENT (9)','GOOD (8)','NORMAL (7)','ACCEPTABLE (6)','PROBLEMATIC (5)','UNACCEPTABLE (4)','OUT OF SPEC (3>=)','REPACK (2>=)','DUMP/DESTROY (1>=)','EXCELLENT (1)','GOOD (2)','ACCEPTABLE (3)','BELOW QUALITY STANDARD (4)','POOR (5)','TOTAL LOSS (6)','PASS','FAIL','NFA'].map(function(s){return ce('option',{key:s,value:s},s);})
+                            (config.cqcScoreOptions||CQC_SCORE_OPTIONS).map(function(s){return ce('option',{key:s,value:s},s);})
                           )
                         )
                       );
@@ -16054,6 +16063,7 @@ function App(){
         supabase.from('defect_sections').select('*, defects(*,active)').eq('active',true).order('display_order'),
         supabase.from('cqc_defect_sections').select('*, cqc_defects(*)').eq('active',true).order('display_order'),
         supabase.from('categories').select('*').eq('active',true).order('name'),
+        supabase.from('cqc_score_options').select('value,sort_order,active').eq('active',true).order('sort_order'),
       ]).then(function(results){
         console.log('[DalOS] DB results:', results.map(function(r){return {data:r.data?r.data.length:'null',error:r.error?r.error.message:'none'};}));
         var phs=results[0].data||[];
@@ -16067,7 +16077,8 @@ function App(){
         var cartonTypes=results[8].data||[];
         var seasons=results[9].data||[];
         var defSections=results[10].data||[];
-        var cqcSectionsRaw=results[11]?results[11].data||[]:[]; var categories=results[12]?results[12].data||[]:[]; 
+        var cqcSectionsRaw=results[11]?results[11].data||[]:[]; var categories=results[12]?results[12].data||[]:[];
+        var cqcScoreOpts=results[13]?results[13].data||[]:[]; /* DB-driven CQC score list; falls back to CQC_SCORE_OPTIONS constant if empty/errored */
 
         /* Build categories map per product */
         console.log('[DalOS] Raw categories from DB:', categories.length, categories.map(function(c){return c.product_id+':'+c.name;}));
@@ -16214,6 +16225,7 @@ function App(){
           farmsIdToName:farmsIdToName,
           cartonTypesIdMap:cartonTypesIdMap,
           cartonTypesIdToName:cartonTypesIdToName,
+          cqcScoreOptions:(cqcScoreOpts.length?cqcScoreOpts.map(function(o){return o.value;}):CQC_SCORE_OPTIONS),
           defectSections:defSectionsMap,
           cqcDefectSections:(function(){
             var map={};
