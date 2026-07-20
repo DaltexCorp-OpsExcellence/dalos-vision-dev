@@ -7282,11 +7282,12 @@ function HomeView(props){
     var season=config.trueActiveSeasonId||config.activeSeasonId||CRM_FALLBACK_SEASON;
     var live=true;
     function load(attempt){
-      var q=function(extra){ var b=supabase.from('crm_voyages').select('claim_status',{count:'exact'}).eq('season_id',season).limit(1); return extra?extra(b):b; };
-      Promise.all([ q(), q(function(b){return b.eq('claim_status','open');}) ]).then(function(res){
+      /* crm_home_stats RPC: counts from cheap sources (grouped shipments + crm_claims), region-gated — avoids crm_voyages' LATERAL joins that made count=exact time out */
+      supabase.rpc('crm_home_stats',{p_season:season}).then(function(res){
         if(!live) return;
-        if((res[0]&&res[0].error)||(res[1]&&res[1].error)){ if(attempt<3) setTimeout(function(){ if(live) load(attempt+1); },1500); return; }
-        setCrmStats({ total:(res[0]&&res[0].count)||0, open:(res[1]&&res[1].count)||0 });
+        if(res&&res.error){ if(attempt<3) setTimeout(function(){ if(live) load(attempt+1); },1500); return; }
+        var row=(res&&res.data&&res.data[0])||{};
+        setCrmStats({ total:Number(row.in_scope)||0, open:Number(row.open_claims)||0 });
       }).catch(function(){ if(live&&attempt<3) setTimeout(function(){ if(live) load(attempt+1); },1500); });
     }
     load(0);
