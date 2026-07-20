@@ -10114,6 +10114,15 @@ function ClientQCMgmt(props){
 
   /* multi-file uploads */
   var sFiles=useState([]); var uploadedFiles=sFiles[0]; var setUploadedFiles=sFiles[1];
+  /* Latest uploadedFiles for use inside event handlers (retry after re-auth) */
+  var uploadedFilesRef=React.useRef([]);
+  React.useEffect(function(){uploadedFilesRef.current=uploadedFiles;},[uploadedFiles]);
+  /* When the session is restored (sign-in on another tab), auto-retry failed uploads */
+  React.useEffect(function(){
+    function onRestored(){(uploadedFilesRef.current||[]).forEach(function(f){if(f.status==='failed'&&f.file)uploadOneFile(f);});}
+    window.addEventListener('dalos:auth-restored',onRestored);
+    return function(){window.removeEventListener('dalos:auth-restored',onRestored);};
+  },[]);
   var sOCR=useState('idle'); var ocrStatus=sOCR[0]; var setOcrStatus=sOCR[1];
   var sTip=useState({v:false,text:'',x:0,y:0}); var tipState=sTip[0]; var setTipState=sTip[1];
   function showTip(text,e){var r=e.currentTarget.getBoundingClientRect();setTipState({v:true,text:text,x:r.left+r.width/2,y:r.top});}
@@ -10299,41 +10308,89 @@ function ClientQCMgmt(props){
     });
   }
 
+  /* Best-effort: record an upload failure to error_log so it is visible server-side.
+     Fire-and-forget — never throws, never blocks the UI. (error_log needs an
+     authenticated INSERT policy to actually persist; harmless no-op otherwise.) */
+  function cqcLogUploadError(fileName,err){
+    try{
+      var msg=((err&&(err.message||err.error_description))||err||'unknown')+'';
+      supabase.auth.getUser().then(function(ur){
+        supabase.from('error_log').insert([{
+          user_id:(ur&&ur.data&&ur.data.user)?ur.data.user.id:null,
+          context:'cqc_file_upload',error_msg:msg,payload:{file:fileName}
+        }]).then(function(){},function(){});
+      },function(){});
+    }catch(e){}
+  }
+  /* Classify an error as auth/session-related (dead token, RLS-as-anon, 401/403). */
+  function isAuthUploadError(err){
+    if(!err) return false;
+    var s=((err.message||'')+' '+(err.error||'')+' '+(err.name||'')+' '+(err.status||'')+' '+(err.statusCode||'')).toLowerCase();
+    return /jwt|token|expired|refresh|not authenticated|unauthor|permission denied|row-level security|42501|\b401\b|\b403\b/.test(s);
+  }
+  function markCqcFile(uid,patch){
+    setUploadedFiles(function(prev){return prev.map(function(f){return f.uid===uid?Object.assign({},f,patch):f;});});
+  }
+  /* Upload a single file entry. Guards the session, retries once after a silent
+     refresh on auth errors, and marks the entry failed (loud) if it still fails. */
+  function uploadOneFile(entry){
+    var file=entry&&entry.file; if(!file) return;
+    var rid=editRep||'pending-'+Date.now();
+    var safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    var path=rid+'/'+Date.now()+'-'+safeName;
+    markCqcFile(entry.uid,{status:'uploading',error:null});
+    function attempt(isRetryAfterAuth){
+      return supabase.storage.from('client-qc-files').upload(path,file,{contentType:file.type,upsert:false})
+        .then(function(res){
+          if(res.error) throw res.error;
+          return supabase.storage.from('client-qc-files').createSignedUrl(path,31536000).then(function(su){
+            var url=su.data&&su.data.signedUrl;
+            if(su.error||!url) throw (su.error||new Error('Could not generate file link'));
+            markCqcFile(entry.uid,{status:'uploaded',storagePath:path,fileUrl:url,error:null});
+            console.log('[DalOS] File uploaded:',path);
+            /* If editing an existing report, insert the DB link immediately */
+            if(editRep&&url){
+              supabase.from('client_qc_files').insert([{client_qc_report_id:editRep,file_name:file.name,file_url:url,file_type:file.type}])
+                .then(function(r){if(r.error) console.error('[DalOS] client_qc_files insert error:',r.error.message);});
+            }
+          });
+        })
+        .catch(function(err){
+          /* One silent refresh + retry before bothering the user (DEFENSE) */
+          if(isAuthUploadError(err)&&!isRetryAfterAuth){
+            return supabase.auth.refreshSession().then(function(rr){
+              if(rr&&rr.data&&rr.data.session) return attempt(true);
+              throw err;
+            },function(){throw err;});
+          }
+          throw err;
+        });
+    }
+    attempt(false).catch(function(err){
+      var authKind=isAuthUploadError(err);
+      console.error('[DalOS] File upload failed:',entry.name,err&&err.message);
+      cqcLogUploadError(entry.name,err);
+      markCqcFile(entry.uid,{status:'failed',errKind:authKind?'auth':'other',
+        error:authKind
+          ?'Upload failed — your session expired. Sign in and retry.'
+          :'Upload failed — '+((err&&err.message)||'network error')+'.'});
+      /* Auth failure: surface the existing session-expired overlay (new-tab sign-in).
+         On sign-in, the dalos:auth-restored bridge auto-retries this file. */
+      if(authKind){try{window.dispatchEvent(new CustomEvent('dalos:session-expired'));}catch(e){}}
+    });
+  }
+  function retryCqcFile(uid){
+    var e=(uploadedFilesRef.current||[]).find(function(f){return f.uid===uid;});
+    if(e&&e.file) uploadOneFile(e);
+  }
   function handleFiles(newFiles){
     var arr=Array.from(newFiles);
-    /* Upload each file to Supabase Storage immediately */
-    arr.forEach(function(file){
-      var rid=editRep||'pending-'+Date.now();
-      var safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-      var path=rid+'/'+Date.now()+'-'+safeName;
-      supabase.storage.from('client-qc-files').upload(path,file,{contentType:file.type,upsert:false})
-        .then(function(res){
-          if(res.error){console.error('[DalOS] File upload error:',res.error.message);return;}
-          console.log('[DalOS] File uploaded:',path);
-          /* Get signed URL valid for 1 year */
-          supabase.storage.from('client-qc-files').createSignedUrl(path,31536000)
-            .then(function(su){
-              var url=su.data&&su.data.signedUrl;
-              setUploadedFiles(function(prev){
-                return prev.map(function(f){
-                  return f.name===file.name&&!f.storagePath?Object.assign({},f,{storagePath:path,fileUrl:url}):f;
-                });
-              });
-              /* If editing existing report, insert DB record immediately */
-              if(editRep&&url){
-                supabase.from('client_qc_files').insert([{
-                  client_qc_report_id:editRep,
-                  file_name:file.name,
-                  file_url:url,
-                  file_type:file.type
-                }]).then(function(r){
-                  if(r.error) console.error('[DalOS] client_qc_files insert error:',r.error.message);
-                });
-              }
-            });
-        });
+    var entries=arr.map(function(f){
+      var uid=(function(){try{return crypto.randomUUID();}catch(e){return 'f-'+Date.now()+'-'+Math.random().toString(36).slice(2);}})();
+      return {uid:uid,name:f.name,size:f.size,type:f.type,file:f,storagePath:null,fileUrl:null,status:'uploading',error:null};
     });
-    setUploadedFiles(function(prev){return prev.concat(arr.map(function(f){return {name:f.name,size:f.size,type:f.type,file:f,storagePath:null,fileUrl:null};}));});
+    setUploadedFiles(function(prev){return prev.concat(entries);});
+    entries.forEach(function(e){uploadOneFile(e);});
     runOCRAll(arr);
   }
 
@@ -10568,6 +10625,15 @@ function ClientQCMgmt(props){
     /* DEFENSE 1 — offline pre-flight: block save, keep form intact, surface message */
     if(typeof navigator!=='undefined'&&navigator.onLine===false){
       setCqcSaveErr('You appear to be offline \u2014 your report was NOT saved. Your data is still here; reconnect and press Save again.');
+      return;
+    }
+    /* DEFENSE 0 \u2014 block save while any attachment is unresolved (uploading or failed).
+       Prevents silently saving a report missing its evidence files. */
+    var pendingFiles=uploadedFiles.filter(function(f){return f.file&&!f.storagePath;});
+    if(pendingFiles.length>0){
+      var anyFailed=pendingFiles.some(function(f){return f.status==='failed';});
+      var plural=pendingFiles.length>1;
+      setCqcSaveErr(pendingFiles.length+' file'+(plural?'s':'')+' '+(anyFailed?'failed to upload':'still uploading')+'. '+(anyFailed?('Retry or remove '+(plural?'them':'it')):('Wait for '+(plural?'them':'it')+' to finish'))+' before saving.');
       return;
     }
     setCqcSaveErr('');
@@ -10860,19 +10926,28 @@ function ClientQCMgmt(props){
             uploadedFiles.map(function(f,i){
               var fname=f.name||f;
               var furl=f.fileUrl||null;
-              var uploaded=!!f.storagePath;
+              var st=f.status||(f.storagePath?'uploaded':'uploading');
+              var failed=st==='failed';
               var log=ocrLog.find(function(l){return l.name===fname;});
-              return ce('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'7px 12px',background:'var(--card)',borderRadius:6,border:'1px solid var(--border)'}},
-                ce('svg',{width:14,height:14,viewBox:'0 0 16 16',fill:'var(--text3)'},ce('path',{d:'M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z'})),
-                furl
-                  ?ce('a',{href:furl,target:'_blank',style:{flex:1,fontSize:12,color:'var(--accent)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textDecoration:'none'}},fname)
-                  :ce('div',{style:{flex:1,fontSize:12,color:'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},fname),
-                ce('div',{style:{fontSize:11,display:'flex',alignItems:'center',gap:4}},
-                  uploaded?ce('span',{style:{color:'var(--green)',fontWeight:500}},'\u2713 Uploaded'):ce('span',{style:{color:'var(--text3)'}},'Uploading...'),
-                  log&&ce('span',{style:{color:'var(--text3)'}},'\u00b7'),
-                  log&&(log.status==='ok'?ce('span',{style:{color:'var(--green)',fontWeight:500}},'\u2713 Extracted'):ce('span',{style:{color:'var(--amber)'}},'Manual entry needed'))
+              return ce('div',{key:f.uid||i,style:{display:'flex',alignItems:'center',gap:10,padding:'7px 12px',background:failed?'var(--red-bg)':'var(--card)',borderRadius:6,border:'1px solid '+(failed?'var(--red-border)':'var(--border)')}},
+                ce('svg',{width:14,height:14,viewBox:'0 0 16 16',fill:failed?'var(--red)':'var(--text3)',style:{flexShrink:0}},ce('path',{d:'M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z'})),
+                ce('div',{style:{flex:1,minWidth:0}},
+                  (furl&&!failed)
+                    ?ce('a',{href:furl,target:'_blank',style:{display:'block',fontSize:12,color:'var(--accent)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textDecoration:'none'}},fname)
+                    :ce('div',{style:{fontSize:12,color:'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},fname),
+                  failed&&ce('div',{style:{fontSize:11,color:'var(--red)',marginTop:2}},f.error||'Upload failed.')
                 ),
-                ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:14},onClick:function(){removeFile(i);}},'\u00d7')
+                failed
+                  ?ce('div',{style:{display:'flex',alignItems:'center',gap:6,flexShrink:0}},
+                      ce('button',{style:{background:'var(--accent)',color:'#fff',border:'none',borderRadius:8,padding:'5px 11px',fontSize:12,fontWeight:500,cursor:'pointer'},onClick:function(){retryCqcFile(f.uid);}},'Retry'),
+                      ce('button',{style:{background:'var(--card)',color:'var(--text2)',border:'1px solid var(--border2)',borderRadius:8,padding:'4px 10px',fontSize:12,fontWeight:500,cursor:'pointer'},onClick:function(){removeFile(i);}},'Remove')
+                    )
+                  :ce('div',{style:{fontSize:11,display:'flex',alignItems:'center',gap:4,flexShrink:0}},
+                      st==='uploaded'?ce('span',{style:{color:'var(--green)',fontWeight:500}},'\u2713 Uploaded'):ce('span',{style:{color:'var(--text3)'}},'Uploading...'),
+                      log&&ce('span',{style:{color:'var(--text3)'}},'\u00b7'),
+                      log&&(log.status==='ok'?ce('span',{style:{color:'var(--green)',fontWeight:500}},'\u2713 Extracted'):ce('span',{style:{color:'var(--amber)'}},'Manual entry needed')),
+                      ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:14,marginLeft:4},onClick:function(){removeFile(i);}},'\u00d7')
+                    )
               );
             })
           ),
@@ -16307,7 +16382,7 @@ function App(){
         setShowPasswordRecovery(true);
       }
       /* Clear the session-expired banner whenever the user successfully signs back in */
-      if(event==='SIGNED_IN') setSessionExpired(false);
+      if(event==='SIGNED_IN'){ setSessionExpired(false); try{window.dispatchEvent(new CustomEvent('dalos:auth-restored'));}catch(e){} }
       if((event==='SIGNED_IN'||event==='INITIAL_SESSION')&&DALOS_IS_INVITE){
         history.replaceState(null,'',window.location.pathname);
         setShowInvite(true);
@@ -16315,6 +16390,7 @@ function App(){
       /* TOKEN_REFRESHED: update the current user silently so UI stays in sync */
       if(event==='TOKEN_REFRESHED'&&session&&session.user){
         console.log('[DalOS] Token refreshed silently — session continues');
+        try{window.dispatchEvent(new CustomEvent('dalos:auth-restored'));}catch(e){}
       }
       /* SIGNED_OUT: try to recover session from localStorage before logging user out.
          This handles the refresh token rotation conflict between multiple tabs —
@@ -16399,6 +16475,15 @@ function App(){
         setAuthChecked(true);
       }
     }).catch(function(){setAuthChecked(true);});
+  },[]);
+
+  /* Bridge: a write that fails on a dead session (e.g. a file upload) asks the app
+     to show the existing session-expired overlay (new-tab sign-in flow). Re-auth
+     fires SIGNED_IN → dalos:auth-restored, which auto-retries the failed uploads. */
+  React.useEffect(function(){
+    function onExpired(){setSessionExpired(true);}
+    window.addEventListener('dalos:session-expired',onExpired);
+    return function(){window.removeEventListener('dalos:session-expired',onExpired);};
   },[]);
 
   function updateBatch(id,changes){
