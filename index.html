@@ -14906,7 +14906,7 @@ window.CRM = (function(){
     function rank(rows,maxN,go){
       return '<table class="rk">'+rows.map(function(r){
         var chip=r.open>0?'<span class="pchip warn">'+r.open+' open</span>':(r.rate!==undefined?'<span class="pchip '+(r.rate>10?'warn':'ok')+'">'+r.rate+'% claims</span>':'<span class="pchip mut">no claims</span>');
-        return '<tr'+(go?' class="go" onclick="CRM.pulseGo(\''+go+'\',\''+q1(r.k)+'\')"':'')+'><td class="nm">'+esc(r.k)+'</td><td style="width:30%"><div class="bar"><span style="width:'+Math.round(r.n/maxN*100)+'%"></span></div></td><td class="num">'+r.n.toLocaleString()+' '+(r.unit||'shp')+'</td><td class="num">'+(r.avg!==null?'avg '+r.avg:'—')+'</td><td style="text-align:right">'+chip+'</td></tr>';
+        return '<tr'+(go?' class="go" onclick="CRM.pulseGo(\''+go+'\',\''+q1(r.k)+'\')"':'')+'><td class="nm">'+esc(r.k)+'</td><td class="bcol"><div class="bar"><span style="width:'+Math.round(r.n/maxN*100)+'%"></span></div></td><td class="num">'+r.n.toLocaleString()+' '+(r.unit||'shp')+'</td><td class="num">'+(r.avg!==null?'avg '+r.avg:'—')+'</td><td style="text-align:right">'+chip+'</td></tr>';
       }).join('')+'</table>';
     }
     function groupStats(keyFn){
@@ -15815,14 +15815,17 @@ function injectCrmCss(){
 .crmv .pcol i{font-style:normal;font-size:9px;color:var(--text3);font-family:var(--font-mono);white-space:nowrap}
 .crmv .flowbar{display:flex;height:11px;border-radius:6px;overflow:hidden;margin-bottom:6px;background:var(--bg2)}
 .crmv .flowbar span{height:100%}
-.crmv .rk{width:100%;border-collapse:collapse}
-.crmv .rk td{padding:5px 4px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--bg2)}
+.crmv .rk{width:100%;border-collapse:collapse;table-layout:fixed}
+.crmv .rk td{padding:5px 4px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--bg2);overflow:hidden}
 .crmv .rk tr:last-child td{border-bottom:none}
 .crmv .rk tr.go{cursor:pointer}
 .crmv .rk tr.go:hover td{background:var(--bg)}
-.crmv .rk .nm{font-weight:600;color:var(--text);white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
-.crmv .rk .num{font-family:var(--font-mono);font-size:11px;text-align:right;white-space:nowrap}
-.crmv .rk .bar{height:7px;border-radius:4px;background:var(--bg2);overflow:hidden;min-width:50px}
+.crmv .rk .nm{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crmv .rk .bcol{width:48px}
+.crmv .rk .num{font-family:var(--font-mono);font-size:11px;text-align:right;white-space:nowrap;width:74px}
+.crmv .rk td:nth-child(4){width:52px}
+.crmv .rk td:nth-child(5){width:82px;text-align:right}
+.crmv .rk .bar{height:7px;border-radius:4px;background:var(--bg2);overflow:hidden;min-width:36px}
 .crmv .rk .bar span{display:block;height:100%;background:var(--accent);opacity:.72}
 .crmv .pchip{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:9px;white-space:nowrap}
 .crmv .pchip.warn{background:var(--red-bg);color:var(--red)}
