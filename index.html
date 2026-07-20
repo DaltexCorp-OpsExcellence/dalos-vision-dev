@@ -15126,6 +15126,30 @@ window.CRM = (function(){
     if(on){ v.value=''; v.placeholder='to be confirmed'; } else { v.placeholder='what the client is claiming'; }
     $('valueRow').style.opacity=on?'.5':'1';
   }
+  /* commercial + client-standing context on the claim form (mirrors mockup — display/calc only, not persisted) */
+  var claimShipNetKg=0, claimPctManual=false;
+  function markClaimPctManual(){ claimPctManual=true; var b=$('claimPctBasis'); if(b) b.textContent='manual override'; }
+  function syncClaimPct(){
+    var el=$('claimPct'); if(!el) return;
+    if(claimPctManual) return;                         /* member overrode it — leave alone */
+    var basis=$('claimPctBasis');
+    var price=parseFloat(($('salePrice')?$('salePrice').value:'').replace(/,/g,''));
+    var val=parseFloat(($('claimValue')?$('claimValue').value:'').replace(/,/g,''));
+    var tons=(claimShipNetKg||0)/1000;
+    if(!price||!val||!tons){ el.value=''; if(basis) basis.textContent='auto from sale price × net tons'; return; }
+    var cargo=price*tons;
+    el.value=Math.round(val/cargo*1000)/10;
+    if(basis) basis.textContent='auto · cargo value '+Math.round(cargo).toLocaleString();
+  }
+  function syncDbt(){
+    var el=$('cliDbt'); if(!el) return;
+    var m=$('cliMaturity')?$('cliMaturity').value:'';
+    if(!m){ el.textContent='enter maturity'; return; }
+    var days=Math.floor((Date.now()-new Date(m).getTime())/86400000);
+    el.innerHTML=days>0
+      ? '<span style="color:'+(days>30?'var(--red)':'var(--amber)')+'">'+days+' days overdue</span>'
+      : '<span style="color:var(--green)">'+(-days)+' days to maturity</span>';
+  }
   function rowSelChanged(){
     var boxes=ROOT.querySelectorAll('#rowSel input:checked'), ctn=0, kg=0;
     [].forEach.call(boxes,function(b){ ctn+=Number(b.getAttribute('data-ctn'))||0; kg+=Number(b.getAttribute('data-kg'))||0; });
@@ -15162,6 +15186,17 @@ window.CRM = (function(){
       else evEl.innerHTML='<div class="ev-cqc-empty">No CQC report on file — attach client evidence below or grade the container.</div>';
     }
     var refEl=$('claimRef'); if(refEl) refEl.innerHTML=s.insp?'<span class="ev-ref-label">Reference</span><span class="ev-code">'+esc(s.insp.id)+'</span><span class="ev-desc">Export inspection · '+esc(s.insp.defect)+' · '+esc(s.insp.decision)+'</span>':'';
+    /* commercial + client standing (context; mirrors mockup — not persisted) */
+    claimShipNetKg=s.netKg||0; claimPctManual=false;
+    if($('salePrice')) $('salePrice').value='';
+    if($('claimPct')) $('claimPct').value='';
+    if($('claimPctBasis')) $('claimPctBasis').textContent='auto from price × tons';
+    syncClaimPct();
+    if($('cliVolume')) $('cliVolume').value='';
+    if($('cliTenure')) $('cliTenure').value='';
+    if($('cliAdherence')) $('cliAdherence').value='good';
+    if($('cliMaturity')) $('cliMaturity').value='';
+    syncDbt();
     $('claimModal').classList.add('open');
   }
   function cancelClaim(){
@@ -15340,7 +15375,9 @@ window.CRM = (function(){
     +'<div class="msec">Claim details</div><div class="form-row" style="margin-bottom:10px"><label class="form-label">B/L number <span style="color:var(--red)">*</span></label><input class="form-input mono" id="blNumber" placeholder="e.g. MAEU236451078"/><div class="hint" id="blHint" style="display:none;color:var(--red)">B/L number is required to save a claim.</div></div>'
     +'<div class="grid2" style="margin-bottom:10px"><div><label class="form-label">Reason</label><select class="form-select" id="claimReason"><option>Decay / rot on arrival</option><option>Temperature abuse in transit</option><option>Soft / overripe berries</option><option>Shatter / loose berries</option><option>Short weight</option><option>Wrong variety / spec</option><option>Late arrival / missed market</option><option>Documentation</option><option>Other</option></select></div><div><label class="form-label">Client\'s claim ref <span style="text-transform:none;font-weight:400;color:var(--text3)">(optional)</span></label><input class="form-input mono" id="claimClientRef" placeholder="their reference #"/></div></div>'
     +'<div class="grid2" style="margin-bottom:0"><div><label class="form-label">Claimant</label><input class="form-input" id="claimClaimant" placeholder="contact name"/></div><div><label class="form-label">Claimant email</label><input class="form-input" id="claimClaimantEmail" type="email" placeholder="name@client.com"/></div></div>'
-    +'<div class="msec">Value</div><label class="chk" style="margin-bottom:9px"><input type="checkbox" id="potFlag" onchange="CRM.togglePotential()"/><span>Potential claim — flag now, value to be confirmed</span></label><div class="grid3" id="valueRow"><div style="grid-column:span 2"><label class="form-label">Claimed value</label><input class="form-input mono" id="claimValue" inputmode="decimal" placeholder="what the client is claiming"/></div><div><label class="form-label">Currency</label><select class="form-select" id="claimCurrency"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option></select></div></div>'
+    +'<div class="msec">Value</div><label class="chk" style="margin-bottom:9px"><input type="checkbox" id="potFlag" onchange="CRM.togglePotential()"/><span>Potential claim — flag now, value to be confirmed</span></label><div class="grid3" id="valueRow"><div style="grid-column:span 2"><label class="form-label">Claimed value</label><input class="form-input mono" id="claimValue" inputmode="decimal" placeholder="what the client is claiming" oninput="CRM.syncClaimPct()"/></div><div><label class="form-label">Currency</label><select class="form-select" id="claimCurrency"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option></select></div></div>'
+    +'<div class="msec">Commercial</div><div class="grid3"><div><label class="form-label">Sale price / ton</label><input class="form-input mono" id="salePrice" inputmode="decimal" placeholder="e.g. 1,850" oninput="CRM.syncClaimPct()"/></div><div><label class="form-label">Incoterm</label><select class="form-select"><option>FOB</option><option>CFR</option><option>CIF</option><option>DDP</option><option>DAP</option><option>EXW</option><option>FCA</option><option>CPT</option><option>CIP</option></select></div><div><label class="form-label">Claim % of price</label><input class="form-input mono" id="claimPct" inputmode="decimal" placeholder="auto" oninput="CRM.markClaimPctManual()"/><div class="hint" id="claimPctBasis" style="margin-top:3px">auto from price × tons</div></div></div>'
+    +'<div class="msec">Client standing <span style="text-transform:none;font-weight:400;color:var(--text3)">· manual entry — no live source yet</span></div><div class="grid3" style="margin-bottom:10px"><div><label class="form-label">Total business volume</label><input class="form-input" id="cliVolume" placeholder="e.g. $2.6M · 74 cntr"/></div><div><label class="form-label">Tenure with Daltex</label><input class="form-input" id="cliTenure" placeholder="e.g. 3 yrs (since 2023)"/></div><div><label class="form-label">Payment adherence</label><select class="form-select" id="cliAdherence"><option value="excellent">Excellent — pays early / on time</option><option value="good">Good — within terms</option><option value="fair">Fair — occasional delays</option><option value="poor">Poor — frequently overdue</option><option value="hold">On hold — blocked / overdue</option></select></div></div><div class="grid2" style="margin-bottom:0"><div><label class="form-label">Current invoice maturity</label><input class="form-input" type="date" id="cliMaturity" oninput="CRM.syncDbt()"/></div><div><label class="form-label">Days beyond terms <span style="text-transform:none;font-weight:400;color:var(--text3)">(auto)</span></label><div class="ctx-val" id="cliDbt">enter maturity</div></div></div>'
     +'<div class="msec">Scope</div><div class="pill-row"><span class="pill sel" id="scopeWhole" onclick="CRM.setScope(\'whole\')">Whole container</span><span class="pill" id="scopePart" onclick="CRM.setScope(\'part\')">Part of load</span></div><div class="scope-sum show" id="wholeSum"></div><div class="part-fields" id="partFields"><div id="partBody"></div></div>'
     +'<div class="msec">Quality evidence &amp; attachments</div><div id="claimEvidence"></div>'
     +'<label class="dropzone" id="dropzone"><input type="file" id="evFile" accept=".pdf,image/*" multiple style="display:none"/><div class="dz-ic">⬆</div><div class="dz-text"><b>Drop a file</b> or <span class="dz-browse">browse</span></div><div class="dz-sub">PDF, image or screenshot — client email, arrival photos, rejection note</div></label><div class="ev-files" id="evFiles"></div>'
@@ -15384,6 +15421,7 @@ window.CRM = (function(){
     openShipDetail:openShipDetail, openInsp:openInsp, openCqc:openCqc, closeDlv:closeDlv,
     openClaim:openClaim, openGrade:openGrade, closeModal:closeModal, saveClaim:saveClaim, saveGrade:saveGrade, cancelClaim:cancelClaim,
     setLifecycle:setLifecycle, setGrade:setGrade, setScope:setScope, togglePotential:togglePotential, syncNet:syncNet, rowSelChanged:rowSelChanged,
+    syncClaimPct:syncClaimPct, syncDbt:syncDbt, markClaimPctManual:markClaimPctManual,
     setCountryOverride:setCountryOverride, setClientOverride:setClientOverride, addClientOverrideFromForm:addClientOverrideFromForm,
     setScoreBand:setScoreBand, removeScoreBand:removeScoreBand, addScoreBandFromForm:addScoreBandFromForm
   };
