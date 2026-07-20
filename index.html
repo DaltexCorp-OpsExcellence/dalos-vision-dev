@@ -7333,8 +7333,21 @@ function HomeView(props){
       hint:(crmStats?(crmStats.total.toLocaleString()+' in scope \u00b7 '+crmStats.open+' open claim'+(crmStats.open===1?'':'s')):'Claims & regions'),
       pulse:!!(crmStats&&crmStats.open>0)});
 
+  /* Commercial role leads with CRM as the hero tile (takes the Export Inspection slot: big, tall, top-left); Export becomes a standard tile. */
+  if(currentUser.role==='commercial'&&perms.viewCRM){
+    var _crm=null,_fg=null,_rest=[];
+    tiles.forEach(function(t){ if(t.key==='crm')_crm=t; else if(t.key==='fg')_fg=t; else _rest.push(t); });
+    if(_crm){
+      _crm.primary=true; _crm.extraClass='dh-primary-crm';
+      _crm.big=crmStats?crmStats.total.toLocaleString():'—'; _crm.bigLabel='in scope';
+      _crm.hint=crmStats?(crmStats.open+' open claim'+(crmStats.open===1?'':'s')):'Claims & regions';
+      if(_fg) _fg.primary=false;
+      tiles=[_crm].concat(_fg?[_fg]:[]).concat(_rest);
+    }
+  }
+
   function tileEl(t){
-    return ce('div',{key:t.key,className:'dh-tile'+(t.primary?' dh-primary':''),onClick:function(){goto(t);},
+    return ce('div',{key:t.key,className:'dh-tile'+(t.primary?' dh-primary':'')+(t.extraClass?' '+t.extraClass:''),onClick:function(){goto(t);},
         style:{animation:'dh-rise .6s '+(0.1+tiles.indexOf(t)*0.05)+'s ease both',opacity:0}},
       t.primary?ce('div',{className:'dh-sheen'}):null,
       ce('div',{className:'dh-glow',style:{background:t.glow}}),
@@ -7492,6 +7505,11 @@ var DH_CSS=[
 '.dh-primary{grid-row:span 2;background:linear-gradient(160deg,rgba(60,122,85,.32),rgba(10,24,15,.5));border-color:rgba(111,193,145,.28)}',
 '.dh-primary .dh-icon{font-size:36px}',
 '.dh-primary .dh-title{font-size:26px;font-family:var(--font-display);font-weight:400}',
+/* CRM-as-hero (commercial role): primary layout with an orchid accent instead of inspection green */
+'.dh-primary-crm{background:linear-gradient(160deg,rgba(150,90,210,.22),rgba(10,24,15,.5));border-color:rgba(192,124,232,.3)}',
+'.dh-primary-crm .dh-icon{color:#e4c4f4}',
+'.dh-primary-crm .dh-big{text-shadow:0 0 30px rgba(192,124,232,.35)}',
+'.dh-primary-crm .dh-big small{color:#d7b6f0}',
 '.dh-sheen{position:absolute;top:-50%;bottom:-50%;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);transform:translateX(-130%) skewX(-18deg);z-index:1}',
 '.dh-primary:hover .dh-sheen{animation:dh-sheen 1.2s ease}',
 '.dh-big{font-family:var(--font-display);font-size:58px;line-height:1;margin-top:12px;color:#fff;position:relative;z-index:2;text-shadow:0 0 30px rgba(143,224,173,.3)}',
