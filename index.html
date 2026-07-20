@@ -17601,7 +17601,7 @@ function App(){
     );
   }
 
-  return ce('div',{className:'layout'},mkSidebar(),
+  return ce('div',{className:'layout'},sessionExpiredOverlay,mkSidebar(),
     ce('div',{className:'main'},
       cur.id&&ce('div',{className:'topbar'},
         ce('div',{className:'topbar-left'},
