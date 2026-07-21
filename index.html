@@ -14962,7 +14962,7 @@ var IPATHS={
    ═══════════════════════════════════════════════════════════════════════════ */
 window.CRM = (function(){
   var SB=null, SEASON=null, IS_ADMIN=false, USER=null, ROOT=null, MOUNTED=false;
-  var CONFIG=null, ON_OPEN_CQC=null;
+  var CONFIG=null, ON_OPEN_CQC=null, ON_HEADER=null;
   var SHIPMENTS=[], REGIONS=[], regionLabel={}, regionOwner={};
   var COUNTRY_REGION={}, REGION_OVERRIDES={country:{},client:{},shipment:{}}, BAND_MAP={};
   /* 13 countries served by >1 region — can't auto-resolve; kept for the admin panel flag. */
@@ -15117,16 +15117,17 @@ window.CRM = (function(){
   }
 
   function renderTabs(){
-    var el=$('viewTabs'); if(!el) return;
     var list=visibleShipments();
     var attCount=list.filter(function(s){return !!attentionInfo(s);}).length;
     var openClaims=list.filter(function(s){return s.claim&&s.claim.status==='open';}).length;
     var unassigned=list.filter(function(s){return s.region==='unassigned';}).length;
     var tabs=[{id:'dashboard',label:'Dashboard',dot:attCount},{id:'shipments',label:'Shipments'},{id:'grading',label:'Grading'},{id:'claims',label:'Claims',dot:openClaims},{id:'clean',label:'Clean'}];
     if(IS_ADMIN && currentRegion==='all') tabs.push({id:'regions',label:'Region mapping',dot:unassigned});
-    el.innerHTML=tabs.map(function(t){
+    var html='<div class="tabs2">'+tabs.map(function(t){
       return '<span class="tab2'+(t.id===currentTab?' on':'')+'" role="button" tabindex="0" onclick="CRM.setTab(\''+t.id+'\')">'+t.label+(t.dot?'<span class="ndot">'+(t.dot>99?'99+':t.dot)+'</span>':'')+'</span>';
-    }).join('');
+    }).join('')+'</div>';
+    var el=$('viewTabs'); if(el) el.innerHTML=html;          /* in-island fallback if no host header slot */
+    if(ON_HEADER) ON_HEADER(html);                            /* lift the tab bar into the shell topbar (same row as the "CRM" title) */
   }
 
   /* ── pagination ── */
@@ -15808,7 +15809,7 @@ window.CRM = (function(){
       +'<div class="pulse-panels">'+rankp+rankp+rankp+'</div>';
   }
   function template(){ return ''
-    +'<div class="crm-header" style="display:flex;justify-content:center;padding:12px 16px 0"><div class="tabs2" id="viewTabs"></div></div>'
+    /* tab bar is lifted into the shell topbar (see renderTabs → ON_HEADER); no in-island header row */
     +'<div class="subbar"><div class="subbar-inner">'
     +'<div class="crm-search crm-search-input" id="crmSearchWrap"><span class="crm-search-ic">🔍</span>'
     +'<input id="crmSearch" oninput="CRM.onSearch(this.value)" placeholder="Search client, sub-client, container #, invoice #, variety, product, country or port…"/>'
@@ -15863,7 +15864,7 @@ window.CRM = (function(){
   function reload(){ return loadVoyages().then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
   function init(opts){
     SB=opts.supabase; SEASON=opts.seasonId; IS_ADMIN=!!opts.isAdmin; USER=opts.currentUser||null; ROOT=opts.root; MOUNTED=true;
-    CONFIG=opts.config||null; ON_OPEN_CQC=opts.onOpenCqc||null;
+    CONFIG=opts.config||null; ON_OPEN_CQC=opts.onOpenCqc||null; ON_HEADER=opts.onHeader||null;
     currentTab='dashboard'; currentRegion='all'; currentProduct='all'; currentQuery=''; showAllSubs=false; pulseOpen=true; resetPages();
     ROOT.innerHTML=template();
     attachListeners();
@@ -15871,7 +15872,7 @@ window.CRM = (function(){
     Promise.all([loadRegions(),loadCountryMap(),loadOverrides(),loadScoreBands(),loadVoyages()]).then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; });
   }
   function setSeason(seasonId){ if(seasonId===SEASON) return; /* skip the redundant mount-time call so CRM open fetches voyages once, not twice */ SEASON=seasonId; if(MOUNTED) reload(); }
-  function teardown(){ MOUNTED=false; ROOT=null; }
+  function teardown(){ MOUNTED=false; ROOT=null; if(ON_HEADER){ ON_HEADER(''); } }
 
   return {
     init:init, setSeason:setSeason, teardown:teardown, reload:reload,
@@ -16339,7 +16340,7 @@ function CRMView(props){
   React.useEffect(function(){
     injectCrmCss();
     if(ref.current&&window.CRM){
-      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu,config:cfg,onOpenCqc:props.onOpenCqc});
+      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu,config:cfg,onOpenCqc:props.onOpenCqc,onHeader:props.onHeader});
       window.openInspPreviewGlobal=function(id){loadInspPreview(id,sPopup[1],cfgRef.current);};
       window.openCqcPreviewGlobal=function(id){loadCqcPreview(id,sCqcPopup[1],cfgRef.current);};
     }
@@ -16370,6 +16371,7 @@ function App(){
   var sNavHist=useState(null); var navHistory=sNavHist[0]; var setNavHistory=sNavHist[1];
   var sNavTarget=useState(null); var navTarget=sNavTarget[0]; var setNavTarget=sNavTarget[1];
   var sCqcLink=useState(null); var cqcLink=sCqcLink[0]; var setCqcLink=sCqcLink[1];
+  var sCrmHdr=useState(''); var crmHdr=sCrmHdr[0]; var setCrmHdr=sCrmHdr[1]; /* CRM island lifts its tab bar into the shell topbar via onHeader */
   React.useEffect(function(){if(view!=='clientqc'&&cqcLink)setCqcLink(null);},[view]);
   var sShipReturn=useState(null); var shipReturn=sShipReturn[0]; var setShipReturn=sShipReturn[1];
   React.useEffect(function(){if(view!=='shipments'&&view!=='clientqc'&&shipReturn)setShipReturn(null);},[view]);
@@ -18108,6 +18110,7 @@ function App(){
             !phLoading&&cropInfo.name&&ce('span',{style:{fontSize:11,color:'var(--text2)',fontWeight:500}},cropInfo.name)
           )
         ),
+        (view==='crm'&&crmHdr)?ce('div',{className:'crmv',style:{background:'transparent',display:'flex',justifyContent:'center',alignItems:'center',flex:1,minWidth:0,padding:0,overflow:'hidden'},dangerouslySetInnerHTML:{__html:crmHdr}}):null,
         ce('div',{className:'topbar-right'})
       ),
       ce('div',{className:'page'},
@@ -18118,7 +18121,7 @@ function App(){
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
-        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
+        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
