@@ -13114,11 +13114,25 @@ function loadInspPreview(id,setPopup,config){
    'matched' flag reads the stored r.matched column (containerSet is unavailable
    here — no extra DB query), and the category2 product fallback drops the
    ClientQCMgmt-scoped selCqcProd. Imports NO ClientQCMgmt state. */
-function loadCqcPreview(id,setPopup,config){
+function loadCqcPreview(id,setPopup,config,_attempt){
+  _attempt=_attempt||0;
   setPopup({id:id,loading:true,data:null});
   supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value))').eq('id',id).single().then(function(rr){
     if(rr.error||!rr.data){setPopup(null);return;}
     var r0=rr.data;
+    /* Data-race guard: keep the shimmer skeleton (loading:true) and retry rather than
+       resolving to a misleading render when EITHER the shared config reference maps
+       aren't populated yet (deep-link -> raw UUIDs for client/carton/variety) OR the
+       nested per-sample defect readings didn't come back (throttled/partial fetch ->
+       Total 0.0% / Major-Minor —). Bounded so a report that genuinely has sample rows
+       but no readings still resolves instead of spinning forever. */
+    var _rows=r0.cqc_sample_rows||[];
+    var _hasReadings=_rows.some(function(sr){return (sr.cqc_sample_defect_readings||[]).length>0;});
+    var _cfgReady=!!(config&&config._loaded);
+    if((!_cfgReady||(_rows.length>0&&!_hasReadings))&&_attempt<15){
+      setTimeout(function(){loadCqcPreview(id,setPopup,config,_attempt+1);},400);
+      return;
+    }
     var _pid=r0.product_id||'grapes';
     var _hasCfg=config.cqcDefectSections&&config.cqcDefectSections[_pid]&&config.cqcDefectSections[_pid].length>0;
     var finish=function(config){
@@ -13565,8 +13579,11 @@ function ShipmentsMgmt(props){
   var sCqcEnriching=useState(false); var cqcEnriching=sCqcEnriching[0]; var setCqcEnriching=sCqcEnriching[1];
   var sInspPopup=useState(null); var inspPopup=sInspPopup[0]; var setInspPopup=sInspPopup[1];
   var sShipCqc=React.useState(null);
+  /* Live-config ref — see CRMView: mount-only effect must not freeze pre-load config,
+     or a deep-linked CQC report renders raw UUIDs / 0.0%. */
+  var shipCfgRef=React.useRef(config); shipCfgRef.current=config;
   React.useEffect(function(){
-    window.openCqcPreviewGlobal=function(id){loadCqcPreview(id,sShipCqc[1],config);};
+    window.openCqcPreviewGlobal=function(id){loadCqcPreview(id,sShipCqc[1],shipCfgRef.current);};
     return function(){ window.openCqcPreviewGlobal=function(){}; sShipCqc[1](null); };
   },[]);
   React.useEffect(function(){var st=props.initialShip;if(st&&st.prod){setSelProd(st.prod);if(typeof setAggMode==='function')setAggMode(st.agg!==false);if(st.container)setSelContainer(st.container);if(st.ship)setSelShip(st.ship);}},[]);
@@ -16314,12 +16331,17 @@ function CRMView(props){
   var isAdmin=cu.role==='admin'||cu.role==='power_user';
   var sPopup=React.useState(null);
   var sCqcPopup=React.useState(null);
+  /* Live-config ref: the openCqc/openInsp globals are wired in a mount-only effect,
+     so a closure over `cfg` would freeze the pre-load INITIAL_CONFIG on a deep-link
+     (empty reference maps -> raw UUIDs; missing cqcDefectSections -> 0.0%/—). Reading
+     cfgRef.current at click time hands loadCqcPreview the fully-loaded config. */
+  var cfgRef=React.useRef(cfg); cfgRef.current=cfg;
   React.useEffect(function(){
     injectCrmCss();
     if(ref.current&&window.CRM){
       window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu,config:cfg,onOpenCqc:props.onOpenCqc});
-      window.openInspPreviewGlobal=function(id){loadInspPreview(id,sPopup[1],cfg);};
-      window.openCqcPreviewGlobal=function(id){loadCqcPreview(id,sCqcPopup[1],cfg);};
+      window.openInspPreviewGlobal=function(id){loadInspPreview(id,sPopup[1],cfgRef.current);};
+      window.openCqcPreviewGlobal=function(id){loadCqcPreview(id,sCqcPopup[1],cfgRef.current);};
     }
     return function(){ if(window.CRM) window.CRM.teardown(); window.openInspPreviewGlobal=function(){}; window.openCqcPreviewGlobal=function(){}; sPopup[1](null); sCqcPopup[1](null); };
   },[]);
