@@ -13339,7 +13339,41 @@ function CqcPreviewModal(props){
         ce('button',{onClick:onClose,style:{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'var(--text3)',lineHeight:1,padding:'0 4px',flexShrink:0}},'×')
       ),
       pp.loading
-        ?ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',padding:40,gap:10,color:'var(--text3)'}},ce('span',{className:'dalos-spinner'}),ce('span',{style:{fontSize:13}},'Loading report…'))
+        ?(function(){
+            /* Card-shaped skeleton mirroring the real report layout so it reads as "filling in", never as 0/no-data.
+               This modal is a fixed overlay OUTSIDE the .crmv scope, so .sk is unavailable — inline styles reuse the
+               global @keyframes dh-shimmer. Matches the real body's padding + card widths so nothing jumps on load. */
+            var sk=function(w,h,extra){return ce('div',{style:Object.assign({background:'linear-gradient(90deg,#e8e4da 0%,#ddd8cc 50%,#e8e4da 100%)',backgroundSize:'200% 100%',animation:'dh-shimmer 1.25s ease-in-out infinite',borderRadius:6,width:w,height:h,flexShrink:0},extra||{})});};
+            return ce('div',{style:{overflowY:'auto',flex:1,padding:'16px 18px'}},
+              /* Top row: total-defect block + Samples/Major/Minor stat tile */
+              ce('div',{style:{display:'flex',gap:16,marginBottom:16,flexWrap:'wrap',alignItems:'stretch'}},
+                ce('div',{style:{flex:'2 1 260px',background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'14px 16px'}},
+                  sk(90,11,{marginBottom:12}),
+                  sk(120,34,{marginBottom:14}),
+                  sk('100%',8)
+                ),
+                ce('div',{style:{flex:'1 1 190px',display:'flex',flexDirection:'column',justifyContent:'center',gap:12,background:'var(--bg2)',borderRadius:'var(--r2)',padding:'12px 16px'}},
+                  [0,1,2].map(function(i){return ce('div',{key:i,style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},sk(64,12),sk(42,15));})
+                )
+              ),
+              /* Two info grids (Shipment info / Product info) */
+              ce('div',{className:'cqc-two-col'},
+                [0,1].map(function(col){return ce('div',{key:col,style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px'}},
+                  sk(90,11,{marginBottom:12}),
+                  [0,1,2,3,4,5].map(function(i){return ce('div',{key:i,style:{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'0.5px solid var(--border)'}},sk(64,10),sk(84,10));})
+                );})
+              ),
+              /* Sample-readings table (~6 rows) */
+              ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px',marginTop:14}},
+                ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}},sk(110,11),sk(70,11)),
+                ce('div',{style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden'}},
+                  [0,1,2,3,4,5].map(function(i){return ce('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',borderBottom:i<5?'0.5px solid var(--border)':'none',background:i%2===0?'var(--card)':'var(--bg2)'}},
+                    sk(24,10),sk('22%',10),sk('16%',10),sk('12%',10),sk('14%',10),sk('12%',10)
+                  );})
+                )
+              )
+            );
+          })()
         :r&&ce('div',{style:{overflowY:'auto',flex:1,padding:'16px 18px'}},
             (function(){
                 var dispTD=r.sampleAvgTotal!=null?r.sampleAvgTotal:r.totalDefect;
@@ -13527,6 +13561,8 @@ function ShipmentsMgmt(props){
   var sCqcDetails=useState({}); var cqcDetails=sCqcDetails[0]; var setCqcDetails=sCqcDetails[1];
   var sInspMatches=useState({}); var inspMatches=sInspMatches[0]; var setInspMatches=sInspMatches[1];
   var sInspRows=useState({}); var inspRows=sInspRows[0]; var setInspRows=sInspRows[1];
+  /* True while CQC/INSP match enrichment is in flight (after product select) — so cells/tiles show a loading hint instead of a misleading 0/— */
+  var sCqcEnriching=useState(false); var cqcEnriching=sCqcEnriching[0]; var setCqcEnriching=sCqcEnriching[1];
   var sInspPopup=useState(null); var inspPopup=sInspPopup[0]; var setInspPopup=sInspPopup[1];
   var sShipCqc=React.useState(null);
   React.useEffect(function(){
@@ -13603,13 +13639,14 @@ function ShipmentsMgmt(props){
     setGrades([]);
     setCqcMatches({});setCqcRows({});setInspMatches({});setInspRows({});
     setLoading(true);
+    setCqcEnriching(true);
     /* Supabase caps at 1000 rows per request — paginate to get all */
     var allRows=[];
     function fetchPage(from){
       var q=supabase.from('shipments').select('*').eq('product_id',selProd).order('loading_date',{ascending:false}).range(from,from+999);
       if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);
       q.then(function(res){
-        if(res.error){console.error('[DalOS] Shipments load error:',res.error.message);setLoading(false);return;}
+        if(res.error){console.error('[DalOS] Shipments load error:',res.error.message);setLoading(false);setCqcEnriching(false);return;}
         allRows=allRows.concat(res.data||[]);
         if((res.data||[]).length===1000){
           /* More pages exist */
@@ -13627,7 +13664,7 @@ function ShipmentsMgmt(props){
             if(config.activeSeasonId) cqcQ=cqcQ.eq('season_id',config.activeSeasonId);
             cqcQ.then(function(cr){
                 setLoading(false);
-                if(cr.error) return;
+                if(cr.error){setCqcEnriching(false);return;}
                 var map={}; var rowsMap={};
                 /* normalise key: trim + collapse whitespace, uppercase */
                 function normCN(cn){return (cn||'').replace(/\s+/g,'').toUpperCase();}
@@ -13640,15 +13677,16 @@ function ShipmentsMgmt(props){
                 var inspQ=supabase.from('inspections_with_aggregates').select('id,container_number,status,decision,avg_total_defect,avg_brix,avg_carton_weight,date,packhouse_id,has_critical,variety_id,variety2_id,farm_id,trace_code,trace_codes,live_avg_total_defect,live_avg_brix').eq('product_id',selProd);
                 if(config.activeSeasonId) inspQ=inspQ.eq('season_id',config.activeSeasonId);
                 inspQ.then(function(ir){
-                  if(ir.error) return;
+                  if(ir.error){setCqcEnriching(false);return;}
                   var imap={}; var irows={};
                   (ir.data||[]).forEach(function(r){
                     var k=normCN(r.container_number);
                     if(k){ imap[k]=(imap[k]||0)+1; if(!irows[k])irows[k]=[]; irows[k].push(r); }
                   });
                   setInspMatches(imap); setInspRows(irows);
-                });
-              });
+                  setCqcEnriching(false);
+                }).catch(function(){setCqcEnriching(false);});
+              }).catch(function(){setLoading(false);setCqcEnriching(false);});
           });
         }
       });
@@ -13661,6 +13699,9 @@ function ShipmentsMgmt(props){
   }
   function cqcFor(cn){return cqcRows[(cn||'').replace(/\s+/g,'').toUpperCase()]||[];}
   function inspFor(cn){return inspRows[(cn||'').replace(/\s+/g,'').toUpperCase()]||[];}
+  /* Loading placeholders shown while CQC/INSP match enrichment is in flight (reuses global .dh-shim shimmer) */
+  function shimCell(){return ce('span',{className:'dh-shim',style:{width:20,height:12,borderRadius:6}});}
+  function shimStat(){return ce('span',{className:'dh-shim',style:{width:26,height:22,borderRadius:6,verticalAlign:'middle'}});}
   function _vname(id){return (config.varietiesIdToName&&id&&config.varietiesIdToName[id])||'';}
   function _vk(s){return (s||'').toString().toLowerCase().replace(/[^a-z0-9]/g,'');}
   function _phk(s){var k=(s||'').toString().toLowerCase().replace(/[^a-z]/g,'').replace('packhouse','');if(k==='menia')k='menya';return k;}
@@ -14219,17 +14260,21 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},'With CQC'),
           ce('div',{className:'kpi-value',style:{fontSize:22,color:'var(--green)'}},
-            aggMode
-              ?filteredContainers.filter(function(c){return (cqcMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).length
-              :[...new Set(filteredRows.filter(function(s){return (cqcMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length
+            cqcEnriching
+              ?shimStat()
+              :(aggMode
+                ?filteredContainers.filter(function(c){return (cqcMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).length
+                :[...new Set(filteredRows.filter(function(s){return (cqcMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length)
           )
         ),
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},'With insp'),
           ce('div',{className:'kpi-value',style:{fontSize:22,color:'#2563ad'}},
-            aggMode
-              ?filteredContainers.filter(function(c){return (inspMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).length
-              :[...new Set(filteredRows.filter(function(s){return (inspMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length
+            cqcEnriching
+              ?shimStat()
+              :(aggMode
+                ?filteredContainers.filter(function(c){return (inspMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).length
+                :[...new Set(filteredRows.filter(function(s){return (inspMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length)
           )
         ),
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
@@ -14316,10 +14361,10 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                     ce('td',null, statArr.length? statArr.map(function(st,i){return ce('span',{key:i,className:'badge '+(st==='Delivered'?'badge-pass':st==='In Transit'?'badge-warn':'badge-neutral'),style:{fontSize:10,marginRight:3}},st);}) : ce('span',{style:{color:'var(--text3)',fontSize:12}},'\u2014')),
                     ce('td',{style:{textAlign:'center',fontFamily:'var(--font-mono)',fontSize:12}},c.total_cartons||'—'),
                     ce('td',{style:{textAlign:'center'}},
-                      cqcCount>0?ce('span',{className:'badge badge-pass',style:{fontSize:10}},'\u2713 '+cqcCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
+                      cqcEnriching?shimCell():(cqcCount>0?ce('span',{className:'badge badge-pass',style:{fontSize:10}},'\u2713 '+cqcCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—'))
                     ),
                     ce('td',{style:{textAlign:'center'}},
-                      inspCount>0?ce('span',{style:{background:'rgba(37,99,173,0.12)',color:'#2563ad',fontSize:10,padding:'2px 7px',borderRadius:6,fontWeight:600}},'\u2713 '+inspCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
+                      cqcEnriching?shimCell():(inspCount>0?ce('span',{style:{background:'rgba(37,99,173,0.12)',color:'#2563ad',fontSize:10,padding:'2px 7px',borderRadius:6,fontWeight:600}},'\u2713 '+inspCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—'))
                     ),
                     ce('td',{style:{textAlign:'center'}},
                       g&&g.grade?ce('span',{style:{fontWeight:700,color:gradeColor(g.grade),fontSize:14}},g.grade):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
@@ -14363,10 +14408,10 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                     ce('td',null,s.shipping_status?ce('span',{className:'badge '+(s.shipping_status==='Delivered'?'badge-pass':s.shipping_status==='In Transit'?'badge-warn':'badge-neutral'),style:{fontSize:10}},s.shipping_status):'—'),
                     ce('td',{style:{textAlign:'center',fontFamily:'var(--font-mono)',fontSize:12}},s.carton_count||'—'),
                     ce('td',{style:{textAlign:'center'}},
-                      cqcCount>0?ce('span',{className:'badge badge-pass',style:{fontSize:10}},'\u2713 '+cqcCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
+                      cqcEnriching?shimCell():(cqcCount>0?ce('span',{className:'badge badge-pass',style:{fontSize:10}},'\u2713 '+cqcCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—'))
                     ),
                     ce('td',{style:{textAlign:'center'}},
-                      inspCount>0?ce('span',{style:{background:'rgba(37,99,173,0.12)',color:'#2563ad',fontSize:10,padding:'2px 7px',borderRadius:6,fontWeight:600}},'\u2713 '+inspCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
+                      cqcEnriching?shimCell():(inspCount>0?ce('span',{style:{background:'rgba(37,99,173,0.12)',color:'#2563ad',fontSize:10,padding:'2px 7px',borderRadius:6,fontWeight:600}},'\u2713 '+inspCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—'))
                     ),
                     ce('td',{style:{textAlign:'center'}},
                       g&&g.grade?ce('span',{style:{fontWeight:700,color:gradeColor(g.grade),fontSize:14}},g.grade):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
