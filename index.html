@@ -14584,6 +14584,7 @@ var IPATHS={
    ═══════════════════════════════════════════════════════════════════════════ */
 window.CRM = (function(){
   var SB=null, SEASON=null, IS_ADMIN=false, USER=null, ROOT=null, MOUNTED=false;
+  var CONFIG=null, ON_OPEN_CQC=null;
   var SHIPMENTS=[], REGIONS=[], regionLabel={}, regionOwner={};
   var COUNTRY_REGION={}, REGION_OVERRIDES={country:{},client:{},shipment:{}}, BAND_MAP={};
   /* 13 countries served by >1 region — can't auto-resolve; kept for the admin panel flag. */
@@ -14632,7 +14633,7 @@ window.CRM = (function(){
     var s={
       key:r.container_key, cn:r.container_number||r.container_key,
       client:r.client||'—', sub:r.subclient||'—', country:r.country||'',
-      region:r.region_id||'unassigned', product:r.product_id?(r.product_id.charAt(0).toUpperCase()+r.product_id.slice(1)):'—',
+      region:r.region_id||'unassigned', product:r.product_id?(r.product_id.charAt(0).toUpperCase()+r.product_id.slice(1)):'—', productId:r.product_id||null,
       variety:varieties[0]||'—', varieties:varieties.length>1?varieties:null,
       cartons:num(r.carton_count), pallets:num(r.pallet_count), netKg:num(r.net_weight), grossKg:num(r.gross_weight),
       vessel:r.vessel||'—', shippingLine:r.shipping_line||'—', port:r.receiving_port||'—', departurePort:r.departure_port||'—',
@@ -15077,6 +15078,7 @@ window.CRM = (function(){
   function kpiStrip(items){ return '<div class="kpi-grid" style="margin-bottom:14px">'+items.map(function(x){ return '<div class="kpi"><div class="kpi-label">'+x[0]+'</div><div class="kpi-value" style="font-size:22px">'+x[1]+'</div>'+(x[2]?'<div class="kpi-sub">'+x[2]+'</div>':'')+'</div>'; }).join('')+'</div>'; }
   function openInsp(k){
     var s=shipByKey(k); if(!s||!s.insp) return;
+    if(window.openInspPreviewGlobal&&s.insp&&s.insp.id){ window.openInspPreviewGlobal(s.insp.id); return; }
     var dec='<span class="badge '+(s.insp.decision==='Approved'?'b-pass':'b-warn')+'">'+esc(s.insp.decision)+'</span>';
     var html='<div class="standin"><b>Open in module</b> Full export inspection lives in the Inspections module — this is the CRM summary. Inspection <span class="mono">'+esc(s.insp.id)+'</span>.</div>'+
       '<div class="dlv-head"><div><div class="dlv-id">'+esc(s.insp.id)+'</div><div class="dlv-meta">'+esc(s.cn)+' · '+esc(s.client)+' · '+esc(s.variety)+' · '+s.cartons.toLocaleString()+' ctn</div></div>'+dec+'</div>'+
@@ -15085,6 +15087,7 @@ window.CRM = (function(){
   }
   function openCqc(k){
     var s=shipByKey(k); if(!s||!s.cqc) return;
+    if(ON_OPEN_CQC&&s.cqcId&&s.productId){ ON_OPEN_CQC(s.cqcId,s.productId); return; }
     var sc=bandBadge(s.cqc.score,'raw score: "'+s.cqc.scoreRaw+'"');
     var html='<div class="standin"><b>Open in module</b> Full Client QC report lives in the Client QC module — this is the CRM summary. Report <span class="mono">'+esc(s.cqc.id)+'</span>.</div>'+
       '<div class="dlv-head"><div><div class="dlv-id">'+esc(s.cqc.id)+'</div><div class="dlv-meta">'+esc(s.cn)+' · '+esc(s.client)+' · '+esc(s.sub)+' · '+esc(s.variety)+'</div></div>'+sc+'</div>'+
@@ -15482,6 +15485,7 @@ window.CRM = (function(){
   function reload(){ return loadVoyages().then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
   function init(opts){
     SB=opts.supabase; SEASON=opts.seasonId; IS_ADMIN=!!opts.isAdmin; USER=opts.currentUser||null; ROOT=opts.root; MOUNTED=true;
+    CONFIG=opts.config||null; ON_OPEN_CQC=opts.onOpenCqc||null;
     currentTab='dashboard'; currentRegion='all'; currentProduct='all'; currentQuery=''; showAllSubs=false; pulseOpen=true; resetPages();
     ROOT.innerHTML=template();
     attachListeners();
@@ -15947,15 +15951,20 @@ function CRMView(props){
   var seasonId=cfg.trueActiveSeasonId||cfg.activeSeasonId||CRM_FALLBACK_SEASON;
   var cu=props.currentUser||{};
   var isAdmin=cu.role==='admin'||cu.role==='power_user';
+  var sPopup=React.useState(null);
   React.useEffect(function(){
     injectCrmCss();
     if(ref.current&&window.CRM){
-      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu});
+      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu,config:cfg,onOpenCqc:props.onOpenCqc});
+      window.openInspPreviewGlobal=function(id){loadInspPreview(id,sPopup[1],cfg);};
     }
-    return function(){ if(window.CRM) window.CRM.teardown(); };
+    return function(){ if(window.CRM) window.CRM.teardown(); window.openInspPreviewGlobal=function(){}; sPopup[1](null); };
   },[]);
   React.useEffect(function(){ if(window.CRM) window.CRM.setSeason(seasonId); },[seasonId]);
-  return ce('div',{className:'crmv',ref:ref});
+  return ce(React.Fragment,null,
+    ce('div',{className:'crmv',ref:ref}),
+    sPopup[0]&&ce(InspPreviewModal,{popup:sPopup[0],onClose:function(){sPopup[1](null);}})
+  );
 }
 
 
@@ -17723,7 +17732,7 @@ function App(){
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
-        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms}),
+        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
