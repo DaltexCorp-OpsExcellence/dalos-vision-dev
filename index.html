@@ -15474,6 +15474,8 @@ window.CRM = (function(){
   function attachListeners(){
     var d=$('dlv'); if(d) d.addEventListener('click',function(e){ if(e.target===d) closeDlv(); });
     [].forEach.call(ROOT.querySelectorAll('.modal-bg'),function(m){ m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('open'); }); });
+    /* keyboard activation for role=button spans (tabs, filter/claim/grade pills, KPI tiles) — delegated on ROOT so it survives innerHTML re-renders */
+    ROOT.addEventListener('keydown',function(e){ if(e.key!=='Enter'&&e.key!==' '&&e.key!=='Spacebar') return; var b=e.target&&e.target.closest&&e.target.closest('[role="button"]'); if(!b||!ROOT.contains(b)) return; e.preventDefault(); b.click(); });
   }
 
   /* ── lifecycle ── */
