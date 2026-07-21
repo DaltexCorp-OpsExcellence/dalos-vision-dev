@@ -13528,6 +13528,11 @@ function ShipmentsMgmt(props){
   var sInspMatches=useState({}); var inspMatches=sInspMatches[0]; var setInspMatches=sInspMatches[1];
   var sInspRows=useState({}); var inspRows=sInspRows[0]; var setInspRows=sInspRows[1];
   var sInspPopup=useState(null); var inspPopup=sInspPopup[0]; var setInspPopup=sInspPopup[1];
+  var sShipCqc=React.useState(null);
+  React.useEffect(function(){
+    window.openCqcPreviewGlobal=function(id){loadCqcPreview(id,sShipCqc[1],config);};
+    return function(){ window.openCqcPreviewGlobal=function(){}; sShipCqc[1](null); };
+  },[]);
   React.useEffect(function(){var st=props.initialShip;if(st&&st.prod){setSelProd(st.prod);if(typeof setAggMode==='function')setAggMode(st.agg!==false);if(st.container)setSelContainer(st.container);if(st.ship)setSelShip(st.ship);}},[]);
   var sLoading=useState(false); var loading=sLoading[0]; var setLoading=sLoading[1];
   var sSearch=useState(''); var search=sSearch[0]; var setSearch=sSearch[1];
@@ -14043,7 +14048,7 @@ function ShipmentsMgmt(props){
                         :ce('div',{style:{fontSize:11,color:'var(--text3)'}},'No internal samples found')
                     )
                   ),
-                  props.onOpenCqc&&ce('button',{className:'btn btn-secondary btn-sm',style:{width:'100%',marginTop:8},onClick:function(){props.onOpenCqc(rep.id,selProd,{prod:selProd,agg:aggMode,container:selContainer,ship:selShip});}},'Open full CQC report \u2192')
+                  ce('button',{className:'btn btn-secondary btn-sm',style:{width:'100%',marginTop:8},onClick:function(){if(window.openCqcPreviewGlobal&&rep.id){window.openCqcPreviewGlobal(rep.id);return;}if(props.onOpenCqc)props.onOpenCqc(rep.id,selProd,{prod:selProd,agg:aggMode,container:selContainer,ship:selShip});}},'Open full CQC report \u2192')
                 )
               )
             );
@@ -14378,7 +14383,8 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       ) /* end table content */
     ), /* end main column */
     mkSidePanel(),
-        inspPopup&&ce(InspPreviewModal,{popup:inspPopup,onClose:function(){setInspPopup(null);}})
+        inspPopup&&ce(InspPreviewModal,{popup:inspPopup,onClose:function(){setInspPopup(null);}}),
+        sShipCqc[0]&&ce(CqcPreviewModal,{popup:sShipCqc[0],config:config,onClose:function(){sShipCqc[1](null);}})
   );
 }
 
