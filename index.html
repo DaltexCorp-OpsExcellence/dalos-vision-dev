@@ -13118,7 +13118,11 @@ function loadCqcPreview(id,setPopup,config){
   setPopup({id:id,loading:true,data:null});
   supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value))').eq('id',id).single().then(function(rr){
     if(rr.error||!rr.data){setPopup(null);return;}
-    var mapped=(function(r){
+    var r0=rr.data;
+    var _pid=r0.product_id||'grapes';
+    var _hasCfg=config.cqcDefectSections&&config.cqcDefectSections[_pid]&&config.cqcDefectSections[_pid].length>0;
+    var finish=function(config){
+      var mapped=(function(r){
           return {
             id:r.id, container:r.container_number||'', stickerAvailable:r.sticker_available||'',
             traceCode:r.trace_code||'', packhouse:(config.packhouses&&r.packhouse_id&&config.packhouses.find(function(p){return p.id===r.packhouse_id;})&&config.packhouses.find(function(p){return p.id===r.packhouse_id;}).name)||r.packhouse_id||'', cropCategory:r.product_id||'',
@@ -13231,8 +13235,22 @@ function loadCqcPreview(id,setPopup,config){
               return Object.keys(sums).map(function(k){return {name:sums[k].name,severity:sums[k].severity,pct:Math.round(sums[k].s/n*100)/100};}).sort(function(a,b){return b.pct-a.pct;}).slice(0,3);
             })()
           };
-    })(rr.data);
-    setPopup({id:id,loading:false,data:mapped});
+      })(r0);
+      setPopup({id:id,loading:false,data:mapped});
+    };
+    if(_hasCfg){finish(config);return;}
+    supabase.from('cqc_defect_sections').select('*, cqc_defects(*)').eq('active',true).order('display_order').then(function(sr){
+      var resolvedMap=Object.assign({},config.cqcDefectSections||{});
+      if(!sr.error&&sr.data){
+        var built={};
+        sr.data.forEach(function(sec){
+          if(!built[sec.product_id])built[sec.product_id]=[];
+          built[sec.product_id].push({dbId:sec.id,section:sec.name,color:sec.color||'#3a7a4a',items:(sec.cqc_defects||[]).sort(function(a,b){return a.display_order-b.display_order;}).map(function(d){return {dbId:d.id,key:d.key,en:d.name_en,ar:d.name_ar||'',sev:d.severity};})});
+        });
+        Object.keys(built).forEach(function(k){resolvedMap[k]=built[k];});
+      }
+      finish(Object.assign({},config,{cqcDefectSections:resolvedMap}));
+    }).catch(function(){setPopup(null);});
   }).catch(function(){setPopup(null);});
 }
 function InspPreviewModal(props){
