@@ -15347,7 +15347,7 @@ window.CRM = (function(){
     function rank(rows,maxN,go){
       return '<table class="rk">'+rows.map(function(r){
         var chip=r.open>0?'<span class="pchip warn">'+r.open+' open</span>':(r.rate!==undefined?'<span class="pchip '+(r.rate>10?'warn':'ok')+'">'+r.rate+'% claims</span>':'<span class="pchip mut">no claims</span>');
-        return '<tr'+(go?' class="go" onclick="CRM.pulseGo(\''+go+'\',\''+q1(r.k)+'\')"':'')+'><td class="nm">'+esc(r.k)+'</td><td class="bcol"><div class="bar"><span style="width:'+Math.round(r.n/maxN*100)+'%"></span></div></td><td class="num">'+r.n.toLocaleString()+' '+(r.unit||'shp')+'</td><td class="num">'+(r.avg!==null?'avg '+r.avg:'—')+'</td><td style="text-align:right">'+chip+'</td></tr>';
+        return '<tr'+(go?' class="go" onclick="CRM.pulseGo(\''+go+'\',\''+q1(r.k)+'\')"':'')+'><td class="nm">'+esc(r.k)+'</td><td class="bcol"><div class="bar"><span style="width:'+Math.round(r.n/maxN*100)+'%"></span></div></td><td class="num">'+r.n.toLocaleString()+' '+(r.unit||'shp')+'</td><td class="num"'+(r.avg!==null?' title="Average CQC score · 1 Excellent, 2 Good, 3 Fair, 4 Poor, 5 Reject — lower is better"':'')+'>'+(r.avg!==null?'avg '+r.avg:'—')+'</td><td style="text-align:right">'+chip+'</td></tr>';
       }).join('')+'</table>';
     }
     function groupStats(keyFn){
@@ -15359,7 +15359,7 @@ window.CRM = (function(){
     var byVariety=groupStats(function(s){return s.varieties||[s.variety];});
     var byPh=groupStats(function(s){return s.packHouses||[];}); byPh.forEach(function(r){ r.unit='rows'; });
     var maxC=byClient.length?byClient[0].n:1, maxV=byVariety.length?byVariety[0].n:1, maxP=byPh.length?byPh[0].n:1;
-    var breakdowns='<div class="pulse-panels"><div class="pulse-panel"><div class="pp-title">By sub-client · click → filtered list</div>'+rank(byClient,maxC,'sub')+'</div><div class="pulse-panel"><div class="pp-title">By variety · click → filtered list</div>'+rank(byVariety,maxV,'variety')+'</div><div class="pulse-panel"><div class="pp-title">By packhouse · from composition rows</div>'+rank(byPh,maxP,null)+'</div></div>';
+    var breakdowns='<div class="pulse-panels"><div class="pulse-panel"><div class="pp-title">By sub-client · click → filtered list</div>'+rank(byClient,maxC,'sub')+'</div><div class="pulse-panel"><div class="pp-title">By variety · click → filtered list</div>'+rank(byVariety,maxV,'variety')+'</div><div class="pulse-panel"><div class="pp-title">By packhouse · from composition rows</div>'+rank(byPh,maxP,null)+'</div></div>'+'<div class="hint" style="text-align:center;margin:2px 0 4px"><b>avg</b> = average CQC score of the group · 1 Excellent → 5 Reject (lower is better) · &ldquo;—&rdquo; = no CQC yet</div>';
     var compare='';
     if(currentRegion==='all'){
       var rg={};
