@@ -14968,11 +14968,11 @@ window.CRM = (function(){
       list.forEach(function(s){ (keyFn(s)||[]).forEach(function(k){ if(!k) return; if(!g[k]) g[k]={k:k,n:0,scores:[],claims:0,open:0}; g[k].n++; if(s.cqc&&s.cqc.score) g[k].scores.push(s.cqc.score); if(s.claim){ g[k].claims++; if(s.claim.status==='open') g[k].open++; } }); });
       return Object.keys(g).map(function(k){ var r=g[k]; r.avg=pAvg(r.scores); r.rate=Math.round(r.claims/r.n*100); return r; }).sort(function(a,b){return b.n-a.n;}).slice(0,6);
     }
-    var byClient=groupStats(function(s){return [s.client];});
+    var byClient=groupStats(function(s){return [s.sub];});
     var byVariety=groupStats(function(s){return s.varieties||[s.variety];});
     var byPh=groupStats(function(s){return s.packHouses||[];}); byPh.forEach(function(r){ r.unit='rows'; });
     var maxC=byClient.length?byClient[0].n:1, maxV=byVariety.length?byVariety[0].n:1, maxP=byPh.length?byPh[0].n:1;
-    var breakdowns='<div class="pulse-panels"><div class="pulse-panel"><div class="pp-title">By client · click → filtered list</div>'+rank(byClient,maxC,'client')+'</div><div class="pulse-panel"><div class="pp-title">By variety · click → filtered list</div>'+rank(byVariety,maxV,'variety')+'</div><div class="pulse-panel"><div class="pp-title">By packhouse · from composition rows</div>'+rank(byPh,maxP,null)+'</div></div>';
+    var breakdowns='<div class="pulse-panels"><div class="pulse-panel"><div class="pp-title">By sub-client · click → filtered list</div>'+rank(byClient,maxC,'sub')+'</div><div class="pulse-panel"><div class="pp-title">By variety · click → filtered list</div>'+rank(byVariety,maxV,'variety')+'</div><div class="pulse-panel"><div class="pp-title">By packhouse · from composition rows</div>'+rank(byPh,maxP,null)+'</div></div>';
     var compare='';
     if(currentRegion==='all'){
       var rg={};
@@ -15406,6 +15406,16 @@ window.CRM = (function(){
   }
 
   /* ── template + listeners ── */
+  /* Vision-consistent loading skeleton (paper-toned shimmer) shown until data arrives — mirrors the dashboard layout so nothing jumps; render() overwrites it. */
+  function crmSkel(){
+    var kpi='<div class="kpi"><span class="sk" style="width:45%;height:9px"></span><span class="sk" style="width:58%;height:24px;margin-top:11px"></span><span class="sk" style="width:72%;height:8px;margin-top:11px"></span></div>';
+    var panel='<div class="pulse-panel"><span class="sk" style="width:52%;height:9px;margin-bottom:13px"></span><span class="sk" style="width:100%;height:64px"></span></div>';
+    var rankp='<div class="pulse-panel"><span class="sk" style="width:52%;height:9px;margin-bottom:13px"></span><span class="sk" style="width:100%;height:12px;margin-bottom:9px"></span><span class="sk" style="width:100%;height:12px;margin-bottom:9px"></span><span class="sk" style="width:100%;height:12px;margin-bottom:9px"></span><span class="sk" style="width:100%;height:12px"></span></div>';
+    return '<div class="attn-head" style="margin-top:2px"><span class="sk" style="width:230px;height:12px"></span></div>'
+      +'<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:16px">'+kpi+kpi+kpi+kpi+kpi+kpi+'</div>'
+      +'<div class="pulse-panels" style="margin-bottom:16px">'+panel+panel+panel+'</div>'
+      +'<div class="pulse-panels">'+rankp+rankp+rankp+'</div>';
+  }
   function template(){ return ''
     +'<div class="crm-header" style="display:flex;justify-content:center;padding:12px 16px 0"><div class="tabs2" id="viewTabs"></div></div>'
     +'<div class="subbar"><div class="subbar-inner">'
@@ -15415,7 +15425,7 @@ window.CRM = (function(){
     +'<span id="regionSel"></span><span id="productSel"></span></div></div>'
     +'<div class="page"><div class="page-inner">'
     +'<div class="region-note" style="margin:0 0 10px">Regions from <b>Regions 2026</b> · members are locked to their region (admins see all). Region resolves per shipment: shipment override → client override → country default → Unassigned.'+(IS_ADMIN?' <span class="link-btn" onclick="CRM.setTab(\'regions\')">Manage region mapping →</span>':'')+'</div>'
-    +'<div class="kpi-grid" id="kpiGrid"></div><div id="viewContent"><div class="empty-state">Loading…</div></div>'
+    +'<div class="kpi-grid" id="kpiGrid"></div><div id="viewContent">'+crmSkel()+'</div>'
     +'</div></div>'
     +'<div class="toast" id="crmToast"></div>'
     +'<div class="dlv" id="dlv"><div class="dlv-panel"><div class="dlv-top"><span class="dlv-title" id="dlvTitle">Record</span><span class="dlv-x" onclick="CRM.closeDlv()">&times;</span></div><div class="dlv-body"><div class="dlv-inner" id="dlvBody"></div></div></div></div>'
@@ -15463,9 +15473,10 @@ window.CRM = (function(){
     currentTab='dashboard'; currentRegion='all'; currentProduct='all'; currentQuery=''; showAllSubs=false; pulseOpen=true; resetPages();
     ROOT.innerHTML=template();
     attachListeners();
-    Promise.all([loadRegions(),loadCountryMap(),loadOverrides(),loadScoreBands()]).then(loadVoyages).then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; });
+    /* loadVoyages has no data dependency on the four lookups, so fire it alongside them instead of chaining — removes one round-trip from time-to-dashboard */
+    Promise.all([loadRegions(),loadCountryMap(),loadOverrides(),loadScoreBands(),loadVoyages()]).then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; });
   }
-  function setSeason(seasonId){ SEASON=seasonId; if(MOUNTED) reload(); }
+  function setSeason(seasonId){ if(seasonId===SEASON) return; /* skip the redundant mount-time call so CRM open fetches voyages once, not twice */ SEASON=seasonId; if(MOUNTED) reload(); }
   function teardown(){ MOUNTED=false; ROOT=null; }
 
   return {
@@ -15793,6 +15804,7 @@ function injectCrmCss(){
 .crmv .lot{font-family:var(--font-mono);font-size:12px;color:var(--text);white-space:nowrap}
 .crmv .cell-sub{font-size:11px;color:var(--text3)}
 .crmv .empty-state{padding:34px 16px;text-align:center;color:var(--text3);font-size:13px}
+.crmv .sk{display:block;background:linear-gradient(90deg,var(--bg2) 0%,var(--bg3) 50%,var(--bg2) 100%);background-size:200% 100%;animation:dh-shimmer 1.25s ease-in-out infinite;border-radius:6px}
 .crmv .right{text-align:right}
 
 /* ── Sub-client scorecards ── */
