@@ -18110,7 +18110,7 @@ function App(){
             !phLoading&&cropInfo.name&&ce('span',{style:{fontSize:11,color:'var(--text2)',fontWeight:500}},cropInfo.name)
           )
         ),
-        (view==='crm'&&crmHdr)?ce('div',{className:'crmv',style:{background:'transparent',display:'flex',justifyContent:'center',alignItems:'center',flex:1,minWidth:0,padding:0,overflow:'hidden'},dangerouslySetInnerHTML:{__html:crmHdr}}):null,
+        (view==='crm'&&crmHdr)?ce('div',{className:'crmv',style:{background:'transparent',display:'flex',justifyContent:'center',alignItems:'center',position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',maxWidth:'70%',padding:0},dangerouslySetInnerHTML:{__html:crmHdr}}):null,
         ce('div',{className:'topbar-right'})
       ),
       ce('div',{className:'page'},
