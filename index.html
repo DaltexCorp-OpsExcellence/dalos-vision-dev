@@ -15140,7 +15140,7 @@ window.CRM = (function(){
 
   /* ── quality cells ── */
   function qualityCell(s){
-    if(s.cqc) return bandBadge(s.cqc.score, s.cqc.scoreRaw?('raw: '+s.cqc.scoreRaw):'');
+    if(s.cqc){ var _b=BANDS[s.cqc.score]||{n:'Unclassified',cls:'b-neutral'}; var _raw=s.cqc.scoreRaw||s.cqc.scoreLabel||_b.n; return '<span class="badge '+_b.cls+'" title="'+esc('Client score as entered'+(s.cqc.score?' · defined band: '+_b.n+' ('+s.cqc.score+')':''))+'">'+esc(_raw)+'</span>'; } /* listing shows the raw client score as-is; the defined band is kept for the Quality-mix chart */
     if(s.coverage==='graded') return '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+esc(s.graded.grade)+'</span>';
     return '<span class="cell-sub">no data</span>';
   }
