@@ -13314,7 +13314,7 @@ function CqcPreviewModal(props){
     ce('div',{style:{background:'var(--card)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.25)',width:'100%',maxWidth:720,maxHeight:'85vh',display:'flex',flexDirection:'column',overflow:'hidden'}},
       ce('div',{style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',padding:'14px 18px',borderBottom:'1px solid var(--border)',flexShrink:0}},
         ce('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},
-          ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:16,fontWeight:700,color:'var(--accent)',letterSpacing:'-.01em'}},pp.id),
+          ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:16,fontWeight:700,color:'var(--accent)',letterSpacing:'-.01em'}},(r&&(r.container||r.qcReportNumber))||pp.id),
           r&&r.score&&ce('span',{style:scoreStyle(r.score)},r.score),
           r&&r.matched&&ce('span',{style:{display:'inline-flex',alignItems:'center',gap:3,background:'var(--green-bg)',color:'var(--green)',border:'1px solid var(--green-border)',borderRadius:6,padding:'3px 8px',fontSize:11,fontWeight:500}},'✓ Matched')
         ),
