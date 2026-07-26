@@ -9792,7 +9792,10 @@ function ClientQCMgmt(props){
      overwriting it silently. Populated by loadReportForEdit. */
   var cqcScoreSnap=React.useRef({report:'',samples:{}});
   var sCqcClassify=useState(null); var cqcClassify=sCqcClassify[0]; var setCqcClassify=sCqcClassify[1];
-  var sCqcClassifyDone=useState(false); var cqcClassifyDone=sCqcClassifyDone[0]; var setCqcClassifyDone=sCqcClassifyDone[1];
+  /* ref, not state — same reason as cqcDupAckRef: saveReport re-invokes itself via setTimeout and a
+     state flag still reads false in the captured closure. Today the snapshot advance also prevents
+     re-prompting, but relying on that alone would double-record revisions if it ever changed. */
+  var cqcClassifyDoneRef=React.useRef(false);
   var sCqcClassifySaving=useState(false); var cqcClassifySaving=sCqcClassifySaving[0]; var setCqcClassifySaving=sCqcClassifySaving[1];
   /* Group the score changes by from→to so one report change plus three samples moving the same
      way is two decisions, not four. */
@@ -9854,13 +9857,15 @@ function ClientQCMgmt(props){
         else (g.nums||[]).forEach(function(n){snap.samples[n]=g.to;});
       });
       cqcScoreSnap.current=snap;
-      setCqcClassify(null);setCqcClassifyDone(true);
-      setTimeout(saveReport,0);
+      setCqcClassify(null);cqcClassifyDoneRef.current=true;
+      setTimeout(function(){saveReport();},0);
     });
   }
   /* ── Duplicate-container warning state (new reports only) ── */
   var sCqcDup=useState(null); var cqcDup=sCqcDup[0]; var setCqcDup=sCqcDup[1];
-  var sCqcDupAck=useState(false); var cqcDupAck=sCqcDupAck[0]; var setCqcDupAck=sCqcDupAck[1];
+  /* MUST be a ref, not state: saveReport re-invokes itself via setTimeout after the duplicate
+     check, and a state flag would still read false in the already-captured closure -> infinite loop. */
+  var cqcDupAckRef=React.useRef(false);
   /* ── Score revision (upgrade/downgrade) modal state ── */
   var sRevModal=useState(null); var revModal=sRevModal[0]; var setRevModal=sRevModal[1];
   var sRevSaving=useState(false); var revSaving=sRevSaving[0]; var setRevSaving=sRevSaving[1];
@@ -10566,7 +10571,7 @@ function ClientQCMgmt(props){
   }
 
   function clearForm(){
-    setCqcDup(null);setCqcDupAck(false); /* duplicate warning must not carry over to the next report */
+    setCqcDup(null);cqcDupAckRef.current=false; /* duplicate warning must not carry over to the next report */
     setContainer('');setSticker('');setTrace('');setTraceCodes([]);setPH('');setPhCover('');setCrop('');setVar('');setFCat('');setVarType('single');setFCat2('');setVar2('');
     setFarm1('');setPlot1('');setFarm2('');setPlot2('');setFarmsExtra([]);setPHExtra([]);setVarsExtra([]);setLoadDate('');setPackDate('');setHarvDate('');setCartonType('');
     setQCRef('');setRegion('');setClient('');setSubClient('');setLot('');setDaltexCls('');
@@ -10758,7 +10763,7 @@ function ClientQCMgmt(props){
     cqcScoreSnap.current={report:r.score||'',samples:(function(){
       var m={};(r.sampleRows||[]).forEach(function(s){m[s.num]=s.score||'';});return m;
     })()};
-    setCqcClassify(null);setCqcClassifyDone(false);
+    setCqcClassify(null);cqcClassifyDoneRef.current=false;
     /* Load existing files */
     setUploadedFiles([]);
     supabase.from('client_qc_files').select('*').eq('client_qc_report_id',r.id).then(function(fr){
@@ -10829,7 +10834,7 @@ function ClientQCMgmt(props){
        Cloning a report to carry a revised score is what produced the existing duplicate pairs; this
        routes that intent into the Upgrade/Downgrade flow instead. Deliberately a warning, not a
        constraint: split-carta containers legitimately repeat. */
-    if(!editRep&&!cqcDupAck&&fContainer&&String(fContainer).trim()){
+    if(!editRep&&!cqcDupAckRef.current&&fContainer&&String(fContainer).trim()){
       setCqcSaveErr('');
       setCqcSaving(true);
       supabase.rpc('cqc_container_duplicate_check',{
@@ -10840,17 +10845,17 @@ function ClientQCMgmt(props){
         setCqcSaving(false);
         var hits=(res&&!res.error&&res.data)||[];
         if(hits.length>0){setCqcDup(hits);return;}
-        setCqcDupAck(true);
-        setTimeout(saveReport,0);
+        cqcDupAckRef.current=true;
+        setTimeout(function(){saveReport();},0);
       }).catch(function(){
         /* the check must never block a legitimate save */
-        setCqcSaving(false);setCqcDupAck(true);setTimeout(saveReport,0);
+        setCqcSaving(false);cqcDupAckRef.current=true;setTimeout(function(){saveReport();},0);
       });
       return;
     }
     /* DEFENSE 4 — a score changed in the form is a revision, not an overwrite.
        Ask what each change was before writing, so it lands in cqc_score_revisions. */
-    if(editRep&&!cqcClassifyDone){
+    if(editRep&&!cqcClassifyDoneRef.current){
       var _groups=cqcScoreDiffGroups();
       if(_groups.length>0){
         setCqcSaveErr('');
@@ -12789,7 +12794,7 @@ function ClientQCMgmt(props){
                     if(target) openRevModal(target,'downgrade');
                   }},'Record upgrade or downgrade'),
                   ce('button',{className:'btn btn-secondary btn-sm',style:{color:'var(--text3)'},
-                    onClick:function(){setCqcDup(null);setCqcDupAck(true);setTimeout(saveReport,0);}},'Create anyway')
+                    onClick:function(){setCqcDup(null);cqcDupAckRef.current=true;setTimeout(function(){saveReport();},0);}},'Create anyway')
                 )
               )
             )
