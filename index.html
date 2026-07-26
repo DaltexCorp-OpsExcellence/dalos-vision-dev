@@ -9832,6 +9832,11 @@ function ClientQCMgmt(props){
       setCqcClassify(function(m){return Object.assign({},m,{err:'Choose upgrade, downgrade or correction for each change.'});});
       return;
     }
+    var rid=cqcClassify.reportId||editRep;
+    if(!rid){
+      setCqcClassify(function(m){return Object.assign({},m,{err:'Lost track of which report this was. Reopen the report and try again.'});});
+      return;
+    }
     setCqcClassifySaving(true);
     var note=cqcClassify.note||null;
     /* Recorded BEFORE the form write, so from_score is read server-side from the live row and is
@@ -9842,7 +9847,7 @@ function ClientQCMgmt(props){
       chain=chain.then(function(){
         if(failed) return null;
         return supabase.rpc('record_cqc_score_revision',{
-          p_report_id:editRep,p_direction:g.direction,p_to_score:g.to,
+          p_report_id:rid,p_direction:g.direction,p_to_score:g.to,
           p_sample_numbers:g.nums&&g.nums.length?g.nums:null,p_note:note,p_origin:'form_save'
         }).then(function(res){ if(res.error) failed=res.error.message||'Could not record the change.'; });
       });
@@ -9860,6 +9865,74 @@ function ClientQCMgmt(props){
       setCqcClassify(null);cqcClassifyDoneRef.current=true;
       setTimeout(function(){saveReport();},0);
     });
+  }
+  /* Rendered from BOTH the form branch and the list branch. The form is an early return
+     (`if(showNew)`), so a modal defined only in the list tree could never appear while the form was
+     open — it surfaced only after "Back", by which point editRep was cleared. */
+  function renderCqcClassifyModal(){
+    if(!cqcClassify) return null;
+    function pill(s){
+      var su=String(s||'').toUpperCase();
+      var bg=su==='GREEN'?'var(--green-bg)':(su==='RED'||su==='NFA')?'#fff0f0':'var(--amber-bg)';
+      var fg=su==='GREEN'?'var(--green)':(su==='RED'||su==='NFA')?'var(--red)':'var(--amber)';
+      return {padding:'3px 10px',borderRadius:12,fontSize:12,fontWeight:500,background:bg,color:fg};
+    }
+    return ce('div',{style:{position:'fixed',inset:0,zIndex:9300,background:'rgba(20,28,22,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}},
+      ce('div',{style:{width:470,maxWidth:'100%',maxHeight:'92vh',overflowY:'auto',background:'var(--card)',border:'1px solid var(--border2)',borderRadius:16}},
+        ce('div',{style:{height:4,background:'var(--amber)',borderRadius:'16px 16px 0 0'}}),
+        ce('div',{style:{padding:'20px 22px'}},
+          ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18,marginBottom:4}},'Scores changed'),
+          ce('div',{style:{fontSize:12,color:'var(--text3)',lineHeight:1.5,marginBottom:16}},
+            'Tell us what each change was, so it is recorded rather than overwritten.'),
+          (cqcClassify.groups||[]).map(function(g,gi){
+            function setDir(d){setCqcClassify(function(m){
+              var gs=(m.groups||[]).slice();gs[gi]=Object.assign({},gs[gi],{direction:d});
+              return Object.assign({},m,{groups:gs,err:''});
+            });}
+            var idents=(function(){
+              var vs={},fs={};
+              (g.rows||[]).forEach(function(r2){if(r2.variety)vs[r2.variety]=1;if(r2.farm)fs[r2.farm+(r2.plot?' '+r2.plot:'')]=1;});
+              return Object.keys(vs).concat(Object.keys(fs)).join(' · ');
+            })();
+            return ce('div',{key:g.key,style:{border:'1px solid var(--border)',borderRadius:8,padding:'11px 12px',marginBottom:9}},
+              ce('div',{style:{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginBottom:g.nums?5:9}},
+                ce('span',{style:{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text3)'}},
+                  g.nums?(g.nums.length+' sample'+(g.nums.length===1?'':'s')):'Whole container'),
+                g.from&&ce('span',{style:pill(g.from)},g.from),
+                ce('span',{style:{color:'var(--text3)'}},'→'),
+                ce('span',{style:pill(g.to)},g.to)
+              ),
+              g.nums&&ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',marginBottom:9}},
+                '#'+g.nums.join(' #')+(idents?(' · '+idents):'')),
+              ce('div',{style:{display:'flex',gap:5,flexWrap:'wrap'}},
+                [['upgrade','Upgrade','var(--green)','var(--green-bg)','var(--green-border)'],
+                 ['downgrade','Downgrade','var(--red)','var(--red-bg)','var(--red-border)'],
+                 ['correction','Correction','var(--text2)','var(--bg2)','var(--border2)']].map(function(o){
+                  var on=g.direction===o[0];
+                  return ce('button',{key:o[0],onClick:function(){setDir(o[0]);},
+                    style:{fontSize:12,fontWeight:500,padding:'5px 11px',borderRadius:8,cursor:'pointer',fontFamily:'inherit',
+                      background:on?o[3]:'var(--card)',color:on?o[2]:'var(--text3)',
+                      border:(on?'1.5px solid '+o[4]:'1px solid var(--border2)')}},o[1]);
+                })
+              )
+            );
+          }),
+          ce('label',{className:'form-label'},'Note'),
+          ce('textarea',{className:'form-input',rows:2,style:{marginBottom:14,width:'100%',resize:'vertical'},
+            placeholder:'e.g. Client email 24/06 — splits found on arrival',
+            value:cqcClassify.note,
+            onChange:function(e){var v=e.target.value;setCqcClassify(function(m){return Object.assign({},m,{note:v});});}}),
+          ce('div',{style:{fontSize:11,color:'var(--text3)',lineHeight:1.5,marginBottom:14}},
+            'Corrections are still recorded, but are left out of upgrade and downgrade reporting.'),
+          cqcClassify.err&&ce('div',{className:'alert-fail',style:{marginBottom:12,fontSize:12}},cqcClassify.err),
+          ce('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+            ce('button',{className:'btn btn-secondary',disabled:cqcClassifySaving,onClick:function(){setCqcClassify(null);}},'Back to form'),
+            ce('button',{className:'btn btn-primary',disabled:cqcClassifySaving,onClick:submitClassify},
+              cqcClassifySaving?'Recording…':'Save and record')
+          )
+        )
+      )
+    );
   }
   /* ── Duplicate-container warning state (new reports only) ── */
   var sCqcDup=useState(null); var cqcDup=sCqcDup[0]; var setCqcDup=sCqcDup[1];
@@ -10859,7 +10932,9 @@ function ClientQCMgmt(props){
       var _groups=cqcScoreDiffGroups();
       if(_groups.length>0){
         setCqcSaveErr('');
-        setCqcClassify({groups:_groups.map(function(g){return Object.assign({},g,{direction:''});}),note:'',err:''});
+        /* reportId is captured here, not read from editRep at submit time: the modal can outlive the
+           form (e.g. the user backs out), and editRep is cleared then, which sent a NULL id to the RPC. */
+        setCqcClassify({reportId:editRep,groups:_groups.map(function(g){return Object.assign({},g,{direction:''});}),note:'',err:''});
         return;
       }
     }
@@ -11108,6 +11183,8 @@ function ClientQCMgmt(props){
     };
 
     return ce('div',{style:{background:'var(--bg)',minHeight:'100vh'}},
+      /* classify step must render here too — the form is an early return */
+      renderCqcClassifyModal(),
       /* topbar */
       ce('div',{style:{background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'0 26px',height:50,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:20}},
         ce('div',{style:{display:'flex',alignItems:'center',gap:10}},
@@ -12682,81 +12759,30 @@ function ClientQCMgmt(props){
         function revChip(r,extraStyle){
           var revs=(r.revisions||[]).filter(function(v){return v.direction!=='correction';});
           if(revs.length===0) return null;
-          var last=revs[0];
-          var up=last.direction==='upgrade';
-          var label=up?'Upgraded':'Downgraded';
+          /* Label by the mix, not by the latest: "Downgraded x3" for 1 upgrade + 2 downgrades read as
+             three downgrades, and hid that the net movement was upward. */
+          var ups=revs.filter(function(v){return v.direction==='upgrade';}).length;
+          var downs=revs.length-ups;
+          var mixed=ups>0&&downs>0;
+          var up=ups>0&&downs===0;
+          var label=mixed?('Revised '+ups+'↑ '+downs+'↓'):(up?'Upgraded':'Downgraded');
           var title=revs.map(function(v){
             var when=v.at?new Date(v.at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
             var scope=v.sampleNumbers?(v.sampleNumbers.length+' sample'+(v.sampleNumbers.length===1?'':'s')):'whole container';
             return when+': '+(v.from||'—')+' → '+v.to+' ('+v.direction+', '+scope+')';
           }).join('\n');
+          var warm=up||mixed;
           return ce('span',{title:title,style:Object.assign({display:'inline-flex',alignItems:'center',gap:3,
-            background:up?'var(--amber-bg)':'#fff0f0',color:up?'var(--amber)':'var(--red)',
-            border:'1px solid '+(up?'var(--amber-border)':'#f5c0c0'),
+            background:warm?'var(--amber-bg)':'#fff0f0',color:warm?'var(--amber)':'var(--red)',
+            border:'1px solid '+(warm?'var(--amber-border)':'#f5c0c0'),
             borderRadius:4,padding:'2px 7px',fontSize:10,fontWeight:500,whiteSpace:'nowrap'},extraStyle||{})},
-            (up?'↑ ':'↓ ')+label+(revs.length>1?' ×'+revs.length:'')
+            (mixed?'⇅ ':(up?'↑ ':'↓ '))+label+((!mixed&&revs.length>1)?(' ×'+revs.length):'')
           );
         }
 
         return ce('div',null,
           /* ── Classify step: scores changed in the edit form ── */
-          cqcClassify&&ce('div',{style:{position:'fixed',inset:0,zIndex:9300,background:'rgba(20,28,22,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}},
-            ce('div',{style:{width:470,maxWidth:'100%',maxHeight:'92vh',overflowY:'auto',background:'var(--card)',border:'1px solid var(--border2)',borderRadius:16}},
-              ce('div',{style:{height:4,background:'var(--amber)',borderRadius:'16px 16px 0 0'}}),
-              ce('div',{style:{padding:'20px 22px'}},
-                ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18,marginBottom:4}},'Scores changed'),
-                ce('div',{style:{fontSize:12,color:'var(--text3)',lineHeight:1.5,marginBottom:16}},
-                  'Tell us what each change was, so it is recorded rather than overwritten.'),
-                (cqcClassify.groups||[]).map(function(g,gi){
-                  function setDir(d){setCqcClassify(function(m){
-                    var gs=(m.groups||[]).slice();gs[gi]=Object.assign({},gs[gi],{direction:d});
-                    return Object.assign({},m,{groups:gs,err:''});
-                  });}
-                  var idents=(function(){
-                    var vs={},fs={};
-                    (g.rows||[]).forEach(function(r2){if(r2.variety)vs[r2.variety]=1;if(r2.farm)fs[r2.farm+(r2.plot?' '+r2.plot:'')]=1;});
-                    var p=Object.keys(vs).concat(Object.keys(fs));
-                    return p.join(' · ');
-                  })();
-                  return ce('div',{key:g.key,style:{border:'1px solid var(--border)',borderRadius:8,padding:'11px 12px',marginBottom:9}},
-                    ce('div',{style:{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginBottom:g.nums?5:9}},
-                      ce('span',{style:{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text3)'}},
-                        g.nums?(g.nums.length+' sample'+(g.nums.length===1?'':'s')):'Whole container'),
-                      g.from&&ce('span',{style:cqcScorePill(g.from)},g.from),
-                      ce('span',{style:{color:'var(--text3)'}},'→'),
-                      ce('span',{style:cqcScorePill(g.to)},g.to)
-                    ),
-                    g.nums&&ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',marginBottom:9}},
-                      '#'+g.nums.join(' #')+(idents?(' · '+idents):'')),
-                    ce('div',{style:{display:'flex',gap:5,flexWrap:'wrap'}},
-                      [['upgrade','Upgrade','var(--green)','var(--green-bg)','var(--green-border)'],
-                       ['downgrade','Downgrade','var(--red)','var(--red-bg)','var(--red-border)'],
-                       ['correction','Correction','var(--text2)','var(--bg2)','var(--border2)']].map(function(o){
-                        var on=g.direction===o[0];
-                        return ce('button',{key:o[0],onClick:function(){setDir(o[0]);},
-                          style:{fontSize:12,fontWeight:500,padding:'5px 11px',borderRadius:8,cursor:'pointer',fontFamily:'inherit',
-                            background:on?o[3]:'var(--card)',color:on?o[2]:'var(--text3)',
-                            border:(on?'1.5px solid '+o[4]:'1px solid var(--border2)')}},o[1]);
-                      })
-                    )
-                  );
-                }),
-                ce('label',{className:'form-label'},'Note'),
-                ce('textarea',{className:'form-input',rows:2,style:{marginBottom:14,width:'100%',resize:'vertical'},
-                  placeholder:'e.g. Client email 24/06 — splits found on arrival',
-                  value:cqcClassify.note,
-                  onChange:function(e){var v=e.target.value;setCqcClassify(function(m){return Object.assign({},m,{note:v});});}}),
-                ce('div',{style:{fontSize:11,color:'var(--text3)',lineHeight:1.5,marginBottom:14}},
-                  'Corrections are still recorded, but are left out of upgrade and downgrade reporting.'),
-                cqcClassify.err&&ce('div',{className:'alert-fail',style:{marginBottom:12,fontSize:12}},cqcClassify.err),
-                ce('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
-                  ce('button',{className:'btn btn-secondary',disabled:cqcClassifySaving,onClick:function(){setCqcClassify(null);}},'Back to form'),
-                  ce('button',{className:'btn btn-primary',disabled:cqcClassifySaving,onClick:submitClassify},
-                    cqcClassifySaving?'Recording…':'Save and record')
-                )
-              )
-            )
-          ),
+          renderCqcClassifyModal(),
           /* ── Duplicate-container warning: routes a would-be clone into the revision flow ── */
           cqcDup&&cqcDup.length>0&&ce('div',{style:{position:'fixed',inset:0,zIndex:9200,background:'rgba(20,28,22,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}},
             ce('div',{style:{width:460,maxWidth:'100%',background:'var(--card)',border:'1px solid var(--border2)',borderRadius:16,overflow:'hidden'}},
