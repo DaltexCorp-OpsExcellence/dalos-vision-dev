@@ -12905,7 +12905,7 @@ function ClientQCMgmt(props){
             ),
             /* Filter pills */
             ['all','matched','claim','unmatched','revised'].map(function(f){
-              var labels={all:'All',matched:'Matched',claim:'Claims',unmatched:'Unmatched'};
+              var labels={all:'All',matched:'Matched',claim:'Claims',unmatched:'Unmatched',revised:'Revised'};
               var active=cqcFilter===f;
               return ce('button',{key:f,
                 style:{padding:'5px 12px',border:'0.5px solid '+(active?'#2e5d3a':'var(--border2)'),borderRadius:20,fontSize:12,cursor:'pointer',background:active?'#2e5d3a':'var(--card)',color:active?'#fff':'var(--text2)',whiteSpace:'nowrap'},
