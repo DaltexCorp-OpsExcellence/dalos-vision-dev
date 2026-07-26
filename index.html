@@ -14974,8 +14974,9 @@ window.CRM = (function(){
   var pageState={shipments:0, grading:0, claims:0, clean:0};
 
   /* ── small utils ── */
-  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function q1(s){ return String(s==null?'':s).replace(/'/g,"\\'"); }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  /* tonnes cell — shipments.net_weight is tonnes; credit/return rows are negative by design */
+  function tonCell(v){ var n=Number(v)||0; return n<0?'—':n.toLocaleString()+' t'; }
   function $(id){ return ROOT?ROOT.querySelector('#'+id):null; }
   function num(v){ return (v==null||isNaN(v))?0:Number(v); }
   function pct(v){ return (v==null||v==='')?null:(Math.round(Number(v)*10)/10)+'%'; }
@@ -15013,7 +15014,7 @@ window.CRM = (function(){
       client:r.client||'—', sub:r.subclient||'—', country:r.country||'',
       region:r.region_id||'unassigned', product:r.product_id?(r.product_id.charAt(0).toUpperCase()+r.product_id.slice(1)):'—', productId:r.product_id||null,
       variety:varieties[0]||'—', varieties:varieties.length>1?varieties:null,
-      cartons:num(r.carton_count), pallets:num(r.pallet_count), netKg:num(r.net_weight), grossKg:num(r.gross_weight),
+      cartons:num(r.carton_count), pallets:num(r.pallet_count), netTons:num(r.net_weight), grossKg:num(r.gross_weight),
       vessel:r.vessel||'—', shippingLine:r.shipping_line||'—', port:r.receiving_port||'—', departurePort:r.departure_port||'—',
       eta:fmtDate(r.eta), etaRaw:r.eta, etd:fmtDate(r.etd), arrival:fmtDate(r.arrival_date),
       invoice:r.invoice_no||'', booking:r.booking_no||'', shipper:r.shipper||'', agent:r.agent||'',
@@ -15146,8 +15147,8 @@ window.CRM = (function(){
     return '<span class="cell-sub">no data</span>';
   }
   function qualityCellLinked(s){
-    var qc=s.cqc?'<span class="qlink" title="Open CQC report" onclick="event.stopPropagation();CRM.openCqc(\''+s.key+'\')">'+qualityCell(s)+'</span>':qualityCell(s);
-    var insp=s.insp?'<div class="cell-sub lot ilink" style="margin-top:3px" title="Open export inspection" onclick="event.stopPropagation();CRM.openInsp(\''+s.key+'\')">'+esc(s.insp.id)+' ↗</div>':'';
+    var qc=s.cqc?'<span class="qlink" title="Open CQC report" data-crm-act="openCqc" data-crm-key="'+esc(s.key)+'">'+qualityCell(s)+'</span>':qualityCell(s);
+    var insp=s.insp?'<div class="cell-sub lot ilink" style="margin-top:3px" title="Open export inspection" data-crm-act="openInsp" data-crm-key="'+esc(s.key)+'">'+esc(s.insp.id)+' ↗</div>':'';
     return qc+insp;
   }
 
@@ -15209,7 +15210,7 @@ window.CRM = (function(){
         [['eta_desc','Newest ETA'],['eta_asc','Oldest ETA'],['score_desc','Worst score first'],['gap_desc','Biggest gap first']].map(function(o){return '<option value="'+o[0]+'"'+(shipView.sort===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
       '</select></div>';
     var rows=slice.map(function(s){
-      return '<tr class="click" onclick="CRM.openShipDetail(\''+s.key+'\')">'+
+      return '<tr class="click" data-crm-act="openShipDetail" data-crm-key="'+esc(s.key)+'">'+
         '<td><span class="lot">'+esc(s.cn)+'</span>'+(s.split?' <span class="sc-split">split</span>':'')+'</td>'+
         '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
         '<td>'+esc(shipProduct(s))+'</td><td>'+esc(s.varieties?s.varieties.join(' / '):s.variety)+'</td>'+
@@ -15217,7 +15218,7 @@ window.CRM = (function(){
         '<td>'+qualityCellLinked(s)+'</td>'+
         '<td class="lot" style="color:'+(gapNum(s)>2?'var(--red)':'var(--text2)')+'">'+(s.cqc?s.cqc.gap:'—')+'</td>'+
         '<td>'+(s.claim?claimBadge(s.claim):'<span class="cell-sub">—</span>')+'</td>'+
-        '<td class="right"><button class="btn '+(s.claim?'btn-secondary':'btn-primary')+' btn-sm" onclick="event.stopPropagation();CRM.openClaim(\''+s.key+'\')">'+(s.claim?'View claim':'Raise claim')+'</button></td></tr>';
+        '<td class="right"><button class="btn '+(s.claim?'btn-secondary':'btn-primary')+' btn-sm" data-crm-act="openClaim" data-crm-key="'+esc(s.key)+'">'+(s.claim?'View claim':'Raise claim')+'</button></td></tr>';
     }).join('');
     var head='<div class="section-title"><span class="section-title-bar"></span>Shipments <span class="section-count">'+list.length.toLocaleString()+' in view · click a row for the full record</span></div>';
     vc.innerHTML=head+filters+(list.length?'<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Client</th><th>Product</th><th>Variety</th><th>ETA</th><th>Status</th><th>Quality</th><th>Gap</th><th>Claim</th><th class="right">Action</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,page,'shipments'):'<div class="table-wrap"><div class="empty-state">No shipments match these filters.</div></div>');
@@ -15233,9 +15234,9 @@ window.CRM = (function(){
     var gPage=pageState.grading;
     var rows=list.slice(gPage*PER_PAGE,(gPage+1)*PER_PAGE).map(function(s){
       var gs=needsGrading(s)?'<span class="badge b-warn">Needs grading</span>':'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+esc(s.graded.grade)+'</span>';
-      var insp=s.insp?'<span class="ilink" title="Open export inspection" onclick="event.stopPropagation();CRM.openInsp(\''+s.key+'\')">'+esc(s.insp.defect)+' · '+esc(s.insp.decision)+' ↗</span>':'—';
-      var btn='<button class="btn '+(needsGrading(s)?'btn-primary':'btn-secondary')+' btn-sm" onclick="event.stopPropagation();CRM.openGrade(\''+s.key+'\')">'+(needsGrading(s)?'Grade':'Edit grade')+'</button>';
-      return '<tr class="click" onclick="CRM.openShipDetail(\''+s.key+'\')"><td><span class="lot">'+esc(s.cn)+'</span>'+(s.split?' <span class="sc-split">split</span>':'')+'</td>'+
+      var insp=s.insp?'<span class="ilink" title="Open export inspection" data-crm-act="openInsp" data-crm-key="'+esc(s.key)+'">'+esc(s.insp.defect)+' · '+esc(s.insp.decision)+' ↗</span>':'—';
+      var btn='<button class="btn '+(needsGrading(s)?'btn-primary':'btn-secondary')+' btn-sm" data-crm-act="openGrade" data-crm-key="'+esc(s.key)+'">'+(needsGrading(s)?'Grade':'Edit grade')+'</button>';
+      return '<tr class="click" data-crm-act="openShipDetail" data-crm-key="'+esc(s.key)+'"><td><span class="lot">'+esc(s.cn)+'</span>'+(s.split?' <span class="sc-split">split</span>':'')+'</td>'+
         '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
         '<td>'+esc(s.variety)+'</td><td>'+esc(s.eta)+'</td><td class="cell-sub">'+insp+'</td><td>'+gs+'</td><td class="right">'+btn+'</td></tr>';
     }).join('');
@@ -15255,10 +15256,10 @@ window.CRM = (function(){
       var m=lc[s.claim.status]||lc.open;
       var ev=s.cqc?esc(s.cqc.id):(s.coverage==='graded'?'CRM grading':'—');
       var valCell=s.claim.potential?'<span class="badge b-warn">potential</span>':'<span class="lot">'+esc(s.claim.value||'—')+'</span>';
-      return '<tr class="click" onclick="CRM.openShipDetail(\''+s.key+'\')"><td><span class="lot">'+esc(s.cn)+'</span></td>'+
+      return '<tr class="click" data-crm-act="openShipDetail" data-crm-key="'+esc(s.key)+'"><td><span class="lot">'+esc(s.cn)+'</span></td>'+
         '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
         '<td class="right">'+valCell+'</td><td><span class="badge '+m[0]+'">'+m[1]+'</span></td>'+
-        '<td class="lot cell-sub">'+ev+'</td><td class="right"><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();CRM.openClaim(\''+s.key+'\')">View</button></td></tr>';
+        '<td class="lot cell-sub">'+ev+'</td><td class="right"><button class="btn btn-secondary btn-sm" data-crm-act="openClaim" data-crm-key="'+esc(s.key)+'">View</button></td></tr>';
     }).join('');
     vc.innerHTML=head+'<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Client</th><th class="right">Value</th><th>Status</th><th>Evidence</th><th class="right">Action</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,cPage,'claims');
   }
@@ -15273,7 +15274,7 @@ window.CRM = (function(){
     var clPage=pageState.clean;
     var rows=list.slice(clPage*PER_PAGE,(clPage+1)*PER_PAGE).map(function(s){
       var qc=s.cqc?bandBadge(s.cqc.score):(s.coverage==='graded'?'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+esc(s.graded.grade)+'</span>':'<span class="cell-sub">no quality data</span>');
-      return '<tr class="click" onclick="CRM.openShipDetail(\''+s.key+'\')"><td><span class="lot">'+esc(s.cn)+'</span></td>'+
+      return '<tr class="click" data-crm-act="openShipDetail" data-crm-key="'+esc(s.key)+'"><td><span class="lot">'+esc(s.cn)+'</span></td>'+
         '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
         '<td>'+esc(s.eta)+'</td><td>'+esc(s.statusLabel)+'</td><td>'+qc+'</td><td class="right"><span class="badge b-pass">Clean</span></td></tr>';
     }).join('');
@@ -15281,8 +15282,8 @@ window.CRM = (function(){
   }
 
   /* ── Dashboard: region pulse + scorecards + attention cards ── */
-  function streamBox(label,bodyHtml,onclickJs){
-    var link=onclickJs?' link':'', open=onclickJs?'<span class="stream-open">open ↗</span>':'', attr=onclickJs?' onclick="'+onclickJs+'"':'';
+  function streamBox(label,bodyHtml,actAttrs){
+    var link=actAttrs?' link':'', open=actAttrs?'<span class="stream-open">open ↗</span>':'', attr=actAttrs||'';
     return '<div class="stream-box'+link+'"'+attr+'><div class="stream-head"><div class="stream-label">'+label+'</div>'+open+'</div>'+bodyHtml+'</div>';
   }
   function renderScorecards(){
@@ -15306,7 +15307,7 @@ window.CRM = (function(){
         scores='<div><div class="dist">'+seg(d.g,'dg')+seg(d.f,'df')+seg(d.p,'dp')+seg(d.gr,'dgr')+seg(d.n,'dn')+'</div><div class="dist-legend">'+leg(d.g,'dg','good')+leg(d.f,'df','fair')+leg(d.p,'dp','poor')+leg(d.gr,'dgr','graded')+leg(d.n,'dn','no data')+'</div></div>';
       }
       var claims=g.ships.filter(hasClaim).length;
-      return '<div class="scorecard" onclick="CRM.openSubDrill(\''+q1(k)+'\')"><div class="scorecard-top"><div style="min-width:0"><div class="scorecard-sub">'+esc(g.sub)+'</div><div class="scorecard-client">'+esc(g.client)+'</div></div><span class="scorecard-count">'+g.ships.length.toLocaleString()+'<small> shp</small></span></div>'+scores+'<div class="scorecard-foot">'+(claims?'<span class="badge b-fail">'+claims+' claim'+(claims>1?'s':'')+'</span>':'<span class="cell-sub">no claims</span>')+'<span class="scorecard-open">view shipments →</span></div></div>';
+      return '<div class="scorecard" data-crm-act="openSubDrill" data-crm-key="'+esc(k)+'"><div class="scorecard-top"><div style="min-width:0"><div class="scorecard-sub">'+esc(g.sub)+'</div><div class="scorecard-client">'+esc(g.client)+'</div></div><span class="scorecard-count">'+g.ships.length.toLocaleString()+'<small> shp</small></span></div>'+scores+'<div class="scorecard-foot">'+(claims?'<span class="badge b-fail">'+claims+' claim'+(claims>1?'s':'')+'</span>':'<span class="cell-sub">no claims</span>')+'<span class="scorecard-open">view shipments →</span></div></div>';
     }).join('');
     var more=order.length>8?'<div class="more-subs" onclick="CRM.toggleSubs()">'+(showAllSubs?'Show top 8 only':'+ '+(order.length-8)+' more sub-clients')+'</div>':'';
     return '<div class="section-title" style="padding-top:6px"><span class="section-title-bar"></span>Sub-client scorecards <span class="section-count">'+order.length+' sub-clients · sorted by volume</span></div><div class="scorecard-grid">'+cards+more+'</div>';
@@ -15321,7 +15322,7 @@ window.CRM = (function(){
     var title='Region pulse — '+(currentRegion==='all'?'all regions':(regionLabel[currentRegion]||currentRegion));
     var head='<div class="attn-head" style="margin-top:2px"><div class="section-title" style="margin:0"><span class="section-title-bar"></span>'+title+' <span class="section-count">'+list.length.toLocaleString()+' shipments in scope</span></div><span class="link-btn" onclick="CRM.togglePulse()">'+(pulseOpen?'Hide stats':'Show stats')+'</span></div>';
     if(!pulseOpen||!list.length) return head;
-    var cartons=0,netKg=0; list.forEach(function(s){ cartons+=s.cartons; netKg+=s.netKg; });
+    var cartons=0,netTons=0; list.forEach(function(s){ cartons+=s.cartons; netTons+=s.netTons; });
     var transit=list.filter(function(s){return s.status==='in_transit';});
     var arriving=transit.filter(function(s){return s.sortKey>=TODAY_KEY && s.sortKey<=TODAY_KEY+7;}).length;
     var delivered=list.filter(function(s){return s.status==='delivered';}).length;
@@ -15331,7 +15332,7 @@ window.CRM = (function(){
     var cqcN=list.filter(function(s){return s.coverage==='cqc';}).length, grN=list.filter(function(s){return s.coverage==='graded';}).length;
     var noneList=list.filter(function(s){return s.coverage==='none';}), noneDelivered=noneList.filter(function(s){return s.status==='delivered';}).length;
     var tiles='<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'+
-      kpi('Shipments',list.length.toLocaleString(),cartons.toLocaleString()+' ctn · '+Math.round(netKg/1000).toLocaleString()+' t net')+
+      kpi('Shipments',list.length.toLocaleString(),cartons.toLocaleString()+' ctn · '+Math.round(netTons).toLocaleString()+' t net')+
       kpi('In transit',transit.length,arriving?arriving+' arriving ≤ 7 days':'none arriving this week',arriving?'up':'')+
       kpi('Delivered',delivered,(list.length?Math.round(delivered/list.length*100):0)+'% of shipments')+
       kpi('Claims',claims.length,openC.length+' open · '+potC+' potential',openC.length?'down':'',"CRM.setTab('claims')")+
@@ -15347,7 +15348,7 @@ window.CRM = (function(){
     function rank(rows,maxN,go){
       return '<table class="rk">'+rows.map(function(r){
         var chip=r.open>0?'<span class="pchip warn">'+r.open+' open</span>':(r.rate!==undefined?'<span class="pchip '+(r.rate>10?'warn':'ok')+'">'+r.rate+'% claims</span>':'<span class="pchip mut">no claims</span>');
-        return '<tr'+(go?' class="go" onclick="CRM.pulseGo(\''+go+'\',\''+q1(r.k)+'\')"':'')+'><td class="nm">'+esc(r.k)+'</td><td class="bcol"><div class="bar"><span style="width:'+Math.round(r.n/maxN*100)+'%"></span></div></td><td class="num">'+r.n.toLocaleString()+' '+(r.unit||'shp')+'</td><td class="num"'+(r.avg!==null?' title="Average CQC score · 1 Excellent, 2 Good, 3 Fair, 4 Poor, 5 Reject — lower is better"':'')+'>'+(r.avg!==null?'avg '+r.avg:'—')+'</td><td style="text-align:right">'+chip+'</td></tr>';
+        return '<tr'+(go?' class="go" data-crm-act="pulseGo" data-crm-arg="'+esc(go)+'" data-crm-key="'+esc(r.k)+'"':'')+'><td class="nm">'+esc(r.k)+'</td><td class="bcol"><div class="bar"><span style="width:'+Math.round(r.n/maxN*100)+'%"></span></div></td><td class="num">'+r.n.toLocaleString()+' '+(r.unit||'shp')+'</td><td class="num"'+(r.avg!==null?' title="Average CQC score · 1 Excellent, 2 Good, 3 Fair, 4 Poor, 5 Reject — lower is better"':'')+'>'+(r.avg!==null?'avg '+r.avg:'—')+'</td><td style="text-align:right">'+chip+'</td></tr>';
       }).join('')+'</table>';
     }
     function groupStats(keyFn){
@@ -15381,9 +15382,9 @@ window.CRM = (function(){
       if(s.cqc){ cqcLine='<div class="stream-line" style="margin-bottom:5px">'+bandBadge(s.cqc.score)+'</div><div class="stream-line"><span class="mono">'+esc(s.cqc.id)+'</span> · '+esc(s.cqc.defect)+' defect · gap '+esc(s.cqc.gap)+'</div>'; }
       else if(s.coverage==='graded'){ cqcLine='<div class="stream-line"><span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+esc(s.graded.grade)+'</span></div><div class="stream-line" style="margin-top:5px">Cause: '+esc(s.graded.cause)+'</div>'; }
       else { cqcLine='<div class="stream-empty">no CQC received</div>'; }
-      var actions=(s.coverage==='none'||s.coverage==='graded')?'<button class="btn btn-secondary btn-sm" onclick="CRM.openGrade(\''+s.key+'\')">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>':'';
-      actions+='<button class="btn btn-primary btn-sm" onclick="CRM.openClaim(\''+s.key+'\')">'+(s.claim?'View claim':'Raise claim')+'</button>';
-      return '<div class="ship-card'+attn+'"><div class="sc-head"><div class="sc-head-top"><div><span class="sc-container clickable" onclick="CRM.openShipDetail(\''+s.key+'\')">'+esc(s.cn)+'</span>'+(s.split?'<span class="sc-split">split carta</span>':'')+'<div class="sc-meta">'+esc(s.vessel)+' · ETA '+esc(s.eta)+' · '+esc(s.port)+'</div></div><span class="region-chip">'+esc(regionLabel[s.region]||s.region)+'</span></div><div class="sc-client">'+esc(s.client)+' <span class="sub">· '+esc(s.sub)+' · '+esc(s.varieties?s.varieties.join(' / '):s.variety)+' · '+s.cartons.toLocaleString()+' ctn'+(s.rowCount>1?' · '+s.rowCount+' rows':'')+'</span></div></div><div class="sc-body"><div class="sc-status">'+statusBadge(s.status,s.statusLabel)+claimBadge(s.claim)+'</div><div class="stream">'+streamBox('Export inspection',inspLine,s.insp?"CRM.openInsp('"+s.key+"')":null)+streamBox('Client QC on arrival',cqcLine,s.cqc?"CRM.openCqc('"+s.key+"')":null)+'</div></div><div class="sc-foot">'+coverageBadge(s)+'<div class="sc-actions">'+actions+'</div></div></div>';
+      var actions=(s.coverage==='none'||s.coverage==='graded')?'<button class="btn btn-secondary btn-sm" data-crm-act="openGrade" data-crm-key="'+esc(s.key)+'">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>':'';
+      actions+='<button class="btn btn-primary btn-sm" data-crm-act="openClaim" data-crm-key="'+esc(s.key)+'">'+(s.claim?'View claim':'Raise claim')+'</button>';
+      return '<div class="ship-card'+attn+'"><div class="sc-head"><div class="sc-head-top"><div><span class="sc-container clickable" data-crm-act="openShipDetail" data-crm-key="'+esc(s.key)+'">'+esc(s.cn)+'</span>'+(s.split?'<span class="sc-split">split carta</span>':'')+'<div class="sc-meta">'+esc(s.vessel)+' · ETA '+esc(s.eta)+' · '+esc(s.port)+'</div></div><span class="region-chip">'+esc(regionLabel[s.region]||s.region)+'</span></div><div class="sc-client">'+esc(s.client)+' <span class="sub">· '+esc(s.sub)+' · '+esc(s.varieties?s.varieties.join(' / '):s.variety)+' · '+s.cartons.toLocaleString()+' ctn'+(s.rowCount>1?' · '+s.rowCount+' rows':'')+'</span></div></div><div class="sc-body"><div class="sc-status">'+statusBadge(s.status,s.statusLabel)+claimBadge(s.claim)+'</div><div class="stream">'+streamBox('Export inspection',inspLine,s.insp?' data-crm-act="openInsp" data-crm-key="'+esc(s.key)+'"':null)+streamBox('Client QC on arrival',cqcLine,s.cqc?' data-crm-act="openCqc" data-crm-key="'+esc(s.key)+'"':null)+'</div></div><div class="sc-foot">'+coverageBadge(s)+'<div class="sc-actions">'+actions+'</div></div></div>';
     }).join('');
     var head='<div class="attn-head"><div class="section-title" style="margin:0"><span class="section-title-bar"></span>Needs attention <span class="section-count">'+att.length.toLocaleString()+' of '+list.length.toLocaleString()+' shipments</span></div><span class="link-btn" onclick="CRM.setTab(\'shipments\')">All shipments ('+list.length.toLocaleString()+') →</span></div>';
     var body=att.length?'<div class="card-grid">'+cards+'</div>'+(att.length>6?'<div class="hint" style="text-align:center;margin-top:10px">Showing the top 6 — open claims first, then CQC flags, then coverage gaps. The rest live in the Shipments tab.</div>':''):'<div class="table-wrap"><div class="empty-state">Nothing needs attention — open claims, CQC flags and delivered-without-quality-data land here.</div></div>';
@@ -15407,13 +15408,13 @@ window.CRM = (function(){
     scoped.forEach(function(s){ if(s.region==='unassigned'){ unTotal++; unByClient[s.client]=(unByClient[s.client]||0)+1; if(!s.country) unNoCountry++; } });
     var unClients=Object.keys(unByClient).sort(function(a,b){return unByClient[b]-unByClient[a];});
     var unRows=unClients.slice(0,20).map(function(c){
-      return '<tr><td class="nm">'+esc(c)+'</td><td class="num">'+unByClient[c]+' shp</td><td class="right"><select class="scope-dd" onchange="CRM.setClientOverride(\''+q1(c)+'\',this.value)"><option value="">— assign region —</option>'+regionOptions('',false)+'</select></td></tr>';
+      return '<tr><td class="nm">'+esc(c)+'</td><td class="num">'+unByClient[c]+' shp</td><td class="right"><select class="scope-dd" data-crm-chg="setClientOverride" data-crm-key="'+esc(c)+'"><option value="">— assign region —</option>'+regionOptions('',false)+'</select></td></tr>';
     }).join('');
     var unassignedPanel=unTotal?('<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Unassigned · '+unTotal.toLocaleString()+' shipments · assign with a client rule'+(unNoCountry?' · <span style="color:var(--amber)">'+unNoCountry.toLocaleString()+' have no country on the shipment</span> — the country map below can\'t reach them, a client rule is the fix':'')+'</div><table class="rk"><tbody>'+unRows+'</tbody></table>'+(unClients.length>20?'<div class="hint">Showing the top 20 of '+unClients.length+' unassigned clients. Assigning a client rule moves every shipment for that client.</div>':'')+'</div>'):'';
     var clientKeys=Object.keys(REGION_OVERRIDES.client);
     var allClients=Array.from(new Set(SHIPMENTS.map(function(s){return s.client;}))).sort();
     var clientRows=clientKeys.length?clientKeys.map(function(c){
-      return '<tr><td class="nm">'+esc(c)+'</td><td class="cell-sub">override</td><td class="right"><select class="scope-dd" onchange="CRM.setClientOverride(\''+q1(c)+'\',this.value)">'+regionOptions(REGION_OVERRIDES.client[c])+'<option value="__none">✕ remove rule</option></select></td></tr>';
+      return '<tr><td class="nm">'+esc(c)+'</td><td class="cell-sub">override</td><td class="right"><select class="scope-dd" data-crm-chg="setClientOverride" data-crm-key="'+esc(c)+'">'+regionOptions(REGION_OVERRIDES.client[c])+'<option value="__none">✕ remove rule</option></select></td></tr>';
     }).join(''):'<tr><td class="cell-sub" colspan="3">No client overrides yet.</td></tr>';
     var addClient='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add client rule:</span><select class="scope-dd" id="ovClient"><option value="">Client…</option>'+allClients.map(function(c){return '<option>'+esc(c)+'</option>';}).join('')+'</select><select class="scope-dd" id="ovClientRegion">'+regionOptions('ne')+'</select><button class="btn btn-secondary btn-sm" onclick="CRM.addClientOverrideFromForm()">Add</button></div>';
     var clientPanel='<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Client overrides · win over country defaults</div><table class="rk"><tbody>'+clientRows+'</tbody></table>'+addClient+'</div>';
@@ -15423,18 +15424,18 @@ window.CRM = (function(){
       var overlap=COUNTRY_OVERLAP[k], eff=REGION_OVERRIDES.country[k]||COUNTRY_REGION[k]||null;
       var name=k.replace(/\b\w/g,function(m){return m.toUpperCase();});
       var flag=overlap&&!REGION_OVERRIDES.country[k]?'<span class="pchip warn">⚠ needs rule · '+overlap.map(function(x){return esc(regionLabel[x]||x);}).join(' / ')+'</span>':(REGION_OVERRIDES.country[k]?'<span class="pchip ok">override</span>':'<span class="pchip mut">default</span>');
-      var sel='<select class="scope-dd" onchange="CRM.setCountryOverride(\''+q1(k)+'\',this.value)">'+(overlap&&!eff?'<option value="__def" selected>— pick region —</option>':'')+regionOptions(eff)+(REGION_OVERRIDES.country[k]?'<option value="__def">↺ back to file default</option>':'')+'</select>';
+      var sel='<select class="scope-dd" data-crm-chg="setCountryOverride" data-crm-key="'+esc(k)+'">'+(overlap&&!eff?'<option value="__def" selected>— pick region —</option>':'')+regionOptions(eff)+(REGION_OVERRIDES.country[k]?'<option value="__def">↺ back to file default</option>':'')+'</select>';
       return '<tr><td class="nm">'+esc(name)+'</td><td class="cell-sub">'+(used[k]?used[k]+' shp':'—')+'</td><td>'+flag+'</td><td class="right">'+sel+'</td></tr>';
     }).join('');
     var countryPanel='<div class="pulse-panel"><div class="pp-title">Country → region · '+Object.keys(COUNTRY_REGION).length+' mapped · '+Object.keys(COUNTRY_OVERLAP).length+' overlaps need a rule</div><div style="max-height:360px;overflow:auto"><table class="rk"><tbody>'+rows+'</tbody></table></div></div>';
     // score-band mapping panel
     var bandNames={1:'Excellent',2:'Good',3:'Fair',4:'Poor',5:'Reject'};
-    function bandSel(cur,onchg,withPick){ return '<select class="scope-dd" onchange="'+onchg+'">'+(withPick?'<option value="">— pick band —</option>':'')+[1,2,3,4,5].map(function(n){return '<option value="'+n+'"'+(cur===n?' selected':'')+'>'+n+' · '+bandNames[n]+'</option>';}).join('')+'</select>'; }
+    function bandSel(cur,chgAttrs,withPick){ return '<select class="scope-dd"'+(chgAttrs||'')+'>'+(withPick?'<option value="">— pick band —</option>':'')+[1,2,3,4,5].map(function(n){return '<option value="'+n+'"'+(cur===n?' selected':'')+'>'+n+' · '+bandNames[n]+'</option>';}).join('')+'</select>'; }
     var bandKeys=Object.keys(BAND_MAP).sort();
-    var bandRows=bandKeys.length?bandKeys.map(function(raw){ return '<tr><td class="nm">'+esc(raw)+'</td><td class="right">'+bandSel(BAND_MAP[raw],"CRM.setScoreBand('"+q1(raw)+"',this.value)")+'</td><td class="right"><span class="link-btn" style="color:var(--red)" onclick="CRM.removeScoreBand(\''+q1(raw)+'\')">remove</span></td></tr>'; }).join(''):'<tr><td class="cell-sub" colspan="3">No score bands mapped yet.</td></tr>';
+    var bandRows=bandKeys.length?bandKeys.map(function(raw){ return '<tr><td class="nm">'+esc(raw)+'</td><td class="right">'+bandSel(BAND_MAP[raw],' data-crm-chg="setScoreBand" data-crm-key="'+esc(raw)+'"')+'</td><td class="right"><span class="link-btn" style="color:var(--red)" data-crm-act="removeScoreBand" data-crm-key="'+esc(raw)+'">remove</span></td></tr>'; }).join(''):'<tr><td class="cell-sub" colspan="3">No score bands mapped yet.</td></tr>';
     var unmapped={}; SHIPMENTS.forEach(function(s){ if(s.cqc&&!s.cqc.score&&s.cqc.scoreRaw){ var lc=s.cqc.scoreRaw.toLowerCase().trim(); if(!(lc in BAND_MAP)) unmapped[lc]=(unmapped[lc]||0)+1; } });
     var unmappedKeys=Object.keys(unmapped).sort();
-    var unmappedRows=unmappedKeys.map(function(raw){ return '<tr><td class="nm">'+esc(raw)+' <span class="pchip warn">'+unmapped[raw]+' in view</span></td><td class="right">'+bandSel(0,"CRM.setScoreBand('"+q1(raw)+"',this.value)",true)+'</td><td></td></tr>'; }).join('');
+    var unmappedRows=unmappedKeys.map(function(raw){ return '<tr><td class="nm">'+esc(raw)+' <span class="pchip warn">'+unmapped[raw]+' in view</span></td><td class="right">'+bandSel(0,' data-crm-chg="setScoreBand" data-crm-key="'+esc(raw)+'"',true)+'</td><td></td></tr>'; }).join('');
     var addBand='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add mapping:</span><input class="scope-dd" id="sbRaw" placeholder="raw score text (e.g. BLUE)" style="max-width:200px"/><select class="scope-dd" id="sbBand">'+[1,2,3,4,5].map(function(n){return '<option value="'+n+'"'+(n===2?' selected':'')+'>'+n+' · '+bandNames[n]+'</option>';}).join('')+'</select><button class="btn btn-secondary btn-sm" onclick="CRM.addScoreBandFromForm()">Add</button></div>';
     var scoreBandPanel='<div class="pulse-panel" style="margin-top:12px"><div class="pp-title">Score bands · raw CQC score → 1–5 canonical'+(unmappedKeys.length?' · <span style="color:var(--red)">'+unmappedKeys.length+' unmapped in view</span>':'')+'</div>'+(unmappedKeys.length?'<table class="rk"><tbody>'+unmappedRows+'</tbody></table><div class="divider" style="margin:10px 0"></div>':'')+'<table class="rk"><tbody>'+bandRows+'</tbody></table>'+addBand+'</div>';
     vc.innerHTML=head+cards+unassignedPanel+clientPanel+countryPanel+scoreBandPanel;
@@ -15480,7 +15481,7 @@ window.CRM = (function(){
   function shipCompHtml(s){
     var citrus=shipProduct(s)==='Citrus';
     if(s.rows&&s.rows.length){
-      var rowsHtml=s.rows.map(function(r){ return '<tr><td>'+esc(r.variety)+'</td><td>'+esc(r.mix)+'</td><td class="lot cell-sub">'+esc(r.farm)+'</td><td>'+esc(r.ph)+'</td><td>'+esc(r.ctype)+'</td><td class="lot right">'+num(r.cartons).toLocaleString()+'</td><td class="lot right">'+num(r.netKg).toLocaleString()+'</td></tr>'; }).join('');
+      var rowsHtml=s.rows.map(function(r){ return '<tr><td>'+esc(r.variety)+'</td><td>'+esc(r.mix)+'</td><td class="lot cell-sub">'+esc(r.farm)+'</td><td>'+esc(r.ph)+'</td><td>'+esc(r.ctype)+'</td><td class="lot right">'+num(r.cartons).toLocaleString()+'</td><td class="lot right">'+tonCell(num(r.netTons))+'</td></tr>'; }).join('');
       return '<div class="section-title" style="margin-top:14px"><span class="section-title-bar"></span>Container composition <span class="section-count">'+s.rows.length+' row'+(s.rows.length>1?'s':'')+'</span></div><div class="table-wrap"><table class="wl"><thead><tr><th>Variety</th><th>'+(citrus?'Size':'Single / Mixed')+'</th><th>Farm</th><th>Packhouse</th><th>Carton type</th><th class="right">Cartons</th><th class="right">Net kg</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div><div class="hint">A new row is created whenever packhouse, farm, variety, '+(citrus?'size':'single/mixed')+', carton type, container # or loading date changes.</div>';
     }
     return '<div class="hint" style="margin-top:14px">Loading composition rows…</div>';
@@ -15488,15 +15489,15 @@ window.CRM = (function(){
   function renderShipDetail(s){
     var head='<div class="dlv-head"><div><div class="dlv-id">'+esc(s.cn)+'</div><div class="dlv-meta">'+esc(s.client)+' · '+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></div>'+statusBadge(s.status,s.statusLabel)+'</div>';
     var lock='<div class="scope-lock">🔒 Full shipment record, shown inside CRM and scoped to your region.</div>';
-    var actions='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="CRM.closeDlv();CRM.openClaim(\''+s.key+'\')">'+(s.claim?'View claim':'Raise claim')+'</button>'+
-      (s.coverage!=='cqc'?'<button class="btn btn-secondary btn-sm" onclick="CRM.closeDlv();CRM.openGrade(\''+s.key+'\')">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>':'')+
-      (s.insp?'<button class="btn btn-secondary btn-sm" onclick="CRM.openInsp(\''+s.key+'\')">Export inspection ↗</button>':'')+
-      (s.cqc?'<button class="btn btn-secondary btn-sm" onclick="CRM.openCqc(\''+s.key+'\')">CQC report ↗</button>':'')+'</div>';
+    var actions='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" data-crm-act="dlvClaim" data-crm-key="'+esc(s.key)+'">'+(s.claim?'View claim':'Raise claim')+'</button>'+
+      (s.coverage!=='cqc'?'<button class="btn btn-secondary btn-sm" data-crm-act="dlvGrade" data-crm-key="'+esc(s.key)+'">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>':'')+
+      (s.insp?'<button class="btn btn-secondary btn-sm" data-crm-act="openInsp" data-crm-key="'+esc(s.key)+'">Export inspection ↗</button>':'')+
+      (s.cqc?'<button class="btn btn-secondary btn-sm" data-crm-act="openCqc" data-crm-key="'+esc(s.key)+'">CQC report ↗</button>':'')+'</div>';
     var voyage=dSec('Voyage & logistics',dCell('Vessel',s.vessel)+dCell('Shipping line',s.shippingLine)+dCell('Booking no',s.booking,true)+dCell('Invoice no',s.invoice,true)+dCell('Departure port',s.departurePort)+dCell('Receiving port',s.port)+dCell('Receiving country',shipCountry(s))+dCell('Product',shipProduct(s))+dCell('ETD',s.etd)+dCell('ETA',s.eta)+dCell('Arrival',s.arrival)+dCell('Shipping status',s.statusLabel));
     var commercial=dSec('Commercial',dCell('Client',s.client)+dCell('Sub-client',s.sub)+dCell('Shipper',s.shipper||'Daltex Corp')+dCell('Forwarding agent',s.agent)+dCell('Carta',s.split?s.cartaCount+' (split)':'1',true)+dCell('Region',regionLabel[s.region]||s.region));
     var product=dSec('Product',dCell('Variety',s.varieties?s.varieties.join(' / '):s.variety)+dCell('Daltex class',s.dclass)+dCell('Brand',s.brand)+dCell('Size',s.size)+dCell('Traceability code',s.trace,true)+dCell('Farm source',s.farmSource));
     var comp='<div id="dlvComp">'+shipCompHtml(s)+'</div>';
-    var qty=dSec('Quantities · totals across '+(s.rowCount||1)+' row'+((s.rowCount||1)>1?'s':''),dCell('Cartons',s.cartons.toLocaleString(),true)+dCell('Pallets',(s.pallets||'—').toLocaleString(),true)+dCell('Net weight',s.netKg.toLocaleString()+' kg',true)+dCell('Gross weight',(s.grossKg||0).toLocaleString()+' kg',true));
+    var qty=dSec('Quantities · totals across '+(s.rowCount||1)+' row'+((s.rowCount||1)>1?'s':''),dCell('Cartons',s.cartons.toLocaleString(),true)+dCell('Pallets',(s.pallets||'—').toLocaleString(),true)+dCell('Net weight',tonCell(s.netTons),true)+dCell('Gross weight',tonCell(s.grossKg),true));
     return head+lock+actions+comp+voyage+commercial+product+qty;
   }
   function openShipDetail(k){
@@ -15509,7 +15510,7 @@ window.CRM = (function(){
     list.sort(function(a,b){return b.sortKey-a.sortKey;});
     var client=list[0]?list[0].client:'', total=list.length, capped=total>80; if(capped) list=list.slice(0,80);
     var rows=list.map(function(s){
-      var qc=s.cqc?'<span class="qlink" title="Open CQC report" onclick="CRM.openCqc(\''+s.key+'\')">'+bandBadge(s.cqc.score)+'</span>':(s.coverage==='graded'?'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+esc(s.graded.grade)+'</span>':'<span class="cell-sub">no data</span>');
+      var qc=s.cqc?'<span class="qlink" title="Open CQC report" data-crm-act="openCqc" data-crm-key="'+esc(s.key)+'">'+bandBadge(s.cqc.score)+'</span>':(s.coverage==='graded'?'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+esc(s.graded.grade)+'</span>':'<span class="cell-sub">no data</span>');
       var cl=s.claim?claimBadge(s.claim):'<span class="cell-sub">—</span>';
       return '<tr><td><span class="lot">'+esc(s.cn)+'</span></td><td class="lot cell-sub">'+esc(shipInvoice(s))+'</td><td>'+esc(s.varieties?s.varieties.join(' / '):s.variety)+'</td><td>'+esc(s.eta)+'</td><td>'+qc+'</td><td>'+cl+'</td></tr>';
     }).join('');
@@ -15522,7 +15523,7 @@ window.CRM = (function(){
     if(s.rows) return Promise.resolve(s.rows);
     return SB.from('crm_shipment_rows').select('variety,variety_type,farm_source,pack_house,carton_type,carton_count,net_weight').eq('season_id',SEASON).eq('container_key',s.key).then(function(res){
       var data=(res&&res.data)||[];
-      s.rows=data.map(function(r){ return {variety:r.variety||'—', mix:r.variety_type||'Single', farm:r.farm_source||'—', ph:r.pack_house||'—', ctype:r.carton_type||'—', cartons:num(r.carton_count), netKg:num(r.net_weight)}; });
+      s.rows=data.map(function(r){ return {variety:r.variety||'—', mix:r.variety_type||'Single', farm:r.farm_source||'—', ph:r.pack_house||'—', ctype:r.carton_type||'—', cartons:num(r.carton_count), netTons:num(r.net_weight)}; });
       return s.rows;
     }).catch(function(){ s.rows=[]; return s.rows; });
   }
@@ -15532,15 +15533,15 @@ window.CRM = (function(){
   function buildWholeSum(s){ var vars=s.varieties||[s.variety]; var vtxt=vars.length>1?'all varieties ('+vars.join(', ')+')':vars[0]; return '<span class="ev-check">✓</span><span>Covers the <b>whole container</b> — '+esc(vtxt)+' · '+s.cartons.toLocaleString()+' ctn</span>'; }
   function buildPartFields(s){
     var citrus=shipProduct(s)==='Citrus';
-    var rowsHtml=(s.rows||[]).map(function(r){ return '<label class="row-opt"><input type="checkbox" data-ctn="'+num(r.cartons)+'" data-kg="'+num(r.netKg)+'" onchange="CRM.rowSelChanged()"/><span class="row-opt-main"><b>'+esc(r.variety)+'</b> · '+esc(r.mix)+' · <span class="mono">'+esc(r.farm)+'</span> · '+esc(r.ph)+' · '+esc(r.ctype)+'</span><span class="row-opt-qty">'+num(r.cartons).toLocaleString()+' ctn · '+num(r.netKg).toLocaleString()+' kg</span></label>'; }).join('');
+    var rowsHtml=(s.rows||[]).map(function(r){ return '<label class="row-opt"><input type="checkbox" data-ctn="'+num(r.cartons)+'" data-nt="'+num(r.netTons)+'" onchange="CRM.rowSelChanged()"/><span class="row-opt-main"><b>'+esc(r.variety)+'</b> · '+esc(r.mix)+' · <span class="mono">'+esc(r.farm)+'</span> · '+esc(r.ph)+' · '+esc(r.ctype)+'</span><span class="row-opt-qty">'+num(r.cartons).toLocaleString()+' ctn · '+num(r.netTons).toLocaleString()+' t</span></label>'; }).join('');
     if(!rowsHtml) rowsHtml='<div class="cell-sub">No composition rows on file for this container.</div>';
-    var totalNet=s.netKg||0, pctEnabled=totalNet>0;
+    var totalNet=s.netTons||0, pctEnabled=totalNet>0;
     var pctInput=pctEnabled?'<input class="form-input mono" id="partNetPct" inputmode="decimal" placeholder="optional" oninput="CRM.syncNet(\'pct\')"/>':'<input class="form-input mono" id="partNetPct" placeholder="net weight not on file" disabled/>';
     return '<div style="margin-bottom:10px"><label class="form-label">Sub-client</label><div class="ctx-val">'+esc(s.sub)+'<span class="ctx-tag">from shipment</span></div></div>'+
       '<div style="margin-bottom:10px"><label class="form-label">Affected rows</label><div class="row-sel" id="rowSel">'+rowsHtml+'</div><div class="hint">Tick the composition row(s) the claim is about — pins it to variety'+(citrus?', size':'')+', farm and packhouse. Quantities below prefill from the selection (editable).</div></div>'+
       '<div class="grid2" style="margin-bottom:10px"><div><label class="form-label">Cartons affected</label><input class="form-input mono" id="partCartons" inputmode="numeric" placeholder="optional"/></div><div><label class="form-label">Pallets affected</label><input class="form-input mono" inputmode="numeric" placeholder="optional"/></div></div>'+
-      '<div class="grid2" id="netWrap" data-total="'+totalNet+'"><div><label class="form-label">Net weight impacted (kg)</label><input class="form-input mono" id="partNetKg" inputmode="decimal" placeholder="optional" oninput="CRM.syncNet(\'kg\')"/></div><div><label class="form-label">% of net weight</label>'+pctInput+'</div></div>'+
-      '<div class="hint">All part-of-load fields optional.'+(pctEnabled?' Shipment net weight <b>'+totalNet.toLocaleString()+' kg</b> — weight and % update each other.':' Net weight not recorded — enter kg directly.')+'</div>';
+      '<div class="grid2" id="netWrap" data-total="'+totalNet+'"><div><label class="form-label">Net weight impacted (t)</label><input class="form-input mono" id="partNetTons" inputmode="decimal" placeholder="optional" oninput="CRM.syncNet(\'kg\')"/></div><div><label class="form-label">% of net weight</label>'+pctInput+'</div></div>'+
+      '<div class="hint">All part-of-load fields optional.'+(pctEnabled?' Shipment net weight <b>'+totalNet.toLocaleString()+' t</b> — weight and % update each other.':' Net weight not recorded — enter tonnes directly.')+'</div>';
   }
   function buildClaimAudit(s){
     var owner=regionOwner[s.region]||'CRM';
@@ -15574,7 +15575,7 @@ window.CRM = (function(){
     $('valueRow').style.opacity=on?'.5':'1';
   }
   /* commercial + client-standing context on the claim form (mirrors mockup — display/calc only, not persisted) */
-  var claimShipNetKg=0, claimPctManual=false;
+  var claimShipNetTons=0, claimPctManual=false;
   function markClaimPctManual(){ claimPctManual=true; var b=$('claimPctBasis'); if(b) b.textContent='manual override'; }
   function syncClaimPct(){
     var el=$('claimPct'); if(!el) return;
@@ -15582,7 +15583,7 @@ window.CRM = (function(){
     var basis=$('claimPctBasis');
     var price=parseFloat(($('salePrice')?$('salePrice').value:'').replace(/,/g,''));
     var val=parseFloat(($('claimValue')?$('claimValue').value:'').replace(/,/g,''));
-    var tons=(claimShipNetKg||0)/1000;
+    var tons=claimShipNetTons||0;
     if(!price||!val||!tons){ el.value=''; if(basis) basis.textContent='auto from sale price × net tons'; return; }
     var cargo=price*tons;
     el.value=Math.round(val/cargo*1000)/10;
@@ -15599,17 +15600,17 @@ window.CRM = (function(){
   }
   function rowSelChanged(){
     var boxes=ROOT.querySelectorAll('#rowSel input:checked'), ctn=0, kg=0;
-    [].forEach.call(boxes,function(b){ ctn+=Number(b.getAttribute('data-ctn'))||0; kg+=Number(b.getAttribute('data-kg'))||0; });
-    var c=$('partCartons'), k=$('partNetKg');
+    [].forEach.call(boxes,function(b){ ctn+=Number(b.getAttribute('data-ctn'))||0; kg+=Number(b.getAttribute('data-nt'))||0; });
+    var c=$('partCartons'), k=$('partNetTons');
     if(boxes.length){ c.value=ctn; k.value=kg; } else { c.value=''; k.value=''; }
     syncNet('kg');
   }
   function syncNet(from){
     var wrap=$('netWrap'); if(!wrap) return;
     var total=parseFloat(wrap.getAttribute('data-total'))||0; if(!total) return;
-    var kg=$('partNetKg'), pctEl=$('partNetPct');
+    var kg=$('partNetTons'), pctEl=$('partNetPct');
     if(from==='kg'){ var v=parseFloat(kg.value); pctEl.value=(kg.value===''||isNaN(v))?'':(Math.round(v/total*1000)/10); }
-    else { var p=parseFloat(pctEl.value); kg.value=(pctEl.value===''||isNaN(p))?'':Math.round(total*p/100); }
+    else { var p=parseFloat(pctEl.value); kg.value=(pctEl.value===''||isNaN(p))?'':Math.round(total*p*10)/1000; }
   }
   function openClaim(k){
     var s=shipByKey(k); claimCtx=s; if(!s) return;
@@ -15634,7 +15635,7 @@ window.CRM = (function(){
     }
     var refEl=$('claimRef'); if(refEl) refEl.innerHTML=s.insp?'<span class="ev-ref-label">Reference</span><span class="ev-code">'+esc(s.insp.id)+'</span><span class="ev-desc">Export inspection · '+esc(s.insp.defect)+' · '+esc(s.insp.decision)+'</span>':'';
     /* commercial + client standing (context; mirrors mockup — not persisted) */
-    claimShipNetKg=s.netKg||0; claimPctManual=false;
+    claimShipNetTons=s.netTons||0; claimPctManual=false;
     if($('salePrice')) $('salePrice').value='';
     if($('claimPct')) $('claimPct').value='';
     if($('claimPctBasis')) $('claimPctBasis').textContent='auto from price × tons';
@@ -15858,6 +15859,35 @@ window.CRM = (function(){
     [].forEach.call(ROOT.querySelectorAll('.modal-bg'),function(m){ m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('open'); }); });
     /* keyboard activation for role=button spans (tabs, filter/claim/grade pills, KPI tiles) — delegated on ROOT so it survives innerHTML re-renders */
     ROOT.addEventListener('keydown',function(e){ if(e.key!=='Enter'&&e.key!==' '&&e.key!=='Spacebar') return; var b=e.target&&e.target.closest&&e.target.closest('[role="button"]'); if(!b||!ROOT.contains(b)) return; e.preventDefault(); b.click(); });
+    /* Container numbers and client/country/score keys are attacker-controllable
+       (shipments RLS is WITH CHECK true for any authenticated user), so they
+       travel as data-* attributes instead of being interpolated into inline
+       handlers. closest() gives innermost-wins, which is what the old
+       event.stopPropagation() calls were for. Delegated on ROOT so this
+       survives innerHTML re-renders. */
+    ROOT.addEventListener('click',function(e){
+      var t=e.target&&e.target.closest&&e.target.closest('[data-crm-act]');
+      if(!t||!ROOT.contains(t)) return;
+      var k=t.getAttribute('data-crm-key')||'', a=t.getAttribute('data-crm-act');
+      if(a==='openShipDetail') openShipDetail(k);
+      else if(a==='openClaim') openClaim(k);
+      else if(a==='openGrade') openGrade(k);
+      else if(a==='openInsp') openInsp(k);
+      else if(a==='openCqc') openCqc(k);
+      else if(a==='openSubDrill') openSubDrill(k);
+      else if(a==='removeScoreBand') removeScoreBand(k);
+      else if(a==='pulseGo') pulseGo(t.getAttribute('data-crm-arg')||'',k);
+      else if(a==='dlvClaim'){ closeDlv(); openClaim(k); }
+      else if(a==='dlvGrade'){ closeDlv(); openGrade(k); }
+    });
+    ROOT.addEventListener('change',function(e){
+      var t=e.target&&e.target.closest&&e.target.closest('[data-crm-chg]');
+      if(!t||!ROOT.contains(t)) return;
+      var k=t.getAttribute('data-crm-key')||'', a=t.getAttribute('data-crm-chg');
+      if(a==='setClientOverride') setClientOverride(k,t.value);
+      else if(a==='setCountryOverride') setCountryOverride(k,t.value);
+      else if(a==='setScoreBand') setScoreBand(k,t.value);
+    });
   }
 
   /* ── lifecycle ── */
