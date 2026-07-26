@@ -5502,9 +5502,11 @@ function FGView(props){
           /* Client QC */
           ce('div',{style:{marginTop:10}},
             ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}},'Client QC Report'),
-            selB.hasClientReport
-              ?ce('button',{className:'btn btn-secondary btn-sm',style:{width:'100%'},onClick:function(){setCqcBatch(selB);setSel(null);}},'View / edit report')
-              :ce('button',{className:'btn btn-secondary btn-sm',style:{width:'100%'},onClick:function(){setCqcBatch(selB);setSel(null);}},'+ Link client QC report')
+            /* Entry points to ClientQCForm removed: that component's Save button has no handler and
+               discarded 100% of input (it reads the permanently-empty CLIENT_QC_REPORTS and never
+               imports supabase). The working module is ClientQCMgmt, in the Client QC nav section. */
+            ce('div',{style:{fontSize:12,color:'var(--text3)',lineHeight:1.5,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px'}},
+              'Open ',ce('b',null,'Client QC'),' in the sidebar to view, create or revise the client report for this container.')
           )
         )
       ),
@@ -9785,6 +9787,109 @@ function ClientQCMgmt(props){
   var sReloadTick=useState(0); var reloadTick=sReloadTick[0]; var setReloadTick=sReloadTick[1];
   var sCqcSaving=useState(false); var cqcSaving=sCqcSaving[0]; var setCqcSaving=sCqcSaving[1];
   var sCqcSaveErr=useState(''); var cqcSaveErr=sCqcSaveErr[0]; var setCqcSaveErr=sCqcSaveErr[1];
+  /* ── Score-change classify step (edit mode) ──
+     Scores as loaded, so saveReport can tell what the user changed and record it rather than
+     overwriting it silently. Populated by loadReportForEdit. */
+  var cqcScoreSnap=React.useRef({report:'',samples:{}});
+  var sCqcClassify=useState(null); var cqcClassify=sCqcClassify[0]; var setCqcClassify=sCqcClassify[1];
+  var sCqcClassifyDone=useState(false); var cqcClassifyDone=sCqcClassifyDone[0]; var setCqcClassifyDone=sCqcClassifyDone[1];
+  var sCqcClassifySaving=useState(false); var cqcClassifySaving=sCqcClassifySaving[0]; var setCqcClassifySaving=sCqcClassifySaving[1];
+  /* Group the score changes by from→to so one report change plus three samples moving the same
+     way is two decisions, not four. */
+  function cqcScoreDiffGroups(){
+    var snap=cqcScoreSnap.current||{report:'',samples:{}};
+    var groups=[];
+    if((fScore||'')!==(snap.report||'')&&fScore){
+      groups.push({key:'report|'+(snap.report||'')+'|'+fScore,scope:'report',from:snap.report||'',to:fScore,nums:null,rows:[]});
+    }
+    var byPair={};
+    /* sample_number is positional (idx+1 at save), so if rows were added, duplicated or removed the
+       positions no longer line up with the snapshot and any per-sample diff would be spurious.
+       In that case classify the header change only. */
+    var sameShape=(cqcSamples.length===Object.keys(snap.samples||{}).length);
+    if(!sameShape) return groups;
+    cqcSamples.forEach(function(s,i){
+      var num=i+1;
+      var was=(snap.samples||{})[num];
+      if(was===undefined) return;          /* newly added sample — not a revision */
+      var now=s.score||'';
+      if(!now||now===was) return;
+      var k=(was||'')+'|'+now;
+      if(!byPair[k]) byPair[k]={key:'samples|'+k,scope:'samples',from:was||'',to:now,nums:[],rows:[]};
+      byPair[k].nums.push(num);
+      byPair[k].rows.push({num:num,variety:s.sampleVariety||'',farm:s.sampleFarm||'',plot:s.samplePlot||'',trace:s.sampleTraceCode||''});
+    });
+    Object.keys(byPair).forEach(function(k){groups.push(byPair[k]);});
+    return groups;
+  }
+  function submitClassify(){
+    if(!cqcClassify||cqcClassifySaving) return;
+    var gs=cqcClassify.groups||[];
+    if(gs.some(function(g){return !g.direction;})){
+      setCqcClassify(function(m){return Object.assign({},m,{err:'Choose upgrade, downgrade or correction for each change.'});});
+      return;
+    }
+    setCqcClassifySaving(true);
+    var note=cqcClassify.note||null;
+    /* Recorded BEFORE the form write, so from_score is read server-side from the live row and is
+       verified rather than trusted from the browser. The form then writes the same values. */
+    var chain=Promise.resolve();
+    var failed=null;
+    gs.forEach(function(g){
+      chain=chain.then(function(){
+        if(failed) return null;
+        return supabase.rpc('record_cqc_score_revision',{
+          p_report_id:editRep,p_direction:g.direction,p_to_score:g.to,
+          p_sample_numbers:g.nums&&g.nums.length?g.nums:null,p_note:note,p_origin:'form_save'
+        }).then(function(res){ if(res.error) failed=res.error.message||'Could not record the change.'; });
+      });
+    });
+    chain.then(function(){
+      setCqcClassifySaving(false);
+      if(failed){setCqcClassify(function(m){return Object.assign({},m,{err:failed});});return;}
+      /* Advance the snapshot so a retry after a later failure does not re-prompt or double-log. */
+      var snap=cqcScoreSnap.current||{report:'',samples:{}};
+      gs.forEach(function(g){
+        if(g.scope==='report') snap.report=g.to;
+        else (g.nums||[]).forEach(function(n){snap.samples[n]=g.to;});
+      });
+      cqcScoreSnap.current=snap;
+      setCqcClassify(null);setCqcClassifyDone(true);
+      setTimeout(saveReport,0);
+    });
+  }
+  /* ── Duplicate-container warning state (new reports only) ── */
+  var sCqcDup=useState(null); var cqcDup=sCqcDup[0]; var setCqcDup=sCqcDup[1];
+  var sCqcDupAck=useState(false); var cqcDupAck=sCqcDupAck[0]; var setCqcDupAck=sCqcDupAck[1];
+  /* ── Score revision (upgrade/downgrade) modal state ── */
+  var sRevModal=useState(null); var revModal=sRevModal[0]; var setRevModal=sRevModal[1];
+  var sRevSaving=useState(false); var revSaving=sRevSaving[0]; var setRevSaving=sRevSaving[1];
+  var sRevErr=useState(''); var revErr=sRevErr[0]; var setRevErr=sRevErr[1];
+  function openRevModal(r,direction){
+    setRevErr('');
+    setRevModal({reportId:r.id,container:r.container||'',subClient:r.subClient||r.client||'',
+      currentScore:r.score||'',sampleRows:(r.sampleRows||[]).slice().sort(function(a,b){return (a.num||0)-(b.num||0);}),
+      direction:direction,toScore:'',picked:{},note:''});
+  }
+  function submitRevision(){
+    if(!revModal||revSaving) return;
+    if(!revModal.toScore){setRevErr('Choose the new score.');return;}
+    var nums=Object.keys(revModal.picked||{}).filter(function(k){return revModal.picked[k];}).map(Number).sort(function(a,b){return a-b;});
+    setRevSaving(true);setRevErr('');
+    supabase.rpc('record_cqc_score_revision',{
+      p_report_id:revModal.reportId,
+      p_direction:revModal.direction,
+      p_to_score:revModal.toScore,
+      p_sample_numbers:nums.length?nums:null,
+      p_note:revModal.note||null,
+      p_origin:'button'
+    }).then(function(res){
+      setRevSaving(false);
+      if(res.error){setRevErr(res.error.message||'Could not record the revision.');return;}
+      setRevModal(null);
+      setReloadTick(function(n){return n+1;});
+    }).catch(function(e){setRevSaving(false);setRevErr((e&&e.message)||'Could not record the revision.');});
+  }
   function setReports(v){var next=typeof v==='function'?v:function(){return v;};setReportsRaw(function(prev){var n=next(prev);return n;});}
   function toggleClaim(id){
     setReports(function(prev){
@@ -9830,7 +9935,7 @@ function ClientQCMgmt(props){
     }
     fetchSeasonInspectionContainers().then(function(containerSet){
     /* paginated: PostgREST caps un-paged reads; the old .limit(200) hid reports beyond 200 (see fetchAllPaged pattern) */
-    var cqcQuery=function(){var q=supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value))').order('created_at',{ascending:false});if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);return q;};
+    var cqcQuery=function(){var q=supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,sample_trace_code,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value)), cqc_score_revisions(id,direction,origin,from_score,to_score,sample_numbers,sample_snapshot,note,recorded_at,recorded_by,users(full_name))').order('created_at',{ascending:false});if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);return q;};
     (function(){var acc=[];function page(from){return cqcQuery().range(from,from+999).then(function(r){if(r.error) return {data:acc,error:r.error};var batch=r.data||[];acc=acc.concat(batch);if(batch.length<1000) return {data:acc};return page(from+1000);});}return page(0);})().then(function(res){
         if(res.error){console.error('[DalOS] CQC load error:',res.error.message);return;}
         var mapped=(res.data||[]).map(function(r){
@@ -9869,6 +9974,14 @@ function ClientQCMgmt(props){
             claimedValue:r.claimed_value||0, potentialClaim:r.potential_claim||false,
             files:(r.client_qc_files||[]).map(function(f){return {id:f.id,name:f.file_name,url:f.file_url,type:f.file_type};}), matched:_liveMatched, batchId:r.inspection_id||null,
             season:r.season_id||'', savedAt:r.created_at||'',
+            supersededBy:r.superseded_by||null,
+            /* Client score revisions (upgrades/downgrades), newest first. See cqc_score_revisions. */
+            revisions:(r.cqc_score_revisions||[]).slice().sort(function(a,b){return new Date(b.recorded_at||0)-new Date(a.recorded_at||0);}).map(function(v){
+              return {id:v.id,direction:v.direction||'',origin:v.origin||'',from:v.from_score||'',to:v.to_score||'',
+                sampleNumbers:(v.sample_numbers&&v.sample_numbers.length)?v.sample_numbers:null,
+                snapshot:v.sample_snapshot||null,note:v.note||'',at:v.recorded_at||'',byId:v.recorded_by||null,
+                by:(v.users&&v.users.full_name)||''};
+            }),
             productId:r.product_id||'',
             /* All varieties from header config */
             allVarieties:(function(){
@@ -9897,7 +10010,7 @@ function ClientQCMgmt(props){
                 if(sec.section==='Major')majorTotal=secSum;
                 else if(sec.section==='Minor')minorTotal=secSum;
               });
-              return {id:sr.id,num:sr.sample_number,variety:sv,farm:sr.sample_farm||'',plot:sr.sample_plot||'',farm2:sr.sample_farm2||'',plot2:sr.sample_plot2||'',notes:sr.notes||'',score:sr.score||'',brix:sr.brix!=null?sr.brix:'',disputed:sr.disputed||false,disputeNote:sr.dispute_note||'',major:majorTotal,minor:minorTotal};
+              return {id:sr.id,num:sr.sample_number,variety:sv,farm:sr.sample_farm||'',plot:sr.sample_plot||'',farm2:sr.sample_farm2||'',plot2:sr.sample_plot2||'',trace:sr.sample_trace_code||'',notes:sr.notes||'',score:sr.score||'',brix:sr.brix!=null?sr.brix:'',disputed:sr.disputed||false,disputeNote:sr.dispute_note||'',major:majorTotal,minor:minorTotal};
             }),
             /* Compute Minor/Major averages from sample rows */
             sectionAvgs:(function(){
@@ -10453,6 +10566,7 @@ function ClientQCMgmt(props){
   }
 
   function clearForm(){
+    setCqcDup(null);setCqcDupAck(false); /* duplicate warning must not carry over to the next report */
     setContainer('');setSticker('');setTrace('');setTraceCodes([]);setPH('');setPhCover('');setCrop('');setVar('');setFCat('');setVarType('single');setFCat2('');setVar2('');
     setFarm1('');setPlot1('');setFarm2('');setPlot2('');setFarmsExtra([]);setPHExtra([]);setVarsExtra([]);setLoadDate('');setPackDate('');setHarvDate('');setCartonType('');
     setQCRef('');setRegion('');setClient('');setSubClient('');setLot('');setDaltexCls('');
@@ -10639,6 +10753,12 @@ function ClientQCMgmt(props){
     setInspectionIds(r.cqcExtraFields&&r.cqcExtraFields.inspection_ids?r.cqcExtraFields.inspection_ids:[]);
     setInspLookupResults([]);setInspLookupDone(false);
     setEditRep(r.id);setShowNew(true);
+    /* Snapshot the scores as loaded, so a change made in the form can be classified on save
+       (see the classify step in saveReport). Keyed by sample_number, which is what we store. */
+    cqcScoreSnap.current={report:r.score||'',samples:(function(){
+      var m={};(r.sampleRows||[]).forEach(function(s){m[s.num]=s.score||'';});return m;
+    })()};
+    setCqcClassify(null);setCqcClassifyDone(false);
     /* Load existing files */
     setUploadedFiles([]);
     supabase.from('client_qc_files').select('*').eq('client_qc_report_id',r.id).then(function(fr){
@@ -10683,12 +10803,60 @@ function ClientQCMgmt(props){
     }
     /* DEFENSE 0 \u2014 block save while any attachment is unresolved (uploading or failed).
        Prevents silently saving a report missing its evidence files. */
+    /* DEFENSE 2 — block on any score value the DB will reject.
+       Previously the report score was silently coerced to NULL (save succeeded, score lost) while a bad
+       sample score threw FK 23503 mid-save and landed in the "Partially saved" path. Both now fail loudly. */
+    var _validScores=(config.cqcScoreOptions||CQC_SCORE_OPTIONS);
+    var _badScores=[];
+    if(fScore&&_validScores.indexOf(fScore)<0) _badScores.push('report score "'+fScore+'"');
+    cqcSamples.forEach(function(s,i){
+      if(s.score&&_validScores.indexOf(s.score)<0) _badScores.push('sample '+(i+1)+' score "'+s.score+'"');
+    });
+    if(_badScores.length>0){
+      setCqcSaveErr('Not saved — unrecognised score value: '+_badScores.slice(0,3).join(', ')
+        +(_badScores.length>3?(' and '+(_badScores.length-3)+' more'):'')
+        +'. Pick a score from the list.');
+      return;
+    }
     var pendingFiles=uploadedFiles.filter(function(f){return f.file&&!f.storagePath;});
     if(pendingFiles.length>0){
       var anyFailed=pendingFiles.some(function(f){return f.status==='failed';});
       var plural=pendingFiles.length>1;
       setCqcSaveErr(pendingFiles.length+' file'+(plural?'s':'')+' '+(anyFailed?'failed to upload':'still uploading')+'. '+(anyFailed?('Retry or remove '+(plural?'them':'it')):('Wait for '+(plural?'them':'it')+' to finish'))+' before saving.');
       return;
+    }
+    /* DEFENSE 3 — warn before creating a second report for a container that already has one.
+       Cloning a report to carry a revised score is what produced the existing duplicate pairs; this
+       routes that intent into the Upgrade/Downgrade flow instead. Deliberately a warning, not a
+       constraint: split-carta containers legitimately repeat. */
+    if(!editRep&&!cqcDupAck&&fContainer&&String(fContainer).trim()){
+      setCqcSaveErr('');
+      setCqcSaving(true);
+      supabase.rpc('cqc_container_duplicate_check',{
+        p_season:config.trueActiveSeasonId||config.activeSeasonId||null,
+        p_container:String(fContainer).trim(),
+        p_exclude:null
+      }).then(function(res){
+        setCqcSaving(false);
+        var hits=(res&&!res.error&&res.data)||[];
+        if(hits.length>0){setCqcDup(hits);return;}
+        setCqcDupAck(true);
+        setTimeout(saveReport,0);
+      }).catch(function(){
+        /* the check must never block a legitimate save */
+        setCqcSaving(false);setCqcDupAck(true);setTimeout(saveReport,0);
+      });
+      return;
+    }
+    /* DEFENSE 4 — a score changed in the form is a revision, not an overwrite.
+       Ask what each change was before writing, so it lands in cqc_score_revisions. */
+    if(editRep&&!cqcClassifyDone){
+      var _groups=cqcScoreDiffGroups();
+      if(_groups.length>0){
+        setCqcSaveErr('');
+        setCqcClassify({groups:_groups.map(function(g){return Object.assign({},g,{direction:''});}),note:'',err:''});
+        return;
+      }
     }
     setCqcSaveErr('');
     setCqcSaving(true);
@@ -12440,6 +12608,7 @@ function ClientQCMgmt(props){
           if(cqcFilter==='matched'&&!r.matched) return false;
           if(cqcFilter==='claim'&&!(r.claimedValue>0||r.potentialClaim)) return false;
           if(cqcFilter==='unmatched'&&r.matched) return false;
+          if(cqcFilter==='revised'&&!((r.revisions||[]).some(function(v){return v.direction!=='correction';}))) return false;
           if(cqcSearch.trim()){
             var q=cqcSearch.trim().toLowerCase();
             return (r.container||'').toLowerCase().indexOf(q)>=0
@@ -12500,8 +12669,210 @@ function ClientQCMgmt(props){
           if(r.claimedValue>0||r.potentialClaim) parts.push(ce('span',{key:'c',style:{display:'inline-flex',alignItems:'center',gap:3,background:'#fff0f0',color:'var(--red)',border:'1px solid #f5c0c0',borderRadius:4,padding:'2px 7px',fontSize:10,fontWeight:500,marginLeft:4}},'⚠ Claim'));
           return ce('div',{style:{display:'flex',flexWrap:'wrap',gap:4,alignItems:'center'}},parts);
         }
+        /* Score pill, matching the detail pane's scoreStyle (which is scoped to that IIFE). */
+        function cqcScorePill(s){return {padding:'3px 10px',borderRadius:12,fontSize:12,fontWeight:500,
+          background:s==='GREEN'?'var(--green-bg)':s==='RED'?'#fff0f0':'var(--amber-bg)',
+          color:s==='GREEN'?'var(--green)':s==='RED'||s==='NFA'?'var(--red)':'var(--amber)'};}
+        /* ── Score-revision chip: shown next to the score wherever a report has been upgraded/downgraded ── */
+        function revChip(r,extraStyle){
+          var revs=(r.revisions||[]).filter(function(v){return v.direction!=='correction';});
+          if(revs.length===0) return null;
+          var last=revs[0];
+          var up=last.direction==='upgrade';
+          var label=up?'Upgraded':'Downgraded';
+          var title=revs.map(function(v){
+            var when=v.at?new Date(v.at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
+            var scope=v.sampleNumbers?(v.sampleNumbers.length+' sample'+(v.sampleNumbers.length===1?'':'s')):'whole container';
+            return when+': '+(v.from||'—')+' → '+v.to+' ('+v.direction+', '+scope+')';
+          }).join('\n');
+          return ce('span',{title:title,style:Object.assign({display:'inline-flex',alignItems:'center',gap:3,
+            background:up?'var(--amber-bg)':'#fff0f0',color:up?'var(--amber)':'var(--red)',
+            border:'1px solid '+(up?'var(--amber-border)':'#f5c0c0'),
+            borderRadius:4,padding:'2px 7px',fontSize:10,fontWeight:500,whiteSpace:'nowrap'},extraStyle||{})},
+            (up?'↑ ':'↓ ')+label+(revs.length>1?' ×'+revs.length:'')
+          );
+        }
 
         return ce('div',null,
+          /* ── Classify step: scores changed in the edit form ── */
+          cqcClassify&&ce('div',{style:{position:'fixed',inset:0,zIndex:9300,background:'rgba(20,28,22,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}},
+            ce('div',{style:{width:470,maxWidth:'100%',maxHeight:'92vh',overflowY:'auto',background:'var(--card)',border:'1px solid var(--border2)',borderRadius:16}},
+              ce('div',{style:{height:4,background:'var(--amber)',borderRadius:'16px 16px 0 0'}}),
+              ce('div',{style:{padding:'20px 22px'}},
+                ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18,marginBottom:4}},'Scores changed'),
+                ce('div',{style:{fontSize:12,color:'var(--text3)',lineHeight:1.5,marginBottom:16}},
+                  'Tell us what each change was, so it is recorded rather than overwritten.'),
+                (cqcClassify.groups||[]).map(function(g,gi){
+                  function setDir(d){setCqcClassify(function(m){
+                    var gs=(m.groups||[]).slice();gs[gi]=Object.assign({},gs[gi],{direction:d});
+                    return Object.assign({},m,{groups:gs,err:''});
+                  });}
+                  var idents=(function(){
+                    var vs={},fs={};
+                    (g.rows||[]).forEach(function(r2){if(r2.variety)vs[r2.variety]=1;if(r2.farm)fs[r2.farm+(r2.plot?' '+r2.plot:'')]=1;});
+                    var p=Object.keys(vs).concat(Object.keys(fs));
+                    return p.join(' · ');
+                  })();
+                  return ce('div',{key:g.key,style:{border:'1px solid var(--border)',borderRadius:8,padding:'11px 12px',marginBottom:9}},
+                    ce('div',{style:{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginBottom:g.nums?5:9}},
+                      ce('span',{style:{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text3)'}},
+                        g.nums?(g.nums.length+' sample'+(g.nums.length===1?'':'s')):'Whole container'),
+                      g.from&&ce('span',{style:cqcScorePill(g.from)},g.from),
+                      ce('span',{style:{color:'var(--text3)'}},'→'),
+                      ce('span',{style:cqcScorePill(g.to)},g.to)
+                    ),
+                    g.nums&&ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',marginBottom:9}},
+                      '#'+g.nums.join(' #')+(idents?(' · '+idents):'')),
+                    ce('div',{style:{display:'flex',gap:5,flexWrap:'wrap'}},
+                      [['upgrade','Upgrade','var(--green)','var(--green-bg)','var(--green-border)'],
+                       ['downgrade','Downgrade','var(--red)','var(--red-bg)','var(--red-border)'],
+                       ['correction','Correction','var(--text2)','var(--bg2)','var(--border2)']].map(function(o){
+                        var on=g.direction===o[0];
+                        return ce('button',{key:o[0],onClick:function(){setDir(o[0]);},
+                          style:{fontSize:12,fontWeight:500,padding:'5px 11px',borderRadius:8,cursor:'pointer',fontFamily:'inherit',
+                            background:on?o[3]:'var(--card)',color:on?o[2]:'var(--text3)',
+                            border:(on?'1.5px solid '+o[4]:'1px solid var(--border2)')}},o[1]);
+                      })
+                    )
+                  );
+                }),
+                ce('label',{className:'form-label'},'Note'),
+                ce('textarea',{className:'form-input',rows:2,style:{marginBottom:14,width:'100%',resize:'vertical'},
+                  placeholder:'e.g. Client email 24/06 — splits found on arrival',
+                  value:cqcClassify.note,
+                  onChange:function(e){var v=e.target.value;setCqcClassify(function(m){return Object.assign({},m,{note:v});});}}),
+                ce('div',{style:{fontSize:11,color:'var(--text3)',lineHeight:1.5,marginBottom:14}},
+                  'Corrections are still recorded, but are left out of upgrade and downgrade reporting.'),
+                cqcClassify.err&&ce('div',{className:'alert-fail',style:{marginBottom:12,fontSize:12}},cqcClassify.err),
+                ce('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+                  ce('button',{className:'btn btn-secondary',disabled:cqcClassifySaving,onClick:function(){setCqcClassify(null);}},'Back to form'),
+                  ce('button',{className:'btn btn-primary',disabled:cqcClassifySaving,onClick:submitClassify},
+                    cqcClassifySaving?'Recording…':'Save and record')
+                )
+              )
+            )
+          ),
+          /* ── Duplicate-container warning: routes a would-be clone into the revision flow ── */
+          cqcDup&&cqcDup.length>0&&ce('div',{style:{position:'fixed',inset:0,zIndex:9200,background:'rgba(20,28,22,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}},
+            ce('div',{style:{width:460,maxWidth:'100%',background:'var(--card)',border:'1px solid var(--border2)',borderRadius:16,overflow:'hidden'}},
+              ce('div',{style:{height:4,background:'var(--amber)'}}),
+              ce('div',{style:{padding:'20px 22px'}},
+                ce('div',{style:{display:'flex',gap:11,alignItems:'flex-start',marginBottom:14}},
+                  ce('span',{style:{flex:'none',width:34,height:34,borderRadius:9,background:'var(--amber-bg)',border:'1px solid var(--amber-border)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--amber)',fontSize:17}},'⚠'),
+                  ce('div',null,
+                    ce('div',{style:{fontFamily:'var(--font-display)',fontSize:16,lineHeight:1.25}},
+                      cqcDup.length>1?'This container already has '+cqcDup.length+' QC reports':'This container already has a QC report'),
+                    ce('div',{style:{fontSize:12,color:'var(--text2)',marginTop:4,lineHeight:1.5}},
+                      'If the client revised the score, record it on the existing report instead of creating a second one.')
+                  )
+                ),
+                ce('div',{style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',marginBottom:16}},
+                  cqcDup.map(function(d,di){
+                    return ce('div',{key:d.id,style:{padding:'8px 11px',borderBottom:di===cqcDup.length-1?'none':'1px solid var(--border)',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
+                      ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:500}},d.container_number||'—'),
+                      d.score&&ce('span',{style:cqcScorePill(d.score)},d.score),
+                      ce('span',{style:{fontSize:11,color:'var(--text3)'}},
+                        (d.sub_client||d.client||'—')
+                        +(d.created_at?' · '+new Date(d.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')
+                        +' · '+d.sample_count+' sample'+(String(d.sample_count)==='1'?'':'s')
+                        +(Number(d.revision_count)>0?' · '+d.revision_count+' revision'+(Number(d.revision_count)===1?'':'s'):'')),
+                      ce('button',{className:'btn btn-secondary btn-sm',style:{marginLeft:'auto',fontSize:11},
+                        onClick:function(){setCqcDup(null);setShowNew(false);setSelRep(d.id);}},'Open it')
+                    );
+                  })
+                ),
+                ce('div',{style:{display:'flex',gap:7,flexWrap:'wrap',justifyContent:'flex-end'}},
+                  ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setCqcDup(null);}},'Back to form'),
+                  ce('button',{className:'btn btn-primary btn-sm',onClick:function(){
+                    var first=cqcDup[0];setCqcDup(null);setShowNew(false);setSelRep(first.id);
+                    var target=reports.find(function(x){return x.id===first.id;});
+                    if(target) openRevModal(target,'downgrade');
+                  }},'Record upgrade or downgrade'),
+                  ce('button',{className:'btn btn-secondary btn-sm',style:{color:'var(--text3)'},
+                    onClick:function(){setCqcDup(null);setCqcDupAck(true);setTimeout(saveReport,0);}},'Create anyway')
+                )
+              )
+            )
+          ),
+          /* ── Score revision modal (upgrade / downgrade) ── */
+          revModal&&(function(){
+            var up=revModal.direction==='upgrade';
+            var accent=up?'var(--green)':'var(--red)';
+            var rows=revModal.sampleRows||[];
+            var pickedNums=Object.keys(revModal.picked||{}).filter(function(k){return revModal.picked[k];}).map(Number);
+            function upd(patch){setRevModal(function(m){return Object.assign({},m,patch);});}
+            function toggle(n){var p=Object.assign({},revModal.picked);if(p[n])delete p[n];else p[n]=true;upd({picked:p});}
+            function pickAll(v){var p={};if(v)rows.forEach(function(s){p[s.num]=true;});upd({picked:p});}
+            function pickByScore(sc){var p={};rows.forEach(function(s){if((s.score||'')===sc)p[s.num]=true;});upd({picked:p});}
+            var byScore={};rows.forEach(function(s){var k=s.score||'—';byScore[k]=(byScore[k]||0)+1;});
+            return ce('div',{style:{position:'fixed',inset:0,zIndex:9100,background:'rgba(20,28,22,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:16},
+              onClick:function(e){if(e.target===e.currentTarget&&!revSaving)setRevModal(null);}},
+              ce('div',{style:{width:520,maxWidth:'100%',maxHeight:'92vh',overflowY:'auto',background:'var(--card)',border:'1px solid var(--border2)',borderRadius:16}},
+                ce('div',{style:{height:4,background:accent,borderRadius:'16px 16px 0 0'}}),
+                ce('div',{style:{padding:'20px 22px'}},
+                  ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18,marginBottom:3}},up?'Record an upgrade':'Record a downgrade'),
+                  ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',marginBottom:16}},
+                    (revModal.container||'—')+' · '+(revModal.subClient||'—')+' · currently '+(revModal.currentScore||'—')+' · '+rows.length+' sample'+(rows.length===1?'':'s')),
+
+                  ce('label',{className:'form-label'},'New score'),
+                  ce('select',{className:'form-select',value:revModal.toScore,style:{marginBottom:14},
+                    onChange:function(e){upd({toScore:e.target.value});}},
+                    ce('option',{value:''},'— Select —'),
+                    (config.cqcScoreOptions||CQC_SCORE_OPTIONS).map(function(s){return ce('option',{key:s,value:s},s);})
+                  ),
+
+                  rows.length>0&&ce('div',null,
+                    ce('label',{className:'form-label'},'Which samples'),
+                    ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:6}},'Select none to change the whole container.'),
+                    ce('div',{style:{display:'flex',gap:5,flexWrap:'wrap',marginBottom:7}},
+                      ce('button',{className:'btn btn-secondary btn-sm',style:{fontSize:11},onClick:function(){pickAll(true);}},'All'),
+                      ce('button',{className:'btn btn-secondary btn-sm',style:{fontSize:11},onClick:function(){pickAll(false);}},'None'),
+                      Object.keys(byScore).sort().map(function(sc){
+                        return ce('button',{key:sc,className:'btn btn-secondary btn-sm',style:{fontSize:11},
+                          onClick:function(){pickByScore(sc==='—'?'':sc);}},'All '+sc+' ('+byScore[sc]+')');
+                      })
+                    ),
+                    ce('div',{style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',marginBottom:5,maxHeight:210,overflowY:'auto'}},
+                      ce('div',{style:{display:'grid',gridTemplateColumns:'26px 26px 1fr 1fr 1.2fr 66px',gap:6,padding:'6px 9px',background:'var(--bg2)',borderBottom:'2px solid var(--border2)',fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.04em',color:'var(--text3)',position:'sticky',top:0}},
+                        ce('span',null,''),ce('span',null,'#'),ce('span',null,'Variety'),ce('span',null,'Farm'),ce('span',null,'Trace'),ce('span',null,'Score')
+                      ),
+                      rows.map(function(s){
+                        var on=!!(revModal.picked||{})[s.num];
+                        return ce('div',{key:s.num,onClick:function(){toggle(s.num);},
+                          style:{display:'grid',gridTemplateColumns:'26px 26px 1fr 1fr 1.2fr 66px',gap:6,padding:'6px 9px',borderBottom:'1px solid var(--border)',alignItems:'center',cursor:'pointer',background:on?'var(--green-bg)':'var(--card)'}},
+                          ce('span',{style:{width:14,height:14,borderRadius:4,border:'1px solid '+(on?'var(--accent)':'var(--border2)'),background:on?'var(--accent)':'var(--card)',color:'#fff',fontSize:10,lineHeight:'13px',textAlign:'center'}},on?'✓':''),
+                          ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},s.num),
+                          ce('span',{style:{fontSize:11,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},s.variety||'—'),
+                          ce('span',{style:{fontSize:11,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},(s.farm||'—')+(s.plot?' · '+s.plot:'')),
+                          ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:10,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'},title:s.trace||''},s.trace?('…'+String(s.trace).slice(-9)):'—'),
+                          ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:10,textAlign:'center',padding:'1px 5px',borderRadius:20,background:'var(--bg2)',border:'1px solid var(--border)',color:'var(--text2)'}},s.score||'—')
+                        );
+                      })
+                    ),
+                    ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',marginBottom:14}},
+                      pickedNums.length?(pickedNums.length+' of '+rows.length+' selected'):'whole container')
+                  ),
+
+                  ce('label',{className:'form-label'},'Note'),
+                  ce('textarea',{className:'form-input',rows:2,style:{marginBottom:14,width:'100%',resize:'vertical'},
+                    placeholder:'e.g. Client email 24/06 — splits found on arrival',
+                    value:revModal.note,onChange:function(e){upd({note:e.target.value});}}),
+
+                  revModal.toScore&&ce('div',{style:{background:up?'var(--green-bg)':'var(--red-bg)',border:'1px solid '+(up?'var(--green-border)':'var(--red-border)'),borderRadius:6,padding:'9px 11px',fontSize:12,color:accent,marginBottom:14}},
+                    (pickedNums.length?(pickedNums.length+' sample'+(pickedNums.length===1?'':'s')):'The whole container')
+                    +' move'+(pickedNums.length===1?'s':(pickedNums.length?'':'s'))+' to '+revModal.toScore+'. The original score is kept.'),
+
+                  revErr&&ce('div',{className:'alert-fail',style:{marginBottom:12,fontSize:12}},revErr),
+
+                  ce('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+                    ce('button',{className:'btn btn-secondary',disabled:revSaving,onClick:function(){setRevModal(null);}},'Cancel'),
+                    ce('button',{className:'btn btn-primary',disabled:revSaving||!revModal.toScore,onClick:submitRevision},
+                      revSaving?'Recording…':(up?'Record upgrade':'Record downgrade'))
+                  )
+                )
+              )
+            );
+          })(),
           /* ── Card-view announcement modal (step 1 of the first-view flow) ── */
           cvAnnounce==='modal'&&ce('div',{style:{position:'fixed',inset:0,zIndex:9000,background:'rgba(20,28,22,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:16},onClick:function(e){if(e.target===e.currentTarget)dismissCvTip();}},
             ce('div',{style:{width:380,maxWidth:'100%',background:'var(--card)',border:'1px solid var(--border2)',borderRadius:16,overflow:'hidden',boxShadow:'0 12px 48px rgba(0,0,0,.3)'}},
@@ -12533,7 +12904,7 @@ function ClientQCMgmt(props){
               cqcSearch&&ce('button',{onClick:function(){setCqcSearch('');},style:{position:'absolute',right:7,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:13,color:'var(--text3)',lineHeight:1,padding:0}},'×')
             ),
             /* Filter pills */
-            ['all','matched','claim','unmatched'].map(function(f){
+            ['all','matched','claim','unmatched','revised'].map(function(f){
               var labels={all:'All',matched:'Matched',claim:'Claims',unmatched:'Unmatched'};
               var active=cqcFilter===f;
               return ce('button',{key:f,
@@ -12628,7 +12999,8 @@ function ClientQCMgmt(props){
                         r.score?ce('span',{style:{display:'inline-block',padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
                           background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',
                           color:r.score==='GREEN'?'var(--green)':r.score==='RED'||r.score==='NFA'?'var(--red)':'var(--amber)'}},r.score)
-                          :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
+                          :ce('span',{style:{color:'var(--text3)',fontSize:12}},'—'),
+                        revChip(r,{marginTop:4})
                       ),
                       ce('td',{style:{padding:'10px 12px',verticalAlign:'middle',textAlign:'center'}},statusCell(r))
                     );
@@ -12653,9 +13025,12 @@ function ClientQCMgmt(props){
                       ce('div',{style:{fontWeight:500,fontSize:13,fontFamily:'var(--font-mono)'}},r.container||'—'),
                       ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:2}},(r.subClient||r.client||'—')+(r.savedAt?' \u00b7 '+new Date(r.savedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):''))
                     ),
-                    r.score&&ce('span',{style:{padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
-                      background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',
-                      color:r.score==='GREEN'?'var(--green)':r.score==='RED'||r.score==='NFA'?'var(--red)':'var(--amber)'}},r.score)
+                    ce('div',{style:{textAlign:'right',whiteSpace:'nowrap'}},
+                      r.score&&ce('span',{style:{padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,
+                        background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',
+                        color:r.score==='GREEN'?'var(--green)':r.score==='RED'||r.score==='NFA'?'var(--red)':'var(--amber)'}},r.score),
+                      (function(){var c=revChip(r);return c?ce('div',{style:{marginTop:4}},c):null;})()
+                    )
                   ),
                   ce('div',{style:{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4}},
                     ce('span',{style:{color:'var(--text3)'}},'Variety'),
@@ -12690,8 +13065,54 @@ function ClientQCMgmt(props){
                 r.matched&&ce('span',{style:{display:'inline-flex',alignItems:'center',gap:3,background:'var(--green-bg)',color:'var(--green)',border:'1px solid var(--green-border)',borderRadius:6,padding:'3px 8px',fontSize:11,fontWeight:500}},'✓ Matched'),
                 (r.claimedValue>0||r.potentialClaim)&&ce('span',{style:{background:'#fff0f0',color:'var(--red)',border:'1px solid #f5c0c0',borderRadius:6,padding:'3px 8px',fontSize:11,fontWeight:500}},r.claimedValue>0?'⚠ '+(r.claimedCurrency||'')+' '+r.claimedValue.toLocaleString()+' claimed':'⚠ Potential claim'),
                 ce('div',{style:{marginLeft:'auto',display:'flex',gap:6}},
+                  perms&&perms.createClientQC&&ce('button',{className:'btn btn-sm',title:'Client upgraded this score',
+                    style:{fontSize:12,background:'var(--green-bg)',border:'1px solid var(--green-border)',color:'var(--green)'},
+                    onClick:function(){openRevModal(r,'upgrade');}},'↑ Upgrade'),
+                  perms&&perms.createClientQC&&ce('button',{className:'btn btn-sm',title:'Client downgraded this score',
+                    style:{fontSize:12,background:'var(--red-bg)',border:'1px solid var(--red-border)',color:'var(--red)'},
+                    onClick:function(){openRevModal(r,'downgrade');}},'↓ Downgrade'),
                   perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){loadReportForEdit(r);},style:{fontSize:12}},'✎ Edit'),
                   ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelRep(null);},style:{fontSize:12}},'× Close')
+                )
+              ),
+              /* ── Score history: only rendered when this report has recorded revisions ── */
+              (r.revisions&&r.revisions.length>0)&&ce('div',{style:{marginBottom:16,border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'12px 14px',background:'var(--card)'}},
+                ce('div',{style:{display:'flex',alignItems:'center',gap:7,marginBottom:10}},
+                  ce('span',{style:{width:20,height:2,background:'var(--accent)',display:'inline-block'}}),
+                  ce('span',{style:{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text3)'}},'Score history'),
+                  ce('span',{style:{marginLeft:'auto',fontSize:11,color:'var(--text3)'}},
+                    'Original '+((r.revisions[r.revisions.length-1]||{}).from||'—')+' · now '+(r.score||'—'))
+                ),
+                ce('div',{style:{borderLeft:'2px solid var(--border)',paddingLeft:14,marginLeft:3}},
+                  r.revisions.map(function(v,vi){
+                    var up=v.direction==='upgrade',corr=v.direction==='correction';
+                    var col=corr?'var(--text3)':(up?'var(--green)':'var(--red)');
+                    var when=v.at?new Date(v.at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
+                    var snap=v.snapshot||[];
+                    var idLabel=v.sampleNumbers
+                      ?(v.sampleNumbers.length+' sample'+(v.sampleNumbers.length===1?'':'s')+': #'+v.sampleNumbers.join(' #'))
+                      :'whole container';
+                    var ident=(snap.length>0)?(function(){
+                      var vs={},fs={};
+                      snap.forEach(function(s){if(s.variety)vs[s.variety]=1;if(s.farm)fs[s.farm+(s.plot?' '+s.plot:'')]=1;});
+                      var p=Object.keys(vs).concat(Object.keys(fs));
+                      return p.length?' · '+p.join(' · '):'';
+                    })():'';
+                    return ce('div',{key:v.id||vi,style:{position:'relative',paddingBottom:vi===r.revisions.length-1?0:12}},
+                      ce('span',{style:{position:'absolute',left:-20,top:5,width:7,height:7,borderRadius:'50%',background:col}}),
+                      ce('div',{style:{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}},
+                        ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)'}},when),
+                        v.from&&ce('span',{style:scoreStyle(v.from)},v.from),
+                        ce('span',{style:{color:col,fontWeight:600,fontSize:12}},corr?'→':(up?'↑':'↓')),
+                        ce('span',{style:scoreStyle(v.to)},v.to),
+                        ce('span',{style:{fontSize:11,fontWeight:500,color:col,textTransform:'capitalize'}},v.direction),
+                        ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:10,background:'var(--bg2)',borderRadius:4,padding:'1px 6px',color:'var(--text2)'}},idLabel+ident),
+                        v.origin==='form_save'&&ce('span',{title:'Detected while editing the report',style:{fontSize:10,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,padding:'1px 6px',color:'var(--text3)'}},'from edit')
+                      ),
+                      v.note&&ce('div',{style:{fontSize:11,color:'var(--text2)',marginTop:3,lineHeight:1.5}},v.note),
+                      v.by&&ce('div',{style:{fontSize:10,color:'var(--text3)',marginTop:2}},v.by)
+                    );
+                  })
                 )
               ),
               (function(){
@@ -13068,7 +13489,9 @@ function ClientQCMgmt(props){
                   );
                 })()
               ),
-              ce('div',{className:'dp-sheet-actions'},
+              ce('div',{className:'dp-sheet-actions',style:{flexWrap:'wrap'}},
+                perms&&perms.createClientQC&&ce('button',{className:'btn btn-sm',style:{flex:'1 1 40%',background:'var(--green-bg)',border:'1px solid var(--green-border)',color:'var(--green)'},onClick:function(){openRevModal(r,'upgrade');setSelRep(null);}},'↑ Upgrade'),
+                perms&&perms.createClientQC&&ce('button',{className:'btn btn-sm',style:{flex:'1 1 40%',background:'var(--red-bg)',border:'1px solid var(--red-border)',color:'var(--red)'},onClick:function(){openRevModal(r,'downgrade');setSelRep(null);}},'↓ Downgrade'),
                 perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary',style:{flex:1},onClick:function(){loadReportForEdit(r);setSelRep(null);}},'✎ Edit'),
                 ce('button',{className:'btn btn-secondary',style:{flex:1},onClick:function(){setSelRep(null);}},'Close')
               )
@@ -13117,7 +13540,7 @@ function loadInspPreview(id,setPopup,config){
 function loadCqcPreview(id,setPopup,config,_attempt){
   _attempt=_attempt||0;
   setPopup({id:id,loading:true,data:null});
-  supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value))').eq('id',id).single().then(function(rr){
+  supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,sample_trace_code,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value)), cqc_score_revisions(id,direction,origin,from_score,to_score,sample_numbers,sample_snapshot,note,recorded_at,recorded_by,users(full_name))').eq('id',id).single().then(function(rr){
     if(rr.error||!rr.data){setPopup(null);return;}
     var r0=rr.data;
     /* Data-race guard: keep the shimmer skeleton (loading:true) and retry rather than
@@ -13170,6 +13593,14 @@ function loadCqcPreview(id,setPopup,config,_attempt){
             claimedValue:r.claimed_value||0, potentialClaim:r.potential_claim||false,
             files:(r.client_qc_files||[]).map(function(f){return {id:f.id,name:f.file_name,url:f.file_url,type:f.file_type};}), matched:(r.matched===true), batchId:r.inspection_id||null,
             season:r.season_id||'', savedAt:r.created_at||'',
+            supersededBy:r.superseded_by||null,
+            /* Client score revisions (upgrades/downgrades), newest first. See cqc_score_revisions. */
+            revisions:(r.cqc_score_revisions||[]).slice().sort(function(a,b){return new Date(b.recorded_at||0)-new Date(a.recorded_at||0);}).map(function(v){
+              return {id:v.id,direction:v.direction||'',origin:v.origin||'',from:v.from_score||'',to:v.to_score||'',
+                sampleNumbers:(v.sample_numbers&&v.sample_numbers.length)?v.sample_numbers:null,
+                snapshot:v.sample_snapshot||null,note:v.note||'',at:v.recorded_at||'',byId:v.recorded_by||null,
+                by:(v.users&&v.users.full_name)||''};
+            }),
             productId:r.product_id||'',
             /* All varieties from header config */
             allVarieties:(function(){
@@ -13198,7 +13629,7 @@ function loadCqcPreview(id,setPopup,config,_attempt){
                 if(sec.section==='Major')majorTotal=secSum;
                 else if(sec.section==='Minor')minorTotal=secSum;
               });
-              return {id:sr.id,num:sr.sample_number,variety:sv,farm:sr.sample_farm||'',plot:sr.sample_plot||'',farm2:sr.sample_farm2||'',plot2:sr.sample_plot2||'',notes:sr.notes||'',score:sr.score||'',brix:sr.brix!=null?sr.brix:'',disputed:sr.disputed||false,disputeNote:sr.dispute_note||'',major:majorTotal,minor:minorTotal};
+              return {id:sr.id,num:sr.sample_number,variety:sv,farm:sr.sample_farm||'',plot:sr.sample_plot||'',farm2:sr.sample_farm2||'',plot2:sr.sample_plot2||'',trace:sr.sample_trace_code||'',notes:sr.notes||'',score:sr.score||'',brix:sr.brix!=null?sr.brix:'',disputed:sr.disputed||false,disputeNote:sr.dispute_note||'',major:majorTotal,minor:minorTotal};
             }),
             /* Compute Minor/Major averages from sample rows */
             sectionAvgs:(function(){
