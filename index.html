@@ -17564,25 +17564,36 @@ function App(){
           /* Get all pallet IDs from DB (existing + newly inserted) */
           return supabase.from('pallets').select('id,pallet_number').eq('inspection_id',realId).then(function(pr){
             if(pr.error||!pr.data) return;
-            /* Pre-compute per-pallet max sample_number from existing rows so new rows
-               get a fresh sequence. The bug: this branch previously assigned
-               sample_number = item.row.palletNo (the pallet's text label, not an integer),
-               which fails the integer column type and silently dropped all new sample rows. */
+            /* DUPLICATE-SAMPLE FIX — reconcile against the DB instead of trusting client ids.
+               The client never receives the ids of rows it inserted during an edit, so on
+               every later save those rows still look "new" and were re-inserted verbatim,
+               producing several rows with the same (pallet_id, sample_number). We now derive
+               sample_number from the row's position in its pallet and, when the DB already
+               holds that slot, UPDATE it instead of writing a twin. Re-saves become
+               idempotent — the same reconcile-by-sample_number the mango RPC does server-side. */
+            var _palletIdList=pr.data.map(function(sp){return sp.id;});
+            return supabase.from('sample_rows').select('id,pallet_id,sample_number').in('pallet_id',_palletIdList).then(function(exr){
+            if(exr.error){console.error('[DalOS] existing sample_rows fetch error:',exr.error.message);if(!childWriteError)childWriteError='Could not read existing samples: '+exr.error.message;return;}
+            var existingByKey={};
+            var maxNumByPallet={};
+            (exr.data||[]).forEach(function(row){
+              var k=row.pallet_id+'_'+row.sample_number;
+              /* keep the first — legacy duplicates collapse onto one slot */
+              if(!existingByKey[k]) existingByKey[k]=row.id;
+              if(!(row.pallet_id in maxNumByPallet)||row.sample_number>maxNumByPallet[row.pallet_id]) maxNumByPallet[row.pallet_id]=row.sample_number;
+            });
+            /* Rows the client already tracks by id are written by the existing-rows
+               update path above — their DB slots must not be reused here. */
+            var clientExistingIds={};
+            existingRows.forEach(function(er){if(er.row&&er.row.id)clientExistingIds[er.row.id]=true;});
             var inserts=[];
+            var reconcileUpdates=[];
+            var _seenInsertKeys={};
             /* Fix 2: build defect map keyed by pallet_id+'_'+sample_number while
                building inserts — replaces the fragile positional editNewDefects[i]
                approach that caused defects to drop when Supabase returned rows out
                of insert order (confirmed: S-7952, S-7958, S-7963) */
             var editNewDefectsMap={};
-            /* Track per-pallet row index — start from existing rows count + 1 */
-            var perPalletNextNum={};
-            palletsData.forEach(function(p){
-              var existingCount=(p.rows||[]).filter(function(r){
-                return r.id&&typeof r.id==='string'&&!r.id.startsWith('new-');
-              }).length;
-              var key=p.palletLabel||String(p.palletNo);
-              perPalletNextNum[key]=existingCount+1;
-            });
             newSampleRows.forEach(function(item){
               /* Compose the same pallet_number we used at insert time (above) — without this,
                  the find returns undefined and sample rows get silently dropped */
@@ -17601,17 +17612,23 @@ function App(){
               var savedPallet=pr.data.find(function(sp){return String(sp.pallet_number)===String(expectedF);});
               if(!savedPallet){
                 console.warn('[DalOS] Edit-mode: could not match saved pallet — sample rows dropped',{palletLabel:item.pallet.palletLabel,palletNo:item.pallet.palletNo,expected:expectedF,available:pr.data.map(function(sp){return sp.pallet_number;})});
+                if(!childWriteError)childWriteError='A pallet could not be matched, so its samples were not saved.';
                 return;
               }
-              var palletKey=item.pallet.palletLabel||String(item.pallet.palletNo);
-              var nextNum=perPalletNextNum[palletKey]||1;
-              perPalletNextNum[palletKey]=nextNum+1;
-              /* Fix 2: store defects by the same key that will appear in the DB row */
-              editNewDefectsMap[savedPallet.id+'_'+nextNum]=item.row.defects||{};
-              inserts.push({
-                pallet_id:savedPallet.id,
-                inspection_id:realId,
-                sample_number:nextNum,
+              /* sample_number = the row's position within its pallet (1..N). Rows are
+                 loaded ordered by sample_number, so positions line up with the DB.
+                 No ||1 fallback: an unresolvable row must surface, never silently
+                 overwrite/duplicate slot 1 (that fallback caused 86 of 111 dup groups). */
+              var _rowsArr=item.pallet.rows||[];
+              var _pos=_rowsArr.indexOf(item.row);
+              if(_pos<0){
+                console.warn('[DalOS] Edit-mode: sample row not found in its pallet — not saved',{pallet:expectedF});
+                if(!childWriteError)childWriteError='A sample row could not be positioned, so it was not saved.';
+                return;
+              }
+              var nextNum=_pos+1;
+              var _slotKey=savedPallet.id+'_'+nextNum;
+              var _payload={
                 time:item.row.time||'00:00',
                 size:item.row.size?parseInt(item.row.size):null,
                 carton_weight:parseFloat(item.row.cartonWt)||null,
@@ -17623,8 +17640,57 @@ function App(){
                 sample_size:item.row.sampleSize?parseInt(item.row.sampleSize):null,
                 extra_fields:item.row.extraFields||{},
                 sample_variety_id:(newBatch.varietyType||'')==='mixed'?null:(config&&config.varietiesIdMap&&item.row.sampleVariety&&config.varietiesIdMap[item.row.sampleVariety])||null
+              };
+              /* If the DB row occupying this slot is NOT one the client tracks, it is a
+                 row we inserted on an earlier save whose id never came back — update it
+                 in place instead of writing a twin. That is the duplicate fix.
+                 If the client DOES track it, the existing-rows update path owns it, so
+                 allocate a fresh slot rather than clobbering someone else's row. */
+              var _dbIdInSlot=existingByKey[_slotKey];
+              if(_dbIdInSlot&&!clientExistingIds[_dbIdInSlot]){
+                reconcileUpdates.push({id:_dbIdInSlot,payload:_payload,defects:item.row.defects||{}});
+                return;
+              }
+              if(_dbIdInSlot){
+                maxNumByPallet[savedPallet.id]=(maxNumByPallet[savedPallet.id]||0)+1;
+                nextNum=maxNumByPallet[savedPallet.id];
+                _slotKey=savedPallet.id+'_'+nextNum;
+              }
+              /* Guard against two client rows resolving to the same slot in one save */
+              if(_seenInsertKeys[_slotKey]){
+                console.warn('[DalOS] Edit-mode: duplicate sample slot within one save — skipped',_slotKey);
+                return;
+              }
+              _seenInsertKeys[_slotKey]=true;
+              /* Fix 2: store defects by the same key that will appear in the DB row */
+              editNewDefectsMap[_slotKey]=item.row.defects||{};
+              inserts.push(Object.assign({pallet_id:savedPallet.id,inspection_id:realId,sample_number:nextNum},_payload));
+            });
+            /* Apply reconciled updates (row + refreshed defect readings) before inserting */
+            var _reconcilePromise=reconcileUpdates.length===0?Promise.resolve():supabase.from('defects').select('id,key').then(function(dRes){
+              var dMap={};(dRes.data||[]).forEach(function(d){dMap[d.key]=d.id;});
+              return new Promise(function(resolveAll){
+                function stepU(i){
+                  if(i>=reconcileUpdates.length){console.log('[DalOS] Reconciled existing sample slots:',reconcileUpdates.length);resolveAll();return;}
+                  var u=reconcileUpdates[i];
+                  supabase.from('sample_rows').update(u.payload).eq('id',u.id).then(function(ur){
+                    if(ur.error){console.error('[DalOS] reconcile update error:',ur.error.message);if(!childWriteError)childWriteError='A sample row failed to save: '+ur.error.message;stepU(i+1);return;}
+                    supabase.from('sample_defect_readings').delete().eq('sample_row_id',u.id).then(function(delR){
+                      if(delR&&delR.error){console.error('[DalOS] reconcile defect delete error:',delR.error.message);if(!childWriteError)childWriteError='A defect reading failed to save: '+delR.error.message;stepU(i+1);return;}
+                      var rd=[];
+                      Object.keys(u.defects||{}).forEach(function(k2){var v=parseFloat(u.defects[k2])||0;if(v>0&&dMap[k2])rd.push({sample_row_id:u.id,defect_id:dMap[k2],value:v});});
+                      if(rd.length===0){stepU(i+1);return;}
+                      supabase.from('sample_defect_readings').insert(rd).then(function(ir){
+                        if(ir.error){console.error('[DalOS] reconcile defect insert error:',ir.error.message);if(!childWriteError)childWriteError='A defect reading failed to save: '+ir.error.message;}
+                        stepU(i+1);
+                      });
+                    });
+                  });
+                }
+                stepU(0);
               });
             });
+            return _reconcilePromise.then(function(){
             if(inserts.length===0) return;
             return supabase.from('sample_rows').insert(inserts).select().then(function(r){
               if(r.error){console.error('[DalOS] new sample rows insert error:',r.error.message);if(!childWriteError)childWriteError='New sample rows failed to save: '+r.error.message;return;}
@@ -17644,11 +17710,13 @@ function App(){
                 });
                 if(readings.length===0) return;
                 return supabase.from('sample_defect_readings').insert(readings).then(function(dr){
-                  if(dr.error){console.error('[DalOS] edit new defect readings error:',dr.error.message);if(!childWriteError)childWriteError='New defect readings failed to save: '+dr.error.message;logError('defect_readings_insert_edit_new',dr.error,{inspection_id:realId,count:readings.length});}
+                  if(dr.error){console.error('[DalOS] edit new defect readings error:',dr.error.message);if(!childWriteError)childWriteError='New defect readings failed to save: '+dr.error.message;if(typeof logError==='function')logError('defect_readings_insert_edit_new',dr.error,{inspection_id:realId,count:readings.length});}
                   else console.log('[DalOS] Edit new defect readings saved:',readings.length);
                 });
               });
             });
+            }); /* end _reconcilePromise chain */
+            }); /* end existing sample_rows fetch (reconcile) */
           });
           }); /* end newRowsChainPromise chain */
         }
