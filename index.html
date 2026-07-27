@@ -14630,7 +14630,6 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);setCqcShipFilter('all');}},'\u2190 Products'),
         ce('div',{style:{width:10,height:10,borderRadius:'50%',background:selProdObj.color||'var(--accent)',flexShrink:0}}),
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:16}},selProdObj.name,' Shipments'),
-        totalClaims>0&&ce('span',{className:'badge badge-fail',style:{fontSize:11}},totalClaims+' claim'+(totalClaims===1?'':'s')),
         totalGraded>0&&ce('span',{className:'badge badge-pass',style:{fontSize:11}},totalGraded+' graded'),
         /* Toggle */
         ce('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'3px'}},
@@ -14694,11 +14693,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         ),
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},'Claims'),
-          ce('div',{className:'kpi-value',style:{fontSize:22,color:totalClaims>0?'var(--red)':'var(--text)'}},
-            aggMode
-              ?filteredContainers.filter(function(c){var g=getGrade(c.container_number);return g&&g.has_claim;}).length
-              :filteredRows.filter(function(s){var g=getGrade(s.container_number);return g&&g.has_claim;}).length
-          )
+          ce('div',{className:'kpi-value',style:{fontSize:13,color:'var(--text3)',fontWeight:500,paddingTop:5}},'in CRM')
         ),
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},'With CQC'),
@@ -16039,7 +16034,10 @@ window.CRM = (function(){
     var el=$('cliDbt'); if(!el) return;
     var m=$('cliMaturity')?$('cliMaturity').value:'';
     if(!m){ el.textContent='enter maturity'; return; }
-    var days=Math.floor((Date.now()-new Date(m).getTime())/86400000);
+    /* both sides at UTC midnight -- new Date('yyyy-mm-dd') parses as UTC, so
+       comparing it to a local Date.now() shifted the count by a day */
+    var _n=new Date(); var todayUTC=Date.UTC(_n.getFullYear(),_n.getMonth(),_n.getDate());
+    var days=Math.round((todayUTC-new Date(m).getTime())/86400000);
     el.innerHTML=days>0
       ? '<span style="color:'+(days>30?'var(--red)':'var(--amber)')+'">'+days+' days overdue</span>'
       : '<span style="color:var(--green)">'+(-days)+' days to maturity</span>';
@@ -16717,6 +16715,16 @@ function injectCrmCss(){
 .crmv .dlv{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:none;justify-content:flex-end}
 .crmv .dlv.open{display:flex}
 .crmv .dlv-panel{width:560px;max-width:94vw;height:100%;background:var(--bg);box-shadow:-4px 0 22px rgba(0,0,0,.20);display:flex;flex-direction:column;animation:dlvIn .24s cubic-bezier(.32,.72,0,1)}
+/* Below 700px the right-side drawer becomes a bottom sheet, matching the rest of
+   Vision's mobile convention. Rounded top, grab affordance, capped at 88vh. */
+@keyframes dlvUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media(max-width:700px){
+  .crmv .dlv{align-items:flex-end;justify-content:center}
+  .crmv .dlv-panel{width:100%;max-width:100%;height:auto;max-height:88vh;border-radius:16px 16px 0 0;
+    box-shadow:0 -4px 22px rgba(0,0,0,.22);animation:dlvUp .24s cubic-bezier(.32,.72,0,1)}
+  .crmv .dlv-panel::before{content:'';display:block;flex:0 0 auto;width:38px;height:4px;border-radius:2px;
+    background:var(--border2);margin:8px auto 2px}
+}
 @keyframes dlvIn{from{transform:translateX(36px);opacity:.5}to{transform:translateX(0);opacity:1}}
 .crmv .dlv-top{height:50px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;flex-shrink:0}
 .crmv .dlv-title{font-family:var(--font-display);font-size:17px}
