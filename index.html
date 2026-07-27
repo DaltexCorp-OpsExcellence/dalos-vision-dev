@@ -15444,7 +15444,7 @@ window.CRM = (function(){
   /* ── small utils ── */
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   /* tonnes cell — shipments.net_weight is tonnes; credit/return rows are negative by design */
-  function tonCell(v){ var n=Number(v)||0; return n<0?'—':n.toLocaleString()+' t'; }
+  function tonCell(v){ var n=Number(v)||0; return n.toLocaleString()+' t'; }
   function $(id){ return ROOT?ROOT.querySelector('#'+id):null; }
   function num(v){ return (v==null||isNaN(v))?0:Number(v); }
   function pct(v){ return (v==null||v==='')?null:(Math.round(Number(v)*10)/10)+'%'; }
@@ -15466,7 +15466,7 @@ window.CRM = (function(){
     var tail=score?' <span style="opacity:.65;font-family:var(--font-mono);font-size:10px">'+esc(score)+'</span>':'';
     return '<span class="badge '+b.cls+'" title="'+esc(rawTitle||('band '+(score||'—')+' ('+b.n+')'))+'">'+b.n+tail+'</span>';
   }
-  function statusBadge(s,label){ var cls=s==='delivered'?'b-pass':(s==='in_transit'?'b-esc':'b-neutral'); return '<span class="badge '+cls+'">'+esc(label)+'</span>'; }
+  function statusBadge(s,label){ var cls=s==='delivered'?'b-pass':(s==='in_transit'?'b-esc':(s==='returned'?'b-fail':'b-neutral')); return '<span class="badge '+cls+'">'+esc(label)+'</span>'; }
   function claimBadge(c){ if(!c) return ''; var map={open:['b-fail','Claim open'],closed:['b-neutral','Claim closed']}; var m=map[c.status]||map.open; return '<span class="badge '+m[0]+'">'+m[1]+' · '+(c.potential?'potential':esc(c.value||'—'))+'</span>'; }
   function coverageBadge(c){
     if(c.coverage==='cqc') return '<span class="coverage cov-cqc"><span class="cov-dot"></span>CQC · '+((BANDS[c.cqc&&c.cqc.score]||{}).n||'—')+'</span>';
@@ -15488,7 +15488,7 @@ window.CRM = (function(){
       invoice:r.invoice_no||'', booking:r.booking_no||'', shipper:r.shipper||'', agent:r.agent||'',
       brand:r.brand||'', size:r.size||'', dclass:r.daltex_class||'', trace:r.traceability_code||'', farmSource:r.farm_source||'',
       split:!!r.split, rowCount:num(r.row_count), cartaCount:num(r.carta_count),
-      status:r.status, statusLabel:r.status==='delivered'?'Delivered':'In transit',
+      status:r.status, statusLabel:r.status==='delivered'?'Delivered':(r.status==='returned'?'Returned':'In transit'),
       sortKey:dayKey(r.eta||r.arrival_date||r.etd),
       coverage:r.coverage, insp:null, cqc:null, graded:null, claim:null, rows:null, packHouses:r.pack_houses||[],
       cqcId:r.cqc_id||null, inspId:r.insp_id||null, gradingId:r.grading_id||null, claimId:r.claim_id||null,
@@ -15669,7 +15669,7 @@ window.CRM = (function(){
     var gradedOpts=[['yes','CRM-graded',cnt(base,function(s){return s.coverage==='graded';})],['no','Not graded',cnt(base,function(s){return s.coverage!=='graded';})]];
     var activeCount=shipActiveFilterCount();
     var filters='<div class="filter-row">'+
-      '<span class="filter-group">'+fp('status','all','All')+fp('status','delivered','Delivered')+fp('status','in_transit','In transit')+'</span>'+
+      '<span class="filter-group">'+fp('status','all','All')+fp('status','delivered','Delivered')+fp('status','in_transit','In transit')+fp('status','returned','Returned')+'</span>'+
       fsel('client','Client',clientOpts)+fsel('sub','Sub-client',subOpts)+fsel('variety','Variety',varietyOpts)+fsel('country','Country',countryOpts)+
       fsel('score','Score',scoreOpts)+
       fsel('claim','Claim',claimOpts)+fsel('graded','Graded',gradedOpts)+
@@ -15832,7 +15832,7 @@ window.CRM = (function(){
     var compare='';
     if(currentRegion==='all'){
       var rg={};
-      list.forEach(function(s){ if(!rg[s.region]) rg[s.region]={n:0,t:0,d:0,open:0,cov:0,scores:[],claims:0}; var r=rg[s.region]; r.n++; if(s.status==='in_transit')r.t++; else r.d++; if(s.coverage!=='none')r.cov++; if(s.cqc&&s.cqc.score)r.scores.push(s.cqc.score); if(s.claim){ r.claims++; if(s.claim.status==='open')r.open++; } });
+      list.forEach(function(s){ if(!rg[s.region]) rg[s.region]={n:0,t:0,d:0,open:0,cov:0,scores:[],claims:0}; var r=rg[s.region]; r.n++; if(s.status==='in_transit')r.t++; else if(s.status==='delivered')r.d++; if(s.coverage!=='none')r.cov++; if(s.cqc&&s.cqc.score)r.scores.push(s.cqc.score); if(s.claim){ r.claims++; if(s.claim.status==='open')r.open++; } });
       var rrows=Object.keys(rg).sort().map(function(id){ var r=rg[id]; return '<tr class="go" onclick="CRM.setRegion(\''+id+'\')"><td class="nm">'+esc(regionLabel[id]||id)+'</td><td class="num">'+r.n+'</td><td class="num">'+r.t+'</td><td class="num">'+r.d+'</td><td class="num" style="color:'+(r.open?'var(--red)':'var(--text2)')+'">'+r.open+'</td><td class="num">'+Math.round(r.cov/r.n*100)+'%</td><td class="num">'+(pAvg(r.scores)||'—')+'</td><td class="num">'+(Math.round(r.claims/r.n*1000)/10)+'%</td></tr>'; }).join('');
       compare='<div class="pulse-panel" style="margin-bottom:16px"><div class="pp-title">All-regions comparison · click a region to focus</div><table class="rk rk-compare"><tr style="font-weight:700;color:var(--text3)"><td>Region</td><td class="num">Shp</td><td class="num">Transit</td><td class="num">Delivered</td><td class="num">Open claims</td><td class="num">Coverage</td><td class="num">Avg score</td><td class="num">Claim rate</td></tr>'+rrows+'</table></div>';
     }
