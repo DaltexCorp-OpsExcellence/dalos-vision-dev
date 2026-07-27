@@ -16897,11 +16897,11 @@ function App(){
      apps, same origin) and this timer polls it. We only sign out when the user
      is genuinely idle everywhere. Falls back to per-tab behaviour if
      localStorage is unavailable.                                            */
-  var INACTIVITY_MINUTES=60;
+  var INACTIVITY_MINUTES=2; /* TEMPORARY TEST VALUE - restore to 60 */
   React.useEffect(function(){
     if(!currentUser) return;
     var IDLE_MS=INACTIVITY_MINUTES*60*1000;
-    var POLL_MS=60*1000;
+    var POLL_MS=10*1000; /* TEMPORARY TEST VALUE - restore to 60*1000 */
     var localLast=Date.now();          /* fallback when localStorage is unusable */
     var lastWrite=0;
     var poll=null;
