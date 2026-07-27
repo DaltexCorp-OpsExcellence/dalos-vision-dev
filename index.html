@@ -7331,7 +7331,7 @@ function HomeView(props){
   var tiles=[];
   if(perms.viewFG)        tiles.push({key:'fg',       view:'fg',         eyebrow:'Inspections',label:'Export Inspection',icon:'\u2713', hint:palletsToday+' pallets packed today', dynamicHint:true, primary:true, glow:'#6fc191', eyebrowColor:'#8fe0ad', big:activeToday.length, bigLabel:'active today'});
   if(perms.viewClientQC)  tiles.push({key:'clientqc', view:'clientqc',   eyebrow:'Reports',    label:'Client QC',        icon:'\uD83D\uDCCB', hint:'Reports & matching', glow:'#8079d4', eyebrowColor:'#b7b0f0'});
-  if(perms.viewShipments) tiles.push({key:'shipments',view:'shipments',  eyebrow:'Logistics',  label:'Shipments',        icon:'\uD83D\uDEA2', hint:'Records & claims', glow:'#d98a1f', eyebrowColor:'#e8c489'});
+  if(perms.viewShipments) tiles.push({key:'shipments',view:'shipments',  eyebrow:'Logistics',  label:'Shipments',        icon:'\uD83D\uDEA2', hint:'Records & tracking', glow:'#d98a1f', eyebrowColor:'#e8c489'});
   if(perms.viewAnalytics) tiles.push({key:'analytics',view:'analytics',  eyebrow:'Insights',   label:'Inspections Analytics',     icon:'\uD83D\uDCCA', hint:'Season trends', glow:'#3d9e6b', eyebrowColor:'#8fe0ad'});
   if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Board Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
   if(perms.viewCRM)       tiles.push({key:'crm',       view:'crm',        eyebrow:'Commercial', label:'CRM', glow:'#c07ce8', eyebrowColor:'#d7b6f0',
@@ -14463,23 +14463,33 @@ function ShipmentsMgmt(props){
         ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18},onClick:function(){setSelContainer(null);setSelShip(null);}},'\u00d7')
       ),
       ce('div',{style:{padding:'14px 16px'}},
-        /* Grade + claim are read-only here: the CRM is the system of record.
-           This page kept a separate store which drifted against crm_gradings /
-           crm_claims -- the same container could read "A, no claim" here and
-           "C, open claim" in the CRM. Reads stay so history still displays. */
-        ce('div',{style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'12px 14px',marginBottom:12}},
-          ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Grade & claim'),
-          (g&&(g.grade||g.has_claim))
-            ? ce('div',null,
-                g.grade&&ce('div',{style:{display:'inline-block',padding:'4px 10px',borderRadius:6,marginBottom:6,fontWeight:700,fontSize:13,
-                    background:gradeBg(g.grade),color:gradeColor(g.grade),border:'1px solid var(--border2)'}},'Grade '+g.grade),
-                g.grade_notes&&ce('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:6}},g.grade_notes),
-                g.has_claim&&ce('div',{style:{fontSize:12,color:'var(--red)',fontWeight:600}},
-                  '\uD83D\uDEA9 Claim flagged'+(g.claim_value?' \u00b7 '+(g.claim_currency||'USD')+' '+Number(g.claim_value).toLocaleString():'')),
-                g.claim_notes&&ce('div',{style:{fontSize:12,color:'var(--text2)',marginTop:4}},g.claim_notes),
-                ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:8}},'Historic record \u2014 grade and claim in the CRM.')
-              )
-            : ce('div',{style:{fontSize:12,color:'var(--text3)'}},'No grade or claim recorded here. Grading and claims now live in the CRM.')
+        /* Grade + claim moved to the CRM, which is the system of record. This page
+           kept a separate store that drifted against crm_gradings / crm_claims --
+           the same container could read "A, no claim" here and "C, open claim" in
+           the CRM. Reads stay so any historic record still displays. */
+        ce('div',{style:{background:'var(--amber-bg)',border:'1px solid var(--amber-border)',borderRadius:8,padding:'12px 14px',marginBottom:12}},
+          ce('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:6}},
+            ce('span',{style:{fontSize:13,lineHeight:1}},'\u2192'),
+            ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--amber)',textTransform:'uppercase',letterSpacing:'.06em'}},'Moved to the CRM')
+          ),
+          ce('div',{style:{fontSize:12,color:'var(--text2)',lineHeight:1.55}},
+            'Grading and claims are now recorded in the ',
+            ce('b',null,'CRM'),
+            ' section. Open ',
+            ce('b',null,'CRM \u2192 Shipments'),
+            ', find this container and use ',
+            ce('b',null,'Grade'),' or ',ce('b',null,'Raise claim'),'.'
+          ),
+          (g&&(g.grade||g.has_claim))&&ce('div',{style:{marginTop:11,paddingTop:10,borderTop:'1px solid var(--amber-border)'}},
+            ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:7}},'Previously recorded here'),
+            g.grade&&ce('div',{style:{display:'inline-block',padding:'3px 9px',borderRadius:6,marginBottom:6,fontWeight:700,fontSize:12,
+                background:gradeBg(g.grade),color:gradeColor(g.grade),border:'1px solid var(--border2)'}},'Grade '+g.grade),
+            g.grade_notes&&ce('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:5}},g.grade_notes),
+            g.has_claim&&ce('div',{style:{fontSize:12,color:'var(--red)',fontWeight:600}},
+              '\uD83D\uDEA9 Claim flagged'+(g.claim_value?' \u00b7 '+(g.claim_currency||'USD')+' '+Number(g.claim_value).toLocaleString():'')),
+            g.claim_notes&&ce('div',{style:{fontSize:12,color:'var(--text2)',marginTop:4}},g.claim_notes),
+            ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:8,fontStyle:'italic'}},'Read-only \u2014 not kept in step with the CRM.')
+          )
         ),
         /* \u2500\u2500 Matched CQC reports \u2014 expandable summaries \u2500\u2500 */
         cqcCount>0&&ce('div',{style:{marginBottom:16}},
@@ -18717,7 +18727,7 @@ function App(){
   availViews.push({id:'home', label:'Vision Home', sub:'Overview'});
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
-  if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & claims'});
+  if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & tracking'});
   if(perms.viewCRM)          availViews.push({id:'crm',        label:'CRM',               sub:'Claims & regions'});
   if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'Inspections Analytics',      sub:'Dashboard'});
   if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Board Review',      sub:'Escalation queue'});
