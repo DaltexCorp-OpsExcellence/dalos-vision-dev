@@ -15527,7 +15527,7 @@ window.CRM = (function(){
   /* ── derived / classification ── */
   function shipProduct(s){ return s.product||'—'; }
   function shipCountry(s){ return s.country||'—'; }
-  function shipInvoice(s){ return s.invoice||('DX-INV-'+String(s.cn).replace(/[^0-9]/g,'')); }
+  function shipInvoice(s){ return s.invoice||'—'; }
   function noCqc(s){ return s.coverage!=='cqc'; }
   function needsGrading(s){ return s.coverage==='none'; }
   function hasClaim(s){ return !!s.claim; }
@@ -15584,7 +15584,9 @@ window.CRM = (function(){
     }).join('')+'</select>';
   }
 
-  function kpi(label,val,sub,cls,onclick){ return '<div class="kpi"'+(onclick?' data-go="1" role="button" tabindex="0" onclick="'+onclick+'"':'')+'><div class="kpi-label">'+label+'</div><div class="kpi-value">'+val+'</div><div class="kpi-sub '+(cls||'')+'">'+sub+'</div></div>'; }
+  function kpi(label,val,sub,cls,onclick){
+    if(typeof val==='number') val=val.toLocaleString();
+    return '<div class="kpi"'+(onclick?' data-go="1" role="button" tabindex="0" onclick="'+onclick+'"':'')+'><div class="kpi-label">'+label+'</div><div class="kpi-value">'+val+'</div><div class="kpi-sub '+(cls||'')+'">'+sub+'</div></div>'; }
   function renderKpis(){
     var g=$('kpiGrid'); if(!g) return;
     if(currentTab==='dashboard'){ g.innerHTML=''; return; }
@@ -15609,8 +15611,10 @@ window.CRM = (function(){
     var unassigned=list.filter(function(s){return s.region==='unassigned';}).length;
     var tabs=[{id:'dashboard',label:'Dashboard',dot:attCount},{id:'shipments',label:'Shipments'},{id:'grading',label:'Grading'},{id:'claims',label:'Claims',dot:openClaims},{id:'clean',label:'Clean'}];
     if(IS_ADMIN && currentRegion==='all') tabs.push({id:'regions',label:'Region mapping',dot:unassigned});
-    var html='<div class="tabs2">'+tabs.map(function(t){
-      return '<span class="tab2'+(t.id===currentTab?' on':'')+'" role="button" tabindex="0" onclick="CRM.setTab(\''+t.id+'\')">'+t.label+(t.dot?'<span class="ndot">'+(t.dot>99?'99+':t.dot)+'</span>':'')+'</span>';
+    var stg=/-dev|localhost|127\.0\.0\.1/.test(location.host+location.pathname)
+      ? '<span class="staging-badge">staging</span>' : '';
+    var html=stg+'<div class="tabs2">'+tabs.map(function(t){
+      return '<span class="tab2'+(t.id===currentTab?' on':'')+'" role="button" tabindex="0" onclick="CRM.setTab(\''+t.id+'\')">'+t.label+(t.dot?'<span class="ndot'+(t.id==='claims'?'':' ndot-mute')+'">'+t.dot.toLocaleString()+'</span>':'')+'</span>';
     }).join('')+'</div>';
     var el=$('viewTabs'); if(el) el.innerHTML=html;          /* in-island fallback if no host header slot */
     if(ON_HEADER) ON_HEADER(html);                            /* lift the tab bar into the shell topbar (same row as the "CRM" title) */
@@ -15703,7 +15707,7 @@ window.CRM = (function(){
         '<td>'+qualityCellLinked(s)+'</td>'+
         '<td class="lot" style="color:'+(gapNum(s)>2?'var(--red)':'var(--text2)')+'">'+(s.cqc?s.cqc.gap:'—')+'</td>'+
         '<td>'+(s.claim?claimBadge(s.claim):'<span class="cell-sub">—</span>')+'</td>'+
-        '<td class="right"><button class="btn '+(s.claim?'btn-secondary':'btn-primary')+' btn-sm" data-crm-act="openClaim" data-crm-key="'+esc(s.key)+'">'+(s.claim?'View claim':'Raise claim')+'</button></td></tr>';
+        '<td class="right"><button class="btn btn-secondary btn-sm" data-crm-act="openClaim" data-crm-key="'+esc(s.key)+'">'+(s.claim?'View claim':'Raise claim')+'</button></td></tr>';
     }).join('');
     var head='<div class="section-title"><span class="section-title-bar"></span>Shipments <span class="section-count">'+list.length.toLocaleString()+' in view · click a row for the full record</span></div>';
     vc.innerHTML=head+filters+(list.length?'<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Client</th><th>Product</th><th>Variety</th><th>ETA</th><th>Status</th><th>Quality</th><th>Gap</th><th>Claim</th><th class="right">Action</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,page,'shipments'):'<div class="table-wrap"><div class="empty-state">No shipments match these filters.</div></div>');
@@ -15733,7 +15737,7 @@ window.CRM = (function(){
     var vc=$('viewContent'); if(!vc) return;
     var list=visibleShipments().filter(hasClaim);
     var head='<div class="section-title"><span class="section-title-bar"></span>Claims <span class="section-count">'+list.length+' containers with a claim</span></div>';
-    if(!list.length){ vc.innerHTML=head+'<div class="table-wrap"><div class="empty-state">No claims raised in this scope.</div></div>'; return; }
+    if(!list.length){ vc.innerHTML=head+'<div class="table-wrap"><div class="empty-state">No claims raised in this scope.<div class="cell-sub" style="margin-top:6px">Open a container from <b>Shipments</b> and choose <b>Raise claim</b>.</div></div></div>'; return; }
     var lc={open:['b-fail','Open'],closed:['b-neutral','Closed']}, lcOrder={open:0,closed:1};
     list.sort(function(a,b){ return lcOrder[a.claim.status]-lcOrder[b.claim.status] || b.sortKey-a.sortKey; });
     var cPage=pageState.claims;
@@ -15753,7 +15757,9 @@ window.CRM = (function(){
   function renderClean(){
     var vc=$('viewContent'); if(!vc) return;
     var list=visibleShipments().filter(isClean);
-    var head='<div class="section-title"><span class="section-title-bar"></span>Clean <span class="section-count">'+list.length+' containers · no claims, no flags, not returned</span></div>';
+    var verified=list.filter(function(s){ return s.coverage!=='none'; });
+    var nodata=list.filter(function(s){ return s.coverage==='none'; });
+    var head='<div class="section-title"><span class="section-title-bar"></span>Clean <span class="section-count">'+verified.length+' verified · '+nodata.length+' with no quality data</span></div>';
     if(!list.length){ vc.innerHTML=head+'<div class="table-wrap"><div class="empty-state">No clean containers — every shipment here has a claim, a flag, or was returned.</div></div>'; return; }
     list.sort(function(a,b){ return b.sortKey-a.sortKey; });
     var clPage=pageState.clean;
@@ -15761,9 +15767,12 @@ window.CRM = (function(){
       var qc=s.cqc?bandBadge(s.cqc.score):(s.coverage==='graded'?'<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">CRM-graded '+esc(s.graded.grade)+'</span>':'<span class="cell-sub">no quality data</span>');
       return '<tr class="click" data-crm-act="openShipDetail" data-crm-key="'+esc(s.key)+'"><td><span class="lot">'+esc(s.cn)+'</span></td>'+
         '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
-        '<td>'+esc(s.eta)+'</td><td>'+esc(s.statusLabel)+'</td><td>'+qc+'</td><td class="right"><span class="badge b-pass">Clean</span></td></tr>';
+        '<td>'+esc(s.eta)+'</td><td>'+esc(s.statusLabel)+'</td><td>'+qc+'</td><td class="right">'
+        +(s.coverage==='none'
+            ?'<span class="badge b-neutral">No quality data</span>'
+            :'<span class="badge b-pass">Clean (verified)</span>')+'</td></tr>';
     }).join('');
-    vc.innerHTML=head+'<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Client</th><th>ETA</th><th>Status</th><th>Quality</th><th class="right">Bill</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,clPage,'clean');
+    vc.innerHTML=head+'<div class="table-wrap"><table class="wl"><thead><tr><th>Container</th><th>Client</th><th>ETA</th><th>Status</th><th>Quality</th><th class="right">Assessment</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+pagerHtml(list.length,clPage,'clean');
   }
 
   /* ── Dashboard: region pulse + scorecards + attention cards ── */
@@ -16054,8 +16063,8 @@ window.CRM = (function(){
     var el=$('claimPct'); if(!el) return;
     if(claimPctManual) return;                         /* member overrode it — leave alone */
     var basis=$('claimPctBasis');
-    var price=parseFloat(($('salePrice')?$('salePrice').value:'').replace(/,/g,''));
-    var val=parseFloat(($('claimValue')?$('claimValue').value:'').replace(/,/g,''));
+    var price=parseNum($('salePrice')?$('salePrice').value:'');
+    var val=parseNum($('claimValue')?$('claimValue').value:'');
     var tons=claimShipNetTons||0;
     if(!price||!val||!tons){ el.value=''; if(basis) basis.textContent='auto from sale price × net tons'; return; }
     var cargo=price*tons;
@@ -16082,8 +16091,8 @@ window.CRM = (function(){
     var wrap=$('netWrap'); if(!wrap) return;
     var total=parseFloat(wrap.getAttribute('data-total'))||0; if(!total) return;
     var kg=$('partNetTons'), pctEl=$('partNetPct');
-    if(from==='kg'){ var v=parseFloat(kg.value); pctEl.value=(kg.value===''||isNaN(v))?'':(Math.round(v/total*1000)/10); }
-    else { var p=parseFloat(pctEl.value); kg.value=(pctEl.value===''||isNaN(p))?'':Math.round(total*p*10)/1000; }
+    if(from==='kg'){ var v=parseNum(kg.value); pctEl.value=(v===null)?'':(Math.round(v/total*1000)/10); }
+    else { var p=parseNum(pctEl.value); kg.value=(p===null)?'':Math.round(total*p*10)/1000; }
   }
   var claimLoaded=null;        /* full crm_claims row for the open claim */
   var claimFiles=[];           /* crm_claim_files rows */
@@ -16359,7 +16368,7 @@ window.CRM = (function(){
   function openGrade(k){
     var s=shipByKey(k); gradeCtx=s; if(!s) return;
     $('gradeSub').textContent=(s.gradingId?'Edit grade':'New grade')+' · '+s.cn+' · '+s.client;
-    $('gradeCtx').innerHTML='<span class="mono">'+esc(s.cn)+'</span> · '+esc(s.varieties?s.varieties.join(' / '):s.variety)+' · '+esc(shipCountry(s))+' · '+esc(regionLabel[s.region]||s.region)+' · '+s.cartons.toLocaleString()+' ctn';
+    $('gradeCtx').innerHTML='<span class="mono">'+esc(s.cn)+'</span> · '+esc(s.varieties?s.varieties.join(' / '):s.variety)+' · '+esc(shipCountry(s))+((regionLabel[s.region]||s.region)===shipCountry(s)?'':' · '+esc(regionLabel[s.region]||s.region))+' · '+s.cartons.toLocaleString()+' ctn';
     var g=s.graded && s.graded.grade!=='—'?s.graded:null;
     $('gradeAudit').innerHTML=g?'<div class="audit-item"><span class="audit-dot"></span><span class="audit-main"><b>Graded '+esc(g.grade)+'</b> · '+esc(g.cause)+'</span><span class="audit-when"></span></div>':'<div class="audit-item"><span class="audit-dot" style="background:var(--border2)"></span><span class="audit-main cell-sub">Not graded yet — this will be the first entry.</span></div>';
     /* no default verdict -- two clicks must not manufacture a mid-grade (see saveGrade) */
@@ -16428,7 +16437,12 @@ window.CRM = (function(){
   function addClientOverrideFromForm(){ var c=$('ovClient').value; if(c) setClientOverride(c,$('ovClientRegion').value); }
 
   /* ── setters ── */
-  function setTab(id){ currentTab=id; resetPages(); render(); }
+  function setTab(id){
+    currentTab=id; resetPages(); render();
+    var vc=$('viewContent'); if(vc&&vc.scrollTo) vc.scrollTo(0,0);
+    if(ROOT&&ROOT.scrollIntoView) ROOT.scrollIntoView({block:'start'});
+    if(window.scrollTo) window.scrollTo(0,0);
+  }
   function setRegion(id){ currentRegion=id; resetPages(); showAllSubs=false; render(); }
   function setProduct(p){ currentProduct=p; resetPages(); showAllSubs=false; render(); }
   function onSearch(v){ currentQuery=(v||'').trim(); var w=$('crmSearchWrap'); if(w) w.classList.toggle('has-q',!!currentQuery); resetPages(); clearTimeout(onSearch._t); onSearch._t=setTimeout(function(){ render(); },150); }
@@ -16654,6 +16668,7 @@ function injectCrmCss(){
 .crmv .topbar{height:50px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;gap:12px}
 .crmv .topbar-title{font-family:var(--font-display);font-size:17px}
 .crmv .topbar-right{display:flex;align-items:center;gap:12px}
+.crmv .ndot-mute{background:var(--bg2)!important;color:var(--text2)!important;border:1px solid var(--border)!important}
 .crmv .staging-badge{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#ff6b35 0%,#f7c948 100%);color:#fff;padding:5px 14px 5px 10px;border-radius:20px;box-shadow:0 3px 14px rgba(255,107,53,.45);font-size:10px;font-family:'Courier New',monospace;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
 .crmv .staging-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.9);display:inline-block;flex-shrink:0;animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
@@ -16682,7 +16697,7 @@ function injectCrmCss(){
 .crmv .crm-search-clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text3);font-size:17px;line-height:1;display:none}
 .crmv .crm-search.has-q .crm-search-clear{display:block}
 .crmv .crm-search.has-q .crm-search-clear:hover{color:var(--text)}
-.crmv .scope-dd{padding:8px 10px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:12px;font-weight:500;color:var(--text2);font-family:var(--font-body);outline:none;cursor:pointer;max-width:240px}
+.crmv .scope-dd{padding:8px 10px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:12px;font-weight:500;color:var(--text2);font-family:var(--font-body);outline:none;cursor:pointer;max-width:340px}
 .crmv .scope-dd:focus{border-color:var(--accent)}
 
 /* ── KPIs ── */
@@ -18799,7 +18814,7 @@ function App(){
                 v.label,
                 v.comingSoon?ce('span',{style:{
                   fontSize:8,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',
-                  background:'linear-gradient(135deg,#f59e0b,#ef4444)',
+                  background:'linear-gradient(135deg,var(--amber),var(--red))',
                   color:'#fff',padding:'1px 5px',borderRadius:10,
                   lineHeight:1.6,flexShrink:0
                 }},'Soon'):v.inProgress?ce('span',{style:{
