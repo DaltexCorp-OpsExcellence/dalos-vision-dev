@@ -15493,7 +15493,16 @@ window.CRM = (function(){
   function isFlagged(s){ return !!(s.cqc && s.cqc.flag); }
   /* a returned container is never billable-clean, whatever its claim/flag state */
   function isClean(s){ return !s.claim && !isFlagged(s) && s.status!=='returned'; }
-  function scoreNum(s){ if(s.cqc) return s.cqc.score; if(s.coverage==='graded') return ({A:2,B:3,C:4})[s.graded.grade]||3; return 0; }
+  /* Severity used for "worst score first". A CQC score is a measurement; a CRM
+     grade is a judgement made because no CQC arrived. They share a scale, so at
+     equal severity the measured container is nudged ahead (+0.5) — confirmed
+     problems surface before opinions, without reordering across severities. */
+  function scoreNum(s){
+    if(s.cqc) return (s.cqc.score||0)+0.5;
+    if(s.coverage==='graded') return ({A:2,B:3,C:4})[s.graded.grade]||3;
+    return 0;
+  }
+  function provenance(s){ return s.coverage==='cqc'?'measured':(s.coverage==='graded'?'graded':'none'); }
   function gapNum(s){ return s.cqc?s.cqc.gapNum:0; }
   function attentionInfo(s){
     if(s.claim && s.claim.status==='open') return {p:3,label:'claim open'};
@@ -15591,7 +15600,7 @@ window.CRM = (function(){
   /* ── quality cells ── */
   function qualityCell(s){
     if(s.cqc){ var _b=BANDS[s.cqc.score]||{n:'Unclassified',cls:'b-neutral'}; var _raw=s.cqc.scoreRaw||s.cqc.scoreLabel||_b.n; return '<span class="badge '+_b.cls+'" title="'+esc('Client score as entered'+(s.cqc.score?' · defined band: '+_b.n+' ('+s.cqc.score+')':''))+'">'+esc(_raw)+'</span>'; } /* listing shows the raw client score as-is; the defined band is kept for the Quality-mix chart */
-    if(s.coverage==='graded') return '<span class="badge b-neutral" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+esc(s.graded.grade)+'</span>';
+    if(s.coverage==='graded') return '<span class="badge b-neutral" title="CRM grade — a commercial judgement, not a measured CQC result'+(s.graded.cause&&s.graded.cause!=='—'?' · cause: '+s.graded.cause:'')+'" style="border-color:#c090e0;color:#6a10b0;background:#f0e8ff">Graded '+esc(s.graded.grade)+'</span>';
     return '<span class="cell-sub">no data</span>';
   }
   function qualityCellLinked(s){
@@ -15789,7 +15798,7 @@ window.CRM = (function(){
       kpi('In transit',transit.length,arriving?arriving+' arriving ≤ 7 days':'none arriving this week',arriving?'up':'')+
       kpi('Delivered',delivered,(list.length?Math.round(delivered/list.length*100):0)+'% of shipments')+
       kpi('Claims',claims.length,openC.length+' open · '+potC+' potential',openC.length?'down':'',"CRM.setTab('claims')")+
-      kpi('Graded',cqcN+grN,cqcN+' CQC · '+grN+' CRM-graded')+
+      kpi('Measured',cqcN,'CQC on file'+(grN?' · +'+grN.toLocaleString()+' CRM-graded':''))+
       kpi('Ungraded',noneList.length,noneDelivered?noneDelivered+' already delivered — chase CQC / grade':'all still in transit',noneDelivered?'down':'up',"CRM.pulseGo('score','none')")+'</div>';
     var sc=[0,0,0,0,0,0],grades={A:0,B:0,C:0},gaps=[],scores=[],flags=0;
     list.forEach(function(s){ if(s.cqc){ if(s.cqc.score) sc[s.cqc.score]++; scores.push(s.cqc.score); gaps.push(gapNum(s)); if(s.cqc.flag&&!s.claim) flags++; } else if(s.coverage==='graded' && grades[s.graded.grade]!=null) grades[s.graded.grade]++; });
