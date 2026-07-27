@@ -15445,6 +15445,20 @@ window.CRM = (function(){
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   /* tonnes cell — shipments.net_weight is tonnes; credit/return rows are negative by design */
   function tonCell(v){ var n=Number(v)||0; return n.toLocaleString()+' t'; }
+  /* Accepts 1,850.00 / 1.850,00 / 1 850 / 1850. Returns null when not a number,
+     so a bad entry is rejected instead of silently saving 1.85 or NULL. */
+  function parseNum(v){
+    var s=String(v==null?'':v).trim(); if(!s) return null;
+    s=s.replace(/[^0-9.,\-]/g,''); if(!s||s==='-') return null;
+    var lc=s.lastIndexOf(','), ld=s.lastIndexOf('.');
+    if(lc>-1&&ld>-1){ s = lc>ld ? s.replace(/\./g,'').replace(/,/g,'.') : s.replace(/,/g,''); }
+    else if(lc>-1){ s = /^-?\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g,'') : s.replace(/,/g,'.'); }
+    else if(ld>-1){ if(/^-?\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,''); }
+    var n=Number(s); return isFinite(n)?n:null;
+  }
+  function numOrNull(v){ var n=parseNum(v); return n===null?null:n; }
+  /* '—' is a display placeholder, never a value to persist */
+  function txtOrNull(v){ var s=(v==null?'':String(v)).trim(); return (!s||s==='—')?null:s; }
   function $(id){ return ROOT?ROOT.querySelector('#'+id):null; }
   function num(v){ return (v==null||isNaN(v))?0:Number(v); }
   function pct(v){ return (v==null||v==='')?null:(Math.round(Number(v)*10)/10)+'%'; }
@@ -15491,7 +15505,9 @@ window.CRM = (function(){
       status:r.status, statusLabel:r.status==='delivered'?'Delivered':(r.status==='returned'?'Returned':'In transit'),
       sortKey:dayKey(r.eta||r.arrival_date||r.etd),
       coverage:r.coverage, insp:null, cqc:null, graded:null, claim:null, rows:null, packHouses:r.pack_houses||[],
-      cqcId:r.cqc_id||null, inspId:r.insp_id||null, gradingId:r.grading_id||null, claimId:r.claim_id||null,
+      cqcId:r.cqc_id||null, inspId:r.insp_id||null, gradingId:r.grading_id||null,
+      /* a cancelled claim must not be re-opened by "Raise claim" (F4) */
+      claimId:(r.claim_id && r.claim_status!=='cancelled')?r.claim_id:null,
       claimRefRaw:r.claim_ref||null
     };
     if(r.insp_id) s.insp={id:r.insp_id, defect:(pct(r.insp_defect)||'—'), decision:r.insp_decision==='A'?'Approved':(r.insp_decision||'—')};
@@ -16008,21 +16024,9 @@ window.CRM = (function(){
     var pctInput=pctEnabled?'<input class="form-input mono" id="partNetPct" inputmode="decimal" placeholder="optional" oninput="CRM.syncNet(\'pct\')"/>':'<input class="form-input mono" id="partNetPct" placeholder="net weight not on file" disabled/>';
     return '<div style="margin-bottom:10px"><label class="form-label">Sub-client</label><div class="ctx-val">'+esc(s.sub)+'<span class="ctx-tag">from shipment</span></div></div>'+
       '<div style="margin-bottom:10px"><label class="form-label">Affected rows</label><div class="row-sel" id="rowSel">'+rowsHtml+'</div><div class="hint">Tick the composition row(s) the claim is about — pins it to variety'+(citrus?', size':'')+', farm and packhouse. Quantities below prefill from the selection (editable).</div></div>'+
-      '<div class="grid2" style="margin-bottom:10px"><div><label class="form-label">Cartons affected</label><input class="form-input mono" id="partCartons" inputmode="numeric" placeholder="optional"/></div><div><label class="form-label">Pallets affected</label><input class="form-input mono" inputmode="numeric" placeholder="optional"/></div></div>'+
+      '<div class="grid2" style="margin-bottom:10px"><div><label class="form-label">Cartons affected</label><input class="form-input mono" id="partCartons" inputmode="numeric" placeholder="optional"/></div><div><label class="form-label">Pallets affected</label><input class="form-input mono" id="partPallets" inputmode="numeric" placeholder="optional"/></div></div>'+
       '<div class="grid2" id="netWrap" data-total="'+totalNet+'"><div><label class="form-label">Net weight impacted (t)</label><input class="form-input mono" id="partNetTons" inputmode="decimal" placeholder="optional" oninput="CRM.syncNet(\'kg\')"/></div><div><label class="form-label">% of net weight</label>'+pctInput+'</div></div>'+
       '<div class="hint">All part-of-load fields optional.'+(pctEnabled?' Shipment net weight <b>'+totalNet.toLocaleString()+' t</b> — weight and % update each other.':' Net weight not recorded — enter tonnes directly.')+'</div>';
-  }
-  function buildClaimAudit(s){
-    var owner=regionOwner[s.region]||'CRM';
-    var items=[];
-    if(s.claim){
-      items.push({m:'<b>Raised</b> — claim on file',w:s.claimRefRaw?esc(s.claimRefRaw):''});
-      if(s.claim.potential) items.push({m:'Flagged as <b>potential</b> — value to be confirmed',w:''});
-      if(s.claim.status==='closed') items.push({m:'<b>Closed</b> · owner '+esc(owner),w:''});
-    } else {
-      items.push({m:'New claim — this will be the first entry.',w:''});
-    }
-    return items.map(function(it){ return '<div class="audit-item"><span class="audit-dot"></span><span class="audit-main">'+it.m+'</span><span class="audit-when">'+it.w+'</span></div>'; }).join('');
   }
   function setLifecycle(lc){
     claimLifecycle=lc;
@@ -16081,81 +16085,270 @@ window.CRM = (function(){
     if(from==='kg'){ var v=parseFloat(kg.value); pctEl.value=(kg.value===''||isNaN(v))?'':(Math.round(v/total*1000)/10); }
     else { var p=parseFloat(pctEl.value); kg.value=(pctEl.value===''||isNaN(p))?'':Math.round(total*p*10)/1000; }
   }
+  var claimLoaded=null;        /* full crm_claims row for the open claim */
+  var claimFiles=[];           /* crm_claim_files rows */
+  var claimBusy=false;         /* in-flight guard for save + cancel */
+
+  function loadClaimDetail(id){
+    return Promise.all([
+      SB.from('crm_claims').select('*').eq('id',id).limit(1),
+      SB.from('crm_claim_rows').select('*').eq('claim_id',id),
+      SB.from('crm_claim_events').select('*').eq('claim_id',id).order('at',{ascending:false}),
+      SB.from('crm_claim_files').select('*').eq('claim_id',id).order('at',{ascending:false})
+    ]).then(function(r){
+      for(var x=0;x<r.length;x++){ if(r[x]&&r[x].error) throw r[x].error; }
+      return { claim:((r[0]&&r[0].data)||[])[0]||null, rows:(r[1]&&r[1].data)||[],
+               events:(r[2]&&r[2].data)||[], files:(r[3]&&r[3].data)||[] };
+    });
+  }
+
+  function setVal(id,v){ var el=$(id); if(el) el.value=(v==null?'':String(v)); }
+
+  /* History is read from crm_claim_events, not synthesised from current state (F10) */
+  function renderClaimHistory(events){
+    var el=$('claimAudit'); if(!el) return;
+    if(!events||!events.length){
+      el.innerHTML='<div class="audit-item"><span class="audit-dot" style="background:var(--border2)"></span><span class="audit-main cell-sub">New claim — this will be the first entry.</span></div>';
+      return;
+    }
+    el.innerHTML=events.map(function(e){
+      var who=(USER&&USER.id===e.actor)?'you':'';
+      return '<div class="audit-item"><span class="audit-dot"></span><span class="audit-main"><b>'+esc(e.event||'updated')+'</b>'
+        +(e.detail?' · '+esc(e.detail):'')+(who?' · '+who:'')+'</span><span class="audit-when">'+esc(fmtDate(e.at)||'')+'</span></div>';
+    }).join('');
+  }
+
+  function renderClaimFiles(){
+    var el=$('evFiles'); if(!el) return;
+    if(!claimFiles.length){ el.innerHTML=''; return; }
+    el.innerHTML=claimFiles.map(function(f){
+      return '<div class="ev-file"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name||'file')+'</span>'
+        +'<span class="link-btn" data-crm-act="evOpen" data-crm-key="'+esc(f.id)+'">open</span>'
+        +'<span class="link-btn" style="color:var(--red)" data-crm-act="evDel" data-crm-key="'+esc(f.id)+'">remove</span></div>';
+    }).join('');
+  }
+
+  function evOpen(id){
+    var f=claimFiles.filter(function(x){return x.id===id;})[0]; if(!f) return;
+    SB.storage.from('crm-claim-files').createSignedUrl(f.storage_path,60).then(function(r){
+      if(r&&r.error){ toast('Could not open — '+esc(r.error.message)); return; }
+      var u=r&&r.data&&(r.data.signedUrl||r.data.signedURL); if(u) window.open(u,'_blank','noopener');
+    });
+  }
+  function evDel(id){
+    var f=claimFiles.filter(function(x){return x.id===id;})[0]; if(!f) return;
+    if(!window.confirm('Remove "'+(f.name||'this file')+'" from the claim?')) return;
+    SB.storage.from('crm-claim-files').remove([f.storage_path]).then(function(){
+      return SB.from('crm_claim_files').delete().eq('id',id);
+    }).then(function(res){
+      if(res&&res.error){ toast('Remove failed — '+esc(res.error.message)); return; }
+      claimFiles=claimFiles.filter(function(x){return x.id!==id;});
+      renderClaimFiles(); toast('Attachment removed.');
+    });
+  }
+
+  /* Files can only be attached once the claim row exists, because storage
+     authorisation is derived from {claim_id}/ in the object path. */
+  function uploadEvidence(files){
+    if(!claimCtx||!claimCtx.claimId){ toast('Save the claim first, then attach evidence.'); return; }
+    var cid=claimCtx.claimId, list=[].slice.call(files||[]);
+    if(!list.length) return;
+    var MAXB=26214400, OK=['image/jpeg','image/png','image/webp','image/heic','image/heif','application/pdf'];
+    var bad=list.filter(function(f){ return f.size>MAXB || OK.indexOf(f.type)<0; });
+    if(bad.length){ toast('Rejected — PDF or image, max 25 MB each.'); }
+    var good=list.filter(function(f){ return f.size<=MAXB && OK.indexOf(f.type)>=0; });
+    if(!good.length) return;
+    toast('Uploading '+good.length+' file'+(good.length>1?'s':'')+'…');
+    var chain=Promise.resolve();
+    good.forEach(function(f){
+      chain=chain.then(function(){
+        var safe=String(f.name||'file').replace(/[^A-Za-z0-9._-]/g,'_').slice(-80);
+        var path=cid+'/'+(Math.random().toString(36).slice(2))+'-'+safe;
+        return SB.storage.from('crm-claim-files').upload(path,f,{contentType:f.type,upsert:false})
+          .then(function(up){
+            if(up&&up.error) throw up.error;
+            return SB.from('crm_claim_files').insert({claim_id:cid,name:f.name,storage_path:path,
+              content_type:f.type,uploaded_by:(USER&&USER.id)||null}).select('*');
+          })
+          .then(function(ins){
+            if(ins&&ins.error) throw ins.error;
+            var row=(ins&&ins.data&&ins.data[0]); if(row) claimFiles.unshift(row);
+            renderClaimFiles();
+          });
+      });
+    });
+    chain.then(function(){ toast('Evidence attached.'); })
+         .catch(function(e){ toast('Upload failed — '+esc((e&&e.message)||e)); });
+  }
+
   function openClaim(k){
     var s=shipByKey(k); claimCtx=s; if(!s) return;
-    var existing=s.claim;
+    claimLoaded=null; claimFiles=[]; claimBusy=false;
     $('claimSub').textContent=(s.claimRefRaw||'New claim')+' · '+s.cn+' · '+s.client;
-    $('claimRaised').textContent=existing?'on file':'today';
-    $('claimAudit').innerHTML=buildClaimAudit(s);
+    $('claimRaised').textContent=s.claimId?'on file':'today';
     $('wholeSum').innerHTML=buildWholeSum(s);
-    ensureRows(s).then(function(){ if($('partBody')) $('partBody').innerHTML=buildPartFields(s); });
+    var _hadRows=!!(s.rows&&s.rows.length);
     $('partBody').innerHTML=buildPartFields(s);
+    ensureRows(s).then(function(){
+      if(!_hadRows && s.rows && s.rows.length && $('partBody')) $('partBody').innerHTML=buildPartFields(s);
+    });
     setScope('whole');
-    var pf=$('potFlag'); if(pf){ pf.checked=!!(existing&&existing.potential); togglePotential(); }
-    var cv=$('claimValue'); if(cv&&!(existing&&existing.potential)) cv.value=existing&&existing.rawValue!=null?String(existing.rawValue):'';
-    var cc=$('claimCurrency'); if(cc&&existing&&existing.currency) cc.value=existing.currency;
-    setLifecycle(existing?existing.rawStatus:'open');
-    var bl=$('blNumber'); if(bl){ bl.value=''; bl.style.borderColor=''; $('blHint').style.display='none'; }
-    // CQC evidence line
+
+    /* reset every field, then repopulate from the server record if there is one */
+    ['claimValue','salePrice','claimPct','blNumber','claimClaimant','claimClaimantEmail',
+     'claimClientRef','claimDeadline','claimNotes','partPallets','partCartons','partNetTons',
+     'cliVolume','cliTenure','cliMaturity'].forEach(function(id){ setVal(id,''); });
+    if($('claimReason')) $('claimReason').selectedIndex=0;
+    if($('claimResolution')) $('claimResolution').selectedIndex=0;
+    if($('cliAdherence')) $('cliAdherence').value='good';
+    if($('claimIncoterm')) $('claimIncoterm').selectedIndex=0;
+    var pf=$('potFlag'); if(pf){ pf.checked=false; }
+    var bl=$('blNumber'); if(bl){ bl.style.borderColor=''; if($('blHint')) $('blHint').style.display='none'; }
+    setLifecycle('open');
+    renderClaimHistory(null);
+    renderClaimFiles();
+
+    /* CQC evidence line */
     var evEl=$('claimEvidence');
     if(evEl){
       if(s.cqc) evEl.innerHTML='<div class="ev-cqc"><span class="ev-check">✓</span><span class="ev-main"><span class="ev-code">'+esc(s.cqc.id)+'</span> <span class="ev-desc">— '+esc(s.cqc.scoreLabel)+' · '+esc(s.cqc.defect)+' defect'+(s.cqc.gap!=='—'?' · gap '+esc(s.cqc.gap):'')+'</span></span></div>';
       else evEl.innerHTML='<div class="ev-cqc-empty">No CQC report on file — attach client evidence below or grade the container.</div>';
     }
     var refEl=$('claimRef'); if(refEl) refEl.innerHTML=s.insp?'<span class="ev-ref-label">Reference</span><span class="ev-code">'+esc(s.insp.id)+'</span><span class="ev-desc">Export inspection · '+esc(s.insp.defect)+' · '+esc(s.insp.decision)+'</span>':'';
-    /* commercial + client standing (context; mirrors mockup — not persisted) */
+
     claimShipNetTons=s.netTons||0; claimPctManual=false;
-    if($('salePrice')) $('salePrice').value='';
-    if($('claimPct')) $('claimPct').value='';
-    if($('claimPctBasis')) $('claimPctBasis').textContent='auto from price × tons';
-    syncClaimPct();
-    if($('cliVolume')) $('cliVolume').value='';
-    if($('cliTenure')) $('cliTenure').value='';
-    if($('cliAdherence')) $('cliAdherence').value='good';
-    if($('cliMaturity')) $('cliMaturity').value='';
-    syncDbt();
+    if($('claimPctBasis')) $('claimPctBasis').textContent='auto from sale price × net tons';
+    syncClaimPct(); syncDbt();
     $('claimModal').classList.add('open');
+
+    if(!s.claimId) return;
+    loadClaimDetail(s.claimId).then(function(d){
+      if(!d.claim || !claimCtx || claimCtx.claimId!==s.claimId) return;   /* modal moved on */
+      claimLoaded=d.claim; claimFiles=d.files;
+      var c=d.claim;
+      setVal('blNumber',c.bl_number); setVal('claimValue',c.claimed_value);
+      setVal('claimClaimant',c.claimant_name); setVal('claimClaimantEmail',c.claimant_email);
+      setVal('claimClientRef',c.client_ref); setVal('claimDeadline',c.response_deadline);
+      setVal('claimNotes',c.notes);
+      setVal('partPallets',c.part_pallets); setVal('partCartons',c.part_cartons);
+      setVal('partNetTons',c.part_net_tons);
+      setVal('salePrice',c.sale_price_per_ton); setVal('claimPct',c.claim_pct);
+      setVal('cliVolume',c.client_volume); setVal('cliTenure',c.client_tenure);
+      setVal('cliMaturity',c.client_invoice_maturity);
+      if(c.client_adherence&&$('cliAdherence')) $('cliAdherence').value=c.client_adherence;
+      if(c.claimed_currency&&$('claimCurrency')) $('claimCurrency').value=c.claimed_currency;
+      if(c.incoterm&&$('claimIncoterm')) $('claimIncoterm').value=c.incoterm;
+      if(c.reason&&$('claimReason')) $('claimReason').value=c.reason;
+      if(c.resolution_type&&$('claimResolution')) $('claimResolution').value=c.resolution_type;
+      if(c.settled_value!=null) setVal('settledValue',c.settled_value);
+      var pf2=$('potFlag'); if(pf2){ pf2.checked=!!c.potential; togglePotential(); }
+      setLifecycle(c.status==='closed'?'closed':'open');
+      if(c.claim_pct!=null) claimPctManual=true;
+      $('claimSub').textContent=(c.claim_ref||'Claim')+' · '+s.cn+' · '+s.client;
+      $('claimRaised').textContent=fmtDate(c.raised_at)||'on file';
+      if($('claimClosedOn')) $('claimClosedOn').textContent=c.closed_at?(fmtDate(c.closed_at)||'—'):'—';
+      renderClaimHistory(d.events); renderClaimFiles();
+    }).catch(function(e){ toast('Could not load the full claim — '+esc((e&&e.message)||e)); });
   }
+
   function cancelClaim(){
     if(!claimCtx||!claimCtx.claimId){ closeModal('claimModal'); toast('Nothing to cancel — claim not yet saved.'); return; }
-    SB.from('crm_claims').update({status:'cancelled'}).eq('id',claimCtx.claimId).then(function(res){
+    if(claimBusy) return;
+    if(!window.confirm('Cancel claim '+(claimCtx.claimRefRaw||'')+' on '+claimCtx.cn+'?\n\nIt stays in history as Cancelled and the container can be claimed again.')) return;
+    claimBusy=true;
+    SB.rpc('save_crm_claim_full',{payload:{
+      id:claimCtx.claimId,
+      loaded_version:(claimLoaded&&claimLoaded.updated_at)||null,
+      season_id:SEASON, container_number:claimCtx.cn,
+      client:txtOrNull(claimCtx.client), country:txtOrNull(claimCtx.country),
+      bl_number:(claimLoaded&&claimLoaded.bl_number)||'—',
+      status:'cancelled', event:'cancelled', event_detail:'cancelled by user'
+    }}).then(function(res){
+      claimBusy=false;
+      if(res&&res.error){ toast(claimErr(res.error)); return; }
       closeModal('claimModal');
-      if(res&&res.error){ toast('Cancel failed — '+esc(res.error.message)); return; }
       toast('Claim <b>cancelled</b> — kept in history as Cancelled.');
       reload();
     });
   }
+
+  function claimErr(e){
+    var m=(e&&e.message)||String(e||'');
+    if(/CONFLICT/.test(m)) return 'Someone else changed this claim — reopen it to see their version.';
+    if(/uq_crm_claims_live_container|duplicate key/i.test(m)) return 'This container already has a live claim.';
+    if(/not authorised/i.test(m)) return 'You do not have access to this region.';
+    return 'Save failed — '+esc(m);
+  }
+
   function saveClaim(){
     var s=claimCtx; if(!s){ closeModal('claimModal'); return; }
+    if(claimBusy) return;
     var bl=$('blNumber');
-    if(!bl.value.trim()){ bl.style.borderColor='var(--red)'; $('blHint').style.display='block'; bl.focus(); return; }
+    if(!bl.value.trim()){ bl.style.borderColor='var(--red)'; $('blHint').style.display='block'; bl.scrollIntoView({block:'center'}); bl.focus(); return; }
     var potential=$('potFlag').checked;
-    var valRaw=$('claimValue').value.replace(/[^0-9.]/g,'');
+    var valRaw=$('claimValue')?$('claimValue').value.trim():'';
+    if(!potential && valRaw && parseNum(valRaw)===null){
+      toast('Claimed value isn\'t a number — use 1850 or 1,850.00');
+      $('claimValue').focus(); return;
+    }
+    /* only the ticked composition rows, when scope is part-of-load */
+    var rows=[];
+    if(claimScope==='part'){
+      [].forEach.call(ROOT.querySelectorAll('#rowSel input:checked'),function(b){
+        var lab=b.closest('.row-opt'); var main=lab?lab.querySelector('.row-opt-main'):null;
+        var bits=main?main.textContent.split('·').map(function(x){return x.trim();}):[];
+        rows.push({ ship_container:s.cn, variety:bits[0]||null, farm:bits[2]||null, packhouse:bits[3]||null,
+                    cartons:Number(b.getAttribute('data-ctn'))||null, net_tons:Number(b.getAttribute('data-nt'))||null });
+      });
+    }
     var payload={
-      season_id:SEASON, product_id:(s.product||'').toLowerCase()||null, container_number:s.cn,
-      voyage_key:s.key, client:s.client==='—'?null:s.client, sub_client:s.sub==='—'?null:s.sub,
-      country:s.country||null, bl_number:bl.value.trim(),
+      id:s.claimId||null,
+      loaded_version:(claimLoaded&&claimLoaded.updated_at)||null,
+      season_id:SEASON,
+      product_id:txtOrNull((s.product||'').toLowerCase()),
+      container_number:s.cn, voyage_key:s.key,
+      client:txtOrNull(s.client), sub_client:txtOrNull(s.sub), country:txtOrNull(s.country),
+      bl_number:bl.value.trim(),
       scope:claimScope, status:claimLifecycle, potential:potential,
-      reason:$('claimReason')?$('claimReason').value:null,
-      claimed_value:potential||!valRaw?null:Number(valRaw), claimed_currency:$('claimCurrency').value,
-      claimant_name:$('claimClaimant')?($('claimClaimant').value||null):null,
-      claimant_email:$('claimClaimantEmail')?($('claimClaimantEmail').value||null):null,
-      client_ref:$('claimClientRef')?($('claimClientRef').value||null):null,
-      cqc_report_id:s.cqcId||null, response_deadline:($('claimDeadline')&&$('claimDeadline').value)?$('claimDeadline').value:null, notes:$('claimNotes')?($('claimNotes').value||null):null,
-      created_by:USER&&USER.id||null
+      reason:txtOrNull($('claimReason')&&$('claimReason').value),
+      claimed_value:potential?null:numOrNull(valRaw),
+      claimed_currency:txtOrNull($('claimCurrency')&&$('claimCurrency').value),
+      claimant_name:txtOrNull($('claimClaimant')&&$('claimClaimant').value),
+      claimant_email:txtOrNull($('claimClaimantEmail')&&$('claimClaimantEmail').value),
+      client_ref:txtOrNull($('claimClientRef')&&$('claimClientRef').value),
+      cqc_report_id:s.cqcId||null,
+      response_deadline:txtOrNull($('claimDeadline')&&$('claimDeadline').value),
+      notes:txtOrNull($('claimNotes')&&$('claimNotes').value),
+      part_pallets:numOrNull($('partPallets')&&$('partPallets').value),
+      part_cartons:numOrNull($('partCartons')&&$('partCartons').value),
+      part_net_tons:numOrNull($('partNetTons')&&$('partNetTons').value),
+      sale_price_per_ton:numOrNull($('salePrice')&&$('salePrice').value),
+      claim_pct:numOrNull($('claimPct')&&$('claimPct').value),
+      incoterm:txtOrNull($('claimIncoterm')&&$('claimIncoterm').value),
+      client_volume:txtOrNull($('cliVolume')&&$('cliVolume').value),
+      client_tenure:txtOrNull($('cliTenure')&&$('cliTenure').value),
+      client_adherence:txtOrNull($('cliAdherence')&&$('cliAdherence').value),
+      client_invoice_maturity:txtOrNull($('cliMaturity')&&$('cliMaturity').value),
+      rows:rows,
+      event:s.claimId?'updated':'raised',
+      event_detail:'B/L '+bl.value.trim()+(claimLifecycle==='closed'?' · closed':'')
     };
-    if(claimLifecycle==='closed'){ payload.resolution_type=$('claimResolution')?$('claimResolution').value:null; var sv=$('settledValue')?$('settledValue').value.replace(/[^0-9.]/g,''):''; payload.settled_value=sv?Number(sv):null; payload.settled_currency=$('claimCurrency').value; payload.closed_at=new Date().toISOString(); payload.closed_by=USER&&USER.id||null; }
+    if(claimLifecycle==='closed'){
+      payload.resolution_type=txtOrNull($('claimResolution')&&$('claimResolution').value);
+      payload.settled_value=numOrNull($('settledValue')&&$('settledValue').value);
+      payload.settled_currency=txtOrNull($('claimCurrency')&&$('claimCurrency').value);
+    }
+    claimBusy=true;
     var btn=$('claimSaveBtn'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
-    var pr = s.claimId ? SB.from('crm_claims').update(payload).eq('id',s.claimId).select('id,claim_ref') : SB.from('crm_claims').insert(payload).select('id,claim_ref');
-    pr.then(function(res){
+    SB.rpc('save_crm_claim_full',{payload:payload}).then(function(res){
+      claimBusy=false;
       if(btn){ btn.disabled=false; btn.textContent='Save claim'; }
-      if(res&&res.error){ toast('Save failed — '+esc(res.error.message)); return; }
-      var row=(res&&res.data&&res.data[0])||{};
-      var cid=row.id||s.claimId;
-      // audit event
-      if(cid) SB.from('crm_claim_events').insert({claim_id:cid, event:s.claimId?'updated':'raised', detail:'BL '+payload.bl_number+(claimLifecycle==='closed'?' · closed':''), actor:USER&&USER.id||null}).then(function(){});
+      if(res&&res.error){ toast(claimErr(res.error)); return; }
+      var out=res&&res.data||{};
+      /* keep the modal usable for evidence right after a first save */
+      s.claimId=out.id||s.claimId; s.claimRefRaw=out.claim_ref||s.claimRefRaw;
       closeModal('claimModal');
-      toast('Claim saved · <b>'+esc(row.claim_ref||payload.bl_number)+'</b>');
+      toast('Claim saved · <b>'+esc(out.claim_ref||payload.bl_number)+'</b>');
       reload();
     });
   }
@@ -16169,16 +16362,37 @@ window.CRM = (function(){
     $('gradeCtx').innerHTML='<span class="mono">'+esc(s.cn)+'</span> · '+esc(s.varieties?s.varieties.join(' / '):s.variety)+' · '+esc(shipCountry(s))+' · '+esc(regionLabel[s.region]||s.region)+' · '+s.cartons.toLocaleString()+' ctn';
     var g=s.graded && s.graded.grade!=='—'?s.graded:null;
     $('gradeAudit').innerHTML=g?'<div class="audit-item"><span class="audit-dot"></span><span class="audit-main"><b>Graded '+esc(g.grade)+'</b> · '+esc(g.cause)+'</span><span class="audit-when"></span></div>':'<div class="audit-item"><span class="audit-dot" style="background:var(--border2)"></span><span class="audit-main cell-sub">Not graded yet — this will be the first entry.</span></div>';
-    setGrade(g?g.grade:'B');
-    if($('gradeCause')&&g&&g.cause&&g.cause!=='—') $('gradeCause').value=g.cause;
-    if($('gradeComments')) $('gradeComments').value='';
+    /* no default verdict -- two clicks must not manufacture a mid-grade (see saveGrade) */
+    gradeSel=g?g.grade:null;
+    [].forEach.call(ROOT.querySelectorAll('#gradeModal .grade-pill'),function(el){
+      el.className='grade-pill'+(gradeSel&&el.textContent.trim()===gradeSel?' sel':''); });
+    if($('gradeCause')) $('gradeCause').value=(g&&g.cause&&g.cause!=='—')?g.cause:'';
+    /* editing kept wiping the previous comment; load it instead */
+    if($('gradeComments')) $('gradeComments').value=(g&&g.comments)||'';
+    var nb=$('gradeNoCqc');
+    if(nb) nb.innerHTML = s.coverage==='cqc' ? ''
+      : '<div class="badge b-neutral" style="margin-bottom:12px">No CQC on file — record a CRM grade as the quality read</div>';
     $('gradeModal').classList.add('open');
+    /* crm_voyages carries grade + cause but not comments, so read them directly */
+    if(s.gradingId){
+      SB.from('crm_gradings').select('grade,cause,comments,graded_at').eq('id',s.gradingId).limit(1).then(function(r){
+        if(r&&r.error) return;
+        var row=(r.data||[])[0];
+        if(!row||!gradeCtx||gradeCtx.gradingId!==s.gradingId) return;
+        if($('gradeComments')) $('gradeComments').value=row.comments||'';
+        if(row.cause&&$('gradeCause')) $('gradeCause').value=row.cause;
+        if($('gradeAudit')) $('gradeAudit').innerHTML='<div class="audit-item"><span class="audit-dot"></span><span class="audit-main"><b>Graded '+esc(row.grade||'—')+'</b> · '+esc(row.cause||'—')+'</span><span class="audit-when">'+esc(fmtDate(row.graded_at)||'')+'</span></div>';
+      });
+    }
   }
   function saveGrade(){
     var s=gradeCtx; if(!s){ closeModal('gradeModal'); return; }
-    var payload={ season_id:SEASON, product_id:(s.product||'').toLowerCase()||null, container_number:s.cn, voyage_key:s.key,
-      client:s.client==='—'?null:s.client, country:s.country||null, grade:gradeSel,
-      cause:$('gradeCause')?$('gradeCause').value:null, comments:$('gradeComments')?($('gradeComments').value||null):null,
+    if(!gradeSel){ toast('Pick a grade — A, B or C.'); return; }
+    var causeVal=$('gradeCause')?$('gradeCause').value:'';
+    if(!causeVal){ toast('Pick a cause of grade.'); if($('gradeCause')) $('gradeCause').focus(); return; }
+    var payload={ season_id:SEASON, product_id:txtOrNull((s.product||'').toLowerCase()), container_number:s.cn, voyage_key:s.key,
+      client:txtOrNull(s.client), country:txtOrNull(s.country), grade:gradeSel,
+      cause:causeVal, comments:txtOrNull($('gradeComments')&&$('gradeComments').value),
       graded_by:USER&&USER.id||null };
     var btn=$('gradeSaveBtn'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
     var pr = s.gradingId ? SB.from('crm_gradings').update(payload).eq('id',s.gradingId).select('id,grade_ref') : SB.from('crm_gradings').insert(payload).select('id,grade_ref');
@@ -16229,7 +16443,7 @@ window.CRM = (function(){
 
   /* ── data loading ── */
   function loadRegions(){
-    return SB.from('regions').select('id,label,owner,is_bucket').then(function(res){
+    return SB.from('regions').select('id,label,owner,is_bucket').then(function(res){ if(res&&res.error){ toast('Could not load regions — '+esc(res.error.message)); throw res.error; }
       var db=(res&&res.data)||[];
       db.sort(function(a,b){ if(a.is_bucket!==b.is_bucket) return a.is_bucket?1:-1; return (a.label||'').localeCompare(b.label||''); });
       REGIONS=[{id:'all',label:'All regions',admin:true}].concat(db.map(function(r){ return {id:r.id,label:r.label,owner:r.owner,admin:!!r.is_bucket}; }));
@@ -16238,18 +16452,18 @@ window.CRM = (function(){
     });
   }
   function loadCountryMap(){
-    return SB.from('region_country_map').select('country_lc,region_id').then(function(res){
+    return SB.from('region_country_map').select('country_lc,region_id').then(function(res){ if(res&&res.error){ toast('Could not load region_country_map — '+esc(res.error.message)); throw res.error; }
       COUNTRY_REGION={}; ((res&&res.data)||[]).forEach(function(r){ COUNTRY_REGION[r.country_lc]=r.region_id; });
     });
   }
   function loadOverrides(){
-    return SB.from('region_overrides').select('scope,key,region_id').then(function(res){
+    return SB.from('region_overrides').select('scope,key,region_id').then(function(res){ if(res&&res.error){ toast('Could not load region_overrides — '+esc(res.error.message)); throw res.error; }
       REGION_OVERRIDES={country:{},client:{},shipment:{}};
       ((res&&res.data)||[]).forEach(function(r){ if(REGION_OVERRIDES[r.scope]) REGION_OVERRIDES[r.scope][r.key]=r.region_id; });
     });
   }
   function loadScoreBands(){
-    return SB.from('crm_score_bands').select('raw_lc,band').then(function(res){
+    return SB.from('crm_score_bands').select('raw_lc,band').then(function(res){ if(res&&res.error){ toast('Could not load crm_score_bands — '+esc(res.error.message)); throw res.error; }
       BAND_MAP={}; ((res&&res.data)||[]).forEach(function(r){ BAND_MAP[r.raw_lc]=r.band; });
     });
   }
@@ -16303,7 +16517,7 @@ window.CRM = (function(){
     +'<div class="grid2" style="margin-bottom:10px"><div><label class="form-label">Reason</label><select class="form-select" id="claimReason"><option>Decay / rot on arrival</option><option>Temperature abuse in transit</option><option>Soft / overripe berries</option><option>Shatter / loose berries</option><option>Short weight</option><option>Wrong variety / spec</option><option>Late arrival / missed market</option><option>Documentation</option><option>Other</option></select></div><div><label class="form-label">Client\'s claim ref <span style="text-transform:none;font-weight:400;color:var(--text3)">(optional)</span></label><input class="form-input mono" id="claimClientRef" placeholder="their reference #"/></div></div>'
     +'<div class="grid2" style="margin-bottom:0"><div><label class="form-label">Claimant</label><input class="form-input" id="claimClaimant" placeholder="contact name"/></div><div><label class="form-label">Claimant email</label><input class="form-input" id="claimClaimantEmail" type="email" placeholder="name@client.com"/></div></div>'
     +'<div class="msec">Value</div><label class="chk" style="margin-bottom:9px"><input type="checkbox" id="potFlag" onchange="CRM.togglePotential()"/><span>Potential claim — flag now, value to be confirmed</span></label><div class="grid3" id="valueRow"><div style="grid-column:span 2"><label class="form-label">Claimed value</label><input class="form-input mono" id="claimValue" inputmode="decimal" placeholder="what the client is claiming" oninput="CRM.syncClaimPct()"/></div><div><label class="form-label">Currency</label><select class="form-select" id="claimCurrency"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option></select></div></div>'
-    +'<div class="msec">Commercial</div><div class="grid3"><div><label class="form-label">Sale price / ton</label><input class="form-input mono" id="salePrice" inputmode="decimal" placeholder="e.g. 1,850" oninput="CRM.syncClaimPct()"/></div><div><label class="form-label">Incoterm</label><select class="form-select"><option>FOB</option><option>CFR</option><option>CIF</option><option>DDP</option><option>DAP</option><option>EXW</option><option>FCA</option><option>CPT</option><option>CIP</option></select></div><div><label class="form-label">Claim % of price</label><input class="form-input mono" id="claimPct" inputmode="decimal" placeholder="auto" oninput="CRM.markClaimPctManual()"/><div class="hint" id="claimPctBasis" style="margin-top:3px">auto from price × tons</div></div></div>'
+    +'<div class="msec">Commercial</div><div class="grid3"><div><label class="form-label">Sale price / ton</label><input class="form-input mono" id="salePrice" inputmode="decimal" placeholder="e.g. 1,850" oninput="CRM.syncClaimPct()"/></div><div><label class="form-label">Incoterm</label><select class="form-select" id="claimIncoterm"><option>FOB</option><option>CFR</option><option>CIF</option><option>DDP</option><option>DAP</option><option>EXW</option><option>FCA</option><option>CPT</option><option>CIP</option></select></div><div><label class="form-label">Claim % of price</label><input class="form-input mono" id="claimPct" inputmode="decimal" placeholder="auto" oninput="CRM.markClaimPctManual()"/><div class="hint" id="claimPctBasis" style="margin-top:3px">auto from price × tons</div></div></div>'
     +'<div class="msec">Client standing <span style="text-transform:none;font-weight:400;color:var(--text3)">· manual entry — no live source yet</span></div><div class="grid3" style="margin-bottom:10px"><div><label class="form-label">Total business volume</label><input class="form-input" id="cliVolume" placeholder="e.g. $2.6M · 74 cntr"/></div><div><label class="form-label">Tenure with Daltex</label><input class="form-input" id="cliTenure" placeholder="e.g. 3 yrs (since 2023)"/></div><div><label class="form-label">Payment adherence</label><select class="form-select" id="cliAdherence"><option value="excellent">Excellent — pays early / on time</option><option value="good">Good — within terms</option><option value="fair">Fair — occasional delays</option><option value="poor">Poor — frequently overdue</option><option value="hold">On hold — blocked / overdue</option></select></div></div><div class="grid2" style="margin-bottom:0"><div><label class="form-label">Current invoice maturity</label><input class="form-input" type="date" id="cliMaturity" oninput="CRM.syncDbt()"/></div><div><label class="form-label">Days beyond terms <span style="text-transform:none;font-weight:400;color:var(--text3)">(auto)</span></label><div class="ctx-val" id="cliDbt">enter maturity</div></div></div>'
     +'<div class="msec">Scope</div><div class="pill-row"><span class="pill sel" id="scopeWhole" role="button" tabindex="0" onclick="CRM.setScope(\'whole\')">Whole container</span><span class="pill" id="scopePart" role="button" tabindex="0" onclick="CRM.setScope(\'part\')">Part of load</span></div><div class="scope-sum show" id="wholeSum"></div><div class="part-fields" id="partFields"><div id="partBody"></div></div>'
     +'<div class="msec">Quality evidence &amp; attachments</div><div id="claimEvidence"></div>'
@@ -16315,9 +16529,9 @@ window.CRM = (function(){
   }
   function gradeModalHtml(){ return ''
     +'<div class="modal-bg" id="gradeModal"><div class="modal"><div class="modal-head"><span class="modal-x" onclick="CRM.closeModal(\'gradeModal\')">&times;</span><div class="modal-title">CRM grading</div><div class="modal-sub" id="gradeSub">—</div></div><div class="modal-body">'
-    +'<div class="badge b-neutral" style="margin-bottom:12px">No CQC on file — record a quick CRM grade as the quality read</div><div class="ctx-val" id="gradeCtx" style="margin-bottom:14px;font-size:12px">—</div>'
-    +'<div class="form-row"><label class="form-label">Grade</label><div class="pill-row" style="margin-bottom:0"><span class="grade-pill" role="button" tabindex="0" onclick="CRM.setGrade(\'A\')">A</span><span class="grade-pill sel" role="button" tabindex="0" onclick="CRM.setGrade(\'B\')">B</span><span class="grade-pill" role="button" tabindex="0" onclick="CRM.setGrade(\'C\')">C</span></div></div>'
-    +'<div class="form-row"><label class="form-label">Cause of grade</label><select class="form-select" id="gradeCause"><option>Field / pre-harvest</option><option selected>Cold chain / transit</option><option>Packing</option><option>Overripe at loading</option><option>Undetermined</option></select></div>'
+    +'<div id="gradeNoCqc"></div><div class="ctx-val" id="gradeCtx" style="margin-bottom:14px;font-size:12px">—</div>'
+    +'<div class="form-row"><label class="form-label">Grade</label><div class="pill-row" style="margin-bottom:0"><span class="grade-pill" role="button" tabindex="0" onclick="CRM.setGrade(\'A\')">A</span><span class="grade-pill" role="button" tabindex="0" onclick="CRM.setGrade(\'B\')">B</span><span class="grade-pill" role="button" tabindex="0" onclick="CRM.setGrade(\'C\')">C</span></div></div>'
+    +'<div class="form-row"><label class="form-label">Cause of grade</label><select class="form-select" id="gradeCause"><option value="">— select a cause —</option><option>Field / pre-harvest</option><option>Cold chain / transit</option><option>Packing</option><option>Overripe at loading</option><option>Undetermined</option></select></div>'
     +'<div class="form-row"><label class="form-label">Comments</label><textarea class="form-ta" id="gradeComments" style="height:72px;resize:vertical" placeholder="Container arrived without a CQC report; graded from photos + client feedback…"></textarea></div>'
     +'<div class="msec">History</div><div class="audit" id="gradeAudit"></div>'
     +'</div><div class="modal-foot"><button class="btn btn-secondary" onclick="CRM.closeModal(\'gradeModal\')">Cancel</button><button class="btn btn-primary" id="gradeSaveBtn" onclick="CRM.saveGrade()">Save grading</button></div></div></div>';
@@ -16348,7 +16562,11 @@ window.CRM = (function(){
       else if(a==='pulseGo') pulseGo(t.getAttribute('data-crm-arg')||'',k);
       else if(a==='dlvClaim'){ closeDlv(); openClaim(k); }
       else if(a==='dlvGrade'){ closeDlv(); openGrade(k); }
+      else if(a==='evOpen') evOpen(k);
+      else if(a==='evDel') evDel(k);
     });
+    var _ev=$('evFile');
+    if(_ev) _ev.addEventListener('change',function(e){ uploadEvidence(e.target.files); e.target.value=''; });
     ROOT.addEventListener('change',function(e){
       var t=e.target&&e.target.closest&&e.target.closest('[data-crm-chg]');
       if(!t||!ROOT.contains(t)) return;
@@ -16382,6 +16600,7 @@ window.CRM = (function(){
     openClaim:openClaim, openGrade:openGrade, closeModal:closeModal, saveClaim:saveClaim, saveGrade:saveGrade, cancelClaim:cancelClaim,
     setLifecycle:setLifecycle, setGrade:setGrade, setScope:setScope, togglePotential:togglePotential, syncNet:syncNet, rowSelChanged:rowSelChanged,
     syncClaimPct:syncClaimPct, syncDbt:syncDbt, markClaimPctManual:markClaimPctManual,
+    uploadEvidence:uploadEvidence, evOpen:evOpen, evDel:evDel,
     setCountryOverride:setCountryOverride, setClientOverride:setClientOverride, addClientOverrideFromForm:addClientOverrideFromForm,
     setScoreBand:setScoreBand, removeScoreBand:removeScoreBand, addScoreBandFromForm:addScoreBandFromForm
   };
