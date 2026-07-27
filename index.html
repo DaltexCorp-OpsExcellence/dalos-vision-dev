@@ -15516,7 +15516,8 @@ window.CRM = (function(){
   function needsGrading(s){ return s.coverage==='none'; }
   function hasClaim(s){ return !!s.claim; }
   function isFlagged(s){ return !!(s.cqc && s.cqc.flag); }
-  function isClean(s){ return !s.claim && !isFlagged(s); }
+  /* a returned container is never billable-clean, whatever its claim/flag state */
+  function isClean(s){ return !s.claim && !isFlagged(s) && s.status!=='returned'; }
   function scoreNum(s){ if(s.cqc) return s.cqc.score; if(s.coverage==='graded') return ({A:2,B:3,C:4})[s.graded.grade]||3; return 0; }
   function gapNum(s){ return s.cqc?s.cqc.gapNum:0; }
   function attentionInfo(s){
@@ -15736,8 +15737,8 @@ window.CRM = (function(){
   function renderClean(){
     var vc=$('viewContent'); if(!vc) return;
     var list=visibleShipments().filter(isClean);
-    var head='<div class="section-title"><span class="section-title-bar"></span>Clean <span class="section-count">'+list.length+' containers · no claims, no flags</span></div>';
-    if(!list.length){ vc.innerHTML=head+'<div class="table-wrap"><div class="empty-state">No clean containers — every shipment here has a claim or a flag.</div></div>'; return; }
+    var head='<div class="section-title"><span class="section-title-bar"></span>Clean <span class="section-count">'+list.length+' containers · no claims, no flags, not returned</span></div>';
+    if(!list.length){ vc.innerHTML=head+'<div class="table-wrap"><div class="empty-state">No clean containers — every shipment here has a claim, a flag, or was returned.</div></div>'; return; }
     list.sort(function(a,b){ return b.sortKey-a.sortKey; });
     var clPage=pageState.clean;
     var rows=list.slice(clPage*PER_PAGE,(clPage+1)*PER_PAGE).map(function(s){
