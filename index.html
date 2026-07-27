@@ -14296,35 +14296,6 @@ function ShipmentsMgmt(props){
     setSelShip(s);
   }
 
-  function saveContainerGrade(){
-    if(!selContainer) return;
-    setSaving(true);
-    /* selContainer may be "CONTAINER||CARTA" key or plain container_number */
-    var realCN=selContainer.indexOf('||')>=0?selContainer.split('||')[0]:selContainer;
-    var payload={
-      container_number:realCN,
-      product_id:selProd,
-      season_id:config.activeSeasonId||null,
-      grade:grade||null,
-      grade_notes:gradeNote||null,
-      has_claim:hasClaim,
-      claim_notes:claimNote||null,
-      claim_value:claimVal?parseFloat(claimVal):null,
-      claim_currency:claimCur||'USD',
-      updated_at:new Date().toISOString(),
-    };
-    supabase.from('shipment_container_grades').upsert(payload,{onConflict:'container_number,product_id,season_id'})
-      .then(function(res){
-        setSaving(false);
-        if(res.error){console.error('[DalOS] Grade save error:',res.error.message);return;}
-        setGrades(function(prev){
-          var existing=prev.find(function(g){return g.container_number===realCN;});
-          if(existing) return prev.map(function(g){return g.container_number===realCN?Object.assign({},g,payload):g;});
-          return prev.concat([Object.assign({},payload,{id:Date.now()})]);
-        });
-      });
-  }
-
   /* ── Hero product selector ── */
   if(!selProd){
     var prodList=(config.products||[]).filter(function(p){return p.active!==false;});
@@ -14492,41 +14463,24 @@ function ShipmentsMgmt(props){
         ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18},onClick:function(){setSelContainer(null);setSelShip(null);}},'\u00d7')
       ),
       ce('div',{style:{padding:'14px 16px'}},
-        /* Grade section */
-        ce('div',{style:{background:grade?gradeBg(grade):'var(--bg2)',border:'1px solid '+(grade?'var(--border2)':'var(--border)'),borderRadius:8,padding:'12px 14px',marginBottom:12}},
-          ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Grade'),
-          ce('div',{style:{display:'flex',gap:8,marginBottom:8}},
-            ['','A','B','C'].map(function(g2){
-              return ce('button',{key:g2||'none',
-                style:{flex:1,padding:'8px 4px',borderRadius:6,border:'2px solid '+(grade===g2?(g2?gradeColor(g2):'var(--border2)'):'var(--border)'),
-                  background:grade===g2?(g2?gradeBg(g2):'var(--bg2)'):'transparent',
-                  color:grade===g2?(g2?gradeColor(g2):'var(--text3)'):'var(--text3)',
-                  fontWeight:700,fontSize:14,cursor:'pointer'},
-                onClick:function(){setGrade(g2);}
-              },g2||'—');
-            })
-          ),
-          ce('input',{className:'form-input',style:{fontSize:13,padding:'6px 10px'},placeholder:'Grade notes (optional)...',value:gradeNote,onChange:function(e){setGradeNote(e.target.value);}})
+        /* Grade + claim are read-only here: the CRM is the system of record.
+           This page kept a separate store which drifted against crm_gradings /
+           crm_claims -- the same container could read "A, no claim" here and
+           "C, open claim" in the CRM. Reads stay so history still displays. */
+        ce('div',{style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'12px 14px',marginBottom:12}},
+          ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'Grade & claim'),
+          (g&&(g.grade||g.has_claim))
+            ? ce('div',null,
+                g.grade&&ce('div',{style:{display:'inline-block',padding:'4px 10px',borderRadius:6,marginBottom:6,fontWeight:700,fontSize:13,
+                    background:gradeBg(g.grade),color:gradeColor(g.grade),border:'1px solid var(--border2)'}},'Grade '+g.grade),
+                g.grade_notes&&ce('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:6}},g.grade_notes),
+                g.has_claim&&ce('div',{style:{fontSize:12,color:'var(--red)',fontWeight:600}},
+                  '\uD83D\uDEA9 Claim flagged'+(g.claim_value?' \u00b7 '+(g.claim_currency||'USD')+' '+Number(g.claim_value).toLocaleString():'')),
+                g.claim_notes&&ce('div',{style:{fontSize:12,color:'var(--text2)',marginTop:4}},g.claim_notes),
+                ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:8}},'Historic record \u2014 grade and claim in the CRM.')
+              )
+            : ce('div',{style:{fontSize:12,color:'var(--text3)'}},'No grade or claim recorded here. Grading and claims now live in the CRM.')
         ),
-        /* Claim section */
-        ce('div',{style:{background:hasClaim?'var(--red-bg)':'var(--bg2)',border:'1px solid '+(hasClaim?'var(--red-border)':'var(--border)'),borderRadius:8,padding:'12px 14px',marginBottom:12}},
-          ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
-            ce('div',{style:{fontWeight:600,fontSize:13,color:hasClaim?'var(--red)':'var(--text2)'}},(hasClaim?'\uD83D\uDEA9 Claim flagged':'Flag as claim')),
-            ce('button',{style:{padding:'4px 12px',borderRadius:6,border:'1.5px solid '+(hasClaim?'var(--red)':'var(--border2)'),background:hasClaim?'var(--red)':'var(--card)',color:hasClaim?'#fff':'var(--text2)',fontSize:12,fontWeight:600,cursor:'pointer'},
-              onClick:function(){setHasClaim(function(p){return !p;});}
-            },hasClaim?'Remove':'+ Flag')
-          ),
-          hasClaim&&ce('div',null,
-            ce('div',{style:{display:'flex',gap:6,marginBottom:8}},
-              ce('select',{style:{width:70,padding:'6px 6px',border:'1px solid var(--border2)',borderRadius:6,fontSize:13,background:'var(--card)',flexShrink:0},value:claimCur,onChange:function(e){setClaimCur(e.target.value);}},
-                ['USD','EUR','GBP','EGP'].map(function(c){return ce('option',{key:c,value:c},c);})
-              ),
-              ce('input',{style:{flex:1,padding:'6px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:13,background:'var(--card)'},type:'number',step:'0.01',min:'0',placeholder:'Claim value (optional)',value:claimVal,onChange:function(e){setClaimVal(e.target.value);}})
-            ),
-            ce('textarea',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:13,background:'var(--card)',resize:'vertical',minHeight:60},placeholder:'Claim notes...',value:claimNote,onChange:function(e){setClaimNote(e.target.value);}})
-          )
-        ),
-        ce('button',{className:'btn btn-primary',style:{width:'100%',marginBottom:16},onClick:saveContainerGrade},saving?'Saving...':'Save grade & claim'),
         /* \u2500\u2500 Matched CQC reports \u2014 expandable summaries \u2500\u2500 */
         cqcCount>0&&ce('div',{style:{marginBottom:16}},
           ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}},'CQC Reports ('+cqcCount+')'),
