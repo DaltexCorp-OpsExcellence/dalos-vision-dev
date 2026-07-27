@@ -449,7 +449,7 @@ input,select,textarea{font-size:16px!important}
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
 
 <script type="text/javascript">
 var useState = React.useState;
@@ -15142,6 +15142,12 @@ var supabase = window.supabase.createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmeWp2Z2p3dnR3a3JucXJ2cXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzIxNjYsImV4cCI6MjA5MDQ0ODE2Nn0.FjA75XZsp0Kx5Xam_rrnYoAHX4JHKey6vEFCH_zlMuQ'
 );
 
+/* Shared across ALL DalOS apps (Vision / Analytics / Workspace) — they sit on one
+   GitHub Pages origin and therefore share localStorage. Any app writing user
+   activity here keeps every other app's idle timer alive. Must stay byte-identical
+   in gate.js and Workspace; scripts/check-auth-invariants.sh enforces that. */
+var DALOS_ACTIVITY_KEY='dalos_last_activity';
+
 var DALOS_VERSION='v9'; /* bump to clear stale localStorage */
 /* User-visible version shown under "Sign out" in the sidebar. Bump on each user-facing release. */
 var DALOS_BUILD='v1.6.0 (2026.06.04)';
@@ -16878,26 +16884,58 @@ function App(){
   var currentViewSeason=viewSeason||(config.activeSeason||'2025/26');
 
   /* ── Inactivity auto sign-out ────────────────────────────────────────────
-     Signs out after INACTIVITY_MINUTES of no mouse/keyboard/scroll/touch.
-     Only active when a user is logged in.                                 */
+     Signs out after INACTIVITY_MINUTES with no activity in ANY DalOS tab.
+
+     This USED to be a per-tab setTimeout: each tab watched only its own window,
+     so an idle background Vision tab would fire after 60 minutes and call
+     signOut() — which deletes the auth token shared by every DalOS app on the
+     daltexcorp-opsexcellence.github.io origin, logging the user out of
+     everything while they were actively working elsewhere. That was the cause
+     of the "random sign-outs".
+
+     Now every app writes DALOS_ACTIVITY_KEY to localStorage (shared across all
+     apps, same origin) and this timer polls it. We only sign out when the user
+     is genuinely idle everywhere. Falls back to per-tab behaviour if
+     localStorage is unavailable.                                            */
   var INACTIVITY_MINUTES=60;
   React.useEffect(function(){
     if(!currentUser) return;
-    var timer=null;
-    function resetTimer(){
-      clearTimeout(timer);
-      timer=setTimeout(function(){
-        supabase.auth.signOut().then(function(){
-          setCurrentUser(null);
-        });
-      }, INACTIVITY_MINUTES*60*1000);
+    var IDLE_MS=INACTIVITY_MINUTES*60*1000;
+    var POLL_MS=60*1000;
+    var localLast=Date.now();          /* fallback when localStorage is unusable */
+    var lastWrite=0;
+    var poll=null;
+
+    function markActive(){
+      localLast=Date.now();
+      /* throttle: one write per 30s is plenty for a 60-minute window */
+      if(localLast-lastWrite<30000) return;
+      lastWrite=localLast;
+      try{ localStorage.setItem(DALOS_ACTIVITY_KEY,String(localLast)); }catch(e){}
     }
+    function lastActivity(){
+      try{
+        var v=parseInt(localStorage.getItem(DALOS_ACTIVITY_KEY),10);
+        /* ignore a missing or nonsensical (future) value and use our own */
+        if(v&&v<=Date.now()+60000) return Math.max(v,localLast);
+      }catch(e){}
+      return localLast;
+    }
+    function tick(){
+      if(Date.now()-lastActivity()>=IDLE_MS){
+        supabase.auth.signOut().then(function(){ setCurrentUser(null); });
+        return; /* stop polling; the effect re-runs when currentUser clears */
+      }
+      poll=setTimeout(tick,POLL_MS);
+    }
+
     var events=['mousemove','mousedown','keydown','scroll','touchstart','click'];
-    events.forEach(function(e){ window.addEventListener(e, resetTimer, {passive:true}); });
-    resetTimer(); /* start the timer immediately on login */
+    events.forEach(function(e){ window.addEventListener(e, markActive, {passive:true}); });
+    markActive();                      /* count login itself as activity */
+    poll=setTimeout(tick,POLL_MS);
     return function(){
-      clearTimeout(timer);
-      events.forEach(function(e){ window.removeEventListener(e, resetTimer); });
+      clearTimeout(poll);
+      events.forEach(function(e){ window.removeEventListener(e, markActive); });
     };
   },[currentUser]);
   var sBatches=useState([]); var batches=sBatches[0]; var setBatchesRaw=sBatches[1];
@@ -18747,17 +18785,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(ce(App,null));
         // hydrate (retry), refresh if expired, and fail closed (leave tile locked)
         // rather than calling the RPC as anon. The RPC result is authoritative, so
         // we never retry it.
+        // getSession() already refreshes an expired token internally, under supabase-js's
+        // cross-tab lock. The explicit refreshSession() that used to sit here fired whenever
+        // the token was within 15s of expiry and added an unserialised refresh that could
+        // race other tabs — a rotation conflict there signs the user out of every DalOS app.
         supabase.auth.getSession().then(function(sr){
           var sess=sr&&sr.data&&sr.data.session;
           if(!sess||!sess.access_token){ if(tries>0) setTimeout(function(){checkAccess(tries-1);},1200); return; }
-          var ok=sess.expires_at && ((sess.expires_at*1000-Date.now())>15000);
-          var step=ok?Promise.resolve({data:{session:sess}}):supabase.auth.refreshSession();
-          return step.then(function(rr){
-            var vs=rr&&rr.data&&rr.data.session;
-            if(!vs||!vs.access_token){ return; }
-            return supabase.rpc('has_analytics_access').then(function(a){
-              if(a && !a.error && a.data===true){ unlockAnalytics(); }
-            });
+          return supabase.rpc('has_analytics_access').then(function(a){
+            if(a && !a.error && a.data===true){ unlockAnalytics(); }
           });
         }).catch(function(){});
       }catch(_e){}
