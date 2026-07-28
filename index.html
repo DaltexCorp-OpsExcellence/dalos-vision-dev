@@ -4840,7 +4840,7 @@ function FGView(props){
           ce('textarea',{className:'form-input',rows:3,value:escNote,onChange:function(e){setEscNote(e.target.value);},placeholder:'e.g. Total defect 16.1% — thrips critical + sunburn above threshold. Requesting board exception review.',style:{resize:'vertical'}})
         ),
         ce('div',{style:{background:'#e8eeff',border:'1px solid #a0b4e8',borderRadius:6,padding:'8px 12px',fontSize:11,color:'#2a50c0',marginBottom:16}},
-          'ℹ After escalation the batch status changes to Escalated and appears in the Board Review queue. The original Reject decision is preserved until the board acts.'
+          'ℹ After escalation the batch status changes to Escalated and appears in the Escalation Review queue. The original Reject decision is preserved until the board acts.'
         ),
         ce('div',{style:{display:'flex',gap:8}},
           ce('button',{className:'btn btn-primary btn-sm',style:{background:'#2a50c0',borderColor:'#2a50c0',opacity:!escNote.trim()?.4:1},onClick:function(){
@@ -7333,7 +7333,7 @@ function HomeView(props){
   if(perms.viewClientQC)  tiles.push({key:'clientqc', view:'clientqc',   eyebrow:'Reports',    label:'Client QC',        icon:'\uD83D\uDCCB', hint:'Reports & matching', glow:'#8079d4', eyebrowColor:'#b7b0f0'});
   if(perms.viewShipments) tiles.push({key:'shipments',view:'shipments',  eyebrow:'Logistics',  label:'Shipments',        icon:'\uD83D\uDEA2', hint:'Records & tracking', glow:'#d98a1f', eyebrowColor:'#e8c489'});
   if(perms.viewAnalytics) tiles.push({key:'analytics',view:'analytics',  eyebrow:'Insights',   label:'Inspections Analytics',     icon:'\uD83D\uDCCA', hint:'Season trends', glow:'#3d9e6b', eyebrowColor:'#8fe0ad'});
-  if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Board Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
+  if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Escalation Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
   if(perms.viewCRM)       tiles.push({key:'crm',       view:'crm',        eyebrow:'Commercial', label:'CRM', glow:'#c07ce8', eyebrowColor:'#d7b6f0',
       icon:ce('span',{dangerouslySetInnerHTML:{__html:'<svg viewBox="0 0 16 16" fill="currentColor" style="width:1em;height:1em;display:block"><path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002a.274.274 0 0 1-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>'}}),
       hint:(crmStats?(crmStats.total.toLocaleString()+' in scope \u00b7 '+crmStats.open+' open claim'+(crmStats.open===1?'':'s')):'Claims & regions'),
@@ -14903,7 +14903,7 @@ function EscalationReview(props){
       ce('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:6}},
         ce('div',{style:{width:40,height:40,borderRadius:10,background:'#e8eeff',border:'1px solid #a0b4e8',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}},'\u2B06'),
         ce('div',null,
-          ce('div',{style:{fontFamily:'var(--font-display)',fontSize:24}},'Board Review'),
+          ce('div',{style:{fontFamily:'var(--font-display)',fontSize:24}},'Escalation Review'),
           ce('div',{style:{fontSize:12,color:'var(--text3)',marginTop:1}},'Escalated inspections awaiting senior board decision')
         )
       )
@@ -18747,7 +18747,7 @@ function App(){
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & tracking'});
   if(perms.viewCRM)          availViews.push({id:'crm',        label:'CRM',               sub:'Claims & regions'});
   if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'Inspections Analytics',      sub:'Dashboard'});
-  if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Board Review',      sub:'Escalation queue'});
+  if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Escalation Review',      sub:'Escalation queue'});
   if(perms.viewAdmin)        availViews.push({id:'admin',      label:'Admin',             sub:'Users & access'});
   var cropInfo=(config.products||CROPS).find(function(c){return c.id===cropId;})||{name:'',color:'#2b5c3f'};
   /* phInfo: only use live config, not INITIAL_CONFIG fallback, to avoid showing stale hardcoded name */
