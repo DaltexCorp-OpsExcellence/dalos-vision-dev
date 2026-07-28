@@ -15689,7 +15689,7 @@ window.CRM = (function(){
         +'<span>'+esc(label)+'</span><span class="sc-n">'+n.toLocaleString()+'</span></label>';
     }
     var scHtml='<div class="sc-pop"'+(scoreOpen?'':' hidden')+'>'
-      +'<label class="sc-opt sc-strong"><input type="checkbox" data-crm-act="scoreAll"'+(scSel?'':' checked')+'/>'
+      +'<label class="sc-opt sc-strong"><input type="checkbox" data-crm-chg="scoreAll"'+(scSel?'':' checked')+'/>'
         +'<span>Select all</span><span class="sc-n">'+scTotal.toLocaleString()+'</span></label>'
       +'<div class="sc-sep"></div>'
       +scRow(NOCQC,'No CQC on file',scNoCqc,false,true)
@@ -16613,7 +16613,7 @@ window.CRM = (function(){
       var t=e.target&&e.target.closest&&e.target.closest('[data-crm-chg]');
       if(!t||!ROOT.contains(t)) return;
       var k=t.getAttribute('data-crm-key')||'', a=t.getAttribute('data-crm-chg');
-      if(a==='scoreAll'){ setScoreAll(t.checked); return; }
+      if(a==='scoreAll'){ setScoreAll(!!t.checked); return; }
       if(a==='setClientOverride') setClientOverride(k,t.value);
       else if(a==='setCountryOverride') setCountryOverride(k,t.value);
       else if(a==='setScoreBand') setScoreBand(k,t.value);
