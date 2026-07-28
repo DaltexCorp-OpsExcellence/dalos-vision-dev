@@ -15611,7 +15611,12 @@ window.CRM = (function(){
 
   /* ── Shipments tab ── */
   var SHIP_FILTER_KEYS=['status','client','sub','variety','country','score','claim','graded'];
+  /* score is 'all', or an array of tokens: a raw client score, or NOCQC */
+  var NOCQC='\u2400NOCQC';   /* U+2400 SYMBOL FOR NULL — attribute-safe and cannot collide with a client score */
   var shipView={status:'all',client:'all',sub:'all',variety:'all',country:'all',score:'all',claim:'all',graded:'all',sort:'eta_desc'};
+  var scoreOpen=false;   /* popover open state, survives the re-render on toggle */
+  function scoreTok(s){ return s.cqc ? (String(s.cqc.scoreRaw||'').trim()||'\u2400BLANK') : NOCQC; }
+  function scoreSel(){ return Array.isArray(shipView.score)?shipView.score:null; }
   function shipActiveFilterCount(){ return SHIP_FILTER_KEYS.filter(function(k){return shipView[k]!=='all';}).length; }
   function shipFilterMatch(s){
     if(shipView.status!=='all'&&s.status!==shipView.status) return false;
@@ -15619,7 +15624,8 @@ window.CRM = (function(){
     if(shipView.sub!=='all'&&s.sub!==shipView.sub) return false;
     if(shipView.variety!=='all'&&(s.varieties||[s.variety]).indexOf(shipView.variety)<0) return false;
     if(shipView.country!=='all'&&shipCountry(s)!==shipView.country) return false;
-    if(shipView.score!=='all'){ if(shipView.score==='none'){ if(s.cqc) return false; } else if(!s.cqc||String(s.cqc.score)!==shipView.score) return false; }
+    var _ss=scoreSel();
+    if(_ss){ if(!_ss.length) return false; if(_ss.indexOf(scoreTok(s))<0) return false; }
     if(shipView.claim==='yes'&&!s.claim) return false;
     if(shipView.claim==='no'&&s.claim) return false;
     if(shipView.graded==='yes'&&s.coverage!=='graded') return false;
@@ -15653,14 +15659,61 @@ window.CRM = (function(){
     var subOpts=subs.map(function(v){return [v,v,cnt(subsBase,function(s){return s.sub===v;})];});
     var varietyOpts=varieties.map(function(v){return [v,v,cnt(base,function(s){return (s.varieties||[s.variety]).indexOf(v)>=0;})];});
     var countryOpts=countries.map(function(v){return [v,v,cnt(base,function(s){return shipCountry(s)===v;})];});
-    var scoreOpts=[['1','1 · Excellent'],['2','2 · Good'],['3','3 · Fair'],['4','4 · Poor'],['5','5 · Reject'],['none','No CQC']].map(function(o){var v=o[0];return [v,o[1],cnt(base,function(s){return v==='none'?!s.cqc:(s.cqc&&String(s.cqc.score)===v);})];});
+    /* Client-score multi-select. Options come from the scoped set, so the list
+       only ever shows values actually present, grouped by their mapped band --
+       RED / NFA / UNACCEPTABLE all mean reject but sort nowhere near each other. */
+    var scTally={}, scNoCqc=0, scTotal=0;
+    base.forEach(function(s){
+      scTotal++;
+      var t=scoreTok(s);
+      if(t===NOCQC){ scNoCqc++; return; }
+      if(!scTally[t]) scTally[t]={n:0,band:(s.cqc&&s.cqc.score)||0};
+      scTally[t].n++;
+    });
+    var scByBand={};
+    Object.keys(scTally).forEach(function(t){
+      var b=scTally[t].band||0; (scByBand[b]=scByBand[b]||[]).push([t,scTally[t].n]);
+    });
+    Object.keys(scByBand).forEach(function(b){ scByBand[b].sort(function(a,c){return c[1]-a[1];}); });
+    var scCqcTotal=scTotal-scNoCqc;
+    var scSel=scoreSel();
+    function scOn(tok){ return !scSel || scSel.indexOf(tok)>=0; }
+    var scChosen = scSel ? scSel.length : null;
+    var scLabel = !scSel ? 'Client score: All'
+      : (scSel.length===0 ? 'Client score: none'
+        : (scSel.length===1 ? 'Client score: '+(scSel[0]===NOCQC?'No CQC':scSel[0])
+          : 'Client score: '+scSel.length+' selected'));
+    function scRow(tok,label,n,pad,bold){
+      return '<label class="sc-opt'+(bold?' sc-strong':'')+'"'+(pad?' style="padding-left:26px"':'')+'>'
+        +'<input type="checkbox" data-crm-score="'+esc(tok)+'"'+(scOn(tok)?' checked':'')+'/>'
+        +'<span>'+esc(label)+'</span><span class="sc-n">'+n.toLocaleString()+'</span></label>';
+    }
+    var scHtml='<div class="sc-pop"'+(scoreOpen?'':' hidden')+'>'
+      +'<label class="sc-opt sc-strong"><input type="checkbox" data-crm-act="scoreAll"'+(scSel?'':' checked')+'/>'
+        +'<span>Select all</span><span class="sc-n">'+scTotal.toLocaleString()+'</span></label>'
+      +'<div class="sc-sep"></div>'
+      +scRow(NOCQC,'No CQC on file',scNoCqc,false,true)
+      +'<div class="sc-sep"></div>'
+      +'<div class="sc-head">Client standard score · '+scCqcTotal.toLocaleString()+'</div>';
+    [1,2,3,4,5,0].forEach(function(b){
+      var list=scByBand[b]; if(!list||!list.length) return;
+      var nm=b?(b+' · '+((BANDS[b]||{}).n||'')):'Unmapped — set a band in Region mapping';
+      scHtml+='<div class="sc-band"><span class="sc-dot b'+b+'"></span>'+esc(nm)+'</div>';
+      list.forEach(function(it){ scHtml+=scRow(it[0],it[0],it[1],true,false); });
+    });
+    if(!Object.keys(scByBand).length) scHtml+='<div class="sc-head" style="font-weight:400;text-transform:none;letter-spacing:0">No client scores in this scope.</div>';
+    scHtml+='</div>';
+    var scoreCtl='<span class="sc-wrap">'
+      +'<button type="button" class="form-select flt-select sc-btn'+(scSel?' on':'')+'" data-crm-act="scoreOpen">'
+        +'<span>'+esc(scLabel)+'</span><span class="sc-caret">\u25be</span></button>'
+      +scHtml+'</span>';
     var claimOpts=[['yes','Claim raised',cnt(base,function(s){return !!s.claim;})],['no','No claim',cnt(base,function(s){return !s.claim;})]];
     var gradedOpts=[['yes','CRM-graded',cnt(base,function(s){return s.coverage==='graded';})],['no','Not graded',cnt(base,function(s){return s.coverage!=='graded';})]];
     var activeCount=shipActiveFilterCount();
     var filters='<div class="filter-row">'+
       '<span class="filter-group">'+fp('status','all','All')+fp('status','delivered','Delivered')+fp('status','in_transit','In transit')+fp('status','returned','Returned')+'</span>'+
       fsel('client','Client',clientOpts)+fsel('sub','Sub-client',subOpts)+fsel('variety','Variety',varietyOpts)+fsel('country','Country',countryOpts)+
-      fsel('score','Score',scoreOpts)+
+      scoreCtl+
       fsel('claim','Claim',claimOpts)+fsel('graded','Graded',gradedOpts)+
       (activeCount?'<span class="link-btn" onclick="CRM.resetShipFilters()">Clear filters ('+activeCount+')</span>':'')+
       '<select class="form-select sort-select" onchange="CRM.setShipSort(this.value)">'+
@@ -16398,12 +16451,33 @@ window.CRM = (function(){
   function onSearch(v){ currentQuery=(v||'').trim(); var w=$('crmSearchWrap'); if(w) w.classList.toggle('has-q',!!currentQuery); resetPages(); clearTimeout(onSearch._t); onSearch._t=setTimeout(function(){ render(); },150); }
   function clearSearch(){ var el=$('crmSearch'); if(el) el.value=''; onSearch(''); }
   function setShipFilter(k,v){ shipView[k]=v; if(k==='client') shipView.sub='all'; pageState.shipments=0; render(); }
-  function resetShipFilters(){ SHIP_FILTER_KEYS.forEach(function(k){ shipView[k]='all'; }); pageState.shipments=0; render(); }
+  /* All tokens currently offered, in the order the popover shows them. */
+  function scoreAllTokens(){
+    var out=[NOCQC], seen={};
+    visibleShipments().forEach(function(s){ var t=scoreTok(s); if(t!==NOCQC&&!seen[t]){ seen[t]=1; out.push(t); } });
+    return out;
+  }
+  function toggleScorePop(){ scoreOpen=!scoreOpen; render(); }
+  function setScoreAll(on){ shipView.score = on ? 'all' : []; pageState.shipments=0; render(); }
+  function toggleScoreTok(tok){
+    var cur=scoreSel();
+    if(!cur) cur=scoreAllTokens().slice();          /* was "all" -> materialise, then remove one */
+    var i=cur.indexOf(tok);
+    if(i>=0) cur.splice(i,1); else cur.push(tok);
+    var all=scoreAllTokens();
+    shipView.score = (cur.length===all.length) ? 'all' : cur;
+    pageState.shipments=0; render();
+  }
+  function resetShipFilters(){ SHIP_FILTER_KEYS.forEach(function(k){ shipView[k]='all'; }); scoreOpen=false; pageState.shipments=0; render(); }
   function setShipSort(v){ shipView.sort=v; pageState.shipments=0; render(); }
   function setPage(k,p){ pageState[k]=p; render(); var t=$('viewTabs'); if(t) t.scrollIntoView({block:'nearest'}); }
   function toggleSubs(){ showAllSubs=!showAllSubs; render(); }
   function togglePulse(){ pulseOpen=!pulseOpen; render(); }
-  function pulseGo(k,v){ currentTab='shipments'; SHIP_FILTER_KEYS.forEach(function(x){ shipView[x]='all'; }); shipView[k]=v; resetPages(); render(); }
+  function pulseGo(k,v){
+    currentTab='shipments'; SHIP_FILTER_KEYS.forEach(function(x){ shipView[x]='all'; });
+    shipView[k] = (k==='score' && v!=='all') ? [v==='none'?NOCQC:v] : v;
+    scoreOpen=false; resetPages(); render();
+  }
 
   /* ── data loading ── */
   function loadRegions(){
@@ -16504,7 +16578,8 @@ window.CRM = (function(){
     var d=$('dlv'); if(d) d.addEventListener('click',function(e){ if(e.target===d) closeDlv(); });
     [].forEach.call(ROOT.querySelectorAll('.modal-bg'),function(m){ m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('open'); }); });
     /* keyboard activation for role=button spans (tabs, filter/claim/grade pills, KPI tiles) — delegated on ROOT so it survives innerHTML re-renders */
-    ROOT.addEventListener('keydown',function(e){ if(e.key!=='Enter'&&e.key!==' '&&e.key!=='Spacebar') return; var b=e.target&&e.target.closest&&e.target.closest('[role="button"]'); if(!b||!ROOT.contains(b)) return; e.preventDefault(); b.click(); });
+    ROOT.addEventListener('keydown',function(e){ if(e.key==='Escape'&&scoreOpen){ scoreOpen=false; render(); return; }
+      if(e.key!=='Enter'&&e.key!==' '&&e.key!=='Spacebar') return; var b=e.target&&e.target.closest&&e.target.closest('[role="button"]'); if(!b||!ROOT.contains(b)) return; e.preventDefault(); b.click(); });
     /* Container numbers and client/country/score keys are attacker-controllable
        (shipments RLS is WITH CHECK true for any authenticated user), so they
        travel as data-* attributes instead of being interpolated into inline
@@ -16512,6 +16587,7 @@ window.CRM = (function(){
        event.stopPropagation() calls were for. Delegated on ROOT so this
        survives innerHTML re-renders. */
     ROOT.addEventListener('click',function(e){
+      if(scoreOpen && !(e.target.closest&&e.target.closest('.sc-wrap'))){ scoreOpen=false; render(); return; }
       var t=e.target&&e.target.closest&&e.target.closest('[data-crm-act]');
       if(!t||!ROOT.contains(t)) return;
       var k=t.getAttribute('data-crm-key')||'', a=t.getAttribute('data-crm-act');
@@ -16525,15 +16601,19 @@ window.CRM = (function(){
       else if(a==='pulseGo') pulseGo(t.getAttribute('data-crm-arg')||'',k);
       else if(a==='dlvClaim'){ closeDlv(); openClaim(k); }
       else if(a==='dlvGrade'){ closeDlv(); openGrade(k); }
+      else if(a==='scoreOpen'){ e.stopPropagation(); toggleScorePop(); }
       else if(a==='evOpen') evOpen(k);
       else if(a==='evDel') evDel(k);
     });
     var _ev=$('evFile');
     if(_ev) _ev.addEventListener('change',function(e){ uploadEvidence(e.target.files); e.target.value=''; });
     ROOT.addEventListener('change',function(e){
+      var sc=e.target&&e.target.getAttribute&&e.target.getAttribute('data-crm-score');
+      if(sc!=null){ toggleScoreTok(sc); return; }
       var t=e.target&&e.target.closest&&e.target.closest('[data-crm-chg]');
       if(!t||!ROOT.contains(t)) return;
       var k=t.getAttribute('data-crm-key')||'', a=t.getAttribute('data-crm-chg');
+      if(a==='scoreAll'){ setScoreAll(t.checked); return; }
       if(a==='setClientOverride') setClientOverride(k,t.value);
       else if(a==='setCountryOverride') setCountryOverride(k,t.value);
       else if(a==='setScoreBand') setScoreBand(k,t.value);
@@ -16617,6 +16697,27 @@ function injectCrmCss(){
 .crmv .topbar{height:50px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;gap:12px}
 .crmv .topbar-title{font-family:var(--font-display);font-size:17px}
 .crmv .topbar-right{display:flex;align-items:center;gap:12px}
+.crmv .sc-wrap{position:relative;display:inline-block}
+.crmv .sc-btn{display:flex;align-items:center;gap:6px;text-align:left;cursor:pointer;width:auto !important;max-width:200px}
+.crmv .sc-btn.on{border-color:var(--accent);color:var(--accent);font-weight:600}
+.crmv .sc-btn .sc-caret{margin-left:auto;color:var(--text3);font-size:11px}
+.crmv .sc-pop{position:absolute;top:calc(100% + 5px);left:0;z-index:60;width:288px;background:var(--card);
+  border:1px solid var(--border2);border-radius:9px;box-shadow:0 8px 26px rgba(26,26,23,.16);
+  padding:7px 0;max-height:390px;overflow:auto}
+.crmv .sc-pop[hidden]{display:none}
+.crmv .sc-opt{display:flex;align-items:center;gap:9px;padding:6px 12px;font-size:12.5px;cursor:pointer;color:var(--text2)}
+.crmv .sc-opt:hover{background:var(--bg2)}
+.crmv .sc-opt input{width:14px;height:14px;accent-color:var(--accent);margin:0;flex:0 0 auto}
+.crmv .sc-opt.sc-strong{font-weight:600;color:var(--text)}
+.crmv .sc-n{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--text3)}
+.crmv .sc-sep{height:1px;background:var(--border);margin:5px 0}
+.crmv .sc-head{padding:5px 12px 3px;font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text3)}
+.crmv .sc-band{display:flex;align-items:center;gap:7px;padding:6px 12px 3px;font-size:9.5px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.crmv .sc-dot{width:6px;height:6px;border-radius:50%;background:var(--border2);flex:0 0 auto}
+.crmv .sc-dot.b1,.crmv .sc-dot.b2{background:var(--green)}
+.crmv .sc-dot.b3,.crmv .sc-dot.b4{background:var(--amber)}
+.crmv .sc-dot.b5{background:var(--red)}
 .crmv .ndot-mute{background:var(--bg2)!important;color:var(--text2)!important;border:1px solid var(--border)!important}
 .crmv .staging-badge{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#ff6b35 0%,#f7c948 100%);color:#fff;padding:5px 14px 5px 10px;border-radius:20px;box-shadow:0 3px 14px rgba(255,107,53,.45);font-size:10px;font-family:'Courier New',monospace;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
 .crmv .staging-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.9);display:inline-block;flex-shrink:0;animation:pulse 1.4s ease-in-out infinite}
