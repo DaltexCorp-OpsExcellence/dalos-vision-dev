@@ -15953,7 +15953,7 @@ window.CRM = (function(){
     var unmappedRows=unmappedKeys.map(function(raw){ return '<tr><td class="nm">'+esc(raw)+' <span class="pchip warn">'+unmapped[raw]+' in view</span></td><td class="right">'+bandSel(0,' data-crm-chg="setScoreBand" data-crm-key="'+esc(raw)+'"',true)+'</td><td></td></tr>'; }).join('');
     var addBand='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add mapping:</span><input class="scope-dd" id="sbRaw" placeholder="raw score text (e.g. BLUE)" style="max-width:200px"/><select class="scope-dd" id="sbBand">'+[1,2,3,4,5].map(function(n){return '<option value="'+n+'"'+(n===2?' selected':'')+'>'+n+' · '+bandNames[n]+'</option>';}).join('')+'</select><button class="btn btn-secondary btn-sm" onclick="CRM.addScoreBandFromForm()">Add</button></div>';
     var scoreBandPanel='<div class="pulse-panel" style="margin-top:12px"><div class="pp-title">Score bands · raw CQC score → 1–5 canonical'+(unmappedKeys.length?' · <span style="color:var(--red)">'+unmappedKeys.length+' unmapped in view</span>':'')+'</div>'+(unmappedKeys.length?'<table class="rk"><tbody>'+unmappedRows+'</tbody></table><div class="divider" style="margin:10px 0"></div>':'')+'<table class="rk"><tbody>'+bandRows+'</tbody></table>'+addBand+'</div>';
-    vc.innerHTML=head+cards+unassignedPanel+clientPanel+countryPanel+scoreBandPanel;
+    vc.innerHTML=rrToggleBar()+head+cards+unassignedPanel+clientPanel+countryPanel+scoreBandPanel;
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -15963,7 +15963,9 @@ window.CRM = (function(){
      region_overrides, setClientOverride/setCountryOverride) is left fully intact;
      flip CRM_REGION_RULES_V2=false to revert to it with no other change.
      ══════════════════════════════════════════════════════════════════════════ */
-  var CRM_REGION_RULES_V2 = true;
+  /* in-app toggle: persisted in localStorage so it survives reload; default ON.
+     Admins flip New⟷Old live from the Region screen — no redeploy. */
+  var CRM_REGION_RULES_V2 = (function(){ try{ var v=localStorage.getItem('crm_region_rules_v2'); return v===null?true:v==='1'; }catch(e){ return true; } })();
   var RR_LIVE=[], RR_DRAFT=[], RR_HIST=[], RR_ALIASES={}, RR_CLIENTS=[], RR_SUBS=[];
   var RR_SHOWDEF=false, RR_WL=[], RR_UM=[], RR_EDIT=null;
   var RR_BAND={sub:1000, client:2000, ctyOvr:8000, ctyDef:9000};
@@ -16017,6 +16019,22 @@ window.CRM = (function(){
   function rrDraftById(id){ for(var i=0;i<RR_DRAFT.length;i++) if(RR_DRAFT[i].id===id) return RR_DRAFT[i]; return null; }
   /* app-wide region = committed (LIVE) so other tabs never shift mid-edit */
   function applyV2Regions(){ if(!CRM_REGION_RULES_V2||!RR_LIVE.length) return; SHIPMENTS.forEach(function(s){ s.region=rrResolve(RR_LIVE,s).region; }); }
+  /* the in-app engine toggle shown on the Region screen (admin only) */
+  function rrToggleBar(){
+    if(!IS_ADMIN) return '';
+    return '<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:8px">'+
+      '<span class="pchip '+(CRM_REGION_RULES_V2?'ok':'mut')+'">Region engine · '+(CRM_REGION_RULES_V2?'New rules (v2)':'Old mapping (legacy)')+'</span>'+
+      '<span class="link-btn" onclick="CRM.rrToggleEngine()">Switch to '+(CRM_REGION_RULES_V2?'old mapping':'new rules')+' →</span></div>';
+  }
+  function rrToggleEngine(){
+    CRM_REGION_RULES_V2=!CRM_REGION_RULES_V2;
+    try{ localStorage.setItem('crm_region_rules_v2', CRM_REGION_RULES_V2?'1':'0'); }catch(e){}
+    var need=[loadVoyages()]; /* restores server region_id into SHIPMENTS (so OFF reverts cleanly) */
+    if(CRM_REGION_RULES_V2 && !RR_LIVE.length) need=need.concat([loadRulesV2(),loadAliasesV2(),loadEntitiesV2()]);
+    toast('Switching engine…');
+    Promise.all(need).then(function(){ if(CRM_REGION_RULES_V2) applyV2Regions(); currentTab='regions'; render(); toast('Region engine: <b>'+(CRM_REGION_RULES_V2?'New rules (v2)':'Old mapping')+'</b>'); })
+      .catch(function(e){ toast('Switch failed — '+esc(e&&e.message||e)); });
+  }
 
   /* ── loaders (additive tables) ── */
   function loadRulesV2(){ return SB.from('region_rules').select('*').then(function(res){ if(res&&res.error) throw res.error; RR_LIVE=((res&&res.data)||[]).map(function(r){ return r; }); RR_DRAFT=rrClone(RR_LIVE); }); }
@@ -16081,7 +16099,7 @@ window.CRM = (function(){
     /* alias reconciliation entry */
     RR_UM=rrComputeUnmatched();
     var umPanel='<div class="pulse-panel" style="margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between"><div class="pp-title" style="margin:0">Alias reconciliation · '+RR_UM.length+' shipment name'+(RR_UM.length===1?'':'s')+' not linked to a client</div>'+(RR_UM.length?'<button class="btn btn-secondary btn-sm" onclick="CRM.rrOpenAlias()">Reconcile →</button>':'<span class="pchip ok">all linked</span>')+'</div>'+(RR_UM.length?'<div class="cell-sub" style="margin-top:6px">These spellings on shipments don\'t match a canonical client, so identity rules can\'t reach them. Map each to fix at the source.</div>':'')+'</div>';
-    vc.innerHTML=head+commit+cards+rulePanel+wlPanel+umPanel+rrScoreBandPanelHtml();
+    vc.innerHTML=rrToggleBar()+head+commit+cards+rulePanel+wlPanel+umPanel+rrScoreBandPanelHtml();
   }
   function rrComputeUnmatched(){
     var out=[], seen={};
@@ -16905,7 +16923,7 @@ window.CRM = (function(){
     setScoreBand:setScoreBand, removeScoreBand:removeScoreBand, addScoreBandFromForm:addScoreBandFromForm,
     rrOpenDrawer:rrOpenDrawer, rrSetField:rrSetField, rrSaveRule:rrSaveRule, rrToggle:rrToggle, rrDelete:rrDelete, rrMove:rrMove,
     rrToggleDefaults:rrToggleDefaults, rrCreateFor:rrCreateFor, rrCommit:rrCommit, rrDiscard:rrDiscard, rrUndo:rrUndo,
-    rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy
+    rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy, rrToggleEngine:rrToggleEngine
   };
 })();
 /* ── CRM island CSS (scoped to .crmv) — injected once ── */
