@@ -469,7 +469,7 @@ table.wl tbody tr.click{cursor:pointer}
 
     <div class="page">
       <div class="page-inner">
-        <div class="region-note" style="margin:0 0 10px">Regions from <b>Regions 2026</b> · members are locked to their region (admins see all). Region resolves per shipment: shipment override → client override → country default → Unassigned. <span class="link-btn" onclick="setTab('regions')">Manage region mapping →</span></div>
+        <div class="region-note" style="margin:0 0 10px">Regions from <b>Regions 2026</b> · members are locked to their region (admins see all). Region resolves per shipment by the first matching rule (priority: sub-client → client → country → default → Unassigned). <span class="link-btn" onclick="setTab('regions')">Manage region rules →</span></div>
 
         <!-- KPIs (follow the Shipments filters when that tab is active) -->
         <div class="kpi-grid" id="kpiGrid"></div>
@@ -668,19 +668,107 @@ var COUNTRY_REGION={argentina:'cis',belarus:'cis',brazil:'cis',"costa rica":'cis
 /* 13 countries served by >1 region — cannot auto-resolve; need a client/shipment override rule. */
 var COUNTRY_OVERLAP={bahrain:['cis','ne'],canada:['cis','ga'],jibouti:['cis','ga'],jordan:['cis','ga'],panama:['cis','ga'],russia:['cis','go'],ksa:['cis','ne'],slovenia:['cis','ne','uk'],kuwait:['ne','ga'],qatar:['ne','ga'],'south africa':['ne','ga'],spain:['ne','ga'],uae:['ne','ga']};
 
-/* ── Region override store — THE place Tarek overwrites assignments (admin "Region mapping" panel) ──
-   Resolution cascade: shipment override → client override → country default → (overlap/unknown) → Unassigned. */
-var REGION_OVERRIDES={
-  country:{},                                                 /* resolve an overlap country globally */
-  client:{ 'Gulf Fresh Trading':'ga', 'Volga Foods':'cis' },  /* seed rules resolving overlap-country clients */
-  shipment:{}                                                 /* one-off per container */
-};
-function regionForCountry(co){ var k=(co||'').toString().trim().toLowerCase(); return REGION_OVERRIDES.country[k]||COUNTRY_REGION[k]||null; }
-function resolveRegion(s){
-  if(REGION_OVERRIDES.shipment[s.cn]) return REGION_OVERRIDES.shipment[s.cn];
-  if(REGION_OVERRIDES.client[s.client]) return REGION_OVERRIDES.client[s.client];
-  return regionForCountry(s.country) || 'unassigned';
+/* ══════════════════════════════════════════════════════════════════════════
+   REGION RULE ENGINE (Phase-1 mockup stand-in for the Phase-2 Supabase model)
+   Assignment = an ordered list of rules. First ENABLED rule (by priority, then
+   creation order) that matches a shipment wins. Rules are anchored to canonical
+   client / sub-client IDs via an alias crosswalk — never to raw name strings.
+   Precedence bands:  sub-client(1000) > client(2000) > country override(8000)
+                      > country default(9000) > catch-all → Unassigned.
+   ══════════════════════════════════════════════════════════════════════════ */
+function norm(x){ return String(x==null?'':x).trim().toLowerCase(); }
+
+/* Canonical entities (curated) — the CRM two-tier client model, with UUID-ish ids.
+   NB: a few canonical names deliberately differ from the shipment spelling so the
+   alias crosswalk / reconciliation queue has real work to show (mirrors 175→37). */
+var CLIENTS=[], SUB_CLIENTS=[];
+(function(){
+  var BOOK=[
+    ['Mediterra Import SA', null, ['Rungis','Perpignan','Lyon Marché']],
+    ['Rhein Frucht GmbH', null, ['Hamburg','Köln']],
+    ['Holland Fresh BV', null, ['Rotterdam','Venlo']],
+    ['NordFrukt AB', null, ['Helsingborg','Stockholm']],
+    ['Asia Pacific Fruits', null, ['Singapore']],
+    ['Lotus Produce', null, ['Mumbai','Delhi']],
+    ['Gulf Fresh Trading', null, ['Dubai','Abu Dhabi']],
+    ['PolFrukt Sp. z o.o.', 'PolFrukt Sp', ['Warsaw']],          /* canonical ≠ shipment spelling */
+    ['Kyiv Fresh LLC', 'Kyiv Fresh', ['Kyiv']],                  /* canonical ≠ shipment spelling */
+    ['Volga Foods', null, ['Moscow','St Petersburg']],
+    ['Fresh Fields Ltd', null, ['Manchester DC','London RDC','Birmingham Hub']],
+    ['Albion Fresh', null, ['Leeds','Glasgow']],
+    ['Hellenic Produce SA', 'Hellenic Produce', ['Athens','Thessaloniki']], /* canonical ≠ shipment */
+    ['Levant Foods Co.', 'Levant Foods', ['Beirut']],            /* canonical ≠ shipment spelling */
+    ['Adriatic Import SA', 'Adriatic Import', ['Ljubljana']]     /* canonical ≠ shipment spelling */
+  ];
+  var ci=0, si=0;
+  BOOK.forEach(function(b){
+    var cid='c'+(++ci); CLIENTS.push({id:cid, name:b[0]});
+    b[2].forEach(function(sn){ SUB_CLIENTS.push({id:'s'+(++si), client_id:cid, name:sn}); });
+  });
+})();
+function clientById(id){ for(var i=0;i<CLIENTS.length;i++) if(CLIENTS[i].id===id) return CLIENTS[i]; return null; }
+function subById(id){ for(var i=0;i<SUB_CLIENTS.length;i++) if(SUB_CLIENTS[i].id===id) return SUB_CLIENTS[i]; return null; }
+function clientByName(n){ n=norm(n); for(var i=0;i<CLIENTS.length;i++) if(norm(CLIENTS[i].name)===n) return CLIENTS[i]; return null; }
+function subByName(n){ n=norm(n); for(var i=0;i<SUB_CLIENTS.length;i++) if(norm(SUB_CLIENTS[i].name)===n) return SUB_CLIENTS[i]; return null; }
+
+/* Alias crosswalk: raw shipment name-string → canonical id. Seeded by exact match;
+   the deliberate mismatches above stay UNMAPPED until reconciled in the UI. */
+var CLIENT_ALIASES={};   /* alias_lc -> {client_id, sub_client_id, confidence} */
+function seedAliases(){
+  CLIENTS.forEach(function(c){ CLIENT_ALIASES[norm(c.name)]={client_id:c.id, confidence:'exact'}; });
+  SUB_CLIENTS.forEach(function(s){ if(!CLIENT_ALIASES[norm(s.name)]) CLIENT_ALIASES[norm(s.name)]={sub_client_id:s.id, client_id:s.client_id, confidence:'exact'}; });
 }
+seedAliases();
+/* country typo crosswalk (informational in the mockup; keeps rules keyed on clean names) */
+var COUNTRY_ALIASES={ vaietnam:'vietnam', indonsia:'indonesia', jaban:'japan' };
+
+/* Region rules — LIVE (committed) vs DRAFT (being edited). resolveRegion() uses LIVE. */
+var LIVE_RULES=[], DRAFT_RULES=[], RULES_HISTORY=[], _rid=0;
+var BAND={sub:1000, client:2000, ctyOvr:8000, ctyDef:9000};
+function mkRule(o){ o.id=o.id||('r'+(++_rid)); if(o.enabled===undefined)o.enabled=true; return o; }
+(function seedRules(){
+  /* country defaults from the file map (typos dropped) */
+  var seen={}, i=0;
+  Object.keys(COUNTRY_REGION).forEach(function(k){
+    if(COUNTRY_ALIASES[k]) return;                 /* skip typo keys */
+    if(seen[k]) return; seen[k]=1;
+    LIVE_RULES.push(mkRule({priority:BAND.ctyDef+(i++), country_lc:k, region_id:COUNTRY_REGION[k], is_default:true, note:'Country default (Regions 2026)'}));
+  });
+  /* seed client rules (id-anchored) resolving overlap-country clients */
+  var gf=clientByName('Gulf Fresh Trading'), vf=clientByName('Volga Foods');
+  LIVE_RULES.push(mkRule({priority:BAND.client+1, client_id:gf.id, region_id:'ga', note:'Gulf desk owns Gulf Fresh'}));
+  LIVE_RULES.push(mkRule({priority:BAND.client+2, client_id:vf.id, region_id:'cis', note:'CIS desk owns Volga'}));
+  /* seed a sub-client rule to demonstrate sub > client precedence */
+  var ad=subByName('Abu Dhabi');
+  if(ad) LIVE_RULES.push(mkRule({priority:BAND.sub+1, sub_client_id:ad.id, client_id:ad.client_id, region_id:'cis', note:'Abu Dhabi DC served by CIS desk'}));
+})();
+
+function cloneRules(rs){ return rs.map(function(r){ var o={}; for(var k in r) o[k]=r[k]; return o; }); }
+DRAFT_RULES=cloneRules(LIVE_RULES);
+
+/* Resolve a shipment's canonical entity via the alias crosswalk. */
+function entityForShip(s){
+  var aSub=CLIENT_ALIASES[norm(s.sub)], aCli=CLIENT_ALIASES[norm(s.client)];
+  var sid=(aSub&&aSub.sub_client_id)||null;
+  var cid=(aCli&&aCli.client_id)||(aSub&&aSub.client_id)||(sid?(subById(sid)||{}).client_id:null)||null;
+  return { cid:cid, sid:sid, clc:norm(s.country), matched:!!(cid||sid) };
+}
+function ruleMatches(r, ctx){
+  if(!r.enabled) return false;
+  if(r.sub_client_id && r.sub_client_id!==ctx.sid) return false;
+  if(r.client_id && r.client_id!==ctx.cid) return false;
+  if(r.country_lc){ var clc=COUNTRY_ALIASES[ctx.clc]||ctx.clc; if(r.country_lc!==clc) return false; }
+  if(!r.sub_client_id && !r.client_id && !r.country_lc) return false; /* empty rule never matches */
+  return true;
+}
+function resolveWith(rules, s){
+  var ctx=entityForShip(s);
+  var sorted=rules.slice().sort(function(a,b){ return a.priority-b.priority; });
+  for(var i=0;i<sorted.length;i++){ if(ruleMatches(sorted[i],ctx)) return {region:sorted[i].region_id, rule:sorted[i], ctx:ctx}; }
+  return {region:'unassigned', rule:null, ctx:ctx};
+}
+function resolveRegion(s){ return resolveWith(LIVE_RULES, s).region; }        /* app-wide (committed) */
+function resolveDraft(s){ return resolveWith(DRAFT_RULES, s).region; }         /* region-tab preview */
 
 /* ── Curated sample shipments (region resolved from country + overrides below) ── */
 var SHIPMENTS = [
@@ -1015,7 +1103,7 @@ function renderTabs(){
     {id:'clean',     label:'Clean'}
   ];
   /* admin-only region-mapping tab (badge = shipments currently Unassigned) */
-  if(currentRegion==='all') tabs.push({id:'regions', label:'Region mapping', dot:unassigned});
+  if(currentRegion==='all') tabs.push({id:'regions', label:'Region rules', dot:unassigned});
   document.getElementById('viewTabs').innerHTML = tabs.map(function(t){
     return '<span class="tab2'+(t.id===currentTab?' on':'')+'" onclick="setTab(\''+t.id+'\')">'+t.label+
       (t.dot?'<span class="ndot">'+(t.dot>99?'99+':t.dot)+'</span>':'')+'</span>';
@@ -1032,59 +1120,308 @@ function renderContent(){
   if(currentTab==='regions'){ document.getElementById('viewContent').innerHTML = renderRegionMapping(); return; }
 }
 
-/* ── Region mapping admin panel — seed from Regions 2026, overwrite assignments here ── */
+/* ── Region rules admin screen — priority rule engine + identity bridge (Phase-1 mockup) ── */
 function regionOptions(cur, includeUnassigned){
   return REGIONS.filter(function(r){ return r.id!=='all' && (includeUnassigned||r.id!=='unassigned'); })
     .map(function(r){ return '<option value="'+r.id+'"'+(cur===r.id?' selected':'')+'>'+r.label+'</option>'; }).join('');
 }
-function setCountryOverride(country,region){ var k=country.toLowerCase(); if(region==='__def') delete REGION_OVERRIDES.country[k]; else REGION_OVERRIDES.country[k]=region; reresolveRegions(); render(); }
-function setClientOverride(client,region){ if(region==='__none') delete REGION_OVERRIDES.client[client]; else REGION_OVERRIDES.client[client]=region; reresolveRegions(); render(); }
-function renderRegionMapping(){
-  var counts={}; SHIPMENTS.forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
-  var head='<div class="section-title" style="margin-top:2px"><span class="section-title-bar"></span>Region mapping '+
-    '<span class="section-count">seeded from Regions 2026 · overwrite assignments here</span></div>';
+function regionChip(id){ return '<span class="region-chip">'+(regionLabel[id]||id)+'</span>'; }
+function titleCase(k){ return String(k).replace(/\b\w/g,function(m){return m.toUpperCase();}); }
 
-  /* region cards */
+/* ── simulator: resolve every shipment under a given ruleset ── */
+function simulate(rules){
+  var counts={}, byRule={}, unassigned=0;
+  SHIPMENTS.forEach(function(s){
+    var res=resolveWith(rules,s);
+    counts[res.region]=(counts[res.region]||0)+1;
+    if(res.region==='unassigned') unassigned++;
+    if(res.rule) byRule[res.rule.id]=(byRule[res.rule.id]||0)+1;
+  });
+  return {counts:counts, byRule:byRule, unassigned:unassigned};
+}
+function movers(fromRules,toRules){
+  var n=0; SHIPMENTS.forEach(function(s){ if(resolveWith(fromRules,s).region!==resolveWith(toRules,s).region) n++; }); return n;
+}
+/* diff LIVE vs DRAFT for the commit bar */
+function rulesDirty(){
+  if(LIVE_RULES.length!==DRAFT_RULES.length) return true;
+  var L={}; LIVE_RULES.forEach(function(r){ L[r.id]=JSON.stringify(r); });
+  for(var i=0;i<DRAFT_RULES.length;i++){ var d=DRAFT_RULES[i]; if(L[d.id]===undefined||L[d.id]!==JSON.stringify(d)) return true; }
+  return false;
+}
+function pendingCount(){
+  var L={}; LIVE_RULES.forEach(function(r){ L[r.id]=JSON.stringify(r); });
+  var D={}; DRAFT_RULES.forEach(function(r){ D[r.id]=JSON.stringify(r); });
+  var n=0, k;
+  for(k in D){ if(L[k]===undefined||L[k]!==D[k]) n++; }
+  for(k in L){ if(D[k]===undefined) n++; }
+  return n;
+}
+
+/* ── the Region-rules screen ── */
+function ruleWhenChips(r){
+  if(r.is_default) return '<span class="cell-sub">Country · '+titleCase(r.country_lc)+'</span>';
+  var c=[];
+  if(r.sub_client_id){ var s=subById(r.sub_client_id); c.push('<span class="pchip mut">Sub · '+(s?s.name:'?')+'</span>'); }
+  if(r.client_id && !r.sub_client_id){ var cl=clientById(r.client_id); c.push('<span class="pchip mut">Client · '+(cl?cl.name:'?')+'</span>'); }
+  if(r.client_id && r.sub_client_id){ var cl2=clientById(r.client_id); c.push('<span class="cell-sub">('+(cl2?cl2.name:'?')+')</span>'); }
+  if(r.country_lc) c.push('<span class="pchip mut">Country · '+titleCase(r.country_lc)+'</span>');
+  return c.join(' ') || '<span class="pchip warn">empty rule</span>';
+}
+function renderRegionMapping(){
+  var sim=simulate(DRAFT_RULES);                 /* screen previews the DRAFT */
+  var counts=sim.counts;
+  var dirty=rulesDirty();
+  var liveUnassigned=simulate(LIVE_RULES).unassigned;
+
+  var head='<div class="section-title" style="margin-top:2px"><span class="section-title-bar"></span>Region rules '+
+    '<span class="section-count">first matching rule by priority wins · anchored to client identity</span></div>';
+
+  /* commit bar */
+  var commit='';
+  if(dirty){
+    var mv=movers(LIVE_RULES,DRAFT_RULES);
+    commit='<div class="pulse-panel" style="margin-bottom:14px;border-color:var(--amber-border);background:var(--amber-bg)">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'+
+      '<div style="font-size:13px;color:var(--text)"><b style="font-family:var(--font-mono)">'+pendingCount()+'</b> pending change'+(pendingCount()===1?'':'s')+
+      ' · <b style="font-family:var(--font-mono)">'+mv.toLocaleString()+'</b> shipments will move · Unassigned <b class="mono">'+liveUnassigned+'</b> → <b class="mono">'+sim.unassigned+'</b></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="discardRules()">Discard</button>'+
+      '<button class="btn btn-primary btn-sm" onclick="commitRules()">Commit</button></div></div></div>';
+  } else if(RULES_HISTORY.length){
+    commit='<div style="margin-bottom:12px;font-size:11px;color:var(--text3)">Committed. <span class="link-btn" onclick="undoRules()">↺ Undo last commit</span></div>';
+  }
+
+  /* region scorecards (DRAFT projection) */
   var cards='<div class="scorecard-grid" style="margin-bottom:16px">'+REGIONS.filter(function(r){return r.id!=='all';}).map(function(r){
-    return '<div class="scorecard" style="cursor:default"><div class="scorecard-top"><div><div class="scorecard-sub">'+r.label+'</div>'+
-      '<div class="scorecard-client">'+(r.owner?'Owner · '+r.owner:(r.id==='unassigned'?'needs a rule':''))+'</div></div>'+
+    var amber=r.id==='unassigned'&&(counts[r.id]||0)>0;
+    return '<div class="scorecard" style="cursor:default'+(amber?';border-color:var(--amber-border);background:var(--amber-bg)':'')+'"><div class="scorecard-top"><div><div class="scorecard-sub">'+r.label+'</div>'+
+      '<div class="scorecard-client">'+(r.owner?'Owner · '+r.owner:(r.id==='unassigned'?(amber?'needs rules ↓':'clear'):''))+'</div></div>'+
       '<span class="scorecard-count">'+(counts[r.id]||0).toLocaleString()+'<small> shp</small></span></div></div>';
   }).join('')+'</div>';
 
-  /* client overrides */
-  var clientKeys=Object.keys(REGION_OVERRIDES.client);
-  var allClients=Array.from(new Set(SHIPMENTS.map(function(s){return s.client;}))).sort();
-  var clientRows=clientKeys.length?clientKeys.map(function(c){
-    return '<tr><td class="nm">'+c+'</td><td class="cell-sub">override</td>'+
-      '<td class="right"><select class="scope-dd" onchange="setClientOverride(\''+c.replace(/'/g,"\\'")+'\',this.value)">'+regionOptions(REGION_OVERRIDES.client[c])+'<option value="__none">✕ remove rule</option></select></td></tr>';
-  }).join(''):'<tr><td class="cell-sub" colspan="3">No client overrides yet.</td></tr>';
-  var addClient='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add client rule:</span>'+
-    '<select class="scope-dd" id="ovClient"><option value="">Client…</option>'+allClients.map(function(c){return '<option>'+c+'</option>';}).join('')+'</select>'+
-    '<select class="scope-dd" id="ovClientRegion">'+regionOptions('ne')+'</select>'+
-    '<button class="btn btn-secondary btn-sm" onclick="var c=document.getElementById(\'ovClient\').value; if(c) setClientOverride(c,document.getElementById(\'ovClientRegion\').value)">Add</button></div>';
-  var clientPanel='<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Client overrides · win over country defaults</div>'+
-    '<table class="rk"><tbody>'+clientRows+'</tbody></table>'+addClient+'</div>';
+  /* rule list (non-default rules), sorted by priority */
+  var active=DRAFT_RULES.filter(function(r){return !r.is_default;}).sort(function(a,b){return a.priority-b.priority;});
+  var ruleRows=active.length?active.map(function(r,i){
+    var wins=sim.byRule[r.id]||0;
+    var shadow=(wins===0)?'<span class="pchip warn" title="No shipment currently matches this rule before a higher one">shadowed</span>':'';
+    var dis=r.enabled?'':'opacity:.5;';
+    return '<tr style="'+dis+'"><td class="nm" style="max-width:none">'+ruleWhenChips(r)+'</td>'+
+      '<td>→ '+regionChip(r.region_id)+'</td>'+
+      '<td class="num" title="shipments this rule wins">'+wins+' '+shadow+'</td>'+
+      '<td class="right" style="white-space:nowrap">'+
+        '<span class="link-btn" title="move up" onclick="moveRule(\''+r.id+'\',-1)">▲</span> '+
+        '<span class="link-btn" title="move down" onclick="moveRule(\''+r.id+'\',1)">▼</span> '+
+        '<span class="link-btn" onclick="toggleRule(\''+r.id+'\')">'+(r.enabled?'disable':'enable')+'</span> '+
+        '<span class="link-btn" onclick="openRuleDrawer(\''+r.id+'\')">edit</span> '+
+        '<span class="link-btn" style="color:var(--red)" onclick="deleteRule(\''+r.id+'\')">✕</span></td></tr>';
+  }).join(''):'<tr><td class="cell-sub" colspan="4">No client/sub-client/country rules yet — add one, or work the queue below.</td></tr>';
+  var defaults=DRAFT_RULES.filter(function(r){return r.is_default;}).length;
+  var rulePanel='<div class="pulse-panel" style="margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">'+
+    '<div class="pp-title" style="margin:0">Rules · precedence top → bottom</div>'+
+    '<button class="btn btn-primary btn-sm" onclick="openRuleDrawer(null)">+ Add rule</button></div>'+
+    '<table class="rk"><thead><tr><td class="cell-sub">When</td><td class="cell-sub">Then</td><td class="cell-sub" style="text-align:right">Wins</td><td></td></tr></thead>'+
+    '<tbody>'+ruleRows+'</tbody></table>'+
+    '<div style="margin-top:8px;font-size:11px;color:var(--text3)">＋ <span class="link-btn" onclick="toggleDefaults()">'+(SHOW_DEFAULTS?'Hide':'Show')+' '+defaults+' country defaults</span> (lowest priority)</div>'+
+    (SHOW_DEFAULTS?('<div style="max-height:240px;overflow:auto;margin-top:6px"><table class="rk"><tbody>'+
+      DRAFT_RULES.filter(function(r){return r.is_default;}).sort(function(a,b){return a.priority-b.priority;}).map(function(r){
+        return '<tr><td class="nm">'+titleCase(r.country_lc)+'</td><td>→ '+regionChip(r.region_id)+'</td><td class="num">'+(sim.byRule[r.id]||0)+'</td></tr>';
+      }).join('')+'</tbody></table></div>'):'')+'</div>';
 
-  /* country table — overlaps flagged */
-  var allCountries=Object.keys(COUNTRY_REGION).concat(Object.keys(COUNTRY_OVERLAP));
-  allCountries.sort();
-  var used={}; SHIPMENTS.forEach(function(s){ var k=(s.country||'').toLowerCase(); used[k]=(used[k]||0)+1; });
-  var rows=allCountries.map(function(k){
-    var overlap=COUNTRY_OVERLAP[k];
-    var eff=REGION_OVERRIDES.country[k]||COUNTRY_REGION[k]||null;
-    var name=k.replace(/\b\w/g,function(m){return m.toUpperCase();});
-    var flag = overlap && !REGION_OVERRIDES.country[k]
-      ? '<span class="pchip warn">⚠ needs rule · '+overlap.map(function(x){return regionLabel[x];}).join(' / ')+'</span>'
-      : (REGION_OVERRIDES.country[k]?'<span class="pchip ok">override</span>':'<span class="pchip mut">default</span>');
-    var sel='<select class="scope-dd" onchange="setCountryOverride(\''+k+'\',this.value)">'+
-      (overlap&&!eff?'<option value="__def" selected>— pick region —</option>':'')+
-      regionOptions(eff)+(REGION_OVERRIDES.country[k]?'<option value="__def">↺ back to file default</option>':'')+'</select>';
-    return '<tr><td class="nm">'+name+'</td><td class="cell-sub">'+(used[k]?used[k]+' shp':'—')+'</td><td>'+flag+'</td><td class="right">'+sel+'</td></tr>';
+  /* Unassigned worklist (distinct entity/country combos → unassigned under DRAFT) */
+  _WL=[];
+  var seen={};
+  SHIPMENTS.forEach(function(s){
+    if(resolveWith(DRAFT_RULES,s).region!=='unassigned') return;
+    var ctx=entityForShip(s);
+    var key=(ctx.cid||'?')+'|'+(ctx.sid||'')+'|'+ctx.clc;
+    if(!seen[key]){ seen[key]={cid:ctx.cid,sid:ctx.sid,clc:ctx.clc,client:s.client,sub:s.sub,country:s.country,cn:s.cn,n:0}; _WL.push(seen[key]); }
+    seen[key].n++;
+  });
+  _WL.sort(function(a,b){return b.n-a.n;});
+  var wlRows=_WL.length?_WL.map(function(w,i){
+    var lbl=(w.sub||w.client||'—');
+    var idchip=w.cid?'':' <span class="pchip warn" title="not linked to a canonical client">no identity</span>';
+    return '<tr><td class="nm" style="max-width:none">'+lbl+idchip+'</td><td class="cell-sub">'+(w.country||'—')+'</td><td class="num">'+w.n+' shp</td>'+
+      '<td class="right" style="white-space:nowrap"><span class="link-btn" onclick="whyRegion('+i+')">why?</span> '+
+      '<span class="link-btn" onclick="createRuleFor('+i+')">create rule →</span></td></tr>';
+  }).join(''):'<tr><td class="cell-sub" colspan="4">🎉 Nothing unassigned under the current draft.</td></tr>';
+  var wlPanel='<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Unassigned worklist · '+_WL.length+' to resolve ('+sim.unassigned+' shipments)</div>'+
+    '<table class="rk"><tbody>'+wlRows+'</tbody></table></div>';
+
+  /* unmatched aliases entry */
+  _UM=computeUnmatched();
+  var umPanel='<div class="pulse-panel"><div style="display:flex;align-items:center;justify-content:space-between">'+
+    '<div class="pp-title" style="margin:0">Alias reconciliation · '+_UM.length+' shipment name'+(_UM.length===1?'':'s')+' not linked to a client</div>'+
+    (_UM.length?'<button class="btn btn-secondary btn-sm" onclick="openAliasDrawer()">Reconcile →</button>':'<span class="pchip ok">all linked</span>')+'</div>'+
+    (_UM.length?'<div class="cell-sub" style="margin-top:6px">These spellings on shipments don\'t match a canonical client, so identity-based rules can\'t reach them. Map each to fix at the source.</div>':'')+'</div>';
+
+  return head+commit+cards+rulePanel+wlPanel+umPanel;
+}
+
+/* ── unmatched-alias detection + fuzzy suggestion ── */
+function computeUnmatched(){
+  var out=[], seen={};
+  SHIPMENTS.forEach(function(s){
+    [['client',s.client],['sub',s.sub]].forEach(function(pair){
+      var raw=pair[1]; if(!raw) return; var k=norm(raw);
+      if(CLIENT_ALIASES[k]||seen[k]) return; seen[k]=1;
+      out.push({raw:raw, key:k, kind:pair[0], suggest:fuzzyEntity(raw)});
+    });
+  });
+  return out;
+}
+function fuzzyEntity(raw){
+  var r=norm(raw), best=null, bestScore=0;
+  function score(a,b){ /* cheap token/substring overlap */
+    if(a===b) return 1; if(a.indexOf(b)>=0||b.indexOf(a)>=0) return 0.8;
+    var ta=a.split(/\s+/), n=0; ta.forEach(function(t){ if(t.length>2&&b.indexOf(t)>=0) n++; }); return n/Math.max(ta.length,1)*0.7;
+  }
+  CLIENTS.forEach(function(c){ var sc=score(r,norm(c.name)); if(sc>bestScore){bestScore=sc; best={type:'client',id:c.id,name:c.name};} });
+  SUB_CLIENTS.forEach(function(sub){ var sc=score(r,norm(sub.name)); if(sc>bestScore){bestScore=sc; best={type:'sub',id:sub.id,name:sub.name};} });
+  return bestScore>=0.55?best:null;
+}
+
+/* ── rule editing (operates on DRAFT) ── */
+var SHOW_DEFAULTS=false, _WL=[], _UM=[], _EDIT=null;
+function toggleDefaults(){ SHOW_DEFAULTS=!SHOW_DEFAULTS; render(); }
+function draftRuleById(id){ for(var i=0;i<DRAFT_RULES.length;i++) if(DRAFT_RULES[i].id===id) return DRAFT_RULES[i]; return null; }
+function toggleRule(id){ var r=draftRuleById(id); if(r){ r.enabled=!r.enabled; render(); } }
+function deleteRule(id){ DRAFT_RULES=DRAFT_RULES.filter(function(r){return r.id!==id;}); render(); }
+function moveRule(id,dir){
+  var r=draftRuleById(id); if(!r) return;
+  /* swap priority with the nearest non-default neighbour in the same direction */
+  var peers=DRAFT_RULES.filter(function(x){return !x.is_default;}).sort(function(a,b){return a.priority-b.priority;});
+  var idx=peers.indexOf(r), j=idx+dir; if(j<0||j>=peers.length) return;
+  var tmp=r.priority; r.priority=peers[j].priority; peers[j].priority=tmp; render();
+}
+function createRuleFor(i){ var w=_WL[i]; openRuleDrawer(null, {client_id:w.cid, sub_client_id:w.sid, country_lc:(w.cid?null:w.clc)}); }
+
+function openRuleDrawer(id, prefill){
+  var r=id?draftRuleById(id):null;
+  _EDIT={ id:id||null, _tmpid:id||('r'+(++_rid)), client_id:(r?r.client_id:(prefill&&prefill.client_id))||'', sub_client_id:(r?r.sub_client_id:(prefill&&prefill.sub_client_id))||'',
+          country_lc:(r?r.country_lc:(prefill&&prefill.country_lc))||'', region_id:(r?r.region_id:'')||'', note:(r?r.note:'')||'' };
+  document.getElementById('dlvTitle').innerHTML=id?'Edit rule':'Add rule';
+  document.getElementById('dlvBody').innerHTML=ruleFormHtml();
+  document.getElementById('dlv').classList.add('open');
+  updateRulePreview();
+}
+function ruleFormHtml(){
+  var clientOpts='<option value="">— any client —</option>'+CLIENTS.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(c){return '<option value="'+c.id+'"'+(_EDIT.client_id===c.id?' selected':'')+'>'+c.name+'</option>';}).join('');
+  var subOpts=subOptionsFor(_EDIT.client_id);
+  var ctys=Object.keys(COUNTRY_REGION).concat(Object.keys(COUNTRY_OVERLAP)).filter(function(v,ix,a){return a.indexOf(v)===ix && !COUNTRY_ALIASES[v];}).sort();
+  var ctyOpts='<option value="">— any country —</option>'+ctys.map(function(k){return '<option value="'+k+'"'+(_EDIT.country_lc===k?' selected':'')+'>'+titleCase(k)+(COUNTRY_OVERLAP[k]?' ⚠':'')+'</option>';}).join('');
+  var regOpts='<option value="">— pick region —</option>'+regionOptions(_EDIT.region_id,true);
+  return '<div style="display:flex;flex-direction:column;gap:12px">'+
+    '<div><label class="cell-sub">Client</label><br><select class="scope-dd" style="max-width:none;width:100%" onchange="_EDIT.client_id=this.value;_EDIT.sub_client_id=\'\';document.getElementById(\'rfSub\').innerHTML=subOptionsFor(this.value);updateRulePreview()">'+clientOpts+'</select></div>'+
+    '<div><label class="cell-sub">Sub-client (optional — beats the client rule)</label><br><select class="scope-dd" id="rfSub" style="max-width:none;width:100%" onchange="_EDIT.sub_client_id=this.value;updateRulePreview()">'+subOpts+'</select></div>'+
+    '<div><label class="cell-sub">Country (optional)</label><br><select class="scope-dd" style="max-width:none;width:100%" onchange="_EDIT.country_lc=this.value;updateRulePreview()">'+ctyOpts+'</select></div>'+
+    '<div><label class="cell-sub">Assign to region</label><br><select class="scope-dd" style="max-width:none;width:100%" onchange="_EDIT.region_id=this.value;updateRulePreview()">'+regOpts+'</select></div>'+
+    '<div><label class="cell-sub">Note (shown in “why?”)</label><br><input class="form-input" value="'+(_EDIT.note||'').replace(/"/g,'&quot;')+'" oninput="_EDIT.note=this.value"></div>'+
+    '<div class="pulse-panel" id="rulePreview" style="background:var(--bg2)"></div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-secondary" onclick="closeDlv()">Cancel</button>'+
+    '<button class="btn btn-primary" onclick="saveRuleFromDrawer()">Save rule</button></div></div>';
+}
+function subOptionsFor(cid){
+  var subs=SUB_CLIENTS.filter(function(s){return !cid||s.client_id===cid;});
+  return '<option value="">— any / whole client —</option>'+subs.map(function(s){return '<option value="'+s.id+'"'+(_EDIT.sub_client_id===s.id?' selected':'')+'>'+s.name+'</option>';}).join('');
+}
+function draftRuleFromEdit(){
+  var e=_EDIT;
+  var band=e.sub_client_id?BAND.sub:(e.client_id?BAND.client:BAND.ctyOvr);
+  var cid=e.client_id||(e.sub_client_id?(subById(e.sub_client_id)||{}).client_id:'')||null;
+  return { id:e.id||e._tmpid, enabled:true, priority:(e.id?draftRuleById(e.id).priority:band+ (DRAFT_RULES.filter(function(r){return Math.floor(r.priority/1000)===Math.floor(band/1000);}).length+1)),
+    sub_client_id:e.sub_client_id||null, client_id:cid, country_lc:e.country_lc||null, region_id:e.region_id, note:e.note||'' };
+}
+function updateRulePreview(){
+  var box=document.getElementById('rulePreview'); if(!box) return;
+  if(!_EDIT.region_id || (!_EDIT.client_id && !_EDIT.sub_client_id && !_EDIT.country_lc)){
+    box.innerHTML='<span class="cell-sub">Pick at least one condition and a target region to preview impact.</span>'; return;
+  }
+  var temp=DRAFT_RULES.filter(function(r){return r.id!==_EDIT.id;}).map(function(r){var o={};for(var k in r)o[k]=r[k];return o;});
+  temp.push(draftRuleFromEdit());
+  var before=simulate(DRAFT_RULES), after=simulate(temp);
+  var wins=after.byRule[draftRuleFromEdit().id]||0;
+  var mv=movers(DRAFT_RULES,temp);
+  box.innerHTML='<div style="font-size:12px;color:var(--text)">This rule wins <b class="mono">'+wins+'</b> shipment'+(wins===1?'':'s')+
+    ' · <b class="mono">'+mv+'</b> move · Unassigned <b class="mono">'+before.unassigned+'</b> → <b class="mono">'+after.unassigned+'</b></div>';
+}
+function saveRuleFromDrawer(){
+  if(!_EDIT.region_id){ toast('Pick a target region.'); return; }
+  if(!_EDIT.client_id && !_EDIT.sub_client_id && !_EDIT.country_lc){ toast('Pick at least one condition.'); return; }
+  var nr=draftRuleFromEdit();
+  DRAFT_RULES=DRAFT_RULES.filter(function(r){return r.id!==nr.id;});
+  DRAFT_RULES.push(nr);
+  closeDlv(); render();
+  toast('Rule staged. <b>Commit</b> to apply.');
+}
+
+/* ── commit / undo ── */
+function commitRules(){
+  RULES_HISTORY.push(cloneRules(LIVE_RULES));
+  LIVE_RULES=cloneRules(DRAFT_RULES);
+  reresolveRegions(); render();
+  toast('Rules committed. <span class="link-btn" onclick="undoRules()">Undo</span>');
+}
+function discardRules(){ DRAFT_RULES=cloneRules(LIVE_RULES); render(); toast('Draft discarded.'); }
+function undoRules(){
+  if(!RULES_HISTORY.length){ toast('Nothing to undo.'); return; }
+  LIVE_RULES=RULES_HISTORY.pop(); DRAFT_RULES=cloneRules(LIVE_RULES);
+  reresolveRegions(); render(); toast('Reverted to previous committed rules.');
+}
+
+/* ── alias reconciliation drawer ── */
+function openAliasDrawer(){
+  document.getElementById('dlvTitle').innerHTML='Reconcile client aliases';
+  document.getElementById('dlvBody').innerHTML=aliasDrawerHtml();
+  document.getElementById('dlv').classList.add('open');
+}
+function aliasDrawerHtml(){
+  if(!_UM.length) return '<div class="cell-sub">All shipment names are linked. 🎉</div>';
+  return '<div class="cell-sub" style="margin-bottom:10px">Map each unlinked shipment spelling to a canonical client or sub-client. Mapping applies immediately (identity is curation, not a rule) and re-resolves regions.</div>'+
+    _UM.map(function(u,i){
+      var entOpts='<option value="">— pick entity —</option>'+
+        '<optgroup label="Clients">'+CLIENTS.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(c){return '<option value="client:'+c.id+'"'+(u.suggest&&u.suggest.type==='client'&&u.suggest.id===c.id?' selected':'')+'>'+c.name+'</option>';}).join('')+'</optgroup>'+
+        '<optgroup label="Sub-clients">'+SUB_CLIENTS.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(sc){return '<option value="sub:'+sc.id+'"'+(u.suggest&&u.suggest.type==='sub'&&u.suggest.id===sc.id?' selected':'')+'>'+sc.name+'</option>';}).join('')+'</optgroup>';
+      return '<div style="padding:9px 0;border-bottom:1px solid var(--bg2)"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center">'+
+        '<div><b>'+u.raw+'</b> <span class="pchip mut">'+u.kind+'</span></div>'+
+        (u.suggest?'<span class="pchip ok" title="fuzzy suggestion">≈ '+u.suggest.name+'</span>':'<span class="pchip warn">no match</span>')+'</div>'+
+        '<div style="display:flex;gap:8px;margin-top:6px"><select class="scope-dd" id="al'+i+'" style="max-width:none;flex:1">'+entOpts+'</select>'+
+        '<button class="btn btn-primary btn-sm" onclick="mapAlias('+i+')">Map</button></div></div>';
+    }).join('');
+}
+function mapAlias(i){
+  var u=_UM[i], val=document.getElementById('al'+i).value; if(!val){ toast('Pick an entity.'); return; }
+  var parts=val.split(':');
+  if(parts[0]==='client') CLIENT_ALIASES[u.key]={client_id:parts[1], confidence:'manual'};
+  else { var sc=subById(parts[1]); CLIENT_ALIASES[u.key]={sub_client_id:parts[1], client_id:sc?sc.client_id:null, confidence:'manual'}; }
+  reresolveRegions();
+  _UM=computeUnmatched();
+  document.getElementById('dlvBody').innerHTML=aliasDrawerHtml();
+  render();
+  toast('Alias mapped · <b>'+u.raw+'</b> linked.');
+}
+
+/* ── "why this region?" trace ── */
+function whyRegion(i){
+  var w=_WL[i];
+  var s=null; for(var j=0;j<SHIPMENTS.length;j++){ if(SHIPMENTS[j].cn===w.cn){ s=SHIPMENTS[j]; break; } }
+  var ctx=entityForShip(s);
+  var sorted=DRAFT_RULES.slice().sort(function(a,b){return a.priority-b.priority;});
+  var won=resolveWith(DRAFT_RULES,s);
+  var lines=sorted.filter(function(r){return !r.is_default || r.country_lc===(COUNTRY_ALIASES[ctx.clc]||ctx.clc);}).map(function(r){
+    var match=ruleMatches(r,ctx);
+    var isWon=won.rule&&won.rule.id===r.id;
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;'+(isWon?'background:var(--green-bg);border-radius:6px;padding-left:6px;padding-right:6px':'')+'">'+
+      '<span'+(isWon?' style="color:var(--accent);font-weight:600"':(match?'':' style="opacity:.5"'))+'>'+ruleWhenChips(r)+' → '+regionChip(r.region_id)+'</span>'+
+      '<span class="cell-sub">'+(isWon?'✓ wins':(match?'match (lower)':'—'))+'</span></div>';
   }).join('');
-  var countryPanel='<div class="pulse-panel"><div class="pp-title">Country → region · '+Object.keys(COUNTRY_REGION).length+' mapped · '+Object.keys(COUNTRY_OVERLAP).length+' overlaps need a rule</div>'+
-    '<div style="max-height:360px;overflow:auto"><table class="rk"><tbody>'+rows+'</tbody></table></div></div>';
-
-  return head+cards+clientPanel+countryPanel;
+  document.getElementById('dlvTitle').innerHTML='Why this region?';
+  document.getElementById('dlvBody').innerHTML='<div class="cell-sub" style="margin-bottom:8px">'+(w.sub||w.client||'—')+' · '+(w.country||'—')+' · '+
+    (ctx.cid?('linked → '+(clientById(ctx.cid)||{}).name):'<span class="pchip warn">no canonical identity</span>')+'</div>'+
+    '<div style="margin-bottom:10px">Resolved region: '+regionChip(won.region)+'</div>'+
+    '<div class="pp-title">Rules evaluated (by priority)</div>'+(lines||'<span class="cell-sub">No rules apply — falls through to Unassigned.</span>')+
+    (won.region==='unassigned'?'<div class="cell-sub" style="margin-top:10px">Nothing matched. '+(ctx.cid?'Add a client/sub rule above.':'Link this name in <span class="link-btn" onclick="openAliasDrawer()">alias reconciliation</span> first.')+'</div>':'');
+  document.getElementById('dlv').classList.add('open');
 }
 
 /* ── Shipments tab: dense inventory table — filter, sort, paginate ── */
