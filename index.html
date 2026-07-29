@@ -16082,20 +16082,20 @@ window.CRM = (function(){
     var active=RR_DRAFT.filter(function(r){return !r.is_default;}).sort(function(a,b){return a.priority-b.priority;});
     var ruleRows=active.length?active.map(function(r){
       var wins=sim.byRule[r.id]||0, shadow=(wins===0)?' <span class="pchip warn" title="no shipment currently matches before a higher rule">shadowed</span>':'';
-      return '<tr style="'+(r.enabled?'':'opacity:.5;')+'"><td class="nm" style="max-width:none">'+rrWhenChips(r)+'</td><td>→ '+rrRegionChip(r.region_id)+'</td><td class="num">'+wins+shadow+'</td>'+
-        '<td class="right" style="white-space:nowrap"><span class="link-btn" title="up" onclick="CRM.rrMove(\''+r.id+'\',-1)">▲</span> <span class="link-btn" title="down" onclick="CRM.rrMove(\''+r.id+'\',1)">▼</span> <span class="link-btn" onclick="CRM.rrToggle(\''+r.id+'\')">'+(r.enabled?'disable':'enable')+'</span> <span class="link-btn" onclick="CRM.rrOpenDrawer(\''+r.id+'\')">edit</span> <span class="link-btn" style="color:var(--red)" onclick="CRM.rrDelete(\''+r.id+'\')">✕</span></td></tr>';
+      return '<tr style="'+(r.enabled?'':'opacity:.5;')+'"><td class="rr-when">'+rrWhenChips(r)+'</td><td>→ '+rrRegionChip(r.region_id)+'</td><td class="num">'+wins+shadow+'</td>'+
+        '<td class="rr-act"><span class="link-btn" title="up" onclick="CRM.rrMove(\''+r.id+'\',-1)">▲</span><span class="link-btn" title="down" onclick="CRM.rrMove(\''+r.id+'\',1)">▼</span><span class="link-btn" onclick="CRM.rrToggle(\''+r.id+'\')">'+(r.enabled?'disable':'enable')+'</span><span class="link-btn" onclick="CRM.rrOpenDrawer(\''+r.id+'\')">edit</span><span class="link-btn" style="color:var(--red)" onclick="CRM.rrDelete(\''+r.id+'\')">✕</span></td></tr>';
     }).join(''):'<tr><td class="cell-sub" colspan="4">No client/sub-client/country rules yet — add one or work the queue below.</td></tr>';
     var defs=RR_DRAFT.filter(function(r){return r.is_default;}).sort(function(a,b){return a.priority-b.priority;});
     var rulePanel='<div class="pulse-panel" style="margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px"><div class="pp-title" style="margin:0">Rules · precedence top → bottom</div><button class="btn btn-primary btn-sm" onclick="CRM.rrOpenDrawer(null)">+ Add rule</button></div>'+
-      '<table class="rk"><thead><tr><td class="cell-sub">When</td><td class="cell-sub">Then</td><td class="cell-sub">Wins</td><td></td></tr></thead><tbody>'+ruleRows+'</tbody></table>'+
+      '<div class="rk-scroll"><table class="rk rk-rules"><thead><tr><td>When</td><td>Then</td><td class="num">Wins</td><td class="rr-act"></td></tr></thead><tbody>'+ruleRows+'</tbody></table></div>'+
       '<div style="margin-top:8px;font-size:11px;color:var(--text3)">＋ <span class="link-btn" onclick="CRM.rrToggleDefaults()">'+(RR_SHOWDEF?'Hide':'Show')+' '+defs.length+' country defaults</span> (lowest priority)</div>'+
-      (RR_SHOWDEF?('<div style="max-height:240px;overflow:auto;margin-top:6px"><table class="rk"><tbody>'+defs.map(function(r){ return '<tr><td class="nm">'+esc(rrTitle(r.country_lc))+'</td><td>→ '+rrRegionChip(r.region_id)+'</td><td class="num">'+(sim.byRule[r.id]||0)+'</td></tr>'; }).join('')+'</tbody></table></div>'):'')+'</div>';
+      (RR_SHOWDEF?('<div style="max-height:240px;overflow:auto;margin-top:6px"><table class="rk rk-rules"><tbody>'+defs.map(function(r){ return '<tr><td class="rr-when">'+esc(rrTitle(r.country_lc))+'</td><td>→ '+rrRegionChip(r.region_id)+'</td><td class="num">'+(sim.byRule[r.id]||0)+'</td></tr>'; }).join('')+'</tbody></table></div>'):'')+'</div>';
     /* Unassigned worklist */
     RR_WL=[]; var seen={};
     SHIPMENTS.forEach(function(s){ if(rrResolve(RR_DRAFT,s).region!=='unassigned') return; var ctx=rrEntity(s); var key=(ctx.cid||'?')+'|'+(ctx.sid||'')+'|'+ctx.clc+'|'+s.client; if(!seen[key]){ seen[key]={cid:ctx.cid,sid:ctx.sid,clc:ctx.clc,client:s.client,sub:s.sub,country:s.country,cn:s.cn,n:0}; RR_WL.push(seen[key]); } seen[key].n++; });
     RR_WL.sort(function(a,b){return b.n-a.n;});
-    var wlRows=RR_WL.length?RR_WL.slice(0,40).map(function(w,i){ var idc=w.cid?'':' <span class="pchip warn" title="not linked to a canonical client">no identity</span>'; return '<tr><td class="nm" style="max-width:none">'+esc(w.client||'—')+(w.sub&&w.sub!=='—'?' <span class="cell-sub">· '+esc(w.sub)+'</span>':'')+idc+'</td><td class="cell-sub">'+esc(w.country||'—')+'</td><td class="num">'+w.n+' shp</td><td class="right" style="white-space:nowrap"><span class="link-btn" onclick="CRM.rrWhy('+i+')">why?</span> <span class="link-btn" onclick="CRM.rrCreateFor('+i+')">create rule →</span></td></tr>'; }).join(''):'<tr><td class="cell-sub" colspan="4">🎉 Nothing unassigned under the current draft.</td></tr>';
-    var wlPanel='<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Unassigned worklist · '+RR_WL.length+' to resolve ('+sim.unassigned.toLocaleString()+' shipments)'+(RR_WL.length>40?' · showing top 40':'')+'</div><table class="rk"><tbody>'+wlRows+'</tbody></table></div>';
+    var wlRows=RR_WL.length?RR_WL.slice(0,40).map(function(w,i){ var idc=w.cid?'':' <span class="pchip warn" title="not linked to a canonical client">no identity</span>'; return '<tr><td class="rr-when"><b>'+esc(w.client||'—')+'</b>'+(w.sub&&w.sub!=='—'?' <span class="cell-sub">· '+esc(w.sub)+'</span>':'')+idc+'</td><td class="cell-sub">'+esc(w.country||'—')+'</td><td class="num">'+w.n+' shp</td><td class="rr-act"><span class="link-btn" onclick="CRM.rrWhy('+i+')">why?</span><span class="link-btn" onclick="CRM.rrCreateFor('+i+')">create rule →</span></td></tr>'; }).join(''):'<tr><td class="cell-sub" colspan="4">🎉 Nothing unassigned under the current draft.</td></tr>';
+    var wlPanel='<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Unassigned worklist · '+RR_WL.length+' to resolve ('+sim.unassigned.toLocaleString()+' shipments)'+(RR_WL.length>40?' · showing top 40':'')+'</div><div class="rk-scroll"><table class="rk rk-rules"><tbody>'+wlRows+'</tbody></table></div></div>';
     /* alias reconciliation entry */
     RR_UM=rrComputeUnmatched();
     var umPanel='<div class="pulse-panel" style="margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between"><div class="pp-title" style="margin:0">Alias reconciliation · '+RR_UM.length+' shipment name'+(RR_UM.length===1?'':'s')+' not linked to a client</div>'+(RR_UM.length?'<button class="btn btn-secondary btn-sm" onclick="CRM.rrOpenAlias()">Reconcile →</button>':'<span class="pchip ok">all linked</span>')+'</div>'+(RR_UM.length?'<div class="cell-sub" style="margin-top:6px">These spellings on shipments don\'t match a canonical client, so identity rules can\'t reach them. Map each to fix at the source.</div>':'')+'</div>';
@@ -17366,6 +17366,16 @@ function injectCrmCss(){
 .crmv .rk-compare{table-layout:auto}
 .crmv .rk-compare td:nth-child(4),.crmv .rk-compare td:nth-child(5){width:auto}
 .crmv .rk-compare .num{width:auto}
+/* Region-rules v2 tables: content-sized columns (override the pulse-table fixed widths) */
+.crmv .rk-rules{table-layout:auto}
+.crmv .rk-rules td{white-space:normal;vertical-align:middle;padding:6px 8px}
+.crmv .rk-rules td:nth-child(4),.crmv .rk-rules td:nth-child(5){width:auto}
+.crmv .rk-rules thead td{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border)}
+.crmv .rk-rules .rr-when{width:auto}
+.crmv .rk-rules .num{width:auto;text-align:right;padding-right:14px}
+.crmv .rk-rules .rr-act{white-space:nowrap;text-align:right;width:1%}
+.crmv .rk-rules .rr-act .link-btn{margin-left:8px}
+.crmv .rk-scroll{overflow-x:auto}
 .crmv .pchip{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:9px;white-space:nowrap}
 .crmv .pchip.warn{background:var(--red-bg);color:var(--red)}
 .crmv .pchip.ok{background:var(--green-bg);color:var(--green)}
