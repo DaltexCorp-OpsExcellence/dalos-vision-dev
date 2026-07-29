@@ -15578,7 +15578,7 @@ window.CRM = (function(){
     var openClaims=list.filter(function(s){return s.claim&&s.claim.status==='open';}).length;
     var unassigned=list.filter(function(s){return s.region==='unassigned';}).length;
     var tabs=[{id:'dashboard',label:'Dashboard',dot:attCount},{id:'shipments',label:'Shipments'},{id:'grading',label:'Grading'},{id:'claims',label:'Claims',dot:openClaims},{id:'clean',label:'Clean'}];
-    if(IS_ADMIN && currentRegion==='all') tabs.push({id:'regions',label:'Region mapping',dot:unassigned});
+    if(IS_ADMIN && currentRegion==='all') tabs.push({id:'regions',label:(CRM_REGION_RULES_V2?'Region rules':'Region mapping'),dot:unassigned});
     var stg=/-dev|localhost|127\.0\.0\.1/.test(location.host+location.pathname)
       ? '<span class="staging-badge">staging</span>' : '';
     var html=stg+'<div class="tabs2">'+tabs.map(function(t){
@@ -15956,6 +15956,261 @@ window.CRM = (function(){
     vc.innerHTML=head+cards+unassignedPanel+clientPanel+countryPanel+scoreBandPanel;
   }
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     REGION RULES v2 — priority rule engine + identity bridge (behind a flag).
+     Resolves region CLIENT-SIDE from region_rules + client_aliases (loaded from
+     the additive Phase-2 tables). The old server-side path (crm_voyages region_id,
+     region_overrides, setClientOverride/setCountryOverride) is left fully intact;
+     flip CRM_REGION_RULES_V2=false to revert to it with no other change.
+     ══════════════════════════════════════════════════════════════════════════ */
+  var CRM_REGION_RULES_V2 = true;
+  var RR_LIVE=[], RR_DRAFT=[], RR_HIST=[], RR_ALIASES={}, RR_CLIENTS=[], RR_SUBS=[];
+  var RR_SHOWDEF=false, RR_WL=[], RR_UM=[], RR_EDIT=null;
+  var RR_BAND={sub:1000, client:2000, ctyOvr:8000, ctyDef:9000};
+  function rrNorm(x){ return String(x==null?'':x).trim().toLowerCase(); }
+  function rrTitle(k){ return String(k==null?'':k).replace(/\b\w/g,function(m){return m.toUpperCase();}); }
+  function rrRegionChip(id){ return '<span class="region-chip">'+esc(regionLabel[id]||id)+'</span>'; }
+  function rrUuid(){ try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return 'rr-'+Date.now()+'-'+Math.floor(Math.random()*1e9); }
+  function rrClone(rs){ return rs.map(function(r){ var o={}; for(var k in r) o[k]=r[k]; return o; }); }
+  function rrClientById(id){ for(var i=0;i<RR_CLIENTS.length;i++) if(RR_CLIENTS[i].id===id) return RR_CLIENTS[i]; return null; }
+  function rrSubById(id){ for(var i=0;i<RR_SUBS.length;i++) if(RR_SUBS[i].id===id) return RR_SUBS[i]; return null; }
+  function rrEntity(s){
+    var clinorm=rrNorm(s.client), subnorm=rrNorm(s.sub);
+    var aCli=RR_ALIASES[clinorm], aSub=RR_ALIASES[subnorm];
+    var sid=(aSub&&aSub.sub_client_id)||null;
+    var cid=(aCli&&aCli.client_id)||(aSub&&aSub.client_id)||(sid?((rrSubById(sid)||{}).client_id||null):null)||null;
+    return { cid:cid, sid:sid, clc:clinorm==='—'?'':rrNorm(s.country), clinorm:clinorm, subnorm:subnorm };
+  }
+  function rrMatches(r, ctx){
+    if(!r.enabled) return false;
+    var has=false;
+    if(r.sub_client_id){ has=true; if(r.sub_client_id!==ctx.sid) return false; }
+    if(r.sub_client_norm){ has=true; if(r.sub_client_norm!==ctx.subnorm) return false; }
+    if(r.client_id){ has=true; if(r.client_id!==ctx.cid) return false; }
+    if(r.client_norm){ has=true; if(r.client_norm!==ctx.clinorm) return false; }
+    if(r.country_lc){ has=true; if(r.country_lc!==ctx.clc) return false; }
+    return has;
+  }
+  function rrResolve(rules, s){
+    var ctx=rrEntity(s);
+    var sorted=rules.slice().sort(function(a,b){ return a.priority-b.priority; });
+    for(var i=0;i<sorted.length;i++){ if(rrMatches(sorted[i],ctx)) return {region:sorted[i].region_id, rule:sorted[i], ctx:ctx}; }
+    return {region:'unassigned', rule:null, ctx:ctx};
+  }
+  function rrSimulate(rules){
+    var counts={}, byRule={}, un=0;
+    SHIPMENTS.forEach(function(s){ var r=rrResolve(rules,s); counts[r.region]=(counts[r.region]||0)+1; if(r.region==='unassigned') un++; if(r.rule) byRule[r.rule.id]=(byRule[r.rule.id]||0)+1; });
+    return {counts:counts, byRule:byRule, unassigned:un};
+  }
+  function rrMovers(a,b){ var n=0; SHIPMENTS.forEach(function(s){ if(rrResolve(a,s).region!==rrResolve(b,s).region) n++; }); return n; }
+  function rrDirty(){
+    if(RR_LIVE.length!==RR_DRAFT.length) return true;
+    var L={}; RR_LIVE.forEach(function(r){ L[r.id]=JSON.stringify(r); });
+    for(var i=0;i<RR_DRAFT.length;i++){ var d=RR_DRAFT[i]; if(L[d.id]===undefined||L[d.id]!==JSON.stringify(d)) return true; }
+    return false;
+  }
+  function rrPending(){
+    var L={}; RR_LIVE.forEach(function(r){ L[r.id]=JSON.stringify(r); });
+    var D={}; RR_DRAFT.forEach(function(r){ D[r.id]=JSON.stringify(r); });
+    var n=0,k; for(k in D){ if(L[k]!==D[k]) n++; } for(k in L){ if(D[k]===undefined) n++; } return n;
+  }
+  function rrDraftById(id){ for(var i=0;i<RR_DRAFT.length;i++) if(RR_DRAFT[i].id===id) return RR_DRAFT[i]; return null; }
+  /* app-wide region = committed (LIVE) so other tabs never shift mid-edit */
+  function applyV2Regions(){ if(!CRM_REGION_RULES_V2||!RR_LIVE.length) return; SHIPMENTS.forEach(function(s){ s.region=rrResolve(RR_LIVE,s).region; }); }
+
+  /* ── loaders (additive tables) ── */
+  function loadRulesV2(){ return SB.from('region_rules').select('*').then(function(res){ if(res&&res.error) throw res.error; RR_LIVE=((res&&res.data)||[]).map(function(r){ return r; }); RR_DRAFT=rrClone(RR_LIVE); }); }
+  function loadAliasesV2(){ return SB.from('client_aliases').select('alias_lc,client_id,sub_client_id').then(function(res){ if(res&&res.error) throw res.error; RR_ALIASES={}; ((res&&res.data)||[]).forEach(function(a){ RR_ALIASES[a.alias_lc]={client_id:a.client_id,sub_client_id:a.sub_client_id}; }); }); }
+  function loadEntitiesV2(){ return Promise.all([
+      SB.from('clients').select('id,name').then(function(r){ RR_CLIENTS=((r&&r.data)||[]); }),
+      SB.from('sub_clients').select('id,client_id,name').then(function(r){ RR_SUBS=((r&&r.data)||[]); })
+    ]); }
+
+  /* ── the screen ── */
+  function rrWhenChips(r){
+    if(r.is_default) return '<span class="cell-sub">Country · '+esc(rrTitle(r.country_lc))+'</span>';
+    var c=[];
+    if(r.sub_client_id){ var s=rrSubById(r.sub_client_id); c.push('<span class="pchip mut">Sub · '+esc(s?s.name:'?')+'</span>'); }
+    else if(r.sub_client_norm){ c.push('<span class="pchip mut">Sub · '+esc(r.sub_client_norm)+'</span>'); }
+    if(r.client_id){ var cl=rrClientById(r.client_id); c.push('<span class="pchip mut">Client · '+esc(cl?cl.name:'?')+'</span>'); }
+    else if(r.client_norm){ c.push('<span class="pchip mut">Client · '+esc(r.client_norm)+' <span style="opacity:.6">(unlinked)</span></span>'); }
+    if(r.country_lc) c.push('<span class="pchip mut">Country · '+esc(rrTitle(r.country_lc))+'</span>');
+    return c.join(' ') || '<span class="pchip warn">empty</span>';
+  }
+  function rrScoreBandPanelHtml(){
+    var bandNames={1:'Excellent',2:'Good',3:'Fair',4:'Poor',5:'Reject'};
+    function bandSel(cur,chg,withPick){ return '<select class="scope-dd"'+(chg||'')+'>'+(withPick?'<option value="">— pick band —</option>':'')+[1,2,3,4,5].map(function(n){return '<option value="'+n+'"'+(cur===n?' selected':'')+'>'+n+' · '+bandNames[n]+'</option>';}).join('')+'</select>'; }
+    var keys=Object.keys(BAND_MAP).sort();
+    var rows=keys.length?keys.map(function(raw){ return '<tr><td class="nm">'+esc(raw)+'</td><td class="right">'+bandSel(BAND_MAP[raw],' data-crm-chg="setScoreBand" data-crm-key="'+esc(raw)+'"')+'</td><td class="right"><span class="link-btn" style="color:var(--red)" data-crm-act="removeScoreBand" data-crm-key="'+esc(raw)+'">remove</span></td></tr>'; }).join(''):'<tr><td class="cell-sub" colspan="3">No score bands mapped yet.</td></tr>';
+    var add='<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="cell-sub">Add mapping:</span><input class="scope-dd" id="sbRaw" placeholder="raw score text (e.g. BLUE)" style="max-width:200px"/><select class="scope-dd" id="sbBand">'+[1,2,3,4,5].map(function(n){return '<option value="'+n+'"'+(n===2?' selected':'')+'>'+n+' · '+bandNames[n]+'</option>';}).join('')+'</select><button class="btn btn-secondary btn-sm" onclick="CRM.addScoreBandFromForm()">Add</button></div>';
+    return '<div class="pulse-panel" style="margin-top:12px"><div class="pp-title">Score bands · raw CQC score → 1–5 canonical</div><table class="rk"><tbody>'+rows+'</tbody></table>'+add+'</div>';
+  }
+  function renderRegionRulesV2(){
+    var vc=$('viewContent'); if(!vc) return;
+    var sim=rrSimulate(RR_DRAFT), counts=sim.counts;
+    var liveUn=rrSimulate(RR_LIVE).unassigned, dirty=rrDirty();
+    var head='<div class="section-title" style="margin-top:2px"><span class="section-title-bar"></span>Region rules <span class="section-count">first matching rule by priority wins · anchored to client identity</span></div>';
+    var commit='';
+    if(dirty){
+      var mv=rrMovers(RR_LIVE,RR_DRAFT), pend=rrPending();
+      commit='<div class="pulse-panel" style="margin-bottom:14px;border-color:var(--amber-border);background:var(--amber-bg)"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'+
+        '<div style="font-size:13px;color:var(--text)"><b style="font-family:var(--font-mono)">'+pend+'</b> pending change'+(pend===1?'':'s')+' · <b style="font-family:var(--font-mono)">'+mv.toLocaleString()+'</b> shipments will move · Unassigned <b class="mono">'+liveUn.toLocaleString()+'</b> → <b class="mono">'+sim.unassigned.toLocaleString()+'</b></div>'+
+        '<div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="CRM.rrDiscard()">Discard</button><button class="btn btn-primary btn-sm" onclick="CRM.rrCommit()">Commit</button></div></div></div>';
+    } else if(RR_HIST.length){ commit='<div style="margin-bottom:12px;font-size:11px;color:var(--text3)">Committed. <span class="link-btn" onclick="CRM.rrUndo()">↺ Undo last commit</span></div>'; }
+    var cards='<div class="scorecard-grid" style="margin-bottom:16px">'+REGIONS.filter(function(r){return r.id!=='all';}).map(function(r){
+      var amber=r.id==='unassigned'&&(counts[r.id]||0)>0;
+      return '<div class="scorecard" style="cursor:default'+(amber?';border-color:var(--amber-border);background:var(--amber-bg)':'')+'"><div class="scorecard-top"><div><div class="scorecard-sub">'+esc(r.label)+'</div><div class="scorecard-client">'+(r.owner?'Owner · '+esc(r.owner):(r.id==='unassigned'?(amber?'needs rules ↓':'clear'):''))+'</div></div><span class="scorecard-count">'+(counts[r.id]||0).toLocaleString()+'<small> shp</small></span></div></div>';
+    }).join('')+'</div>';
+    var active=RR_DRAFT.filter(function(r){return !r.is_default;}).sort(function(a,b){return a.priority-b.priority;});
+    var ruleRows=active.length?active.map(function(r){
+      var wins=sim.byRule[r.id]||0, shadow=(wins===0)?' <span class="pchip warn" title="no shipment currently matches before a higher rule">shadowed</span>':'';
+      return '<tr style="'+(r.enabled?'':'opacity:.5;')+'"><td class="nm" style="max-width:none">'+rrWhenChips(r)+'</td><td>→ '+rrRegionChip(r.region_id)+'</td><td class="num">'+wins+shadow+'</td>'+
+        '<td class="right" style="white-space:nowrap"><span class="link-btn" title="up" onclick="CRM.rrMove(\''+r.id+'\',-1)">▲</span> <span class="link-btn" title="down" onclick="CRM.rrMove(\''+r.id+'\',1)">▼</span> <span class="link-btn" onclick="CRM.rrToggle(\''+r.id+'\')">'+(r.enabled?'disable':'enable')+'</span> <span class="link-btn" onclick="CRM.rrOpenDrawer(\''+r.id+'\')">edit</span> <span class="link-btn" style="color:var(--red)" onclick="CRM.rrDelete(\''+r.id+'\')">✕</span></td></tr>';
+    }).join(''):'<tr><td class="cell-sub" colspan="4">No client/sub-client/country rules yet — add one or work the queue below.</td></tr>';
+    var defs=RR_DRAFT.filter(function(r){return r.is_default;}).sort(function(a,b){return a.priority-b.priority;});
+    var rulePanel='<div class="pulse-panel" style="margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px"><div class="pp-title" style="margin:0">Rules · precedence top → bottom</div><button class="btn btn-primary btn-sm" onclick="CRM.rrOpenDrawer(null)">+ Add rule</button></div>'+
+      '<table class="rk"><thead><tr><td class="cell-sub">When</td><td class="cell-sub">Then</td><td class="cell-sub">Wins</td><td></td></tr></thead><tbody>'+ruleRows+'</tbody></table>'+
+      '<div style="margin-top:8px;font-size:11px;color:var(--text3)">＋ <span class="link-btn" onclick="CRM.rrToggleDefaults()">'+(RR_SHOWDEF?'Hide':'Show')+' '+defs.length+' country defaults</span> (lowest priority)</div>'+
+      (RR_SHOWDEF?('<div style="max-height:240px;overflow:auto;margin-top:6px"><table class="rk"><tbody>'+defs.map(function(r){ return '<tr><td class="nm">'+esc(rrTitle(r.country_lc))+'</td><td>→ '+rrRegionChip(r.region_id)+'</td><td class="num">'+(sim.byRule[r.id]||0)+'</td></tr>'; }).join('')+'</tbody></table></div>'):'')+'</div>';
+    /* Unassigned worklist */
+    RR_WL=[]; var seen={};
+    SHIPMENTS.forEach(function(s){ if(rrResolve(RR_DRAFT,s).region!=='unassigned') return; var ctx=rrEntity(s); var key=(ctx.cid||'?')+'|'+(ctx.sid||'')+'|'+ctx.clc+'|'+s.client; if(!seen[key]){ seen[key]={cid:ctx.cid,sid:ctx.sid,clc:ctx.clc,client:s.client,sub:s.sub,country:s.country,cn:s.cn,n:0}; RR_WL.push(seen[key]); } seen[key].n++; });
+    RR_WL.sort(function(a,b){return b.n-a.n;});
+    var wlRows=RR_WL.length?RR_WL.slice(0,40).map(function(w,i){ var idc=w.cid?'':' <span class="pchip warn" title="not linked to a canonical client">no identity</span>'; return '<tr><td class="nm" style="max-width:none">'+esc(w.client||'—')+(w.sub&&w.sub!=='—'?' <span class="cell-sub">· '+esc(w.sub)+'</span>':'')+idc+'</td><td class="cell-sub">'+esc(w.country||'—')+'</td><td class="num">'+w.n+' shp</td><td class="right" style="white-space:nowrap"><span class="link-btn" onclick="CRM.rrWhy('+i+')">why?</span> <span class="link-btn" onclick="CRM.rrCreateFor('+i+')">create rule →</span></td></tr>'; }).join(''):'<tr><td class="cell-sub" colspan="4">🎉 Nothing unassigned under the current draft.</td></tr>';
+    var wlPanel='<div class="pulse-panel" style="margin-bottom:12px"><div class="pp-title">Unassigned worklist · '+RR_WL.length+' to resolve ('+sim.unassigned.toLocaleString()+' shipments)'+(RR_WL.length>40?' · showing top 40':'')+'</div><table class="rk"><tbody>'+wlRows+'</tbody></table></div>';
+    /* alias reconciliation entry */
+    RR_UM=rrComputeUnmatched();
+    var umPanel='<div class="pulse-panel" style="margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between"><div class="pp-title" style="margin:0">Alias reconciliation · '+RR_UM.length+' shipment name'+(RR_UM.length===1?'':'s')+' not linked to a client</div>'+(RR_UM.length?'<button class="btn btn-secondary btn-sm" onclick="CRM.rrOpenAlias()">Reconcile →</button>':'<span class="pchip ok">all linked</span>')+'</div>'+(RR_UM.length?'<div class="cell-sub" style="margin-top:6px">These spellings on shipments don\'t match a canonical client, so identity rules can\'t reach them. Map each to fix at the source.</div>':'')+'</div>';
+    vc.innerHTML=head+commit+cards+rulePanel+wlPanel+umPanel+rrScoreBandPanelHtml();
+  }
+  function rrComputeUnmatched(){
+    var out=[], seen={};
+    SHIPMENTS.forEach(function(s){ [['client',s.client],['sub',s.sub]].forEach(function(p){ var raw=p[1]; if(!raw||raw==='—') return; var k=rrNorm(raw); if(RR_ALIASES[k]||seen[k]) return; seen[k]=1; out.push({raw:raw,key:k,kind:p[0],suggest:rrFuzzy(raw)}); }); });
+    return out;
+  }
+  function rrFuzzy(raw){
+    var r=rrNorm(raw), best=null, bs=0;
+    function sc(a,b){ if(a===b) return 1; if(a.indexOf(b)>=0||b.indexOf(a)>=0) return 0.8; var ta=a.split(/\s+/),n=0; ta.forEach(function(t){ if(t.length>2&&b.indexOf(t)>=0) n++; }); return n/Math.max(ta.length,1)*0.7; }
+    RR_CLIENTS.forEach(function(c){ var v=sc(r,rrNorm(c.name)); if(v>bs){bs=v;best={type:'client',id:c.id,name:c.name};} });
+    RR_SUBS.forEach(function(s){ var v=sc(r,rrNorm(s.name)); if(v>bs){bs=v;best={type:'sub',id:s.id,name:s.name};} });
+    return bs>=0.55?best:null;
+  }
+  /* ── editing (operates on RR_DRAFT; persisted on Commit) ── */
+  function rrToggleDefaults(){ RR_SHOWDEF=!RR_SHOWDEF; renderRegionRulesV2(); }
+  function rrToggle(id){ var r=rrDraftById(id); if(r){ r.enabled=!r.enabled; renderRegionRulesV2(); } }
+  function rrDelete(id){ RR_DRAFT=RR_DRAFT.filter(function(r){return r.id!==id;}); renderRegionRulesV2(); }
+  function rrMove(id,dir){ var r=rrDraftById(id); if(!r) return; var peers=RR_DRAFT.filter(function(x){return !x.is_default;}).sort(function(a,b){return a.priority-b.priority;}); var i=peers.indexOf(r), j=i+dir; if(j<0||j>=peers.length) return; var t=r.priority; r.priority=peers[j].priority; peers[j].priority=t; renderRegionRulesV2(); }
+  function rrCreateFor(i){ var w=RR_WL[i]; rrOpenDrawer(null,{client_id:w.cid,sub_client_id:w.sid,country_lc:(w.cid?null:w.clc)}); }
+  function rrOpenDrawer(id,prefill){
+    var r=id?rrDraftById(id):null;
+    RR_EDIT={ id:id||null, _tmp:id||rrUuid(), client_id:(r?r.client_id:(prefill&&prefill.client_id))||'', sub_client_id:(r?r.sub_client_id:(prefill&&prefill.sub_client_id))||'', country_lc:(r?r.country_lc:(prefill&&prefill.country_lc))||'', region_id:(r?r.region_id:'')||'', note:(r?r.note:'')||'' };
+    $('dlvTitle').innerHTML=id?'Edit rule':'Add rule';
+    $('dlvBody').innerHTML=rrFormHtml();
+    $('dlv').classList.add('open');
+    rrUpdatePreview();
+  }
+  function rrSubOptions(cid){ var subs=RR_SUBS.filter(function(s){return !cid||s.client_id===cid;}).sort(function(a,b){return a.name.localeCompare(b.name);}); return '<option value="">— any / whole client —</option>'+subs.map(function(s){return '<option value="'+s.id+'"'+(RR_EDIT.sub_client_id===s.id?' selected':'')+'>'+esc(s.name)+'</option>';}).join(''); }
+  function rrFormHtml(){
+    var clientOpts='<option value="">— any client —</option>'+RR_CLIENTS.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(c){return '<option value="'+c.id+'"'+(RR_EDIT.client_id===c.id?' selected':'')+'>'+esc(c.name)+'</option>';}).join('');
+    var ctys=Object.keys(COUNTRY_REGION).concat(Object.keys(COUNTRY_OVERLAP)).filter(function(v,ix,a){return a.indexOf(v)===ix;}).sort();
+    var ctyOpts='<option value="">— any country —</option>'+ctys.map(function(k){return '<option value="'+esc(k)+'"'+(RR_EDIT.country_lc===k?' selected':'')+'>'+esc(rrTitle(k))+(COUNTRY_OVERLAP[k]?' ⚠':'')+'</option>';}).join('');
+    return '<div style="display:flex;flex-direction:column;gap:12px">'+
+      '<div><label class="cell-sub">Client</label><br><select class="scope-dd" style="max-width:none;width:100%" onchange="CRM.rrSetField(\'client_id\',this.value)">'+clientOpts+'</select></div>'+
+      '<div><label class="cell-sub">Sub-client (optional — beats the client rule)</label><br><select class="scope-dd" id="rrSub" style="max-width:none;width:100%" onchange="CRM.rrSetField(\'sub_client_id\',this.value)">'+rrSubOptions(RR_EDIT.client_id)+'</select></div>'+
+      '<div><label class="cell-sub">Country (optional)</label><br><select class="scope-dd" style="max-width:none;width:100%" onchange="CRM.rrSetField(\'country_lc\',this.value)">'+ctyOpts+'</select></div>'+
+      '<div><label class="cell-sub">Assign to region</label><br><select class="scope-dd" style="max-width:none;width:100%" onchange="CRM.rrSetField(\'region_id\',this.value)"><option value="">— pick region —</option>'+regionOptions(RR_EDIT.region_id,true)+'</select></div>'+
+      '<div><label class="cell-sub">Note (shown in “why?”)</label><br><input class="form-input" value="'+esc(RR_EDIT.note||'')+'" oninput="CRM.rrSetField(\'note\',this.value)"></div>'+
+      '<div class="pulse-panel" id="rrPreview" style="background:var(--bg2)"></div>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button><button class="btn btn-primary" onclick="CRM.rrSaveRule()">Save rule</button></div></div>';
+  }
+  function rrSetField(f,v){ RR_EDIT[f]=v; if(f==='client_id'){ RR_EDIT.sub_client_id=''; var el=$('rrSub'); if(el) el.innerHTML=rrSubOptions(v); } rrUpdatePreview(); }
+  function rrDraftFromEdit(){
+    var e=RR_EDIT, band=e.sub_client_id?RR_BAND.sub:(e.client_id?RR_BAND.client:RR_BAND.ctyOvr);
+    var cid=e.client_id||(e.sub_client_id?((rrSubById(e.sub_client_id)||{}).client_id||null):null)||null;
+    var prio=e.id?rrDraftById(e.id).priority:(band+RR_DRAFT.filter(function(r){return Math.floor(r.priority/1000)===Math.floor(band/1000);}).length+1);
+    return { id:e.id||e._tmp, enabled:true, priority:prio, sub_client_id:e.sub_client_id||null, client_id:cid, sub_client_norm:null, client_norm:null, country_lc:e.country_lc||null, region_id:e.region_id, note:e.note||'', is_default:false };
+  }
+  function rrUpdatePreview(){
+    var box=$('rrPreview'); if(!box) return;
+    if(!RR_EDIT.region_id || (!RR_EDIT.client_id && !RR_EDIT.sub_client_id && !RR_EDIT.country_lc)){ box.innerHTML='<span class="cell-sub">Pick at least one condition and a target region to preview impact.</span>'; return; }
+    var nr=rrDraftFromEdit();
+    var temp=RR_DRAFT.filter(function(r){return r.id!==nr.id;}).map(function(r){var o={};for(var k in r)o[k]=r[k];return o;}); temp.push(nr);
+    var before=rrSimulate(RR_DRAFT), after=rrSimulate(temp), wins=after.byRule[nr.id]||0, mv=rrMovers(RR_DRAFT,temp);
+    box.innerHTML='<div style="font-size:12px;color:var(--text)">This rule wins <b class="mono">'+wins+'</b> shipment'+(wins===1?'':'s')+' · <b class="mono">'+mv+'</b> move · Unassigned <b class="mono">'+before.unassigned.toLocaleString()+'</b> → <b class="mono">'+after.unassigned.toLocaleString()+'</b></div>';
+  }
+  function rrSaveRule(){
+    if(!RR_EDIT.region_id){ toast('Pick a target region.'); return; }
+    if(!RR_EDIT.client_id && !RR_EDIT.sub_client_id && !RR_EDIT.country_lc){ toast('Pick at least one condition.'); return; }
+    var nr=rrDraftFromEdit(); RR_DRAFT=RR_DRAFT.filter(function(r){return r.id!==nr.id;}); RR_DRAFT.push(nr);
+    closeDlv(); renderRegionRulesV2(); toast('Rule staged. <b>Commit</b> to apply.');
+  }
+  function rrRowForDb(r){ return { id:r.id, priority:r.priority, enabled:r.enabled, sub_client_id:r.sub_client_id||null, client_id:r.client_id||null, sub_client_norm:r.sub_client_norm||null, client_norm:r.client_norm||null, country_lc:r.country_lc||null, region_id:r.region_id, note:r.note||null, is_default:!!r.is_default, set_by:(USER&&USER.id)||null, updated_at:new Date().toISOString() }; }
+  function rrCommit(){
+    var liveIds={}; RR_LIVE.forEach(function(r){ liveIds[r.id]=1; });
+    var draftIds={}; RR_DRAFT.forEach(function(r){ draftIds[r.id]=1; });
+    var removed=Object.keys(liveIds).filter(function(id){ return !draftIds[id]; });
+    var rows=RR_DRAFT.map(rrRowForDb);
+    toast('Committing…');
+    SB.from('region_rules').upsert(rows,{onConflict:'id'}).then(function(res){
+      if(res&&res.error) throw res.error;
+      return removed.length ? SB.from('region_rules').delete().in('id',removed) : Promise.resolve({});
+    }).then(function(res){
+      if(res&&res.error) throw res.error;
+      RR_HIST.push(rrClone(RR_LIVE)); RR_LIVE=rrClone(RR_DRAFT); applyV2Regions(); render();
+      toast('Rules committed. <span class="link-btn" onclick="CRM.rrUndo()">Undo</span>');
+    }).catch(function(e){ toast('Commit failed — '+esc(e&&e.message||e)); });
+  }
+  function rrDiscard(){ RR_DRAFT=rrClone(RR_LIVE); renderRegionRulesV2(); toast('Draft discarded.'); }
+  function rrUndo(){
+    if(!RR_HIST.length){ toast('Nothing to undo.'); return; }
+    var prev=RR_HIST[RR_HIST.length-1];
+    var prevIds={}; prev.forEach(function(r){ prevIds[r.id]=1; });
+    var curIds={}; RR_LIVE.forEach(function(r){ curIds[r.id]=1; });
+    var removed=Object.keys(curIds).filter(function(id){ return !prevIds[id]; });
+    toast('Undoing…');
+    SB.from('region_rules').upsert(prev.map(rrRowForDb),{onConflict:'id'}).then(function(res){
+      if(res&&res.error) throw res.error;
+      return removed.length ? SB.from('region_rules').delete().in('id',removed) : Promise.resolve({});
+    }).then(function(res){
+      if(res&&res.error) throw res.error;
+      RR_HIST.pop(); RR_LIVE=rrClone(prev); RR_DRAFT=rrClone(prev); applyV2Regions(); render();
+      toast('Reverted to previous committed rules.');
+    }).catch(function(e){ toast('Undo failed — '+esc(e&&e.message||e)); });
+  }
+  /* ── alias reconciliation (applies immediately; identity is curation, not a rule) ── */
+  function rrOpenAlias(){ $('dlvTitle').innerHTML='Reconcile client aliases'; $('dlvBody').innerHTML=rrAliasHtml(); $('dlv').classList.add('open'); }
+  function rrAliasHtml(){
+    if(!RR_UM.length) return '<div class="cell-sub">All shipment names are linked. 🎉</div>';
+    return '<div class="cell-sub" style="margin-bottom:10px">Map each unlinked shipment spelling to a canonical client or sub-client. Applies immediately and re-resolves regions.</div>'+RR_UM.map(function(u,i){
+      var opts='<option value="">— pick entity —</option><optgroup label="Clients">'+RR_CLIENTS.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(c){return '<option value="client:'+c.id+'"'+(u.suggest&&u.suggest.type==='client'&&u.suggest.id===c.id?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</optgroup><optgroup label="Sub-clients">'+RR_SUBS.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(s){return '<option value="sub:'+s.id+'"'+(u.suggest&&u.suggest.type==='sub'&&u.suggest.id===s.id?' selected':'')+'>'+esc(s.name)+'</option>';}).join('')+'</optgroup>';
+      return '<div style="padding:9px 0;border-bottom:1px solid var(--bg2)"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><b>'+esc(u.raw)+'</b> <span class="pchip mut">'+u.kind+'</span></div>'+(u.suggest?'<span class="pchip ok">≈ '+esc(u.suggest.name)+'</span>':'<span class="pchip warn">no match</span>')+'</div><div style="display:flex;gap:8px;margin-top:6px"><select class="scope-dd" id="rrAl'+i+'" style="max-width:none;flex:1">'+opts+'</select><button class="btn btn-primary btn-sm" onclick="CRM.rrMapAlias('+i+')">Map</button></div></div>';
+    }).join('');
+  }
+  function rrMapAlias(i){
+    var u=RR_UM[i], el=$('rrAl'+i), val=el&&el.value; if(!val){ toast('Pick an entity.'); return; }
+    var parts=val.split(':'), row={alias_lc:u.key, confidence:'manual', set_by:(USER&&USER.id)||null};
+    if(parts[0]==='client'){ row.client_id=parts[1]; row.sub_client_id=null; } else { var sc=rrSubById(parts[1]); row.sub_client_id=parts[1]; row.client_id=sc?sc.client_id:null; }
+    toast('Mapping…');
+    SB.from('client_aliases').upsert(row,{onConflict:'alias_lc'}).then(function(res){
+      if(res&&res.error) throw res.error;
+      RR_ALIASES[u.key]={client_id:row.client_id,sub_client_id:row.sub_client_id||null};
+      applyV2Regions(); RR_UM=rrComputeUnmatched(); $('dlvBody').innerHTML=rrAliasHtml(); render();
+      toast('Alias mapped · <b>'+esc(u.raw)+'</b> linked.');
+    }).catch(function(e){ toast('Map failed — '+esc(e&&e.message||e)); });
+  }
+  /* ── why this region? ── */
+  function rrWhy(i){
+    var w=RR_WL[i]; if(!w) return;
+    var s=null, j; for(j=0;j<SHIPMENTS.length;j++){ if(SHIPMENTS[j].cn===w.cn){ s=SHIPMENTS[j]; break; } }
+    if(!s){ return; }
+    var ctx=rrEntity(s), won=rrResolve(RR_DRAFT,s);
+    var sorted=RR_DRAFT.slice().sort(function(a,b){return a.priority-b.priority;}).filter(function(r){ return !r.is_default || r.country_lc===ctx.clc; });
+    var lines=sorted.map(function(r){ var match=rrMatches(r,ctx), isWon=won.rule&&won.rule.id===r.id; return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;'+(isWon?'background:var(--green-bg);border-radius:6px;padding-left:6px;padding-right:6px':'')+'"><span'+(isWon?' style="color:var(--accent);font-weight:600"':(match?'':' style="opacity:.5"'))+'>'+rrWhenChips(r)+' → '+rrRegionChip(r.region_id)+'</span><span class="cell-sub">'+(isWon?'✓ wins':(match?'match (lower)':'—'))+'</span></div>'; }).join('');
+    $('dlvTitle').innerHTML='Why this region?';
+    $('dlvBody').innerHTML='<div class="cell-sub" style="margin-bottom:8px">'+esc(w.client||'—')+(w.sub&&w.sub!=='—'?' · '+esc(w.sub):'')+' · '+esc(w.country||'—')+' · '+(ctx.cid?('linked → '+esc((rrClientById(ctx.cid)||{}).name||'?')):'<span class="pchip warn">no canonical identity</span>')+'</div><div style="margin-bottom:10px">Resolved region: '+rrRegionChip(won.region)+'</div><div class="pp-title">Rules evaluated (by priority)</div>'+(lines||'<span class="cell-sub">No rules apply — falls through to Unassigned.</span>')+(won.region==='unassigned'?'<div class="cell-sub" style="margin-top:10px">Nothing matched. '+(ctx.cid?'Add a client/sub rule above.':'Link this name in <span class="link-btn" onclick="CRM.rrOpenAlias()">alias reconciliation</span> first.')+'</div>':'');
+    $('dlv').classList.add('open');
+  }
+
   function renderContent(){
     if(currentTab==='regions' && !(IS_ADMIN&&currentRegion==='all')) currentTab='dashboard';
     if(currentTab==='dashboard') return renderCards();
@@ -15963,7 +16218,7 @@ window.CRM = (function(){
     if(currentTab==='grading')   return renderGradingQueue();
     if(currentTab==='claims')    return renderClaims();
     if(currentTab==='clean')     return renderClean();
-    if(currentTab==='regions')   return renderRegionMapping();
+    if(currentTab==='regions')   return (CRM_REGION_RULES_V2?renderRegionRulesV2():renderRegionMapping());
   }
   function render(){ if(!MOUNTED) return; renderRegions(); renderProducts(); renderKpis(); renderTabs(); renderContent(); }
 
@@ -16538,7 +16793,7 @@ window.CRM = (function(){
     +'<span class="crm-search-clear" onclick="CRM.clearSearch()">&times;</span></div>'
     +'<span id="regionSel"></span><span id="productSel"></span></div></div>'
     +'<div class="page"><div class="page-inner">'
-    +'<div class="region-note" style="margin:0 0 10px">Regions from <b>Regions 2026</b> · members are locked to their region (admins see all). Region resolves per shipment: shipment override → client override → country default → Unassigned.'+(IS_ADMIN?' <span class="link-btn" onclick="CRM.setTab(\'regions\')">Manage region mapping →</span>':'')+'</div>'
+    +'<div class="region-note" style="margin:0 0 10px">Regions from <b>Regions 2026</b> · members are locked to their region (admins see all). '+(CRM_REGION_RULES_V2?'Region resolves per shipment by the first matching rule (priority: sub-client → client → country → default → Unassigned).':'Region resolves per shipment: shipment override → client override → country default → Unassigned.')+(IS_ADMIN?' <span class="link-btn" onclick="CRM.setTab(\'regions\')">'+(CRM_REGION_RULES_V2?'Manage region rules →':'Manage region mapping →')+'</span>':'')+'</div>'
     +'<div class="kpi-grid" id="kpiGrid"></div><div id="viewContent">'+crmSkel()+'</div>'
     +'</div></div>'
     +'<div class="toast" id="crmToast"></div>'
@@ -16621,7 +16876,7 @@ window.CRM = (function(){
   }
 
   /* ── lifecycle ── */
-  function reload(){ return loadVoyages().then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
+  function reload(){ return loadVoyages().then(function(){ if(CRM_REGION_RULES_V2) applyV2Regions(); render(); }).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
   function init(opts){
     SB=opts.supabase; SEASON=opts.seasonId; IS_ADMIN=!!opts.isAdmin; USER=opts.currentUser||null; ROOT=opts.root; MOUNTED=true;
     CONFIG=opts.config||null; ON_OPEN_CQC=opts.onOpenCqc||null; ON_HEADER=opts.onHeader||null;
@@ -16629,7 +16884,9 @@ window.CRM = (function(){
     ROOT.innerHTML=template();
     attachListeners();
     /* loadVoyages has no data dependency on the four lookups, so fire it alongside them instead of chaining — removes one round-trip from time-to-dashboard */
-    Promise.all([loadRegions(),loadCountryMap(),loadOverrides(),loadScoreBands(),loadVoyages()]).then(render).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; });
+    var loaders=[loadRegions(),loadCountryMap(),loadOverrides(),loadScoreBands(),loadVoyages()];
+    if(CRM_REGION_RULES_V2) loaders.push(loadRulesV2(),loadAliasesV2(),loadEntitiesV2());
+    Promise.all(loaders).then(function(){ if(CRM_REGION_RULES_V2) applyV2Regions(); render(); }).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; });
   }
   function setSeason(seasonId){ if(seasonId===SEASON) return; /* skip the redundant mount-time call so CRM open fetches voyages once, not twice */ SEASON=seasonId; if(MOUNTED) reload(); }
   function teardown(){ MOUNTED=false; ROOT=null; if(ON_HEADER){ ON_HEADER(''); } }
@@ -16645,7 +16902,10 @@ window.CRM = (function(){
     syncClaimPct:syncClaimPct, markClaimPctManual:markClaimPctManual,
     uploadEvidence:uploadEvidence, evOpen:evOpen, evDel:evDel,
     setCountryOverride:setCountryOverride, setClientOverride:setClientOverride, addClientOverrideFromForm:addClientOverrideFromForm,
-    setScoreBand:setScoreBand, removeScoreBand:removeScoreBand, addScoreBandFromForm:addScoreBandFromForm
+    setScoreBand:setScoreBand, removeScoreBand:removeScoreBand, addScoreBandFromForm:addScoreBandFromForm,
+    rrOpenDrawer:rrOpenDrawer, rrSetField:rrSetField, rrSaveRule:rrSaveRule, rrToggle:rrToggle, rrDelete:rrDelete, rrMove:rrMove,
+    rrToggleDefaults:rrToggleDefaults, rrCreateFor:rrCreateFor, rrCommit:rrCommit, rrDiscard:rrDiscard, rrUndo:rrUndo,
+    rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy
   };
 })();
 /* ── CRM island CSS (scoped to .crmv) — injected once ── */
