@@ -16278,8 +16278,8 @@ window.CRM = (function(){
     var head='<div class="dlv-head"><div><div class="dlv-id">'+esc(s.cn)+'</div><div class="dlv-meta">'+esc(s.client)+' · '+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></div>'+statusBadge(s.status,s.statusLabel)+'</div>';
     var lock='<div class="scope-lock">🔒 Full shipment record, shown inside CRM and scoped to your region.</div>';
     var actions='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'+
-      (s.status==='returned'?'<button class="btn btn-primary btn-sm" data-crm-act="dlvRedirect" data-crm-key="'+esc(s.key)+'">Redirect →</button>':'')+
-      '<button class="btn '+(s.status==='returned'?'btn-secondary':'btn-primary')+' btn-sm" data-crm-act="dlvClaim" data-crm-key="'+esc(s.key)+'">'+(s.claim?'View claim':'Raise claim')+'</button>'+
+      ((s.status==='returned'||s.claim)?'<button class="btn btn-primary btn-sm" data-crm-act="dlvRedirect" data-crm-key="'+esc(s.key)+'">Redirect →</button>':'')+
+      '<button class="btn '+((s.status==='returned'||s.claim)?'btn-secondary':'btn-primary')+' btn-sm" data-crm-act="dlvClaim" data-crm-key="'+esc(s.key)+'">'+(s.claim?'View claim':'Raise claim')+'</button>'+
       (s.coverage!=='cqc'?'<button class="btn btn-secondary btn-sm" data-crm-act="dlvGrade" data-crm-key="'+esc(s.key)+'">'+(s.coverage==='graded'?'Edit grade':'Grade')+'</button>':'')+
       (s.insp?'<button class="btn btn-secondary btn-sm" data-crm-act="openInsp" data-crm-key="'+esc(s.key)+'">Export inspection ↗</button>':'')+
       (s.cqc?'<button class="btn btn-secondary btn-sm" data-crm-act="openCqc" data-crm-key="'+esc(s.key)+'">CQC report ↗</button>':'')+'</div>';
@@ -16847,7 +16847,7 @@ window.CRM = (function(){
     +'<div class="ev-ref" id="claimRef"></div><div class="hint">The CQC report is the quality evidence; the export inspection is reference only.</div>'
     +'<div class="msec">Notes</div><textarea class="form-ta" id="claimNotes" style="height:60px;resize:vertical" placeholder="Client rejected 2 pallets on arrival; decay concentrated in stems…"></textarea>'
     +'<div class="msec">History</div><div class="audit" id="claimAudit"></div>'
-    +'</div><div class="modal-foot" style="justify-content:space-between"><span class="link-btn" style="color:var(--red)" title="Removes a claim opened in error — kept in history as Cancelled" onclick="CRM.cancelClaim()">Cancel claim</span><span style="display:flex;gap:8px"><button class="btn btn-secondary" onclick="CRM.closeModal(\'claimModal\')">Close</button><button class="btn btn-primary" id="claimSaveBtn" onclick="CRM.saveClaim()">Save claim</button></span></div></div></div>';
+    +'</div><div class="modal-foot" style="justify-content:space-between"><span class="link-btn" style="color:var(--red)" title="Removes a claim opened in error — kept in history as Cancelled" onclick="CRM.cancelClaim()">Cancel claim</span><span style="display:flex;gap:8px"><button class="btn btn-secondary" title="Redirect these goods to another client — links this claim if it is saved" onclick="CRM.redirectFromClaim()">Redirect goods →</button><button class="btn btn-secondary" onclick="CRM.closeModal(\'claimModal\')">Close</button><button class="btn btn-primary" id="claimSaveBtn" onclick="CRM.saveClaim()">Save claim</button></span></div></div></div>';
   }
   function gradeModalHtml(){ return ''
     +'<div class="modal-bg" id="gradeModal"><div class="modal"><div class="modal-head"><span class="modal-x" onclick="CRM.closeModal(\'gradeModal\')">&times;</span><div class="modal-title">CRM grading</div><div class="modal-sub" id="gradeSub">—</div></div><div class="modal-body">'
@@ -16862,8 +16862,8 @@ window.CRM = (function(){
   /* ── Redirect modal (return a container to another client) ── */
   var redirCtx=null, redirScope='whole', redirRows=[], redirBusy=false;
   function redirectModalHtml(){ return ''
-    +'<div class="modal-bg" id="redirModal"><div class="modal"><div class="modal-head"><span class="modal-x" onclick="CRM.closeModal(\'redirModal\')">&times;</span><div class="modal-title">Redirect returned goods</div><div class="modal-sub" id="redirSub">—</div></div><div class="modal-body">'
-    +'<div class="msec" style="border-top:none;padding-top:0;margin-top:0">Returned goods</div><div id="redirSrc" style="padding:10px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);font-size:12px;color:var(--text2);line-height:1.5"></div>'
+    +'<div class="modal-bg" id="redirModal"><div class="modal"><div class="modal-head"><span class="modal-x" onclick="CRM.closeModal(\'redirModal\')">&times;</span><div class="modal-title">Redirect goods</div><div class="modal-sub" id="redirSub">—</div></div><div class="modal-body">'
+    +'<div class="msec" style="border-top:none;padding-top:0;margin-top:0">Goods to redirect</div><div id="redirSrc" style="padding:10px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);font-size:12px;color:var(--text2);line-height:1.5"></div>'
     +'<div class="msec">What to redirect</div><div class="pill-row"><span class="pill sel" id="rdWhole" role="button" tabindex="0" onclick="CRM.setRedirScope(\'whole\')">Whole container</span><span class="pill" id="rdRows" role="button" tabindex="0" onclick="CRM.setRedirScope(\'rows\')">Selected rows</span><span class="pill" id="rdPart" role="button" tabindex="0" onclick="CRM.setRedirScope(\'part\')">Partial / re-sort</span></div><div class="hint" id="redirModeHint" style="margin-bottom:10px"></div><div class="row-sel" id="rdRowWrap"></div>'
     +'<div class="msec">Redirect to</div><div class="grid2"><div><label class="form-label">Client</label><select class="form-select" id="rdClient" onchange="CRM.redirClientChanged()"></select></div><div><label class="form-label">Sub-client</label><select class="form-select" id="rdSub" onchange="CRM.redirRender()"></select></div></div>'
     +'<div style="margin-top:10px"><label class="form-label">Linked claim <span style="text-transform:none;font-weight:400;color:var(--text3)">(optional)</span></label><select class="form-select" id="rdClaim" onchange="CRM.redirRender()"></select><div class="hint">A redirect can stand alone or attach to an existing claim on this container.</div></div>'
@@ -16947,7 +16947,8 @@ window.CRM = (function(){
     var build=function(){
       redirRows=(s.rows||[]).map(function(r){ return {variety:r.variety,farm:r.farm,ph:r.ph,ctype:r.ctype,carta:r.carta||'',ctn:Math.abs(num(r.cartons)||0),tons:Math.abs(num(r.netTons)||0),on:true,pct:100}; });
       var tc=redirRows.reduce(function(a,r){return a+r.ctn;},0), tn=redirRows.reduce(function(a,r){return a+r.tons;},0);
-      if($('redirSrc')) $('redirSrc').innerHTML=redirRows.length?('<b>'+tc.toLocaleString()+' ctn · '+tn.toFixed(2)+' t</b> returned across <b>'+redirRows.length+' composition row'+(redirRows.length>1?'s':'')+'</b>. Traceability &amp; farm stay with the fruit.'):'No composition rows on file for this container yet.';
+      var srcVerb=(s.status==='returned')?'returned across':'across';
+      if($('redirSrc')) $('redirSrc').innerHTML=redirRows.length?('<b>'+tc.toLocaleString()+' ctn · '+tn.toFixed(2)+' t</b> '+srcVerb+' <b>'+redirRows.length+' composition row'+(redirRows.length>1?'s':'')+'</b>'+(s.claimId?' · claim <span class="mono">'+esc(s.claimRefRaw||'')+'</span> will be linked':'')+'. Traceability &amp; farm stay with the fruit.'):'No composition rows on file for this container yet.';
       setRedirScope('whole');
     };
     build();
@@ -16987,6 +16988,14 @@ window.CRM = (function(){
       toast('Redirected · <b>'+esc(out.redirect_ref||client)+'</b> · '+((out.total_cartons)||0).toLocaleString()+' ctn');
       reload();
     });
+  }
+  /* launch a redirect from inside the claim modal — goods needn't be Returned to be redirected.
+     A saved claim (claimCtx.claimId) auto-links; an unsaved one opens the redirect unlinked. */
+  function redirectFromClaim(){
+    var s=claimCtx; if(!s){ return; }
+    if(!s.claimId) toast('Tip: save the claim first if you want the redirect linked to it.');
+    closeModal('claimModal');
+    openRedirect(s.key);
   }
   function renderTimeline(evs){
     if(!evs||!evs.length) return '<div class="audit-item"><span class="audit-dot" style="background:var(--border2)"></span><span class="audit-main cell-sub">No lifecycle events yet.</span></div>';
@@ -17071,7 +17080,7 @@ window.CRM = (function(){
     openClaim:openClaim, openGrade:openGrade, closeModal:closeModal, saveClaim:saveClaim, saveGrade:saveGrade, cancelClaim:cancelClaim,
     setLifecycle:setLifecycle, setGrade:setGrade, setScope:setScope, togglePotential:togglePotential, syncNet:syncNet, rowSelChanged:rowSelChanged,
     syncClaimPct:syncClaimPct, markClaimPctManual:markClaimPctManual,
-    openRedirect:openRedirect, saveRedirect:saveRedirect, setRedirScope:setRedirScope, redirClientChanged:redirClientChanged, redirRowToggle:redirRowToggle, redirPct:redirPct, redirRender:redirRender,
+    openRedirect:openRedirect, saveRedirect:saveRedirect, setRedirScope:setRedirScope, redirClientChanged:redirClientChanged, redirRowToggle:redirRowToggle, redirPct:redirPct, redirRender:redirRender, redirectFromClaim:redirectFromClaim,
     uploadEvidence:uploadEvidence, evOpen:evOpen, evDel:evDel,
     setCountryOverride:setCountryOverride, setClientOverride:setClientOverride, addClientOverrideFromForm:addClientOverrideFromForm,
     setScoreBand:setScoreBand, removeScoreBand:removeScoreBand, addScoreBandFromForm:addScoreBandFromForm,
