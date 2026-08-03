@@ -70,6 +70,10 @@ input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--te
 .topbar-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
 .topbar-title{font-family:var(--font-display);font-size:17px;white-space:nowrap}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+/* CRM: topbar toned to the sidebar green so the module nav reads as app chrome */
+.crm-topbar{background:var(--sidebar);border-bottom:1px solid #16211a}
+.crm-topbar .topbar-left{flex:0 0 auto}
+.crm-topbar .topbar-title{color:#fff}
 .page{padding:16px;flex:1}
 
 /* ── Hide number input spinners — reclaims space occupied by up/down arrows ── */
@@ -15537,9 +15541,12 @@ window.CRM = (function(){
     base.forEach(function(s){ counts[s.region]=(counts[s.region]||0)+1; });
     counts.all=base.length;
     var el=$('regionSel'); if(!el) return;
-    el.innerHTML='<select class="scope-dd" onchange="CRM.setRegion(this.value)">'+REGIONS.map(function(r){
-      return '<option value="'+r.id+'"'+(r.id===currentRegion?' selected':'')+'>Region: '+esc(r.label)+(r.admin?' (admin)':'')+' · '+(counts[r.id]||0)+'</option>';
-    }).join('')+'</select>';
+    var cur=REGIONS.filter(function(r){return r.id===currentRegion;})[0]||REGIONS[0];
+    var active=currentRegion!=='all';
+    el.innerHTML='<span class="fbtn'+(active?' active':'')+'"><span class="fbtn-cap">Region</span><span class="fbtn-val">'+esc(cur.label)+(cur.admin?' (admin)':'')+'</span><span class="fbtn-count">'+(counts[currentRegion]||0).toLocaleString()+'</span><span class="fbtn-chev">▾</span>'
+      +'<select class="fbtn-native" onchange="CRM.setRegion(this.value)">'+REGIONS.map(function(r){
+        return '<option value="'+r.id+'"'+(r.id===currentRegion?' selected':'')+'>'+esc(r.label)+(r.admin?' (admin)':'')+' · '+(counts[r.id]||0)+'</option>';
+      }).join('')+'</select></span>';
   }
   function renderProducts(){
     var list=baseFiltered('product'), counts={};
@@ -15547,9 +15554,13 @@ window.CRM = (function(){
     var opts=[['all','All products',list.length]];
     Object.keys(counts).sort().forEach(function(p){ opts.push([p,p,counts[p]]); });
     var el=$('productSel'); if(!el) return;
-    el.innerHTML='<select class="scope-dd" onchange="CRM.setProduct(this.value)">'+opts.map(function(o){
-      return '<option value="'+esc(o[0])+'"'+(currentProduct===o[0]?' selected':'')+'>Product: '+esc(o[1])+' · '+o[2]+'</option>';
-    }).join('')+'</select>';
+    var active=currentProduct!=='all';
+    var curCount=list.length; for(var i=0;i<opts.length;i++){ if(opts[i][0]===currentProduct){ curCount=opts[i][2]; break; } }
+    el.innerHTML='<span class="fbtn'+(active?' active':'')+'"><span class="fbtn-cap">Product</span><span class="fbtn-val">'+(active?esc(currentProduct):'All products')+'</span><span class="fbtn-count">'+curCount.toLocaleString()+'</span><span class="fbtn-chev">▾</span>'
+      +'<select class="fbtn-native" onchange="CRM.setProduct(this.value)">'+opts.map(function(o){
+        return '<option value="'+esc(o[0])+'"'+(currentProduct===o[0]?' selected':'')+'>'+esc(o[1])+' · '+o[2]+'</option>';
+      }).join('')+'</select></span>';
+    var clr=$('crmClear'); if(clr) clr.style.display=(currentRegion!=='all'||currentProduct!=='all'||currentQuery)?'inline':'none';
   }
 
   function kpi(label,val,sub,cls,onclick){
@@ -15577,15 +15588,22 @@ window.CRM = (function(){
     var attCount=list.filter(function(s){return !!attentionInfo(s);}).length;
     var openClaims=list.filter(function(s){return s.claim&&s.claim.status==='open';}).length;
     var unassigned=list.filter(function(s){return s.region==='unassigned';}).length;
-    var tabs=[{id:'dashboard',label:'Dashboard',dot:attCount},{id:'shipments',label:'Shipments'},{id:'invoices',label:'Invoices'},{id:'grading',label:'Grading'},{id:'claims',label:'Claims',dot:openClaims},{id:'redirects',label:'Redirects'},{id:'clean',label:'Clean'}];
-    if(IS_ADMIN && currentRegion==='all') tabs.push({id:'regions',label:(CRM_REGION_RULES_V2?'Region rules':'Region mapping'),dot:unassigned});
-    var stg=/-dev|localhost|127\.0\.0\.1/.test(location.host+location.pathname)
-      ? '<span class="staging-badge">staging</span>' : '';
-    var html=stg+'<div class="tabs2">'+tabs.map(function(t){
-      return '<span class="tab2'+(t.id===currentTab?' on':'')+'" role="button" tabindex="0" onclick="CRM.setTab(\''+t.id+'\')">'+t.label+(t.dot?'<span class="ndot'+(t.id==='claims'?'':' ndot-mute')+'">'+t.dot.toLocaleString()+'</span>':'')+'</span>';
-    }).join('')+'</div>';
+    /* role-grouped underline nav on the sidebar-green band (see CRM header redesign) */
+    var groups=[
+      {tabs:[{id:'dashboard',label:'Dashboard',dot:attCount,mut:true}]},
+      {cap:'Records',tabs:[{id:'shipments',label:'Shipments'},{id:'invoices',label:'Invoices'}]},
+      {cap:'Cases',tabs:[{id:'claims',label:'Claims',dot:openClaims},{id:'redirects',label:'Redirects'},{id:'grading',label:'Grading'}]},
+      {tabs:[{id:'clean',label:'Clean'}]}
+    ];
+    if(IS_ADMIN && currentRegion==='all') groups.push({cap:'Setup',tabs:[{id:'regions',label:(CRM_REGION_RULES_V2?'Region rules':'Region mapping'),dot:unassigned,mut:true}]});
+    function tabHtml(t){ return '<span class="ultab'+(t.id===currentTab?' on':'')+'" role="button" tabindex="0" onclick="CRM.setTab(\''+t.id+'\')">'+t.label+(t.dot?'<span class="cnt '+(t.mut?'cnt-mut':'cnt-red')+'">'+t.dot.toLocaleString()+'</span>':'')+'</span>'; }
+    var tabsHtml=groups.map(function(g){ return '<span class="ulgrp">'+(g.cap?'<span class="ulcap">'+g.cap+'</span>':'')+g.tabs.map(tabHtml).join('')+'</span>'; }).join('');
+    var stg=/-dev|localhost|127\.0\.0\.1/.test(location.host+location.pathname) ? '<span class="staging-badge">staging</span>' : '';
+    var html='<div class="crm-nav"><div class="ultabs" id="crmUltabs">'+tabsHtml+'</div>'+stg+'</div>';
     var el=$('viewTabs'); if(el) el.innerHTML=html;          /* in-island fallback if no host header slot */
-    if(ON_HEADER) ON_HEADER(html);                            /* lift the tab bar into the shell topbar (same row as the "CRM" title) */
+    if(ON_HEADER) ON_HEADER(html);                            /* lift the nav into the shell topbar (which is toned green for CRM) */
+    /* keep the active tab visible when the row scrolls on narrow screens */
+    var ut=$('crmUltabs'); if(ut){ var onEl=ut.querySelector('.ultab.on'); if(onEl&&onEl.scrollIntoView){ try{ onEl.scrollIntoView({block:'nearest',inline:'nearest'}); }catch(e){} } }
   }
 
   /* ── pagination ── */
@@ -16739,6 +16757,7 @@ window.CRM = (function(){
   function setProduct(p){ currentProduct=p; resetPages(); showAllSubs=false; render(); }
   function onSearch(v){ currentQuery=(v||'').trim(); var w=$('crmSearchWrap'); if(w) w.classList.toggle('has-q',!!currentQuery); resetPages(); clearTimeout(onSearch._t); onSearch._t=setTimeout(function(){ render(); },150); }
   function clearSearch(){ var el=$('crmSearch'); if(el) el.value=''; onSearch(''); }
+  function clearFilters(){ currentRegion='all'; currentProduct='all'; currentQuery=''; var el=$('crmSearch'); if(el) el.value=''; var w=$('crmSearchWrap'); if(w) w.classList.remove('has-q'); resetPages(); showAllSubs=false; render(); }
   function setShipFilter(k,v){ shipView[k]=v; if(k==='client') shipView.sub='all'; pageState.shipments=0; render(); }
   /* All tokens currently offered, in the order the popover shows them. */
   function scoreAllTokens(){
@@ -16825,7 +16844,8 @@ window.CRM = (function(){
     +'<div class="crm-search crm-search-input" id="crmSearchWrap"><span class="crm-search-ic">🔍</span>'
     +'<input id="crmSearch" oninput="CRM.onSearch(this.value)" placeholder="Search client, sub-client, container #, invoice #, variety, product, country or port…"/>'
     +'<span class="crm-search-clear" onclick="CRM.clearSearch()">&times;</span></div>'
-    +'<span id="regionSel"></span><span id="productSel"></span></div></div>'
+    +'<span class="tool-lbl">Filter</span><span id="regionSel"></span><span id="productSel"></span>'
+    +'<span class="fclear" id="crmClear" style="display:none" onclick="CRM.clearFilters()">Clear</span></div></div>'
     +'<div class="page"><div class="page-inner">'
     +'<div class="region-note" style="margin:0 0 10px">Regions from <b>Regions 2026</b> · members are locked to their region (admins see all). '+(CRM_REGION_RULES_V2?'Region resolves per shipment by the first matching rule (priority: sub-client → client → country → default → Unassigned).':'Region resolves per shipment: shipment override → client override → country default → Unassigned.')+(IS_ADMIN?' <span class="link-btn" onclick="CRM.setTab(\'regions\')">'+(CRM_REGION_RULES_V2?'Manage region rules →':'Manage region mapping →')+'</span>':'')+'</div>'
     +'<div class="kpi-grid" id="kpiGrid"></div><div id="viewContent">'+crmSkel()+'</div>'
@@ -17398,7 +17418,7 @@ window.CRM = (function(){
 
   return {
     init:init, setSeason:setSeason, teardown:teardown, reload:reload,
-    setTab:setTab, setRegion:setRegion, setProduct:setProduct, onSearch:onSearch, clearSearch:clearSearch,
+    setTab:setTab, setRegion:setRegion, setProduct:setProduct, onSearch:onSearch, clearSearch:clearSearch, clearFilters:clearFilters,
     setShipFilter:setShipFilter, resetShipFilters:resetShipFilters, setShipSort:setShipSort, setPage:setPage,
     toggleSubs:toggleSubs, togglePulse:togglePulse, pulseGo:pulseGo, openSubDrill:openSubDrill,
     openShipDetail:openShipDetail, openInsp:openInsp, openCqc:openCqc, closeDlv:closeDlv,
@@ -17510,7 +17530,20 @@ function injectCrmCss(){
 .crmv .crm-search-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .crmv .crm-search-input{position:relative;flex:1;min-width:220px}
 .crmv .crm-search-input input{width:100%;padding:9px 32px;border:1px solid var(--border2);border-radius:9px;background:var(--card);font-size:13px;color:var(--text);font-family:var(--font-body);outline:none}
-.crmv .crm-search-input input:focus{border-color:var(--accent)}
+.crmv .crm-search-input input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(43,92,63,.09)}
+.crmv .tool-lbl{font-size:11px;color:var(--text3);white-space:nowrap}
+.crmv .fbtn{position:relative;display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid var(--border2);border-radius:10px;background:var(--card);cursor:pointer;transition:.15s}
+.crmv .fbtn:hover{background:var(--bg2)}
+.crmv .fbtn.active{border-color:var(--accent);background:var(--green-bg)}
+.crmv .fbtn-cap{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:700}
+.crmv .fbtn.active .fbtn-cap{color:var(--accent)}
+.crmv .fbtn-val{font-size:12.5px;font-weight:600;color:var(--text);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crmv .fbtn-count{font-family:var(--font-mono);font-size:10px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:1px 7px}
+.crmv .fbtn.active .fbtn-count{background:#fff;border-color:var(--green-border);color:var(--accent)}
+.crmv .fbtn-chev{color:var(--text3);font-size:10px}
+.crmv .fbtn-native{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-family:var(--font-body)}
+.crmv .fclear{font-size:12px;color:var(--accent);font-weight:600;cursor:pointer;padding:7px 4px;white-space:nowrap}
+.crmv .fclear:hover{text-decoration:underline}
 .crmv .crm-search-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.55}
 .crmv .crm-search-clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text3);font-size:17px;line-height:1;display:none}
 .crmv .crm-search.has-q .crm-search-clear{display:block}
@@ -17743,6 +17776,21 @@ function injectCrmCss(){
 .crmv .divider{height:1px;background:var(--border);margin:16px 0}
 
 /* ── Option 2B: tabs live IN the topbar as centered segments; red badges = actual work ── */
+/* ── green underline nav (rendered in the CRM-toned topbar) ── */
+.crmv .crm-nav{display:flex;align-items:stretch;gap:12px;flex:1;min-width:0;height:100%}
+.crmv .ultabs{display:flex;align-items:stretch;gap:2px;flex:1;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.crmv .ultabs::-webkit-scrollbar{display:none}
+.crmv .ulgrp{display:flex;align-items:stretch}
+.crmv .ulgrp + .ulgrp{margin-left:9px;padding-left:11px;border-left:1px solid rgba(255,255,255,.12)}
+.crmv .ulcap{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#869a80;font-weight:600;align-self:center;padding:0 7px 0 2px;white-space:nowrap}
+.crmv .ultab{position:relative;display:inline-flex;align-items:center;padding:0 14px;font-size:13px;font-weight:500;color:var(--sidebar-text);cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:color .15s}
+.crmv .ultab:hover{color:#fff}
+.crmv .ultab.on{color:#fff;border-bottom-color:var(--green-border)}
+.crmv .ultab:focus-visible{outline:2px solid var(--green-border);outline-offset:-3px;border-radius:4px}
+.crmv .crm-nav .cnt{font-family:var(--font-mono);font-size:10px;font-weight:700;border-radius:9px;padding:1px 5px;line-height:1.4;margin-left:6px}
+.crmv .crm-nav .cnt-red{background:#c23b3b;color:#fff}
+.crmv .crm-nav .cnt-mut{background:rgba(255,255,255,.16);color:#e3ece0}
+.crmv .crm-nav .staging-badge{align-self:center;flex-shrink:0}
 .crmv .tabs2{display:inline-flex;gap:1px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:2px;margin:0 auto;flex-wrap:nowrap}
 .crmv .tab2{position:relative;padding:5px 13px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--text3);cursor:pointer;white-space:nowrap;transition:.15s;border:1px solid transparent}
 .crmv .tab2:hover{color:var(--text);background:var(--card)}
@@ -19763,7 +19811,7 @@ function App(){
 
   return ce('div',{className:'layout'},sessionExpiredOverlay,mkSidebar(),
     ce('div',{className:'main'},
-      cur.id&&ce('div',{className:'topbar'},
+      cur.id&&ce('div',{className:'topbar'+(view==='crm'?' crm-topbar':'')},
         ce('div',{className:'topbar-left'},
           ce('div',{className:'menu-btn',onClick:function(){setMobOpen(!mobOpen);}},
             ce('svg',{width:18,height:18,viewBox:'0 0 16 16',fill:'#fff'},ce('path',{d:'M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z'}))
@@ -19781,7 +19829,7 @@ function App(){
             !phLoading&&cropInfo.name&&ce('span',{style:{fontSize:11,color:'var(--text2)',fontWeight:500}},cropInfo.name)
           )
         ),
-        (view==='crm'&&crmHdr)?ce('div',{className:'crmv',style:{background:'transparent',display:'flex',justifyContent:'center',alignItems:'center',position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',maxWidth:'70%',padding:0},dangerouslySetInnerHTML:{__html:crmHdr}}):null,
+        (view==='crm'&&crmHdr)?ce('div',{className:'crmv',style:{background:'transparent',display:'flex',flex:1,minWidth:0,alignSelf:'stretch',alignItems:'stretch',padding:0},dangerouslySetInnerHTML:{__html:crmHdr}}):null,
         ce('div',{className:'topbar-right'})
       ),
       ce('div',{className:'page'},
