@@ -17059,8 +17059,10 @@ window.CRM = (function(){
   function renderInvActivity(inv, conts, claims, redirs){
     var byCn={}; conts.forEach(function(s){byCn[s.cn]=s;});
     var cr = claims.length ? claims.map(function(c){
-      var st=c.status==='closed'?('<span class="badge b-neutral">Closed'+(c.settled_value!=null?' · settled '+invMoney(c.settled_value)+' '+esc(c.settled_currency||''):'')+'</span>'):'<span class="badge b-fail">Open</span>';
-      var val=c.claimed_value!=null?(invMoney(c.claimed_value)+' '+esc(c.claimed_currency||'')):'—';
+      var st=c.status==='closed'?'<span class="badge b-neutral">Closed</span>':'<span class="badge b-fail">Open</span>';
+      var val=(c.status==='closed'&&c.settled_value!=null)
+        ?('<b>'+invMoney(c.settled_value)+' '+esc(c.settled_currency||c.claimed_currency||'')+'</b><div class="cell-sub">settled · claimed '+invMoney(c.claimed_value)+'</div>')
+        :(c.claimed_value!=null?(invMoney(c.claimed_value)+' '+esc(c.claimed_currency||'')):'—');
       var tag=c.anchor==='invoice'?'invoice':('container '+esc(c.container_number));
       var act=c.anchor==='invoice'
         ?'<button class="btn btn-secondary btn-sm" data-crm-act="invEditClaim" data-crm-key="'+esc(c.id)+'">Edit</button>'
