@@ -15577,7 +15577,7 @@ window.CRM = (function(){
     var attCount=list.filter(function(s){return !!attentionInfo(s);}).length;
     var openClaims=list.filter(function(s){return s.claim&&s.claim.status==='open';}).length;
     var unassigned=list.filter(function(s){return s.region==='unassigned';}).length;
-    var tabs=[{id:'dashboard',label:'Dashboard',dot:attCount},{id:'shipments',label:'Shipments'},{id:'invoices',label:'Invoices'},{id:'grading',label:'Grading'},{id:'claims',label:'Claims',dot:openClaims},{id:'clean',label:'Clean'}];
+    var tabs=[{id:'dashboard',label:'Dashboard',dot:attCount},{id:'shipments',label:'Shipments'},{id:'invoices',label:'Invoices'},{id:'grading',label:'Grading'},{id:'claims',label:'Claims',dot:openClaims},{id:'redirects',label:'Redirects'},{id:'clean',label:'Clean'}];
     if(IS_ADMIN && currentRegion==='all') tabs.push({id:'regions',label:(CRM_REGION_RULES_V2?'Region rules':'Region mapping'),dot:unassigned});
     var stg=/-dev|localhost|127\.0\.0\.1/.test(location.host+location.pathname)
       ? '<span class="staging-badge">staging</span>' : '';
@@ -16233,6 +16233,7 @@ window.CRM = (function(){
     if(currentTab==='regions' && !(IS_ADMIN&&currentRegion==='all')) currentTab='dashboard';
     if(currentTab==='dashboard') return renderCards();
     if(currentTab==='invoices')  return renderInvoices();
+    if(currentTab==='redirects') return renderRedirects();
     if(currentTab==='shipments') return renderShipmentsTable();
     if(currentTab==='grading')   return renderGradingQueue();
     if(currentTab==='claims')    return renderClaims();
@@ -17035,6 +17036,32 @@ window.CRM = (function(){
       return withSub ? (settled+'<div class="cell-sub">settled · claimed '+esc(c.value||'—')+'</div>') : ('settled '+settled);
     }
     return esc(c.value||'—');
+  }
+  function renderRedirects(){
+    var vc=$('viewContent'); if(!vc) return;
+    vc.innerHTML='<div class="section-title"><span class="section-title-bar"></span>Redirects</div><div class="table-wrap"><div class="hint" style="padding:14px">Loading redirects…</div></div>';
+    SB.from('crm_redirections').select('id,redirect_ref,status,anchor,product_id,source_invoice_no,container_number,origin_client,origin_region_id,target_client,target_sub_client,target_region_id,invoice_no,total_cartons,total_net_tons,created_at').eq('season_id',SEASON).neq('status','cancelled').order('created_at',{ascending:false}).then(function(r){
+      if(currentTab!=='redirects'||!MOUNTED) return;
+      var list=((r&&r.data)||[]);
+      if(currentRegion!=='all') list=list.filter(function(x){return x.origin_region_id===currentRegion||x.target_region_id===currentRegion;});
+      if(currentProduct!=='all') list=list.filter(function(x){return (x.product_id||'')===String(currentProduct).toLowerCase();});
+      var q=(currentQuery||'').toLowerCase();
+      if(q) list=list.filter(function(x){return [x.redirect_ref,x.origin_client,x.target_client,x.target_sub_client,x.container_number,x.source_invoice_no,x.invoice_no].join(' ').toLowerCase().indexOf(q)>=0;});
+      var head='<div class="section-title"><span class="section-title-bar"></span>Redirects <span class="section-count">'+list.length+' active</span></div>';
+      if(!list.length){ vc.innerHTML=head+'<div class="table-wrap"><div class="empty-state">No redirects in this scope.<div class="cell-sub" style="margin-top:6px">Raise one from a returned container, a claim, or the <b>Invoices</b> tab.</div></div></div>'; return; }
+      var rows=list.map(function(x){
+        var tgt=esc(x.target_client||'—')+(x.target_sub_client?' <span class="cell-sub">/ '+esc(x.target_sub_client)+'</span>':'');
+        var act=x.anchor==='invoice'
+          ? '<button class="btn btn-secondary btn-sm" data-crm-act="invEditRedirect" data-crm-key="'+esc(x.id)+'">Edit</button>'
+          : '<span class="cell-sub">container redirect</span>';
+        return '<tr><td><span class="lot">'+esc(x.redirect_ref||'—')+'</span><div class="cell-sub">'+esc(fmtDate(x.created_at)||'')+'</div></td>'
+          +'<td>'+esc(x.origin_client||'—')+'<div class="cell-sub mono">'+esc(x.container_number||'')+(x.source_invoice_no?' · inv '+esc(x.source_invoice_no):'')+'</div></td>'
+          +'<td><span style="color:var(--accent)">→</span> '+tgt+(x.invoice_no?'<div class="cell-sub">new inv '+esc(x.invoice_no)+'</div>':'')+'</td>'
+          +'<td class="right">'+(x.total_cartons||0).toLocaleString()+' ctn<div class="cell-sub">'+tonCell(x.total_net_tons)+'</div></td>'
+          +'<td class="right">'+act+'</td></tr>';
+      }).join('');
+      vc.innerHTML=head+'<div class="hint" style="margin:-4px 0 10px">All redirected goods for your regions — origin → target. A redirect lands here for both the sending and the receiving side.</div><div class="table-wrap"><table class="wl"><thead><tr><th>Redirect</th><th>From (origin)</th><th>To (target)</th><th class="right">Qty</th><th class="right">Action</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    }).catch(function(e){ if(currentTab==='redirects') vc.innerHTML='<div class="empty-state">Failed to load redirects — '+esc((e&&e.message)||e)+'</div>'; });
   }
   function renderInvoices(){
     var vc=$('viewContent'); if(!vc) return;
