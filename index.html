@@ -15440,7 +15440,7 @@ window.CRM = (function(){
     return '<span class="badge '+b.cls+'" title="'+esc(rawTitle||('band '+(score||'—')+' ('+b.n+')'))+'">'+b.n+tail+'</span>';
   }
   function statusBadge(s,label){ var cls=s==='delivered'?'b-pass':(s==='in_transit'?'b-esc':(s==='returned'?'b-fail':'b-neutral')); return '<span class="badge '+cls+'">'+esc(label)+'</span>'; }
-  function claimBadge(c){ if(!c) return ''; var map={open:['b-fail','Claim open'],closed:['b-neutral','Claim closed']}; var m=map[c.status]||map.open; return '<span class="badge '+m[0]+'">'+m[1]+' · '+(c.potential?'potential':esc(c.value||'—'))+'</span>'; }
+  function claimBadge(c){ if(!c) return ''; var map={open:['b-fail','Claim open'],closed:['b-neutral','Claim closed']}; var m=map[c.status]||map.open; return '<span class="badge '+m[0]+'">'+m[1]+' · '+claimValueHtml(c,false)+'</span>'; }
   function coverageBadge(c){
     if(c.coverage==='cqc') return '<span class="coverage cov-cqc"><span class="cov-dot"></span>CQC · '+((BANDS[c.cqc&&c.cqc.score]||{}).n||'—')+'</span>';
     if(c.coverage==='graded') return '<span class="coverage cov-graded"><span class="cov-dot"></span>CRM-graded · '+esc(c.graded.grade)+'</span>';
@@ -15474,7 +15474,7 @@ window.CRM = (function(){
       defect:(pct(r.cqc_defect)||'—'), gap:(r.cqc_gap==null?'—':((r.cqc_gap>0?'+':'')+(Math.round(r.cqc_gap*10)/10)+'%')), gapNum:num(r.cqc_gap), maxTemp:r.cqc_max_temp, flag:!!r.cqc_flag};
     if(r.grading_id) s.graded={grade:r.grade, cause:r.grade_cause||'—'};
     if(r.claim_id && r.claim_status && r.claim_status!=='cancelled'){
-      s.claim={status:r.claim_status==='open'?'open':'closed', rawStatus:r.claim_status, potential:!!r.claim_potential,
+      s.claim={id:r.claim_id, status:r.claim_status==='open'?'open':'closed', rawStatus:r.claim_status, potential:!!r.claim_potential,
         value:fmtMoney(r.claim_value,r.claim_currency), rawValue:r.claim_value, currency:r.claim_currency||'USD'};
     }
     if(s.coverage==='graded'&&!s.graded) s.graded={grade:'—',cause:'—'};
@@ -15765,7 +15765,7 @@ window.CRM = (function(){
     var rows=list.slice(cPage*PER_PAGE,(cPage+1)*PER_PAGE).map(function(s){
       var m=lc[s.claim.status]||lc.open;
       var ev=s.cqc?esc(s.cqc.id):(s.coverage==='graded'?'CRM grading':'—');
-      var valCell=s.claim.potential?'<span class="badge b-warn">potential</span>':'<span class="lot">'+esc(s.claim.value||'—')+'</span>';
+      var valCell=s.claim.potential?'<span class="badge b-warn">potential</span>':'<span class="lot">'+claimValueHtml(s.claim,true)+'</span>';
       return '<tr class="click" data-crm-act="openShipDetail" data-crm-key="'+esc(s.key)+'"><td><span class="lot">'+esc(s.cn)+'</span></td>'+
         '<td>'+esc(s.client)+'<div class="cell-sub">'+esc(s.sub)+' · '+esc(regionLabel[s.region]||s.region)+'</div></td>'+
         '<td class="right">'+valCell+'</td><td><span class="badge '+m[0]+'">'+m[1]+'</span></td>'+
@@ -17021,6 +17021,21 @@ window.CRM = (function(){
       invRedirMap=m;
     }).catch(function(){ invRedirMap={byInv:{},byCont:{}}; });
   }
+  var claimSettledMap=null;   /* claim_id -> {v,c} for closed/settled claims, so the value shown reflects the negotiated amount */
+  function loadClaimSettled(){
+    return SB.from('crm_claims').select('id,settled_value,settled_currency').eq('season_id',SEASON).not('settled_value','is',null).then(function(r){
+      var m={}; ((r&&r.data)||[]).forEach(function(x){ m[x.id]={v:x.settled_value,c:x.settled_currency}; }); claimSettledMap=m;
+    }).catch(function(){ claimSettledMap={}; });
+  }
+  function claimValueHtml(c, withSub){
+    if(!c) return '—';
+    if(c.potential) return 'potential';
+    if(c.status==='closed' && claimSettledMap && c.id && claimSettledMap[c.id]){
+      var s=claimSettledMap[c.id]; var settled=esc(fmtMoney(s.v, s.c||c.currency));
+      return withSub ? (settled+'<div class="cell-sub">settled · claimed '+esc(c.value||'—')+'</div>') : ('settled '+settled);
+    }
+    return esc(c.value||'—');
+  }
   function renderInvoices(){
     var vc=$('viewContent'); if(!vc) return;
     var list=visibleShipments(), groups={}, order=[];
@@ -17320,7 +17335,7 @@ window.CRM = (function(){
   }
 
   /* ── lifecycle ── */
-  function reload(){ return loadVoyages().then(function(){ if(CRM_REGION_RULES_V2) applyV2Regions(); render(); }).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
+  function reload(){ return Promise.all([loadVoyages(),loadClaimSettled()]).then(function(){ if(CRM_REGION_RULES_V2) applyV2Regions(); render(); }).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
   function init(opts){
     SB=opts.supabase; SEASON=opts.seasonId; IS_ADMIN=!!opts.isAdmin; USER=opts.currentUser||null; ROOT=opts.root; MOUNTED=true;
     CONFIG=opts.config||null; ON_OPEN_CQC=opts.onOpenCqc||null; ON_HEADER=opts.onHeader||null;
@@ -17328,7 +17343,7 @@ window.CRM = (function(){
     ROOT.innerHTML=template();
     attachListeners();
     /* loadVoyages has no data dependency on the four lookups, so fire it alongside them instead of chaining — removes one round-trip from time-to-dashboard */
-    var loaders=[loadRegions(),loadCountryMap(),loadOverrides(),loadScoreBands(),loadVoyages()];
+    var loaders=[loadRegions(),loadCountryMap(),loadOverrides(),loadScoreBands(),loadVoyages(),loadClaimSettled()];
     if(CRM_REGION_RULES_V2) loaders.push(loadRulesV2(),loadAliasesV2(),loadEntitiesV2());
     Promise.all(loaders).then(function(){ if(CRM_REGION_RULES_V2) applyV2Regions(); render(); }).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; });
   }
