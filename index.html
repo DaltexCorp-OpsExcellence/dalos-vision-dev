@@ -17146,13 +17146,15 @@ window.CRM = (function(){
     if(claim){
       var t=sel.length?('Claiming <b>'+ctn.toLocaleString()+' ctn · '+tons.toFixed(2)+' t</b> across <b>'+nc+' of '+totalC+' containers</b> on invoice <b class="mono">'+esc(invCtx.inv)+'</b>.<br>Rows pinned to variety · farm · packhouse; the rest of the invoice stays claimable.'):'No part-loads selected yet — tick the rows this claim covers.';
       if($('icPreviewTxt')) $('icPreviewTxt').innerHTML=t;
-      var b=$('icSave'); if(b){ b.textContent=sel.length?('Raise claim · '+ctn.toLocaleString()+' ctn'):'Raise claim'; b.style.opacity=sel.length?'1':'.6'; }
+      var cverb=(invCtx&&invCtx.claimId)?'Save claim':'Raise claim';
+      var b=$('icSave'); if(b){ b.textContent=sel.length?(cverb+' · '+ctn.toLocaleString()+' ctn'):cverb; b.style.opacity=sel.length?'1':'.6'; }
     } else {
       var client=$('irClient')?$('irClient').value:'', sub=$('irSub')?$('irSub').value:'';
       var target=client?(esc(client)+(sub?' / '+esc(sub):'')):'no client selected yet';
       var t2=sel.length?('Redirecting <b>'+ctn.toLocaleString()+' ctn · '+tons.toFixed(2)+' t</b> across <b>'+nc+' of '+totalC+' containers</b> → <b>'+target+'</b>.<br>Traceability &amp; farm preserved; each part-load capped at 100% across active redirects.'):'No part-loads selected yet — tick the rows to redirect.';
       if($('irPreviewTxt')) $('irPreviewTxt').innerHTML=t2;
-      var b2=$('irSave'); if(b2){ var ok=sel.length&&client; b2.textContent=sel.length?('Redirect · '+ctn.toLocaleString()+' ctn'):'Redirect'; b2.style.opacity=ok?'1':'.6'; }
+      var rverb=(invCtx&&invCtx.redirectId)?'Save redirect':'Redirect';
+      var b2=$('irSave'); if(b2){ var ok=sel.length&&client; b2.textContent=sel.length?(rverb+' · '+ctn.toLocaleString()+' ctn'):rverb; b2.style.opacity=ok?'1':'.6'; }
     }
   }
   var invLifecycle='open';
