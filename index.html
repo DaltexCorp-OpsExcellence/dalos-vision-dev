@@ -16444,14 +16444,15 @@ window.CRM = (function(){
   }
   function evDel(id){
     var f=claimFiles.filter(function(x){return x.id===id;})[0]; if(!f) return;
-    if(!window.confirm('Remove "'+(f.name||'this file')+'" from the claim?')) return;
-    SB.storage.from('crm-claim-files').remove([f.storage_path]).then(function(){
-      return SB.from('crm_claim_files').delete().eq('id',id);
-    }).then(function(res){
-      if(res&&res.error){ toast('Remove failed — '+esc(res.error.message)); return; }
-      claimFiles=claimFiles.filter(function(x){return x.id!==id;});
-      renderClaimFiles(); toast('Attachment removed.');
-    });
+    crmConfirm('Remove <b>'+esc(f.name||'this file')+'</b> from the claim?', function(){
+      SB.storage.from('crm-claim-files').remove([f.storage_path]).then(function(){
+        return SB.from('crm_claim_files').delete().eq('id',id);
+      }).then(function(res){
+        if(res&&res.error){ toast('Remove failed — '+esc(res.error.message)); return; }
+        claimFiles=claimFiles.filter(function(x){return x.id!==id;});
+        renderClaimFiles(); toast('Attachment removed.');
+      });
+    }, 'Remove');
   }
 
   /* Files can only be attached once the claim row exists, because storage
@@ -16556,22 +16557,23 @@ window.CRM = (function(){
   function cancelClaim(){
     if(!claimCtx||!claimCtx.claimId){ closeModal('claimModal'); toast('Nothing to cancel — claim not yet saved.'); return; }
     if(claimBusy) return;
-    if(!window.confirm('Cancel claim '+(claimCtx.claimRefRaw||'')+' on '+claimCtx.cn+'?\n\nIt stays in history as Cancelled and the container can be claimed again.')) return;
-    claimBusy=true;
-    SB.rpc('save_crm_claim_full',{payload:{
-      id:claimCtx.claimId,
-      loaded_version:(claimLoaded&&claimLoaded.updated_at)||null,
-      season_id:SEASON, container_number:claimCtx.cn,
-      client:txtOrNull(claimCtx.client), country:txtOrNull(claimCtx.country),
-      bl_number:(claimLoaded&&claimLoaded.bl_number)||'—',
-      status:'cancelled', event:'cancelled', event_detail:'cancelled by user'
-    }}).then(function(res){
-      claimBusy=false;
-      if(res&&res.error){ toast(claimErr(res.error)); return; }
-      closeModal('claimModal');
-      toast('Claim <b>cancelled</b> — kept in history as Cancelled.');
-      reload();
-    });
+    crmConfirm('Cancel claim <b>'+esc(claimCtx.claimRefRaw||'')+'</b> on <span class="mono">'+esc(claimCtx.cn)+'</span>?<br>It stays in history as Cancelled and the container can be claimed again.', function(){
+      claimBusy=true;
+      SB.rpc('save_crm_claim_full',{payload:{
+        id:claimCtx.claimId,
+        loaded_version:(claimLoaded&&claimLoaded.updated_at)||null,
+        season_id:SEASON, container_number:claimCtx.cn,
+        client:txtOrNull(claimCtx.client), country:txtOrNull(claimCtx.country),
+        bl_number:(claimLoaded&&claimLoaded.bl_number)||'—',
+        status:'cancelled', event:'cancelled', event_detail:'cancelled by user'
+      }}).then(function(res){
+        claimBusy=false;
+        if(res&&res.error){ toast(claimErr(res.error)); return; }
+        closeModal('claimModal');
+        toast('Claim <b>cancelled</b> — kept in history as Cancelled.');
+        reload();
+      });
+    }, 'Cancel claim');
   }
 
   function claimErr(e){
@@ -16834,7 +16836,8 @@ window.CRM = (function(){
     +gradeModalHtml()
     +redirectModalHtml()
     +invClaimModalHtml()
-    +invRedirModalHtml();
+    +invRedirModalHtml()
+    +crmConfirmModalHtml();
   }
   function claimModalHtml(){ return ''
     +'<div class="modal-bg" id="claimModal"><div class="modal"><div class="modal-head"><span class="modal-x" onclick="CRM.closeModal(\'claimModal\')">&times;</span><div class="modal-title">Raise a claim</div><div class="modal-sub" id="claimSub">—</div></div><div class="modal-body">'
@@ -17224,8 +17227,9 @@ window.CRM = (function(){
     }).catch(function(e){ toast('Could not load claim — '+esc((e&&e.message)||e)); });
   }
   function invCancelClaim(){ if(!invCtx||!invCtx.claimId){ closeModal('invClaimModal'); return; } if(invBusy) return;
-    if(!window.confirm('Cancel this claim? It stays in history as Cancelled and frees the part-loads.')) return;
-    invBusy=true; SB.rpc('save_crm_claim_full',{payload:{ id:invCtx.claimId, loaded_version:invCtx.loaded, season_id:SEASON, container_number:invCtx.conts[0].cn, anchor:'invoice', invoice_no:invCtx.inv, bl_number:'—', status:'cancelled', event:'cancelled', event_detail:'cancelled' }}).then(function(res){ invBusy=false; if(res&&res.error){ toast(claimErr(res.error)); return; } closeModal('invClaimModal'); toast('Claim cancelled.'); reload(); }); }
+    crmConfirm('Cancel this claim? It stays in history as Cancelled and frees the part-loads.', function(){
+      invBusy=true; SB.rpc('save_crm_claim_full',{payload:{ id:invCtx.claimId, loaded_version:invCtx.loaded, season_id:SEASON, container_number:invCtx.conts[0].cn, anchor:'invoice', invoice_no:invCtx.inv, bl_number:'—', status:'cancelled', event:'cancelled', event_detail:'cancelled' }}).then(function(res){ invBusy=false; if(res&&res.error){ toast(claimErr(res.error)); return; } closeModal('invClaimModal'); toast('Claim cancelled.'); reload(); });
+    }, 'Cancel claim'); }
   function openInvRedirect(inv){ invMode='redirect'; _openInv(inv,function(){
     invCtx.redirectId=null; invCtx.loaded=null;
     $('irInvNo').textContent=invCtx.inv; $('irSubT').textContent=invCtx.client+' · '+(regionLabel[invCtx.region]||invCtx.region)+' · '+invCtx.conts.length+' containers';
@@ -17247,8 +17251,9 @@ window.CRM = (function(){
     }).catch(function(e){ toast('Could not load redirect — '+esc((e&&e.message)||e)); });
   }
   function invCancelRedirect(){ if(!invCtx||!invCtx.redirectId){ closeModal('invRedirModal'); return; } if(invBusy) return;
-    if(!window.confirm('Cancel this redirect? It stays in history and frees the part-loads.')) return;
-    invBusy=true; SB.rpc('save_crm_redirection_full',{payload:{ id:invCtx.redirectId, loaded_version:invCtx.loaded, season_id:SEASON, container_number:invCtx.conts[0].cn, anchor:'invoice', source_invoice_no:invCtx.inv, target_client:($('irClient')&&$('irClient').value)||invCtx.client, status:'cancelled', event:'cancelled', event_detail:'cancelled' }}).then(function(res){ invBusy=false; if(res&&res.error){ toast(redirErr(res.error)); return; } closeModal('invRedirModal'); invRedirMap=null; toast('Redirect cancelled.'); reload(); }); }
+    crmConfirm('Cancel this redirect? It stays in history and frees the part-loads.', function(){
+      invBusy=true; SB.rpc('save_crm_redirection_full',{payload:{ id:invCtx.redirectId, loaded_version:invCtx.loaded, season_id:SEASON, container_number:invCtx.conts[0].cn, anchor:'invoice', source_invoice_no:invCtx.inv, target_client:($('irClient')&&$('irClient').value)||invCtx.client, status:'cancelled', event:'cancelled', event_detail:'cancelled' }}).then(function(res){ invBusy=false; if(res&&res.error){ toast(redirErr(res.error)); return; } closeModal('invRedirModal'); invRedirMap=null; toast('Redirect cancelled.'); reload(); });
+    }, 'Cancel redirect'); }
   function invRedirClientChanged(){ var c=$('irClient')?$('irClient').value:''; if($('irSub')) $('irSub').innerHTML=redirSubOptions(c); invRender(); }
   function saveInvClaim(){
     if(invBusy) return;
@@ -17308,6 +17313,20 @@ window.CRM = (function(){
     +'<div class="msec">Preview</div><div class="scope-sum show" id="irPreview" style="align-items:flex-start"><span class="ev-check">✓</span><span id="irPreviewTxt"></span></div>'
     +'</div><div class="modal-foot" style="justify-content:space-between"><span class="link-btn" id="irCancel" style="color:var(--red);display:none" onclick="CRM.invCancelRedirect()">Cancel redirect</span><span style="display:flex;gap:8px"><button class="btn btn-secondary" onclick="CRM.closeModal(\'invRedirModal\')">Close</button><button class="btn btn-primary" id="irSave" onclick="CRM.saveInvRedirect()">Redirect</button></span></div></div></div>';
   }
+
+  /* ── reusable in-page confirm (replaces window.confirm, which is unstyled and blocks the renderer) ── */
+  var _crmConfirmCb=null;
+  function crmConfirmModalHtml(){ return ''
+    +'<div class="modal-bg" id="crmConfirmModal" style="z-index:70"><div class="modal" style="max-width:420px"><div class="modal-head"><div class="modal-title" id="crmConfirmTitle">Please confirm</div></div><div class="modal-body"><div id="crmConfirmMsg" style="font-size:13px;color:var(--text2);line-height:1.55"></div></div><div class="modal-foot" style="justify-content:flex-end"><button class="btn btn-secondary" onclick="CRM.closeModal(\'crmConfirmModal\')">Keep it</button><button class="btn btn-primary" id="crmConfirmOkBtn" style="background:var(--red);border-color:var(--red)" onclick="CRM.crmConfirmOk()">Confirm</button></div></div></div>';
+  }
+  function crmConfirm(msgHtml, onOk, okLabel, title){
+    _crmConfirmCb=(typeof onOk==='function')?onOk:null;
+    if($('crmConfirmTitle')) $('crmConfirmTitle').textContent=title||'Please confirm';
+    if($('crmConfirmMsg')) $('crmConfirmMsg').innerHTML=msgHtml;
+    if($('crmConfirmOkBtn')) $('crmConfirmOkBtn').textContent=okLabel||'Confirm';
+    var m=$('crmConfirmModal'); if(m) m.classList.add('open');
+  }
+  function crmConfirmOk(){ var cb=_crmConfirmCb; _crmConfirmCb=null; closeModal('crmConfirmModal'); if(cb) cb(); }
 
   function attachListeners(){
     var d=$('dlv'); if(d) d.addEventListener('click',function(e){ if(e.target===d) closeDlv(); });
@@ -17388,7 +17407,7 @@ window.CRM = (function(){
     syncClaimPct:syncClaimPct, markClaimPctManual:markClaimPctManual,
     openRedirect:openRedirect, saveRedirect:saveRedirect, setRedirScope:setRedirScope, redirClientChanged:redirClientChanged, redirRowToggle:redirRowToggle, redirPct:redirPct, redirRender:redirRender,
     openInvoice:openInvoice, openInvClaim:openInvClaim, openInvRedirect:openInvRedirect, saveInvClaim:saveInvClaim, saveInvRedirect:saveInvRedirect, invToggle:invToggle, invPct:invPct, invRender:invRender, invRedirClientChanged:invRedirClientChanged,
-    openInvEditClaim:openInvEditClaim, openInvEditRedirect:openInvEditRedirect, invCancelClaim:invCancelClaim, invCancelRedirect:invCancelRedirect, setInvLifecycle:setInvLifecycle, redirectFromClaim:redirectFromClaim,
+    openInvEditClaim:openInvEditClaim, openInvEditRedirect:openInvEditRedirect, invCancelClaim:invCancelClaim, invCancelRedirect:invCancelRedirect, setInvLifecycle:setInvLifecycle, crmConfirmOk:crmConfirmOk, redirectFromClaim:redirectFromClaim,
     uploadEvidence:uploadEvidence, evOpen:evOpen, evDel:evDel,
     setCountryOverride:setCountryOverride, setClientOverride:setClientOverride, addClientOverrideFromForm:addClientOverrideFromForm,
     setScoreBand:setScoreBand, removeScoreBand:removeScoreBand, addScoreBandFromForm:addScoreBandFromForm,
