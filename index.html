@@ -17100,9 +17100,16 @@ window.CRM = (function(){
     Promise.all(conts.map(ensureRows)).then(function(){ invSeedRows(); then(); });
   }
   function invSeedRows(){
-    invPL=[];
+    /* aggregate composition rows into one selectable line per part-load (container · variety · farm · packhouse);
+       multiple crm_shipment_rows that share these differ only by quantity and are the same commercial part-load —
+       collapsing them keeps the picker clean AND makes edit/guard matching unambiguous */
+    invPL=[]; var idx={};
     invCtx.conts.forEach(function(s){ (s.rows||[]).forEach(function(r){
-      invPL.push({cn:s.cn, v:r.variety, farm:r.farm, ph:r.ph, ctype:r.ctype, carta:r.carta||'', trace:s.trace||null, ctn:Math.abs(num(r.cartons)||0), tons:Math.abs(num(r.netTons)||0), on:false, pct:100}); }); });
+      var key=s.cn+'|'+(r.variety||'')+'|'+(r.farm||'')+'|'+(r.ph||'');
+      var e=idx[key];
+      if(!e){ e={cn:s.cn, v:r.variety, farm:r.farm, ph:r.ph, ctype:r.ctype, carta:r.carta||'', trace:s.trace||null, ctn:0, tons:0, on:false, pct:100}; idx[key]=e; invPL.push(e); }
+      e.ctn+=Math.abs(num(r.cartons)||0); e.tons+=Math.abs(num(r.netTons)||0);
+    }); });
   }
   function invCtn(i){ return Math.round(invPL[i].pct/100*invPL[i].ctn); }
   function invTons(i){ return invPL[i].pct/100*invPL[i].tons; }
