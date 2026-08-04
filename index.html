@@ -16322,7 +16322,7 @@ window.CRM = (function(){
     var s=shipByKey(k); if(!s) return;
     var tok=++dlvToken;
     showDlv('Shipment',renderShipDetail(s));
-    ensureRows(s).then(function(){ if($('dlv').classList.contains('open')){ var c=$('dlvComp'); if(c) c.innerHTML=shipCompHtml(s); } });
+    ensureRows(s).then(function(){ if(tok===dlvToken && $('dlv').classList.contains('open')){ var c=$('dlvComp'); if(c) c.innerHTML=shipCompHtml(s); } });
     SB.rpc('crm_container_timeline',{p_season:SEASON,p_container:s.cn}).then(function(res){
       if(tok!==dlvToken) return;                 /* drawer moved on */
       var el=$('dlvTimeline'); if(!el) return;
@@ -16522,7 +16522,7 @@ window.CRM = (function(){
     var _hadRows=!!(s.rows&&s.rows.length);
     $('partBody').innerHTML=buildPartFields(s);
     ensureRows(s).then(function(){
-      if(!_hadRows && s.rows && s.rows.length && $('partBody')) $('partBody').innerHTML=buildPartFields(s);
+      if(claimCtx===s && !_hadRows && s.rows && s.rows.length && $('partBody')) $('partBody').innerHTML=buildPartFields(s);
     });
     setScope('whole');
 
@@ -16575,6 +16575,23 @@ window.CRM = (function(){
       var pf2=$('potFlag'); if(pf2){ pf2.checked=!!c.potential; togglePotential(); }
       setLifecycle(c.status==='closed'?'closed':'open');
       if(c.claim_pct!=null) claimPctManual=true;
+      /* P1: restore the saved scope + re-tick the claimed composition rows. Without this, openClaim's
+         unconditional setScope('whole') meant editing a part-of-load claim silently re-saved it as a
+         whole-container claim and dropped the variety/farm/packhouse row pins. */
+      if(c.scope==='part'){
+        setScope('part');
+        ensureRows(s).then(function(){
+          if(!claimCtx||claimCtx.claimId!==s.claimId) return;
+          if($('partBody')){ $('partBody').innerHTML=buildPartFields(s);
+            setVal('partPallets',c.part_pallets); setVal('partCartons',c.part_cartons); setVal('partNetTons',c.part_net_tons); }
+          var claimed=d.rows||[];
+          [].forEach.call(ROOT.querySelectorAll('#rowSel input'),function(b){
+            var lab=b.closest('.row-opt'); var main=lab?lab.querySelector('.row-opt-main'):null;
+            var bits=main?main.textContent.split('·').map(function(x){return x.trim();}):[];
+            b.checked=claimed.some(function(cr){ return (cr.variety||'')===(bits[0]||'')&&(cr.farm||'')===(bits[2]||'')&&(cr.packhouse||'')===(bits[3]||''); });
+          });
+        });
+      }
       $('claimSub').textContent=(c.claim_ref||'Claim')+' · '+s.cn+' · '+s.client;
       $('claimTitle').textContent='Claim '+(c.claim_ref||'');
       $('claimRaised').textContent=fmtDate(c.raised_at)||'on file';
@@ -16601,7 +16618,7 @@ window.CRM = (function(){
         closeModal('claimModal');
         toast('Claim <b>cancelled</b> — kept in history as Cancelled.');
         reload();
-      });
+      }).catch(function(e){ claimBusy=false; toast(claimErr(e)); });
     }, 'Cancel claim');
   }
 
@@ -16686,7 +16703,7 @@ window.CRM = (function(){
         toast('Claim saved · <b>'+esc(out.claim_ref||payload.bl_number)+'</b>');
         reload();
       }
-    });
+    }).catch(function(e){ claimBusy=false; if(btn){ btn.disabled=false; btn.textContent='Save claim'; } toast(claimErr(e)); });
   }
 
   /* ── Grade modal ── */
@@ -16739,7 +16756,7 @@ window.CRM = (function(){
       closeModal('gradeModal');
       toast('Grading saved · <b>'+esc(row.grade_ref||('Grade '+gradeSel))+'</b>');
       reload();
-    });
+    }).catch(function(e){ if(btn){ btn.disabled=false; btn.textContent='Save grading'; } toast('Save failed — '+esc((e&&e.message)||e)); });
   }
   /* ── modal open/close: unsaved-changes guard (P0-1) + focus management & dialog semantics (P1-5) ── */
   var GUARDED_MODALS={claimModal:1,gradeModal:1,redirModal:1,invClaimModal:1,invRedirModal:1};
@@ -16862,6 +16879,19 @@ window.CRM = (function(){
         out=out.concat(data);
         if(data.length===1000) return page(from+1000);
         SHIPMENTS=out.map(mapVoyage);
+      });
+    }
+    return page(0);
+  }
+  /* generic paged fetch — PostgREST silently caps unpaged reads at 1000 rows (P3). makeQuery() returns a fresh builder each page. */
+  function crmFetchAll(makeQuery){
+    var out=[];
+    function page(from){
+      return makeQuery().range(from,from+999).then(function(res){
+        if(res&&res.error) throw res.error;
+        var data=(res&&res.data)||[]; out=out.concat(data);
+        if(data.length===1000) return page(from+1000);
+        return out;
       });
     }
     return page(0);
@@ -17055,7 +17085,7 @@ window.CRM = (function(){
       closeModal('redirModal');
       toast('Redirected · <b>'+esc(out.redirect_ref||client)+'</b> · '+((out.total_cartons)||0).toLocaleString()+' ctn');
       reload();
-    });
+    }).catch(function(e){ redirBusy=false; if(btn){ btn.disabled=false; redirRender(); } toast(redirErr(e)); });
   }
   /* launch a redirect from inside the claim modal — goods needn't be Returned to be redirected.
      A saved claim (claimCtx.claimId) auto-links; an unsaved one opens the redirect unlinked. */
@@ -17079,16 +17109,16 @@ window.CRM = (function(){
   /* ══════════════ Invoices tab (invoice-level claims & redirects) ══════════════ */
   var invRedirMap=null;   /* {byInv:{}, byCont:{}} loaded lazily for the activity chips */
   function loadInvRedirs(){
-    return SB.from('crm_redirections').select('container_number,source_invoice_no,status').eq('season_id',SEASON).neq('status','cancelled').then(function(r){
+    return crmFetchAll(function(){ return SB.from('crm_redirections').select('container_number,source_invoice_no,status').eq('season_id',SEASON).neq('status','cancelled'); }).then(function(data){
       var m={byInv:{},byCont:{}};
-      ((r&&r.data)||[]).forEach(function(x){ if(x.source_invoice_no) m.byInv[x.source_invoice_no]=true; if(x.container_number) m.byCont[String(x.container_number).toUpperCase().replace(/\s+/g,' ').trim()]=true; });
+      (data||[]).forEach(function(x){ if(x.source_invoice_no) m.byInv[x.source_invoice_no]=true; if(x.container_number) m.byCont[invNcn(x.container_number)]=true; });
       invRedirMap=m;
     }).catch(function(){ invRedirMap={byInv:{},byCont:{}}; });
   }
   var claimSettledMap=null;   /* claim_id -> {v,c} for closed/settled claims, so the value shown reflects the negotiated amount */
   function loadClaimSettled(){
-    return SB.from('crm_claims').select('id,settled_value,settled_currency').eq('season_id',SEASON).not('settled_value','is',null).then(function(r){
-      var m={}; ((r&&r.data)||[]).forEach(function(x){ m[x.id]={v:x.settled_value,c:x.settled_currency}; }); claimSettledMap=m;
+    return crmFetchAll(function(){ return SB.from('crm_claims').select('id,settled_value,settled_currency').eq('season_id',SEASON).not('settled_value','is',null); }).then(function(data){
+      var m={}; (data||[]).forEach(function(x){ m[x.id]={v:x.settled_value,c:x.settled_currency}; }); claimSettledMap=m;
     }).catch(function(){ claimSettledMap={}; });
   }
   function claimValueHtml(c, withSub){
@@ -17103,9 +17133,9 @@ window.CRM = (function(){
   function renderRedirects(){
     var vc=$('viewContent'); if(!vc) return;
     vc.innerHTML='<div class="section-title"><span class="section-title-bar"></span>Redirects</div><div class="table-wrap"><div class="hint" style="padding:14px">Loading redirects…</div></div>';
-    SB.from('crm_redirections').select('id,redirect_ref,status,anchor,product_id,source_invoice_no,container_number,origin_client,origin_region_id,target_client,target_sub_client,target_region_id,invoice_no,total_cartons,total_net_tons,created_at').eq('season_id',SEASON).neq('status','cancelled').order('created_at',{ascending:false}).then(function(r){
+    crmFetchAll(function(){ return SB.from('crm_redirections').select('id,redirect_ref,status,anchor,product_id,source_invoice_no,container_number,origin_client,origin_region_id,target_client,target_sub_client,target_region_id,invoice_no,total_cartons,total_net_tons,created_at').eq('season_id',SEASON).neq('status','cancelled').order('created_at',{ascending:false}); }).then(function(data){
       if(currentTab!=='redirects'||!MOUNTED) return;
-      var list=((r&&r.data)||[]);
+      var list=(data||[]);
       if(currentRegion!=='all') list=list.filter(function(x){return x.origin_region_id===currentRegion||x.target_region_id===currentRegion;});
       if(currentProduct!=='all') list=list.filter(function(x){return (x.product_id||'')===String(currentProduct).toLowerCase();});
       var q=(currentQuery||'').toLowerCase();
@@ -17131,8 +17161,8 @@ window.CRM = (function(){
     var vc=$('viewContent'); if(!vc) return;
     var list=visibleShipments(), groups={}, order=[];
     list.forEach(function(s){ var inv=s.invoice; if(!inv||inv==='—') return;
-      if(!groups[inv]){ groups[inv]={inv:inv,client:s.client,region:s.region,conts:{},ctn:0,tons:0,claim:false}; order.push(inv); }
-      var g=groups[inv]; g.conts[s.key]=1; g.ctn+=(s.cartons||0); g.tons+=(s.netTons||0); if(s.claim) g.claim=true; });
+      if(!groups[inv]){ groups[inv]={inv:inv,client:s.client,region:s.region,conts:{},cns:{},ctn:0,tons:0,claim:false}; order.push(inv); }
+      var g=groups[inv]; g.conts[s.key]=1; g.cns[invNcn(s.cn)]=1; g.ctn+=(s.cartons||0); g.tons+=(s.netTons||0); if(s.claim) g.claim=true; });
     var arr=order.map(function(inv){ var g=groups[inv]; g.nc=Object.keys(g.conts).length; return g; });
     arr.sort(function(a,b){ return b.ctn-a.ctn; });
     var head='<div class="section-title"><span class="section-title-bar"></span>Invoices <span class="section-count">'+arr.length.toLocaleString()+' invoices in scope</span></div>';
@@ -17141,7 +17171,7 @@ window.CRM = (function(){
     var rows=slice.map(function(g){
       var act='';
       if(g.claim) act+='<span class="badge b-warn" title="claim on this invoice">claim</span> ';
-      var hasR=invRedirMap && (invRedirMap.byInv[g.inv] || Object.keys(g.conts).some(function(k){return invRedirMap.byCont[k];}));
+      var hasR=invRedirMap && (invRedirMap.byInv[g.inv] || Object.keys(g.cns).some(function(k){return invRedirMap.byCont[k];}));
       if(hasR) act+='<span class="badge b-neutral" style="border-color:var(--green-border);color:var(--accent);background:var(--green-bg)" title="redirect on this invoice">redirect</span>';
       if(!act) act='<span class="cell-sub">—</span>';
       return '<tr class="click" data-crm-act="openInvoice" data-crm-key="'+esc(g.inv)+'"><td><span class="lot">'+esc(g.inv)+'</span></td>'+
@@ -17289,7 +17319,7 @@ window.CRM = (function(){
   }
   function invCancelClaim(){ if(!invCtx||!invCtx.claimId){ closeModal('invClaimModal'); return; } if(invBusy) return;
     crmConfirm('Cancel this claim? It stays in history as Cancelled and frees the part-loads.', function(){
-      invBusy=true; SB.rpc('save_crm_claim_full',{payload:{ id:invCtx.claimId, loaded_version:invCtx.loaded, season_id:SEASON, container_number:invCtx.conts[0].cn, anchor:'invoice', invoice_no:invCtx.inv, bl_number:'—', status:'cancelled', event:'cancelled', event_detail:'cancelled' }}).then(function(res){ invBusy=false; if(res&&res.error){ toast(claimErr(res.error)); return; } closeModal('invClaimModal'); toast('Claim cancelled.'); reload(); });
+      invBusy=true; SB.rpc('save_crm_claim_full',{payload:{ id:invCtx.claimId, loaded_version:invCtx.loaded, season_id:SEASON, container_number:invCtx.conts[0].cn, anchor:'invoice', invoice_no:invCtx.inv, bl_number:'—', status:'cancelled', event:'cancelled', event_detail:'cancelled' }}).then(function(res){ invBusy=false; if(res&&res.error){ toast(claimErr(res.error)); return; } closeModal('invClaimModal'); toast('Claim cancelled.'); reload(); }).catch(function(e){ invBusy=false; toast(claimErr(e)); });
     }, 'Cancel claim'); }
   function openInvRedirect(inv){ invMode='redirect'; _openInv(inv,function(){
     invCtx.redirectId=null; invCtx.loaded=null;
@@ -17313,7 +17343,7 @@ window.CRM = (function(){
   }
   function invCancelRedirect(){ if(!invCtx||!invCtx.redirectId){ closeModal('invRedirModal'); return; } if(invBusy) return;
     crmConfirm('Cancel this redirect? It stays in history and frees the part-loads.', function(){
-      invBusy=true; SB.rpc('save_crm_redirection_full',{payload:{ id:invCtx.redirectId, loaded_version:invCtx.loaded, season_id:SEASON, container_number:invCtx.conts[0].cn, anchor:'invoice', source_invoice_no:invCtx.inv, target_client:($('irClient')&&$('irClient').value)||invCtx.client, status:'cancelled', event:'cancelled', event_detail:'cancelled' }}).then(function(res){ invBusy=false; if(res&&res.error){ toast(redirErr(res.error)); return; } closeModal('invRedirModal'); invRedirMap=null; toast('Redirect cancelled.'); reload(); });
+      invBusy=true; SB.rpc('save_crm_redirection_full',{payload:{ id:invCtx.redirectId, loaded_version:invCtx.loaded, season_id:SEASON, container_number:invCtx.conts[0].cn, anchor:'invoice', source_invoice_no:invCtx.inv, target_client:($('irClient')&&$('irClient').value)||invCtx.client, status:'cancelled', event:'cancelled', event_detail:'cancelled' }}).then(function(res){ invBusy=false; if(res&&res.error){ toast(redirErr(res.error)); return; } closeModal('invRedirModal'); invRedirMap=null; toast('Redirect cancelled.'); reload(); }).catch(function(e){ invBusy=false; toast(redirErr(e)); });
     }, 'Cancel redirect'); }
   function invRedirClientChanged(){ var c=$('irClient')?$('irClient').value:''; if($('irSub')) $('irSub').innerHTML=redirSubOptions(c); invRender(); }
   /* cancel a container-anchored redirect from the Redirects list (invoice ones cancel from their modal) — P0-2 */
@@ -17325,7 +17355,7 @@ window.CRM = (function(){
         SB.rpc('save_crm_redirection_full',{payload:{ id:x.id, loaded_version:x.updated_at||null, season_id:x.season_id, container_number:x.container_number, anchor:x.anchor||'container', source_invoice_no:x.source_invoice_no||null, target_client:x.target_client, status:'cancelled', event:'cancelled', event_detail:'cancelled by user' }}).then(function(res){
           if(res&&res.error){ toast(redirErr(res.error)); return; }
           toast('Redirect <b>cancelled</b>.'); reload();
-        });
+        }).catch(function(e){ toast(redirErr(e)); });
       }, 'Cancel redirect');
     }).catch(function(e){ toast('Could not load redirect — '+esc((e&&e.message)||e)); });
   }
@@ -17349,7 +17379,7 @@ window.CRM = (function(){
     invBusy=true; var b=$('icSave'); if(b){b.disabled=true;b.textContent='Saving…';}
     SB.rpc('save_crm_claim_full',{payload:payload}).then(function(res){ invBusy=false; if(b)b.disabled=false;
       if(res&&res.error){ if(b)b.textContent=(invCtx.claimId?'Save claim':'Raise claim'); toast(claimErr(res.error)); return; }
-      closeModal('invClaimModal'); toast('Claim saved · <b>'+esc((res.data&&res.data.claim_ref)||invCtx.inv)+'</b>'); reload(); });
+      closeModal('invClaimModal'); toast('Claim saved · <b>'+esc((res.data&&res.data.claim_ref)||invCtx.inv)+'</b>'); reload(); }).catch(function(e){ invBusy=false; if(b){b.disabled=false;b.textContent=(invCtx.claimId?'Save claim':'Raise claim');} toast(claimErr(e)); });
   }
   function saveInvRedirect(){
     if(invBusy) return;
@@ -17366,7 +17396,7 @@ window.CRM = (function(){
     invBusy=true; var b=$('irSave'); if(b){b.disabled=true;b.textContent='Saving…';}
     SB.rpc('save_crm_redirection_full',{payload:payload}).then(function(res){ invBusy=false; if(b)b.disabled=false;
       if(res&&res.error){ if(b)b.textContent=(invCtx.redirectId?'Save redirect':'Redirect'); toast(redirErr(res.error)); return; }
-      closeModal('invRedirModal'); invRedirMap=null; toast('Redirect saved · <b>'+esc((res.data&&res.data.redirect_ref)||client)+'</b>'); reload(); });
+      closeModal('invRedirModal'); invRedirMap=null; toast('Redirect saved · <b>'+esc((res.data&&res.data.redirect_ref)||client)+'</b>'); reload(); }).catch(function(e){ invBusy=false; if(b){b.disabled=false;b.textContent=(invCtx.redirectId?'Save redirect':'Redirect');} toast(redirErr(e)); });
   }
   function invClaimModalHtml(){ return ''
     +'<div class="modal-bg" id="invClaimModal"><div class="modal"><div class="modal-head"><span class="modal-x" role="button" tabindex="0" aria-label="Close" onclick="CRM.requestCloseModal(\'invClaimModal\')">&times;</span><div class="modal-title">Claim — invoice <span class="mono" id="icInv"></span></div><div class="modal-sub" id="icSub">—</div></div><div class="modal-body">'
@@ -17393,7 +17423,7 @@ window.CRM = (function(){
   /* ── reusable in-page confirm (replaces window.confirm, which is unstyled and blocks the renderer) ── */
   var _crmConfirmCb=null;
   function crmConfirmModalHtml(){ return ''
-    +'<div class="modal-bg" id="crmConfirmModal" style="z-index:70"><div class="modal" style="max-width:420px"><div class="modal-head"><div class="modal-title" id="crmConfirmTitle">Please confirm</div></div><div class="modal-body"><div id="crmConfirmMsg" style="font-size:13px;color:var(--text2);line-height:1.55"></div></div><div class="modal-foot" style="justify-content:flex-end"><button class="btn btn-secondary" onclick="CRM.closeModal(\'crmConfirmModal\')">Keep it</button><button class="btn btn-primary" id="crmConfirmOkBtn" style="background:var(--red);border-color:var(--red)" onclick="CRM.crmConfirmOk()">Confirm</button></div></div></div>';
+    +'<div class="modal-bg" id="crmConfirmModal" style="z-index:70"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="crmConfirmTitle" style="max-width:420px"><div class="modal-head"><div class="modal-title" id="crmConfirmTitle">Please confirm</div></div><div class="modal-body"><div id="crmConfirmMsg" style="font-size:13px;color:var(--text2);line-height:1.55"></div></div><div class="modal-foot" style="justify-content:flex-end"><button class="btn btn-secondary" onclick="CRM.closeModal(\'crmConfirmModal\')">Keep it</button><button class="btn btn-primary" id="crmConfirmOkBtn" style="background:var(--red);border-color:var(--red)" onclick="CRM.crmConfirmOk()">Confirm</button></div></div></div>';
   }
   function crmConfirm(msgHtml, onOk, okLabel, title){
     _crmConfirmCb=(typeof onOk==='function')?onOk:null;
@@ -17436,6 +17466,9 @@ window.CRM = (function(){
        event.stopPropagation() calls were for. Delegated on ROOT so this
        survives innerHTML re-renders. */
     ROOT.addEventListener('click',function(e){
+      /* P3: pill / lifecycle-step / grade-pill toggles aren't <input>s, so the 'input' dirty-tracker misses them — mark dirty on a real user click (programmatic set* calls dispatch no click, so no spurious prompt on open/load) */
+      var _gm=e.target&&e.target.closest&&e.target.closest('.modal-bg.open');
+      if(_gm&&GUARDED_MODALS[_gm.id]&&e.target.closest('.pill,.lc-step,.grade-pill,.row-opt')) _formDirty[_gm.id]=true;
       if(scoreOpen && !(e.target.closest&&e.target.closest('.sc-wrap'))){ scoreOpen=false; render(); return; }
       var t=e.target&&e.target.closest&&e.target.closest('[data-crm-act]');
       if(!t||!ROOT.contains(t)) return;
@@ -17478,7 +17511,7 @@ window.CRM = (function(){
   }
 
   /* ── lifecycle ── */
-  function reload(){ return Promise.all([loadVoyages(),loadClaimSettled()]).then(function(){ if(CRM_REGION_RULES_V2) applyV2Regions(); render(); }).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
+  function reload(){ invRedirMap=null; return Promise.all([loadVoyages(),loadClaimSettled()]).then(function(){ if(CRM_REGION_RULES_V2) applyV2Regions(); render(); }).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
   function init(opts){
     SB=opts.supabase; SEASON=opts.seasonId; IS_ADMIN=!!opts.isAdmin; USER=opts.currentUser||null; ROOT=opts.root; MOUNTED=true;
     CONFIG=opts.config||null; ON_OPEN_CQC=opts.onOpenCqc||null; ON_HEADER=opts.onHeader||null;
