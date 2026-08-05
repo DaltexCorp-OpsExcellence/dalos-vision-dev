@@ -15595,31 +15595,12 @@ window.CRM = (function(){
     var stg=/-dev|localhost|127\.0\.0\.1/.test(location.host+location.pathname) ? '<span class="staging-badge">staging</span>' : '';
     var html;
     if(LEADS_TABS.indexOf(currentTab)>=0){
-      /* ── DEDICATED LEADS sub-nav ── a distinct, self-contained section under CRM.
-         The CRM commercial tabs are hidden here; a single "‹ CRM" crumb returns to them.
-         Each entry drives (tab, in-view sub) so the mockup's 9 leads views live behind one bar. */
-      var enrN=LEADS.filter(function(l){return l.stage===0;}).length;
-      var rejN=LEADS.filter(function(l){return l.returnClass;}).length;
-      var inbN=leadsInboxDot();
-      var LN=[
-        ['leads','ws','Workspace',0,''],
-        ['leads','enr','Enrichment',enrN,'cnt-mut'],
-        ['leads','rej','Returned',rejN,'cnt-red'],
-        ['inbox','inbox','Lead inbox',inbN,'cnt-red'],
-        ['inbox','pip','My pipeline',0,''],
-        ['leads','cap','Capture',0,''],
-        ['campaigns','','Campaigns',0,''],
-        ['funnel','board','Funnel',0,''],
-        ['funnel','conv','Conversion',0,'']
-      ];
-      function lnOn(n){ if(currentTab!==n[0]) return false; if(!n[1]) return true; var def=(n[0]==='leads'?'ws':(n[0]==='inbox'?'inbox':'board')); return (LSUB[n[0]]||def)===n[1]; }
-      var lTabs=LN.map(function(n){
-        var dot=n[3]?'<span class="cnt '+(n[4]||'cnt-mut')+'">'+n[3].toLocaleString()+'</span>':'';
-        return '<span class="ultab'+(lnOn(n)?' on':'')+'" role="button" tabindex="0" onclick="CRM.leadNav(\''+n[0]+'\',\''+n[1]+'\')">'+n[2]+dot+'</span>';
-      }).join('');
+      /* ── DEDICATED LEADS section under CRM ── the topbar carries only a back-crumb + label;
+         the full nine-view tab row lives in the page body (leadTabBar) to mirror the mockup and
+         avoid overflowing the narrow topbar. The CRM commercial tabs are hidden here. */
       html='<div class="crm-nav"><div class="ultabs" id="crmUltabs">'
         +'<span class="ulgrp"><span class="ultab ul-back" role="button" tabindex="0" title="Back to CRM" onclick="CRM.setTab(\'dashboard\')">‹ CRM</span></span>'
-        +'<span class="ulgrp"><span class="ulcap">Leads</span>'+lTabs+'</span>'
+        +'<span class="ulgrp"><span class="ulcap">Marketing</span><span class="ultab on" role="button" tabindex="0" aria-current="page">Leads</span></span>'
         +'</div>'+stg+'</div>';
     } else {
       var list=visibleShipments();
@@ -17705,10 +17686,26 @@ window.CRM = (function(){
     return '<span class="sla '+cls+'">'+txt+'</span>';
   }
   function gateIcon(v){ return v==='pass'?'<span class="gate-i gate-ok">✓</span>':(v==='warn'?'<span class="gate-i gate-w">!</span>':(v==='fail'?'<span class="gate-i gate-no">✕</span>':'<span class="gate-i" style="background:var(--border2)">·</span>')); }
-  function subtabs(dest,items){
-    return '<div class="lsub">'+items.map(function(it){
-      var on=LSUB[dest]===it[0];
-      return '<span class="lsubt'+(on?' on':'')+'" onclick="CRM.leadSub(\''+dest+'\',\''+it[0]+'\')">'+esc(it[1])+(it[2]?' <span class="badge '+it[3]+'" style="margin-left:4px">'+it[2]+'</span>':'')+'</span>';
+  /* In-page section tab row — carries ALL nine Leads views (mockup parity), scrollable. */
+  function leadTabBar(){
+    var enrN=LEADS.filter(function(l){return l.stage===0;}).length;
+    var rejN=LEADS.filter(function(l){return l.returnClass;}).length;
+    var inbN=leadsInboxDot();
+    var T=[
+      ['leads','ws','Workspace',0,''],
+      ['leads','enr','Enrichment queue',enrN,'badge-warn'],
+      ['leads','rej','Returned by sales',rejN,'badge-fail'],
+      ['inbox','inbox','Sales · lead inbox',inbN,'badge-fail'],
+      ['inbox','pip','Sales · my pipeline',0,''],
+      ['leads','cap','Capture · show mode',0,''],
+      ['campaigns','','Campaigns',0,''],
+      ['funnel','board','Funnel board',0,''],
+      ['funnel','conv','Conversion',0,'']
+    ];
+    function on(n){ if(currentTab!==n[0]) return false; if(!n[1]) return true; var def=(n[0]==='leads'?'ws':(n[0]==='inbox'?'inbox':'board')); return (LSUB[n[0]]||def)===n[1]; }
+    return '<div class="lsub">'+T.map(function(n){
+      var dot=n[3]?' <span class="badge '+(n[4]||'badge-n')+'" style="margin-left:5px">'+n[3]+'</span>':'';
+      return '<span class="lsubt'+(on(n)?' on':'')+'" role="button" tabindex="0" onclick="CRM.leadNav(\''+n[0]+'\',\''+n[1]+'\')">'+esc(n[2])+dot+'</span>';
     }).join('')+'</div>';
   }
   function liveBar(){
@@ -17727,7 +17724,7 @@ window.CRM = (function(){
     else if(LSUB.leads==='rej') pane=paneReturned();
     else if(LSUB.leads==='cap') pane=paneCapture();
     else pane=paneWorkspace();
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+pane+'</div>';
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+leadTabBar()+pane+'</div>';
   }
 
   function paneWorkspace(){
@@ -17884,7 +17881,7 @@ window.CRM = (function(){
   /* ═══════════════════ INBOX destination ═══════════════════ */
   function renderInbox(){
     var vc=$('viewContent'); if(!vc) return;
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+(LSUB.inbox==='pip'?panePipeline():paneInbox())+'</div>';
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+leadTabBar()+(LSUB.inbox==='pip'?panePipeline():paneInbox())+'</div>';
   }
   function inboxList(){ return LEADS.filter(function(l){return l.stage===1&&l.assigned&&!l.rep&&!l.returnClass&&(IS_ADMIN||ME_REGIONS.indexOf(l.region)>=0);}); }
   function paneInbox(){
@@ -17928,7 +17925,7 @@ window.CRM = (function(){
   /* ═══════════════════ FUNNEL destination ═══════════════════ */
   function renderLeadFunnel(){
     var vc=$('viewContent'); if(!vc) return;
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+(LSUB.funnel==='conv'?paneConversion():paneBoard())+'</div>';
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+leadTabBar()+(LSUB.funnel==='conv'?paneConversion():paneBoard())+'</div>';
   }
   var STRIPE={Grapes:'#7a4ea8',Mango:'#c06030',Citrus:'#b0304a',Pomegranate:'#b0304a'};
   function paneBoard(){
@@ -17984,7 +17981,7 @@ window.CRM = (function(){
     var over='<div class="card"><div class="section-title"><span class="section-title-bar"></span> Override / broadcast rate</div>'
       +fnRow('Hoda S.',12,'12%','14/118','var(--green)')+fnRow('Amr K.',61,'61%','79/130','var(--red)')
       +'<div class="hint">Share of leads where the suggested CRM region was manually overridden.</div></div>';
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+leadTabBar()
       +'<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
       +'<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Campaigns · season 2026</div>'
       +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px"><select class="form-select" style="width:auto"><option>Season 2026</option><option>Season 2025</option></select><select class="form-select" style="width:auto"><option>All types</option><option>Exhibition</option><option>Digital</option><option>Research</option><option>Referral</option></select><button class="btn btn-primary btn-sm" style="margin-left:auto">+ New campaign</button></div>'
