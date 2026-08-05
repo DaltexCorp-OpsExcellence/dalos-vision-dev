@@ -15592,23 +15592,54 @@ window.CRM = (function(){
   }
 
   function renderTabs(){
-    var list=visibleShipments();
-    var attCount=list.filter(function(s){return !!attentionInfo(s);}).length;
-    var openClaims=list.filter(function(s){return s.claim&&s.claim.status==='open';}).length;
-    var unassigned=list.filter(function(s){return s.region==='unassigned';}).length;
-    /* role-grouped underline nav on the sidebar-green band (see CRM header redesign) */
-    var groups=[
-      {tabs:[{id:'dashboard',label:'Dashboard',dot:attCount,mut:true}]},
-      {cap:'Records',tabs:[{id:'shipments',label:'Shipments'},{id:'invoices',label:'Invoices'}]},
-      {cap:'Cases',tabs:[{id:'claims',label:'Claims',dot:openClaims},{id:'redirects',label:'Redirects'},{id:'grading',label:'Grading'}]},
-      {cap:'Marketing',tabs:[{id:'inbox',label:'Leads inbox',dot:leadsInboxDot()}]},   /* Leads / Funnel / Campaigns now live under the sidebar Leads dropdown; the inbox stays here */
-      {tabs:[{id:'clean',label:'Clean'}]}
-    ];
-    if(IS_ADMIN && currentRegion==='all') groups.push({cap:'Setup',tabs:[{id:'regions',label:(CRM_REGION_RULES_V2?'Region rules':'Region mapping'),dot:unassigned,mut:true}]});
-    function tabHtml(t){ return '<span class="ultab'+(t.id===currentTab?' on':'')+'" role="button" tabindex="0" onclick="CRM.setTab(\''+t.id+'\')">'+t.label+(t.dot?'<span class="cnt '+(t.mut?'cnt-mut':'cnt-red')+'">'+t.dot.toLocaleString()+'</span>':'')+'</span>'; }
-    var tabsHtml=groups.map(function(g){ return '<span class="ulgrp">'+(g.cap?'<span class="ulcap">'+g.cap+'</span>':'')+g.tabs.map(tabHtml).join('')+'</span>'; }).join('');
     var stg=/-dev|localhost|127\.0\.0\.1/.test(location.host+location.pathname) ? '<span class="staging-badge">staging</span>' : '';
-    var html='<div class="crm-nav"><div class="ultabs" id="crmUltabs">'+tabsHtml+'</div>'+stg+'</div>';
+    var html;
+    if(LEADS_TABS.indexOf(currentTab)>=0){
+      /* ── DEDICATED LEADS sub-nav ── a distinct, self-contained section under CRM.
+         The CRM commercial tabs are hidden here; a single "‹ CRM" crumb returns to them.
+         Each entry drives (tab, in-view sub) so the mockup's 9 leads views live behind one bar. */
+      var enrN=LEADS.filter(function(l){return l.stage===0;}).length;
+      var rejN=LEADS.filter(function(l){return l.returnClass;}).length;
+      var inbN=leadsInboxDot();
+      var LN=[
+        ['leads','ws','Workspace',0,''],
+        ['leads','enr','Enrichment',enrN,'cnt-mut'],
+        ['leads','rej','Returned',rejN,'cnt-red'],
+        ['inbox','inbox','Lead inbox',inbN,'cnt-red'],
+        ['inbox','pip','My pipeline',0,''],
+        ['leads','cap','Capture',0,''],
+        ['campaigns','','Campaigns',0,''],
+        ['funnel','board','Funnel',0,''],
+        ['funnel','conv','Conversion',0,'']
+      ];
+      function lnOn(n){ if(currentTab!==n[0]) return false; if(!n[1]) return true; var def=(n[0]==='leads'?'ws':(n[0]==='inbox'?'inbox':'board')); return (LSUB[n[0]]||def)===n[1]; }
+      var lTabs=LN.map(function(n){
+        var dot=n[3]?'<span class="cnt '+(n[4]||'cnt-mut')+'">'+n[3].toLocaleString()+'</span>':'';
+        return '<span class="ultab'+(lnOn(n)?' on':'')+'" role="button" tabindex="0" onclick="CRM.leadNav(\''+n[0]+'\',\''+n[1]+'\')">'+n[2]+dot+'</span>';
+      }).join('');
+      html='<div class="crm-nav"><div class="ultabs" id="crmUltabs">'
+        +'<span class="ulgrp"><span class="ultab ul-back" role="button" tabindex="0" title="Back to CRM" onclick="CRM.setTab(\'dashboard\')">‹ CRM</span></span>'
+        +'<span class="ulgrp"><span class="ulcap">Leads</span>'+lTabs+'</span>'
+        +'</div>'+stg+'</div>';
+    } else {
+      var list=visibleShipments();
+      var attCount=list.filter(function(s){return !!attentionInfo(s);}).length;
+      var openClaims=list.filter(function(s){return s.claim&&s.claim.status==='open';}).length;
+      var unassigned=list.filter(function(s){return s.region==='unassigned';}).length;
+      /* role-grouped underline nav on the sidebar-green band (see CRM header redesign).
+         Marketing is a single entry that ENTERS the dedicated Leads section — no leads pages inline here. */
+      var groups=[
+        {tabs:[{id:'dashboard',label:'Dashboard',dot:attCount,mut:true}]},
+        {cap:'Records',tabs:[{id:'shipments',label:'Shipments'},{id:'invoices',label:'Invoices'}]},
+        {cap:'Cases',tabs:[{id:'claims',label:'Claims',dot:openClaims},{id:'redirects',label:'Redirects'},{id:'grading',label:'Grading'}]},
+        {cap:'Marketing',tabs:[{id:'leads',label:'Leads',dot:leadsInboxDot(),go:"CRM.leadNav('leads','ws')"}]},
+        {tabs:[{id:'clean',label:'Clean'}]}
+      ];
+      if(IS_ADMIN && currentRegion==='all') groups.push({cap:'Setup',tabs:[{id:'regions',label:(CRM_REGION_RULES_V2?'Region rules':'Region mapping'),dot:unassigned,mut:true}]});
+      function tabHtml(t){ return '<span class="ultab'+(t.id===currentTab?' on':'')+'" role="button" tabindex="0" onclick="'+(t.go||("CRM.setTab('"+t.id+"')"))+'">'+t.label+(t.dot?'<span class="cnt '+(t.mut?'cnt-mut':'cnt-red')+'">'+t.dot.toLocaleString()+'</span>':'')+'</span>'; }
+      var tabsHtml=groups.map(function(g){ return '<span class="ulgrp">'+(g.cap?'<span class="ulcap">'+g.cap+'</span>':'')+g.tabs.map(tabHtml).join('')+'</span>'; }).join('');
+      html='<div class="crm-nav"><div class="ultabs" id="crmUltabs">'+tabsHtml+'</div>'+stg+'</div>';
+    }
     var el=$('viewTabs'); if(el) el.innerHTML=html;          /* in-island fallback if no host header slot */
     if(ON_HEADER) ON_HEADER(html);                            /* lift the nav into the shell topbar (which is toned green for CRM) */
     /* keep the active tab visible when the row scrolls on narrow screens */
@@ -17691,15 +17722,12 @@ window.CRM = (function(){
   /* ═══════════════════ LEADS destination ═══════════════════ */
   function renderLeads(){
     var vc=$('viewContent'); if(!vc) return;
-    var enrN=LEADS.filter(function(l){return l.stage===0;}).length;
-    var rejN=LEADS.filter(function(l){return l.returnClass;}).length;
-    var bar=subtabs('leads',[['ws','Workspace'],['enr','Enrichment queue',String(enrN),'badge-warn'],['rej','Returned by sales',String(rejN),'badge-fail'],['cap','Capture · show mode']]);
     var pane;
     if(LSUB.leads==='enr') pane=paneEnrichment();
     else if(LSUB.leads==='rej') pane=paneReturned();
     else if(LSUB.leads==='cap') pane=paneCapture();
     else pane=paneWorkspace();
-    vc.innerHTML=draftBanner()+liveBar()+bar+pane;
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+pane+'</div>';
   }
 
   function paneWorkspace(){
@@ -17856,8 +17884,7 @@ window.CRM = (function(){
   /* ═══════════════════ INBOX destination ═══════════════════ */
   function renderInbox(){
     var vc=$('viewContent'); if(!vc) return;
-    var bar=subtabs('inbox',[['inbox','Lead inbox',String(inboxList().length),'badge-fail'],['pip','My pipeline']]);
-    vc.innerHTML=draftBanner()+bar+(LSUB.inbox==='pip'?panePipeline():paneInbox());
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+(LSUB.inbox==='pip'?panePipeline():paneInbox())+'</div>';
   }
   function inboxList(){ return LEADS.filter(function(l){return l.stage===1&&l.assigned&&!l.rep&&!l.returnClass&&(IS_ADMIN||ME_REGIONS.indexOf(l.region)>=0);}); }
   function paneInbox(){
@@ -17901,8 +17928,7 @@ window.CRM = (function(){
   /* ═══════════════════ FUNNEL destination ═══════════════════ */
   function renderLeadFunnel(){
     var vc=$('viewContent'); if(!vc) return;
-    var bar=subtabs('funnel',[['board','Funnel board'],['conv','Conversion']]);
-    vc.innerHTML=draftBanner()+bar+(LSUB.funnel==='conv'?paneConversion():paneBoard());
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+(LSUB.funnel==='conv'?paneConversion():paneBoard())+'</div>';
   }
   var STRIPE={Grapes:'#7a4ea8',Mango:'#c06030',Citrus:'#b0304a',Pomegranate:'#b0304a'};
   function paneBoard(){
@@ -17958,11 +17984,12 @@ window.CRM = (function(){
     var over='<div class="card"><div class="section-title"><span class="section-title-bar"></span> Override / broadcast rate</div>'
       +fnRow('Hoda S.',12,'12%','14/118','var(--green)')+fnRow('Amr K.',61,'61%','79/130','var(--red)')
       +'<div class="hint">Share of leads where the suggested CRM region was manually overridden.</div></div>';
-    vc.innerHTML='<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()
+      +'<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
       +'<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Campaigns · season 2026</div>'
-      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px"><select class="form-select" style="width:auto"><option>Season 2026</option><option>Season 2025</option></select><button class="btn btn-primary btn-sm" style="margin-left:auto">+ New campaign</button></div>'
+      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px"><select class="form-select" style="width:auto"><option>Season 2026</option><option>Season 2025</option></select><select class="form-select" style="width:auto"><option>All types</option><option>Exhibition</option><option>Digital</option><option>Research</option><option>Referral</option></select><button class="btn btn-primary btn-sm" style="margin-left:auto">+ New campaign</button></div>'
       +'<div class="table-wrap"><table style="min-width:900px"><thead><tr><th>Campaign</th><th>Type</th><th>Dates</th><th>Cost</th><th>Reg.</th><th>Qual.</th><th>Acc.</th><th>Shipped</th><th>Cost / qual.</th><th>Weighted</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'
-      +'<div class="grid2">'+det+over+'</div>';
+      +'<div class="grid2">'+det+over+'</div></div>';
   }
 
   /* ═══════════════════ drawers / actions ═══════════════════ */
@@ -18134,6 +18161,8 @@ window.CRM = (function(){
 
   function leadSet(k,v){ leadView[k]=v; render(); }
   function leadSub(dest,key){ LSUB[dest]=key; if(dest==='leads'||dest==='funnel'||dest==='campaigns'){ if(currentTab!==dest){ if(window.CRM) window.CRM.openTab(dest); return; } } render(); }
+  /* unified Leads sub-nav driver: switches CRM tab AND in-view sub in one hop (handles inbox/pip too) */
+  function leadNav(dest,key){ if(key) LSUB[dest]=key; if(currentTab!==dest){ setTab(dest); } else { render(); } }
   function leadReset(){ seed(); leadView={type:'all',market:'all',stage:'all'}; toast('Demo data reset.'); render(); }
 
   /* nav-count helpers */
@@ -18158,7 +18187,7 @@ window.CRM = (function(){
     rrOpenDrawer:rrOpenDrawer, rrSetField:rrSetField, rrSaveRule:rrSaveRule, rrToggle:rrToggle, rrDelete:rrDelete, rrMove:rrMove,
     rrToggleDefaults:rrToggleDefaults, rrCreateFor:rrCreateFor, rrCommit:rrCommit, rrDiscard:rrDiscard, rrUndo:rrUndo,
     rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy, rrToggleEngine:rrToggleEngine,
-    leadSub:leadSub, leadSet:leadSet, leadReset:leadReset, leadOpen:leadOpen,
+    leadSub:leadSub, leadNav:leadNav, leadSet:leadSet, leadReset:leadReset, leadOpen:leadOpen,
     leadQuickAdd:leadQuickAdd, leadSubmitQuickAdd:leadSubmitQuickAdd, leadEnrich:leadEnrich,
     leadQualifyOpen:leadQualifyOpen, leadGate:leadGate, leadQualifySave:leadQualifySave,
     leadAssignOpen:leadAssignOpen, leadPickRegion:leadPickRegion, leadAssignSave:leadAssignSave,
@@ -18814,6 +18843,28 @@ function injectCrmCss(){
 .crmv .who.sel{border-color:var(--accent);background:var(--green-bg)}
 .crmv .who-n{font-size:13px;color:var(--text);font-weight:500}
 .crmv .who-s{font-size:10px;color:var(--text3)}
+
+/* ── Leads portal primitives (mockup classes the .crmv scope didn't already define) ──
+   Scoped to .lead-portal so plain <table>/.card/.kpi-* don't collide with the CRM island's
+   own table.wl / .kpi-label primitives. This is the fix for the leads views rendering unstyled. */
+.crmv .lead-portal .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px 16px}
+.crmv .lead-portal .kpi-grid{margin-bottom:12px}
+.crmv .lead-portal .kpi-l{font-size:11px;color:var(--text3)}
+.crmv .lead-portal .kpi-v{font-family:var(--font-display);font-size:26px;line-height:1.15;margin-top:2px}
+.crmv .lead-portal .kpi-s{font-size:11px;margin-top:2px;color:var(--text3)}
+.crmv .lead-portal .table-wrap{background:transparent;border:0;border-radius:0;overflow-x:auto}
+.crmv .lead-portal table{width:100%;border-collapse:collapse;min-width:600px}
+.crmv .lead-portal thead th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);text-align:left;padding:0 10px 7px;border-bottom:2px solid var(--border2);font-weight:600;white-space:nowrap}
+.crmv .lead-portal tbody td{font-size:13px;color:var(--text2);padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.crmv .lead-portal tbody tr:last-child td{border-bottom:none}
+.crmv .lead-portal tbody tr{cursor:pointer;transition:background .15s}
+.crmv .lead-portal tbody tr:hover{background:var(--bg)}
+.crmv .lead-portal .note{background:var(--bg2);border:1px dashed var(--border2);border-radius:var(--r);padding:9px 11px;font-size:11px;color:var(--text2);line-height:1.5;margin-top:10px}
+/* .lot renders as a mono chip inside the leads views + their drawers (the base .crmv .lot is plain text) */
+.crmv .lead-portal .lot,.crmv .l-form .lot,.crmv .ldp .lot{font-family:var(--font-mono);font-size:11px;background:var(--bg2);border-radius:4px;padding:2px 5px;color:var(--text);white-space:nowrap}
+/* leads sub-nav back-crumb in the toned-green header */
+.crmv .ultab.ul-back{color:#93a68c;font-size:12px;padding-right:12px}
+.crmv .ultab.ul-back:hover{color:#fff}
 
 /* ── Responsive ── */
 @media(max-width:1024px){
@@ -20618,7 +20669,7 @@ function App(){
              into the CRM island on their tab; the Leads inbox deliberately stays a CRM tab. */
           if(v.id==='crm'&&perms.viewCRM){
             var LEAD_SUBS=[['leads','Leads'],['funnel','Funnel'],['campaigns','Campaigns']];
-            var onLeadTab=(view==='crm'&&['leads','funnel','campaigns'].indexOf(crmTab)>=0);
+            var onLeadTab=(view==='crm'&&['leads','funnel','campaigns','inbox'].indexOf(crmTab)>=0);
             return ce(React.Fragment,{key:'crm-leads-grp'},
               navEl,
               ce('div',{className:'nav-item nav-parent'+(onLeadTab?' active':''),onClick:function(){setLeadsNavOpen(!leadsNavOpen);}},
