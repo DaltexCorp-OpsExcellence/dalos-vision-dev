@@ -15595,12 +15595,14 @@ window.CRM = (function(){
     var stg=/-dev|localhost|127\.0\.0\.1/.test(location.host+location.pathname) ? '<span class="staging-badge">staging</span>' : '';
     var html;
     if(LEADS_TABS.indexOf(currentTab)>=0){
-      /* ── DEDICATED LEADS section under CRM ── the topbar carries only a back-crumb + label;
-         the full nine-view tab row lives in the page body (leadTabBar) to mirror the mockup and
-         avoid overflowing the narrow topbar. The CRM commercial tabs are hidden here. */
+      /* ── DEDICATED LEADS section under CRM ── the topbar shows a back-crumb + the active view.
+         Navigation between leads views is the sidebar (CRM → Leads Managements buttons); the CRM
+         commercial tabs are hidden here. */
+      var _vl={ws:'Workspace',enr:'Enrichment queue',rej:'Returned by sales',inbox:'Lead inbox',pip:'My pipeline',cap:'Show mode',board:'Funnel',conv:'Conversion',campaigns:'Campaign'};
+      var _cur=_vl[activeLeadKey()]||'Leads';
       html='<div class="crm-nav"><div class="ultabs" id="crmUltabs">'
         +'<span class="ulgrp"><span class="ultab ul-back" role="button" tabindex="0" title="Back to CRM" onclick="CRM.setTab(\'dashboard\')">‹ CRM</span></span>'
-        +'<span class="ulgrp"><span class="ulcap">Marketing</span><span class="ultab on" role="button" tabindex="0" aria-current="page">Leads</span></span>'
+        +'<span class="ulgrp"><span class="ulcap">Leads</span><span class="ultab on" role="button" tabindex="0" aria-current="page">'+esc(_cur)+'</span></span>'
         +'</div>'+stg+'</div>';
     } else {
       var list=visibleShipments();
@@ -16832,7 +16834,7 @@ window.CRM = (function(){
     /* P2-6: Shipments column filters are scoped to that tab only — clear them on tab change so they don't silently persist/reapply */
     SHIP_FILTER_KEYS.forEach(function(k){ shipView[k]='all'; }); scoreOpen=false;
     currentTab=id; resetPages(); render();
-    if(ON_TAB) ON_TAB(id);   /* let the Vision shell sidebar reflect the active CRM tab (Leads dropdown highlight) */
+    if(ON_TAB) ON_TAB(id,activeLeadKey());   /* let the Vision shell sidebar reflect the active CRM tab + leads view (button highlight) */
     var vc=$('viewContent'); if(vc&&vc.scrollTo) vc.scrollTo(0,0);
     if(ROOT&&ROOT.scrollIntoView) ROOT.scrollIntoView({block:'start'});
     if(window.scrollTo) window.scrollTo(0,0);
@@ -17547,7 +17549,7 @@ window.CRM = (function(){
     CONFIG=opts.config||null; ON_OPEN_CQC=opts.onOpenCqc||null; ON_HEADER=opts.onHeader||null; ON_TAB=opts.onTab||null;
     currentTab='dashboard'; currentRegion='all'; currentProduct='all'; currentQuery=''; showAllSubs=false; pulseOpen=true; resetPages();
     if(PENDING_TAB){ currentTab=PENDING_TAB; PENDING_TAB=null; }   /* sidebar deep-link into a Leads tab on first mount */
-    if(ON_TAB) ON_TAB(currentTab);
+    if(ON_TAB) ON_TAB(currentTab,activeLeadKey());
     ROOT.innerHTML=template();
     attachListeners();
     /* loadVoyages has no data dependency on the four lookups, so fire it alongside them instead of chaining — removes one round-trip from time-to-dashboard */
@@ -17724,7 +17726,7 @@ window.CRM = (function(){
     else if(LSUB.leads==='rej') pane=paneReturned();
     else if(LSUB.leads==='cap') pane=paneCapture();
     else pane=paneWorkspace();
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+leadTabBar()+pane+'</div>';
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+pane+'</div>';
   }
 
   function paneWorkspace(){
@@ -17881,7 +17883,7 @@ window.CRM = (function(){
   /* ═══════════════════ INBOX destination ═══════════════════ */
   function renderInbox(){
     var vc=$('viewContent'); if(!vc) return;
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+leadTabBar()+(LSUB.inbox==='pip'?panePipeline():paneInbox())+'</div>';
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+(LSUB.inbox==='pip'?panePipeline():paneInbox())+'</div>';
   }
   function inboxList(){ return LEADS.filter(function(l){return l.stage===1&&l.assigned&&!l.rep&&!l.returnClass&&(IS_ADMIN||ME_REGIONS.indexOf(l.region)>=0);}); }
   function paneInbox(){
@@ -17925,7 +17927,7 @@ window.CRM = (function(){
   /* ═══════════════════ FUNNEL destination ═══════════════════ */
   function renderLeadFunnel(){
     var vc=$('viewContent'); if(!vc) return;
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+leadTabBar()+(LSUB.funnel==='conv'?paneConversion():paneBoard())+'</div>';
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+(LSUB.funnel==='conv'?paneConversion():paneBoard())+'</div>';
   }
   var STRIPE={Grapes:'#7a4ea8',Mango:'#c06030',Citrus:'#b0304a',Pomegranate:'#b0304a'};
   function paneBoard(){
@@ -17981,7 +17983,7 @@ window.CRM = (function(){
     var over='<div class="card"><div class="section-title"><span class="section-title-bar"></span> Override / broadcast rate</div>'
       +fnRow('Hoda S.',12,'12%','14/118','var(--green)')+fnRow('Amr K.',61,'61%','79/130','var(--red)')
       +'<div class="hint">Share of leads where the suggested CRM region was manually overridden.</div></div>';
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+leadTabBar()
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()
       +'<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
       +'<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Campaigns · season 2026</div>'
       +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px"><select class="form-select" style="width:auto"><option>Season 2026</option><option>Season 2025</option></select><select class="form-select" style="width:auto"><option>All types</option><option>Exhibition</option><option>Digital</option><option>Research</option><option>Referral</option></select><button class="btn btn-primary btn-sm" style="margin-left:auto">+ New campaign</button></div>'
@@ -18159,7 +18161,15 @@ window.CRM = (function(){
   function leadSet(k,v){ leadView[k]=v; render(); }
   function leadSub(dest,key){ LSUB[dest]=key; if(dest==='leads'||dest==='funnel'||dest==='campaigns'){ if(currentTab!==dest){ if(window.CRM) window.CRM.openTab(dest); return; } } render(); }
   /* unified Leads sub-nav driver: switches CRM tab AND in-view sub in one hop (handles inbox/pip too) */
-  function leadNav(dest,key){ if(key) LSUB[dest]=key; if(currentTab!==dest){ setTab(dest); } else { render(); } }
+  /* single key identifying the active leads VIEW (not just the tab) so the sidebar buttons highlight precisely */
+  function activeLeadKey(){
+    if(currentTab==='leads') return LSUB.leads||'ws';
+    if(currentTab==='inbox') return LSUB.inbox||'inbox';
+    if(currentTab==='funnel') return LSUB.funnel||'board';
+    if(currentTab==='campaigns') return 'campaigns';
+    return '';
+  }
+  function leadNav(dest,key){ if(key) LSUB[dest]=key; if(currentTab!==dest){ setTab(dest); } else { render(); if(ON_TAB) ON_TAB(currentTab,activeLeadKey()); } }
   function leadReset(){ seed(); leadView={type:'all',market:'all',stage:'all'}; toast('Demo data reset.'); render(); }
 
   /* nav-count helpers */
@@ -18940,6 +18950,7 @@ function App(){
   var sCqcLink=useState(null); var cqcLink=sCqcLink[0]; var setCqcLink=sCqcLink[1];
   var sCrmHdr=useState(''); var crmHdr=sCrmHdr[0]; var setCrmHdr=sCrmHdr[1]; /* CRM island lifts its tab bar into the shell topbar via onHeader */
   var sCrmTab=useState('dashboard'); var crmTab=sCrmTab[0]; var setCrmTab=sCrmTab[1]; /* current CRM tab, mirrored from the island so the sidebar Leads dropdown can highlight */
+  var sCrmLeadKey=useState(''); var crmLeadKey=sCrmLeadKey[0]; var setCrmLeadKey=sCrmLeadKey[1]; /* active leads VIEW key (ws/enr/rej/pip/cap/board/campaigns) for precise sidebar-button highlight */
   var sLeadsNav=useState(false); var leadsNavOpen=sLeadsNav[0]; var setLeadsNavOpen=sLeadsNav[1]; /* sidebar "Leads Managements" sub-group expand state */
   var sCrmNav=useState(false); var crmNavOpen=sCrmNav[0]; var setCrmNavOpen=sCrmNav[1]; /* sidebar CRM group expand (Tracking & Claims / Leads Managements) */
   React.useEffect(function(){if(view!=='clientqc'&&cqcLink)setCqcLink(null);},[view]);
@@ -20674,7 +20685,10 @@ function App(){
             var leadsActive=(crmActive&&isLeadsTab);
             var showCrm=(crmNavOpen||crmActive);
             var showLeads=(leadsNavOpen||leadsActive);
-            function goTab(t){ setView('crm'); if(window.CRM)window.CRM.openTab(t); setCrmTab(t); setMobOpen(false); }
+            function goTab(t){ setView('crm'); if(window.CRM)window.CRM.openTab(t); setCrmTab(t); setCrmLeadKey(''); setMobOpen(false); }
+            /* a leads VIEW button: switches the CRM tab AND its in-view sub in one hop, and highlights by view key */
+            function goView(dest,sub,key){ setView('crm'); if(window.CRM)window.CRM.leadNav(dest,sub); setCrmTab(dest); setCrmLeadKey(key); setMobOpen(false); }
+            var LM_BTNS=[['leads','ws','ws','Workspace'],['leads','enr','enr','Enrichment queue'],['leads','rej','rej','Returned by sales'],['inbox','pip','pip','My pipeline'],['leads','cap','cap','Show mode'],['funnel','board','board','Funnel'],['campaigns','','campaigns','Campaign']];
             return ce(React.Fragment,{key:'crm-grp'},
               ce('div',{className:'nav-item nav-parent'+(crmActive?' active':''),onClick:function(){setCrmNavOpen(!crmNavOpen);}},
                 ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:IPATHS[v.id]||IPATHS.fg})),
@@ -20683,14 +20697,13 @@ function App(){
               ),
               showCrm?ce('div',{className:'nav-sub'},
                 ce('div',{key:'tc',className:'nav-item nav-subitem'+(commActive?' active':''),onClick:function(){goTab('dashboard');}},'Tracking & Claims'),
-                ce('div',{key:'lm',className:'nav-item nav-subitem nav-parent'+(leadsActive?' active':''),onClick:function(){setLeadsNavOpen(true);goTab('leads');}},
+                ce('div',{key:'lm',className:'nav-item nav-subitem nav-parent'+(leadsActive?' active':''),onClick:function(){setLeadsNavOpen(true);goView('leads','ws','ws');}},
                   ce('span',{style:{flex:1,whiteSpace:'nowrap'}},'Leads Managements'),
                   ce('span',{className:'nav-caret'+(showLeads?' open':''),onClick:function(e){e.stopPropagation();setLeadsNavOpen(!leadsNavOpen);}},'›')
                 ),
-                showLeads?ce('div',{className:'nav-sub'},
-                  ce('div',{key:'fn',className:'nav-item nav-subitem'+(leadsActive&&crmTab==='funnel'?' active':''),onClick:function(){goTab('funnel');}},'Funnel'),
-                  ce('div',{key:'cmp',className:'nav-item nav-subitem'+(leadsActive&&crmTab==='campaigns'?' active':''),onClick:function(){goTab('campaigns');}},'Campaign')
-                ):null
+                showLeads?ce('div',{className:'nav-sub'},LM_BTNS.map(function(b){
+                  return ce('div',{key:b[2],className:'nav-item nav-subitem'+(leadsActive&&crmLeadKey===b[2]?' active':''),onClick:function(){goView(b[0],b[1],b[2]);}},b[3]);
+                })):null
               ):null
             );
           }
@@ -20823,7 +20836,7 @@ function App(){
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
-        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onTab:setCrmTab,onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
+        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onTab:function(t,k){setCrmTab(t);setCrmLeadKey(k||'');},onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
