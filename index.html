@@ -17547,597 +17547,598 @@ window.CRM = (function(){
   function teardown(){ MOUNTED=false; ROOT=null; if(ON_HEADER){ ON_HEADER(''); } }
 
 
+
   /* ═══════════════════════════════════════════════════════════════════════
      LEADS — Marketing Leads Portal & Funnel (DRAFT · dummy data · UI/UX only)
-     No DB. No network. Everything below is in-memory demo state that resets
-     on reload. Mirrors DalOS_CRM_Leads_PRD_v1 P0 surfaces so the flow can be
-     walked end-to-end on staging without any schema change.
+     Ported from the dalos-crm-leads-portal-mockup design. No DB, no network —
+     in-memory demo state that resets on reload. Reached through the sidebar
+     Leads dropdown (Leads / Funnel / Campaigns) and the CRM Leads-inbox tab;
+     each destination carries its own in-view sub-tabs.
      ═══════════════════════════════════════════════════════════════════════ */
   var LEADS_TABS=['leads','inbox','funnel','campaigns'];
+  /* in-view sub-tab per destination */
+  var LSUB={leads:'ws', funnel:'board', inbox:'inbox'};
 
+  /* stage model (matches the mockup) */
   var L_STAGES=[
-    {i:0,key:'new',      label:'New',       owner:'mkt'},
-    {i:1,key:'qualified',label:'Qualified', owner:'mkt'},
-    {i:2,key:'assigned', label:'Assigned',  owner:'mkt'},
-    {i:3,key:'engaged',  label:'Engaged',   owner:'sales'},
-    {i:4,key:'sampling', label:'Sampling',  owner:'sales'},
-    {i:5,key:'quoted',   label:'Quoted',    owner:'sales'},
-    {i:6,key:'won',      label:'Won',       owner:'sales'},
-    {i:7,key:'repeat',   label:'Repeat',    owner:'sales'}
+    {i:0,key:'captured', label:'Captured',      badge:'badge-hold'},
+    {i:1,key:'qualified',label:'Qualified',     badge:'badge-warn'},
+    {i:2,key:'accepted', label:'Accepted',      badge:'badge-pass'},
+    {i:3,key:'engaged',  label:'Engaged',       badge:'badge-esc'},
+    {i:4,key:'samples',  label:'Specs / samples',badge:'badge-n'},
+    {i:5,key:'quoted',   label:'Quoted',        badge:'badge-sa'},
+    {i:6,key:'shipped',  label:'Shipped',       badge:'badge-pass'},
+    {i:7,key:'repeat',   label:'Repeat',        badge:'badge-pass'}
   ];
   function stageAt(i){ return L_STAGES[i]||L_STAGES[0]; }
+  function stageBadge(l){
+    if(l.returnClass==='A') return '<span class="badge badge-fail">Rejected · A</span>';
+    var s=stageAt(l.stage); return '<span class="badge '+s.badge+'">'+esc(s.label)+'</span>';
+  }
 
-  var L_TYPES={
-    event:           {label:'Trade show', cls:'lt-event'},
-    inbound:         {label:'Inbound',    cls:'lt-inbound'},
-    referral:        {label:'Referral',   cls:'lt-ref'},
-    outbound_sourced:{label:'Outbound',   cls:'lt-out'},
-    win_back:        {label:'Win-back',   cls:'lt-win'}
-  };
-  var L_BANDS=['<1 container','1–5 / season','5–20 / season','20+ / season'];
-  var L_REGIONS=['EU-West','EU-East','UK & Ireland','Gulf & MENA','Far East'];
-  var L_C2R={Netherlands:'EU-West',Germany:'EU-West',France:'EU-West',Belgium:'EU-West',Spain:'EU-West',
-    Poland:'EU-East',Romania:'EU-East',Ukraine:'EU-East','United Kingdom':'UK & Ireland',Ireland:'UK & Ireland',
-    UAE:'Gulf & MENA','Saudi Arabia':'Gulf & MENA',Qatar:'Gulf & MENA',Kuwait:'Gulf & MENA',
-    China:'Far East',India:'Far East','Hong Kong':'Far East',Malaysia:'Far East'};
-  var L_CLIENTS=['Greenyard Fresh','Univeg','Bakker Barendrecht','Natures Pride','AMC Fresh','Total Produce'];
+  var L_TYPES={event:'Event',inbound:'Inbound',referral:'Referral',outbound_sourced:'Sourced',win_back:'Win-back'};
+  var L_BANDS=['—','1–5','5–20','20+'];
+  var L_REGIONS=['UK & Ireland','N. Europe','Gulf','Russia & CIS','E. Med','Far East'];
+  var L_C2R={'United Kingdom':'UK & Ireland',UK:'UK & Ireland',Ireland:'UK & Ireland',
+    Germany:'N. Europe',Netherlands:'N. Europe',Belgium:'N. Europe',France:'N. Europe',Estonia:'N. Europe',
+    UAE:'Gulf','Saudi Arabia':'Gulf',Qatar:'Gulf',Kuwait:'Gulf',
+    Russia:'Russia & CIS',Ukraine:'Russia & CIS',
+    Turkey:'E. Med',Greece:'E. Med',
+    China:'Far East',India:'Far East','Hong Kong':'Far East'};
+  var L_CLIENTS=['Greenyard Fresh','Univeg','Bakker Barendrecht','Natures Pride','AMC Fresh','Total Produce','Emirates Fruit Hub'];
 
   var L_GATES=[
-    {k:'active',   label:'Not an active client',        src:'auto'},
-    {k:'season',   label:'Product available this season',src:'auto'},
-    {k:'cert',     label:'Packhouse holds their certs',  src:'auto'},
-    {k:'territory',label:'No agent / territory conflict', src:'auto'},
-    {k:'evidence', label:'Genuine receiver (evidence)',   src:'mkt'},
-    {k:'role',     label:'Decision-maker contact',        src:'mkt'},
-    {k:'port',     label:'Destination port confirmed',    src:'mkt'},
-    {k:'volume',   label:'Volume ≥ 1 container/season',src:'mkt'}
+    {k:'receiver', label:'Verified receiver',            src:'marketing'},
+    {k:'contact',  label:'Named decision-maker contact', src:'marketing'},
+    {k:'dest',     label:'Destination port confirmed',   src:'marketing'},
+    {k:'season',   label:'Product × season fit',         src:'auto'},
+    {k:'volume',   label:'Volume floor (≥1 container)',  src:'marketing'},
+    {k:'cert',     label:'Packhouse certification',      src:'auto'},
+    {k:'payment',  label:'Payment expectation',          src:'marketing'},
+    {k:'active',   label:'Not an active client',         src:'auto'}
   ];
 
   var L_CAMPAIGNS=[
-    {id:'C1',name:'Fruit Logistica 2026',   type:'Trade show',cost:42000,cur:'EUR',dates:'Feb 2026'},
-    {id:'C2',name:'Fruit Attraction 2025',  type:'Trade show',cost:31000,cur:'EUR',dates:'Oct 2025'},
-    {id:'C3',name:'Gulfood 2026',           type:'Trade show',cost:26500,cur:'USD',dates:'Feb 2026'},
-    {id:'C4',name:'Website RFQ (inbound)',  type:'Inbound',   cost:0,    cur:'EUR',dates:'Ongoing'},
-    {id:'C5',name:'EU importer research',   type:'Outbound',  cost:4800, cur:'EUR',dates:'Q1 2026'},
-    {id:'C6',name:'Broker referrals',       type:'Referral',  cost:0,    cur:'EUR',dates:'Ongoing'}
+    {id:'C1',name:'Fruit Attraction 26',type:'Exhibition',dates:'30 Sep – 02 Oct',cost:41200,cur:'€',reg:74,qual:61,acc:51,shipped:5,cq:675,weighted:78},
+    {id:'C2',name:'Gulfood 26',type:'Exhibition',dates:'17 – 21 Feb',cost:28500,cur:'€',reg:46,qual:39,acc:34,shipped:6,cq:731,weighted:52},
+    {id:'C3',name:'Grapes pre-season mailer',type:'Digital',dates:'01 – 30 Apr',cost:4100,cur:'€',reg:38,qual:27,acc:22,shipped:2,cq:152,weighted:24},
+    {id:'C4',name:'Website inbound (always-on)',type:'Digital',dates:'year-round',cost:9800,cur:'€',reg:58,qual:44,acc:37,shipped:2,cq:223,weighted:19},
+    {id:'C5',name:'Agent referral programme',type:'Referral',dates:'year-round',cost:6400,cur:'€',reg:31,qual:28,acc:25,shipped:3,cq:229,weighted:31},
+    {id:'C6',name:'Gulf research list Q3',type:'Research',dates:'01 Jul – 15 Aug',cost:6200,cur:'€',reg:1420,qual:19,acc:9,shipped:1,cq:326,weighted:6}
   ];
   function campById(id){ for(var i=0;i<L_CAMPAIGNS.length;i++) if(L_CAMPAIGNS[i].id===id) return L_CAMPAIGNS[i]; return null; }
 
   var ME='You';
-  var ME_REGIONS=['EU-West','Gulf & MENA'];
-  var L_OWNERS=['Nour','Salma','Karim'];
-  var L_REPS=['You','Omar','Yasmine','Hesham'];
+  var ME_REGIONS=['UK & Ireland','Gulf'];
 
-  /* gate factory: advanced-stage leads have all mkt gates already passed */
-  function defG(stage){ var m=stage>=1?'pass':'todo';
-    return {active:'pass',season:'pass',cert:'pass',territory:'pass',evidence:m,role:m,port:m,volume:m}; }
+  /* gate factory */
+  function G(o){ var g={receiver:'todo',contact:'todo',dest:'todo',season:'pass',volume:'todo',cert:'pass',payment:'todo',active:'pass'};
+    if(o) for(var k in o) g[k]=o[k]; return g; }
 
-  var L_SEQ=1000, LEADS=[];
-  function mk(company,country,region,product,type,band,stage,owner,opt){
-    opt=opt||{}; L_SEQ++;
-    var g=defG(stage); if(opt.gates) for(var k in opt.gates) g[k]=opt.gates[k];
-    return {
-      id:'LD-'+L_SEQ, company:company, country:country, region:region, product:product,
-      type:type, band:band, stage:stage, owner:owner,
-      contact:opt.contact||'', role:opt.role||'', email:opt.email||'', phone:opt.phone||'',
-      port:opt.port||'', campaign:opt.campaign||'C4', rep:opt.rep||null,
-      sla:(opt.sla==null?null:opt.sla), passCount:opt.passCount||0, passes:opt.passes||[],
-      gates:g, note:opt.note||'', won:opt.won||null, age:opt.age||'—'
-    };
+  var LEADS=[];
+  function mk(id,company,country,product,type,band,stage,by,age,opt){
+    opt=opt||{};
+    return {id:id,company:company,country:country,region:opt.region||(L_C2R[country]||'unmapped'),
+      product:product,type:type,band:band,stage:stage,sourcedBy:by,age:age,
+      contact:opt.contact||'',role:opt.role||'',port:opt.port||'',campaign:opt.campaign||'C4',
+      rep:opt.rep||null,sla:(opt.sla==null?null:opt.sla),assigned:!!opt.assigned,
+      passCount:opt.passCount||0,passes:opt.passes||[],gates:opt.gates||G(stage>=1?{receiver:'pass',contact:'pass',dest:'pass',volume:'pass',payment:'pass'}:null),
+      returnClass:opt.returnClass||null,returnReason:opt.returnReason||'',returnBy:opt.returnBy||'',
+      missing:opt.missing||'',autochk:opt.autochk||null,note:opt.note||'',
+      nextAction:opt.nextAction||'',due:opt.due||'',est:opt.est||'',owned:opt.owned||''};
   }
   function seed(){
-    L_SEQ=1000; LEADS=[
-      /* stage 0 — New / enrichment queue */
-      mk('Frutas del Sol','Spain','EU-West','Grapes','event',2,0,'Nour',{contact:'M. Alcaraz',role:'',email:'buy@frutasdelsol.es',port:'',campaign:'C1',age:'2d',note:'Met at FL stand, wants seedless red.'}),
-      mk('Rungis Import SARL','France','EU-West','Citrus','event',2,0,'Nour',{contact:'C. Dubois',role:'Category buyer',email:'c.dubois@rungis-imp.fr',port:'Marseille',campaign:'C1',age:'2d'}),
-      mk('Al Sanam Trading','UAE','Gulf & MENA','Mango','event',1,0,'Karim',{contact:'H. Al Sanam',role:'',email:'info@alsanam.ae',port:'',campaign:'C3',age:'3d',note:'Ramadan volume interest.'}),
-      mk('Greenyard Fresh','Belgium','EU-West','Grapes','inbound',3,0,'Salma',{contact:'web form',email:'procurement@greenyard.eu',campaign:'C4',age:'1d',gates:{active:'fail'},note:'RFQ via website — flagged: already an active client.'}),
-      mk('Nanjing Orient Foods','China','Far East','Pomegranate','outbound_sourced',1,0,'Karim',{contact:'L. Wei',email:'wei@njorient.cn',campaign:'C5',age:'5d',gates:{cert:'warn'},note:'Research list — cert coverage unclear.'}),
-
-      /* stage 1 — Qualified, ready to assign */
-      mk('Verdi Ortofrutta','France','EU-West','Grapes','event',2,1,'Nour',{contact:'A. Ricci',role:'Head of buying',email:'a.ricci@verdi.fr',port:'Le Havre',campaign:'C1',age:'6d'}),
-      mk('Baltic Fruit Co','Poland','EU-East','Citrus','inbound',2,1,'Salma',{contact:'K. Nowak',role:'Owner',email:'k.nowak@balticfruit.pl',port:'Gdansk',campaign:'C4',age:'4d'}),
-      mk('Emirates Gold Produce','UAE','Gulf & MENA','Mango','event',3,1,'Karim',{contact:'F. Rahman',role:'GM',email:'f.rahman@egp.ae',port:'Jebel Ali',campaign:'C3',age:'7d'}),
-      mk('Dublin Fresh Ltd','Ireland','UK & Ireland','Grapes','referral',1,1,'Salma',{contact:'S. Byrne',role:'Buyer',email:'s.byrne@dublinfresh.ie',port:'Dublin',campaign:'C6',age:'8d',gates:{territory:'warn'}}),
-
-      /* stage 2 — Assigned, awaiting sales decision (inbox) */
-      mk('Hansa Import GmbH','Germany','EU-West','Grapes','event',3,2,'Nour',{rep:null,sla:4,contact:'T. Weber',role:'Buyer',email:'t.weber@hansa-import.de',port:'Hamburg',campaign:'C1',age:'6d'}),
-      mk('Gulf Star Foodstuff','Saudi Arabia','Gulf & MENA','Citrus','event',2,2,'Karim',{rep:null,sla:2,contact:'A. Qahtani',role:'Procurement',email:'a.qahtani@gulfstar.sa',port:'Jeddah',campaign:'C3',age:'8d',passCount:1,passes:[{rep:'Omar',cls:'B',reason:'Price expectation too low',at:'1d ago'}]}),
-      mk('Doha Fresh Market','Qatar','Gulf & MENA','Mango','inbound',2,2,'Karim',{rep:null,sla:1,contact:'N. Al Kuwari',role:'Buyer',email:'n@dohafresh.qa',port:'Hamad',campaign:'C4',age:'9d'}),
-      mk('Provence Primeurs','France','EU-West','Pomegranate','event',1,2,'Nour',{rep:null,sla:5,contact:'L. Martin',role:'Owner',email:'l.martin@provence-p.fr',port:'Marseille',campaign:'C1',age:'5d'}),
-      mk('Warsaw Produce Group','Poland','EU-East','Grapes','outbound_sourced',2,2,'Salma',{rep:null,sla:3,contact:'M. Kowalczyk',role:'Category mgr',email:'m.k@wpg.pl',port:'Gdansk',campaign:'C5',age:'7d'}),
-
-      /* stage 3 — Engaged (claimed) */
-      mk('Rotterdam Citrus BV','Netherlands','EU-West','Citrus','event',3,3,'Nour',{rep:'You',contact:'J. de Vries',role:'Buyer',email:'j.devries@rotcitrus.nl',port:'Rotterdam',campaign:'C1',age:'11d'}),
-      mk('Kuwait Fresh Co','Kuwait','Gulf & MENA','Mango','event',2,3,'Karim',{rep:'You',contact:'A. Al Sabah',role:'GM',email:'a@kuwaitfresh.kw',port:'Shuwaikh',campaign:'C3',age:'12d'}),
-      mk('Mumbai Global Fruits','India','Far East','Pomegranate','inbound',2,3,'Salma',{rep:'Yasmine',contact:'R. Shah',role:'Director',email:'r.shah@mgf.in',port:'Nhava Sheva',campaign:'C4',age:'10d'}),
-
-      /* stage 4 — Sampling */
-      mk('Berlin Obst Handel','Germany','EU-West','Grapes','event',3,4,'Nour',{rep:'You',contact:'S. Fischer',role:'Buyer',email:'s.fischer@berlinobst.de',port:'Hamburg',campaign:'C1',age:'15d'}),
-      mk('Riyadh Fresh Trading','Saudi Arabia','Gulf & MENA','Citrus','event',3,4,'Karim',{rep:'Omar',contact:'K. Otaibi',role:'Procurement',email:'k@riyadhfresh.sa',port:'Jeddah',campaign:'C3',age:'16d'}),
-
-      /* stage 5 — Quoted */
-      mk('Amsterdam Fruit Traders','Netherlands','EU-West','Grapes','event',3,5,'Nour',{rep:'You',contact:'P. Bakker',role:'Head buyer',email:'p.bakker@aft.nl',port:'Rotterdam',campaign:'C1',age:'21d'}),
-      mk('Jeddah Import House','Saudi Arabia','Gulf & MENA','Mango','referral',3,5,'Karim',{rep:'Omar',contact:'M. Farsi',role:'Owner',email:'m.farsi@jih.sa',port:'Jeddah',campaign:'C6',age:'34d',note:'Quote issued 34d ago — stale, chase.'}),
-
-      /* stage 6 — Won */
-      mk('London Exotics Ltd','United Kingdom','UK & Ireland','Grapes','event',3,6,'Nour',{rep:'You',contact:'D. Clarke',role:'Buyer',email:'d.clarke@londonexotics.co.uk',port:'Felixstowe',campaign:'C1',age:'40d',won:{entity:'London Exotics Ltd',kind:'client',source:'sales_confirmed'}}),
-      mk('Hong Kong Premium Fruit','Hong Kong','Far East','Citrus','inbound',3,6,'Salma',{rep:'Yasmine',contact:'W. Chan',role:'Director',email:'w.chan@hkpf.hk',port:'Hong Kong',campaign:'C4',age:'52d',won:{entity:'HK Premium Fruit (Kowloon office)',kind:'sub_client',source:'shipment_matched'}}),
-
-      /* stage 7 — Repeat */
-      mk('Antwerp Fruit Terminal','Belgium','EU-West','Grapes','referral',3,7,'Nour',{rep:'You',contact:'G. Peeters',role:'Buyer',email:'g.peeters@aft.be',port:'Antwerp',campaign:'C6',age:'70d',won:{entity:'Antwerp Fruit Terminal',kind:'client',source:'shipment_matched'}})
+    LEADS=[
+      /* shipped / accepted / mid-funnel (workspace + pipeline + kanban) */
+      mk('LD-2026-0142','Gulf Green Import Co','UAE','Mango','event',3,6,'Hoda S.','96d',{rep:'You',contact:'A. Mansour',role:'GM',port:'Jebel Ali',campaign:'C2',nextAction:'Post-arrival QC review',due:'in 9d',est:'14',owned:'2026-05-11',note:'Promoted to client · first inspection MN-2026-0311'}),
+      mk('LD-2026-0151','Kingsway Produce Ltd','UK','Pomegranate','event',2,5,'Hoda S.','71d',{rep:'You',contact:'D. Clarke',role:'Buyer',port:'Portsmouth',campaign:'C1',nextAction:'Chase offer · CFR wk 40',due:'overdue 3d',est:'12',owned:'2026-06-04'}),
+      mk('LD-2026-0163','Nordfrucht GmbH','Germany','Grapes','inbound',2,3,'Amr K.','54d',{rep:'You',contact:'S. Bauer',role:'Head of Procurement',port:'Hamburg',campaign:'C4',nextAction:'Send spec sheet',due:'tomorrow',est:'10',owned:'2026-06-19'}),
+      mk('LD-2026-0170','Al Rayyan Trading WLL','Qatar','Mango','referral',2,2,'Hoda S.','40d',{rep:'Karim F.',contact:'N. Al Kuwari',role:'Buyer',port:'Hamad',campaign:'C5'}),
+      mk('LD-2026-0196','Levant Foods DMCC','UAE','Pomegranate','inbound',2,4,'Amr K.','9d',{rep:'You',contact:'R. Haddad',role:'Buyer',port:'Jebel Ali',campaign:'C4',nextAction:'Follow up on sample feedback',due:'in 4d',est:'8',owned:'2026-07-02'}),
+      /* qualified + assigned (inbox) */
+      mk('LD-2026-0181','Meridian Fresh Ltd','UK','Grapes','event',3,1,'Hoda S.','22d',{assigned:true,sla:4,region:'UK & Ireland',contact:'J. Whitfield',role:'Procurement Manager',port:'Portsmouth',campaign:'C1',
+        gates:G({receiver:'pass',contact:'pass',dest:'pass',volume:'pass',payment:'pass',cert:'warn'})}),
+      mk('LD-2026-0203','Kingsway Produce Ltd (UK2)','UK','Pomegranate','event',2,1,'Hoda S.','5d',{assigned:true,sla:1,region:'UK & Ireland',contact:'P. Reed',role:'Buyer',port:'Felixstowe',campaign:'C1',passCount:1,
+        gates:G({receiver:'pass',contact:'pass',dest:'pass',volume:'pass',payment:'pass'})}),
+      mk('LD-2026-0210','Doha Fresh Market','Qatar','Mango','inbound',2,1,'Karim F.','6d',{assigned:true,sla:3,region:'Gulf',contact:'N. Kuwari',role:'Buyer',port:'Hamad',campaign:'C4',
+        gates:G({receiver:'pass',contact:'pass',dest:'pass',volume:'pass',payment:'pass'})}),
+      /* captured / enrichment (stage 0) */
+      mk('LD-2026-0188','Batavia Import BV','Netherlands','Grapes','outbound_sourced',0,0,'Amr K.','15d',{missing:'Contact role · volume band · payment',autochk:[['pass','season ok'],['pass','cert ok']]}),
+      mk('LD-2026-0190','Vostok Fruit LLC','Russia','Citrus','outbound_sourced',0,0,'Amr K.','11d',{region:'unmapped',missing:'Receiver evidence · destination port',autochk:[['pass','season ok'],['warn','agent territory']]}),
+      mk('LD-2026-0196b','Levant Foods DMCC','UAE','Mango','inbound',0,0,'Amr K.','9d',{missing:'Volume band',autochk:[['pass','season ok'],['pass','cert ok']]}),
+      mk('LD-2026-0199','Sunrise Fruits Co','Saudi Arabia','Mango','event',0,0,'Amr K.','7d',{missing:'Contact name · role',autochk:[['pass','season ok'],['pass','cert ok']]}),
+      mk('LD-2026-0201','Baltic Produce OÜ','Estonia','Citrus','outbound_sourced',0,0,'Amr K.','4d',{missing:'Receiver evidence',autochk:[['fail','season mismatch']]}),
+      mk('LD-2026-0205','Fresh Horizon Ltd','UK','Grapes','inbound',0,0,'Hoda S.','2d',{region:'UK & Ireland',missing:'Payment expectation',autochk:[['pass','season ok'],['fail','cert not held']]}),
+      /* returned by sales */
+      mk('LD-2026-0194','Anatolia Meyve A.Ş.','Turkey','Citrus','referral',1,1,'Amr K.','6d',{returnClass:'A',returnReason:'Not a real importer — re-exporter, no cold chain',returnBy:'Karim F.'}),
+      mk('LD-2026-0176','Zenith Foods Ltd','UK','Grapes','event',1,1,'Hoda S.','30d',{returnClass:'B',returnReason:'No capacity — grapes wk 30–34 fully committed',returnBy:'Karim F.'}),
+      mk('LD-2026-0168','Caspian Trade LLC','Russia','Citrus','outbound_sourced',1,1,'Amr K.','33d',{region:'Russia & CIS',returnClass:'B',returnReason:'Credit risk — no acceptable payment terms',returnBy:'Nour A.'}),
+      mk('LD-2026-0185','Volga Fresh OOO','Russia','Citrus','outbound_sourced',1,1,'Amr K.','20d',{region:'Russia & CIS',returnClass:'NR',returnReason:'SLA expired · no rep opened it',returnBy:'region: Russia & CIS'}),
+      /* repeat */
+      mk('LD-2026-0120','Emirates Fruit Hub','UAE','Mango','win_back',3,7,'Hoda S.','120d',{rep:'You',campaign:'C2',note:'season 2'})
     ];
   }
   seed();
   function leadById(id){ for(var i=0;i<LEADS.length;i++) if(LEADS[i].id===id) return LEADS[i]; return null; }
 
   /* ── filter state ── */
-  var leadView={type:'all',stage:'all',region:'all',product:'all',missing:false,sort:'age'};
-  var leadSel={};
-  function leadNeedsEnrich(l){ return l.stage===0 && (!l.role||!l.port||l.gates.evidence!=='pass'); }
-  function leadMatch(l){
-    if(leadView.type!=='all'&&l.type!==leadView.type) return false;
-    if(leadView.stage!=='all'&&String(l.stage)!==String(leadView.stage)) return false;
-    if(leadView.region!=='all'&&l.region!==leadView.region) return false;
-    if(leadView.product!=='all'&&l.product!==leadView.product) return false;
-    if(leadView.missing&&!leadNeedsEnrich(l)) return false;
-    return true;
-  }
+  var leadView={type:'all',market:'all',stage:'all'};
 
-  /* ── shared chips ── */
-  function typeBadge(t){ var d=L_TYPES[t]||{label:t,cls:'lt-out'}; return '<span class="l-type '+d.cls+'">'+esc(d.label)+'</span>'; }
-  function stageChip(i){ var s=stageAt(i); var cls=(i===6||i===7)?'l-stage-won':(s.owner==='sales'?'l-stage-sales':'l-stage-mkt');
-    return '<span class="l-stage '+cls+'">'+esc(i+' · '+s.label)+'</span>'; }
-  function gateSummary(l){
-    var f=0,w=0,ok=0,todo=0;
-    L_GATES.forEach(function(g){ var v=l.gates[g.k]; if(v==='fail')f++; else if(v==='warn')w++; else if(v==='pass')ok++; else todo++; });
-    if(f) return '<span class="pchip warn" title="'+f+' gate(s) failing">'+f+' fail</span>';
-    if(todo) return '<span class="pchip mut" title="'+todo+' gate(s) not yet checked">'+ok+'/8</span>';
-    if(w) return '<span class="l-gp l-gp-w" title="'+w+' warning(s)">'+ok+'/8 ✓ · '+w+'⚠</span>';
-    return '<span class="l-gp l-gp-ok">8/8 ✓</span>';
+  /* ── shared bits ── */
+  function bdg(cls,txt){ return '<span class="badge '+cls+'">'+esc(txt)+'</span>'; }
+  function typeBadge(t){ return bdg('badge-n',L_TYPES[t]||t); }
+  function slaBadge(l){
+    if(l.sla==null) return '';
+    var cls=l.sla<=0?'sla-x':(l.sla<=1?'sla-w':'sla-ok');
+    var txt=l.sla<=0?('SLA breached · '+(7)+'d'):(l.sla+'d left');
+    return '<span class="sla '+cls+'">'+txt+'</span>';
   }
-  function slaChip(l){
-    if(l.stage!==2||l.sla==null) return '';
-    var cls=l.sla<=0?'warn':(l.sla<=2?'l-gp-w':'ok');
-    var txt=l.sla<=0?'overdue':(l.sla+'d left');
-    return '<span class="pchip '+(l.sla<=0?'warn':(l.sla<=2?'':'ok'))+'" style="'+(l.sla<=2&&l.sla>0?'background:var(--amber-bg);color:var(--amber)':'')+'">'+txt+'</span>';
+  function gateIcon(v){ return v==='pass'?'<span class="gate-i gate-ok">✓</span>':(v==='warn'?'<span class="gate-i gate-w">!</span>':(v==='fail'?'<span class="gate-i gate-no">✕</span>':'<span class="gate-i" style="background:var(--border2)">·</span>')); }
+  function subtabs(dest,items){
+    return '<div class="lsub">'+items.map(function(it){
+      var on=LSUB[dest]===it[0];
+      return '<span class="lsubt'+(on?' on':'')+'" onclick="CRM.leadSub(\''+dest+'\',\''+it[0]+'\')">'+esc(it[1])+(it[2]?' <span class="badge '+it[3]+'" style="margin-left:4px">'+it[2]+'</span>':'')+'</span>';
+    }).join('')+'</div>';
   }
-  function draftBanner(){
-    return '<div class="l-draft"><b>Draft</b> · Marketing Leads Portal (PRD v1) — dummy data, UI/UX only. Nothing here is saved to the database; a reload resets it. '
-      +'<span class="link-btn" onclick="CRM.leadReset()">Reset demo data</span></div>';
+  function liveBar(){
+    return '<div class="livebar" onclick="CRM.leadSub(\'leads\',\'cap\')">'
+      +'<span class="livedot"></span>'
+      +'<span><strong>Fruit Logistica 27</strong> is live · day 2 of 4 · <span class="mono">7 queued offline</span></span>'
+      +'<button class="btn btn-primary btn-sm livebtn">Capture</button></div>';
   }
+  function draftBanner(){ return '<div class="l-draft"><b>Draft</b> · Marketing Leads Portal — dummy data, UI/UX only; a reload resets it. <span class="link-btn" onclick="CRM.leadReset()">Reset demo data</span></div>'; }
 
-  /* ═══ Leads pipeline table ═══ */
+  /* ═══════════════════ LEADS destination ═══════════════════ */
   function renderLeads(){
     var vc=$('viewContent'); if(!vc) return;
-    var list=LEADS.filter(leadMatch);
-    if(leadView.sort==='age') list=list.slice().sort(function(a,b){return b.stage-a.stage;});
-    else if(leadView.sort==='stage') list=list.slice().sort(function(a,b){return a.stage-b.stage;});
-    var newN=LEADS.filter(function(l){return l.stage===0;}).length;
-    var qualN=LEADS.filter(function(l){return l.stage===1;}).length;
-    var awaitN=LEADS.filter(function(l){return l.stage===2;}).length;
-    var wonN=LEADS.filter(function(l){return l.stage>=6;}).length;
-    var kpis=kpiStrip([
-      ['Leads in season',LEADS.length,'across all types'],
-      ['New · need enrichment',newN,'stage 0'],
-      ['Qualified',qualN,'ready to assign'],
-      ['Awaiting sales decision',awaitN,'stage 2 · SLA running'],
-      ['Won',wonN,'converted']
-    ]);
-    function sel(key,label,opts){
-      var cur=String(leadView[key]);
-      return '<select class="form-select flt-select" onchange="CRM.leadSet(\''+key+'\',this.value)">'+
-        '<option value="all"'+(cur==='all'?' selected':'')+'>'+label+': All</option>'+
-        opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(cur===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>';
-    }
-    var toolbar='<div class="l-toolbar">'
-      +'<button class="btn btn-primary btn-sm" onclick="CRM.leadQuickAdd()">+ Quick add</button>'
-      +'<button class="btn btn-secondary btn-sm" onclick="CRM.leadImport()">Import CSV</button>'
-      +'<span class="l-tb-sep"></span>'
-      +sel('type','Type',Object.keys(L_TYPES).map(function(k){return [k,L_TYPES[k].label];}))
-      +sel('stage','Stage',L_STAGES.map(function(s){return [s.i,s.i+' · '+s.label];}))
-      +sel('region','Region',L_REGIONS.map(function(r){return [r,r];}))
-      +sel('product','Product',['Grapes','Citrus','Mango','Pomegranate'].map(function(p){return [p,p];}))
-      +'<span class="l-mtoggle'+(leadView.missing?' on':'')+'" onclick="CRM.leadSet(\'missing\',\''+(leadView.missing?'':'1')+'\')">Missing fields</span>'
-      +'<select class="form-select sort-select" onchange="CRM.leadSet(\'sort\',this.value)">'
-        +'<option value="age"'+(leadView.sort==='age'?' selected':'')+'>Furthest stage first</option>'
-        +'<option value="stage"'+(leadView.sort==='stage'?' selected':'')+'>Earliest stage first</option>'
-      +'</select>'
-      +'</div>';
-    var selIds=Object.keys(leadSel).filter(function(id){return leadSel[id];});
-    var bulk=selIds.length?('<div class="l-bulk"><span>'+selIds.length+' selected</span>'
-      +'<button class="btn btn-primary btn-sm" onclick="CRM.leadAssignOpen()">Assign to region →</button>'
-      +'<button class="btn btn-secondary btn-sm" onclick="CRM.leadEscalateOpen()">Escalate to senior</button>'
-      +'<span class="link-btn" onclick="CRM.leadSelClear()">Clear selection</span></div>'):'';
-    var rows=list.map(function(l){
-      var checked=leadSel[l.id]?' checked':'';
-      var can=l.stage<=1;
-      return '<tr class="click" role="button" tabindex="0" onclick="CRM.leadOpen(\''+l.id+'\')">'
-        +'<td onclick="event.stopPropagation()"><input type="checkbox" '+(can?'':'disabled')+checked+' onchange="CRM.leadSelToggle(\''+l.id+'\')" aria-label="select lead"/></td>'
-        +'<td>'+esc(l.company)+'<div class="cell-sub">'+esc(l.contact||'—')+(l.role?' · '+esc(l.role):'')+'</div></td>'
-        +'<td>'+esc(l.country)+'<div class="cell-sub">'+esc(l.region)+'</div></td>'
-        +'<td>'+esc(l.product)+'</td>'
-        +'<td>'+typeBadge(l.type)+'</td>'
-        +'<td>'+stageChip(l.stage)+'</td>'
-        +'<td>'+esc(l.rep?l.rep:l.owner)+'<div class="cell-sub">'+(l.rep?'sales':'marketing')+'</div></td>'
-        +'<td>'+gateSummary(l)+(slaChip(l)?' '+slaChip(l):'')+'</td>'
-        +'<td class="right">'+(l.stage===0?'<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();CRM.leadQualifyOpen(\''+l.id+'\')">Qualify</button>'
-          :l.stage>=3&&l.stage<6&&l.rep?'<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();CRM.leadWonOpen(\''+l.id+'\')">Mark won</button>'
-          :'<span class="cell-sub">—</span>')+'</td></tr>';
-    }).join('');
-    var head='<div class="section-title"><span class="section-title-bar"></span>Leads <span class="section-count">'+list.length+' of '+LEADS.length+' in view</span></div>';
-    vc.innerHTML=draftBanner()+kpis+head+toolbar+bulk+(list.length
-      ?'<div class="table-wrap"><table class="wl l-table"><thead><tr><th style="width:28px"></th><th>Company</th><th>Country</th><th>Product</th><th>Type</th><th>Stage</th><th>Owner</th><th>Qualification</th><th class="right">Action</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
-      :'<div class="table-wrap"><div class="empty-state">No leads match these filters.</div></div>');
+    var enrN=LEADS.filter(function(l){return l.stage===0;}).length;
+    var rejN=LEADS.filter(function(l){return l.returnClass;}).length;
+    var bar=subtabs('leads',[['ws','Workspace'],['enr','Enrichment queue',String(enrN),'badge-warn'],['rej','Returned by sales',String(rejN),'badge-fail'],['cap','Capture · show mode']]);
+    var pane;
+    if(LSUB.leads==='enr') pane=paneEnrichment();
+    else if(LSUB.leads==='rej') pane=paneReturned();
+    else if(LSUB.leads==='cap') pane=paneCapture();
+    else pane=paneWorkspace();
+    vc.innerHTML=draftBanner()+liveBar()+bar+pane;
   }
 
-  /* ═══ Sales Lead Inbox ═══ */
+  function paneWorkspace(){
+    var kpis=
+      kcard('Registered · this season','248','<span class="up">+31 last 30d</span>')+
+      kcard('Qualified → Accepted','74%','<span class="up">target ≥ 70%</span>')+
+      kcard('Awaiting sales · SLA','17','<span class="down">4 breached (&gt;5d)</span>')+
+      kcard('Weighted pipeline','186','containers · season est.');
+    var list=LEADS.filter(function(l){return !l.returnClass;}).filter(function(l){
+      if(leadView.type!=='all'&&l.type!==leadView.type) return false;
+      if(leadView.market!=='all'&&l.region!==leadView.market) return false;
+      if(leadView.stage!=='all'&&String(l.stage)!==leadView.stage) return false;
+      return true;
+    });
+    function tsel(key,label,opts){
+      return '<select class="form-select" style="width:auto" onchange="CRM.leadSet(\''+key+'\',this.value)">'
+        +'<option value="all">'+label+'</option>'
+        +opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(String(leadView[key])===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>';
+    }
+    var filters='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px">'
+      +tsel('type','All types',Object.keys(L_TYPES).map(function(k){return [k,L_TYPES[k]];}))
+      +tsel('market','All markets',L_REGIONS.map(function(r){return [r,r];}))
+      +tsel('stage','All stages',L_STAGES.map(function(s){return [s.i,s.i+' · '+s.label];}))
+      +'<input class="form-input" style="width:auto;flex:1;min-width:150px" placeholder="Search company, contact, domain…"/></div>';
+    var bulk='<div class="bulkbar" id="lbb"><span class="mono" id="lbbn">0 selected</span>'
+      +'<button class="btn btn-primary btn-sm" onclick="CRM.leadAssignOpen()">Assign to region…</button>'
+      +'<button class="btn btn-secondary btn-sm">Set type</button>'
+      +'<button class="btn btn-secondary btn-sm">Set campaign</button>'
+      +'<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="CRM.leadSelClear()">Clear</button></div>';
+    var rows=list.map(function(l){
+      return '<tr onclick="CRM.leadOpen(\''+l.id+'\')">'
+        +'<td onclick="event.stopPropagation()"><input type="checkbox" class="lrs" onchange="CRM.leadSelSync()"/></td>'
+        +'<td><span class="lot">'+esc(l.id)+'</span></td>'
+        +'<td>'+esc(l.company)+'</td><td>'+esc(l.country)+'</td>'
+        +'<td>'+(l.region==='unmapped'?bdg('badge-warn','unmapped'):bdg('badge-n',l.region))+'</td>'
+        +'<td>'+esc(l.product)+'</td><td>'+typeBadge(l.type)+'</td>'
+        +'<td class="mono">'+esc(L_BANDS[l.band])+'</td>'
+        +'<td>'+stageBadge(l)+'</td>'
+        +'<td>M · '+esc(l.sourcedBy)+'</td><td class="mono">'+esc(l.age)+'</td></tr>';
+    }).join('');
+    var table='<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> All leads · '+list.length+'</div>'
+      +filters+bulk
+      +'<div class="table-wrap"><table><thead><tr><th style="width:28px"><input type="checkbox" onclick="CRM.leadSelAll(this)"/></th><th>Lead</th><th>Company</th><th>Country</th><th>CRM region</th><th>Product</th><th>Type</th><th>Vol.</th><th>Stage</th><th>Sourced by</th><th>Age</th></tr></thead><tbody id="lwt">'+rows+'</tbody></table></div></div>';
+    /* detail + touches for a reference qualified lead */
+    var det=leadById('LD-2026-0181');
+    var detail=det?leadDetailPanel(det):'';
+    return '<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'+table+detail;
+  }
+  function kcard(l,v,s){ return '<div class="card"><div class="kpi-l">'+l+'</div><div class="kpi-v">'+v+'</div><div class="kpi-s">'+(s||'')+'</div></div>'; }
+
+  function leadDetailPanel(l){
+    var gates=L_GATES.map(function(g){ var v=l.gates[g.k];
+      var label=g.label; if(g.k==='cert'&&v==='warn') label='Certification — BRC + Tesco Nurture: 2 of 5 packhouses';
+      return '<div class="gate">'+gateIcon(v)+' '+esc(label)+' <span class="gate-src">'+(g.src==='auto'?'auto · DalOS':'marketing')+'</span></div>';
+    }).join('');
+    var certWarn=l.gates.cert==='warn'?'<div class="alert-warn" style="margin-top:11px">Retailer programme required. Only Toshka &amp; Sinai hold Tesco Nurture — flag capacity before quoting.</div>':'';
+    var left='<div class="ldp"><div class="ldp-h">Lead detail · <span class="lot">'+esc(l.id)+'</span> '+esc(l.company)+'</div>'
+      +'<div style="padding:13px"><div class="section-title" style="margin-bottom:8px"><span class="section-title-bar"></span> Qualification gates</div>'
+      +gates+certWarn
+      +'<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary" style="flex:1" onclick="CRM.leadAccept(\''+l.id+'\')">Accept lead</button>'
+      +'<button class="btn btn-secondary" style="flex:1" onclick="CRM.leadPassOpen(\''+l.id+'\')">Reject…</button></div></div></div>';
+    var touch='<div class="ldp"><div class="ldp-h">Touches &amp; attribution</div><div style="padding:13px">'
+      +'<div class="table-wrap"><table style="min-width:0"><thead><tr><th>When</th><th>Campaign</th><th>Source</th><th>By</th></tr></thead><tbody>'
+      +'<tr><td class="mono">2026-07-13</td><td>Fruit Attraction 26</td><td>Event · stand visit</td><td>Hoda S.</td></tr>'
+      +'<tr><td class="mono">2026-07-22</td><td>Grapes pre-season</td><td>Email · price list</td><td>Hoda S.</td></tr>'
+      +'<tr><td class="mono">2026-08-01</td><td>—</td><td>Inbound · web form</td><td>system</td></tr>'
+      +'</tbody></table></div>'
+      +'<div class="alert-ok" style="margin-top:11px"><strong>Sourced by</strong> Marketing · Hoda S. · <span class="mono">2026-07-13</span> · <strong>Attribution expires</strong> <span class="mono">2028-01-13</span></div></div></div>';
+    return '<div class="grid2">'+left+touch+'</div>';
+  }
+
+  function paneEnrichment(){
+    var list=LEADS.filter(function(l){return l.stage===0;});
+    var rows=list.map(function(l){
+      var ac=(l.autochk||[]).map(function(a){return bdg(a[0]==='pass'?'badge-pass':(a[0]==='warn'?'badge-warn':'badge-fail'),a[1]);}).join(' ');
+      return '<tr><td><span class="lot">'+esc(l.id)+'</span></td><td>'+esc(l.company)+'</td><td>'+esc(l.country)+'</td><td>'+esc(l.missing||'—')+'</td><td>'+ac+'</td><td class="mono">'+esc(l.age)+'</td>'
+        +'<td><button class="btn btn-secondary btn-sm" onclick="CRM.leadEnrich(\''+l.id+'\')">Enrich</button></td></tr>';
+    }).join('');
+    return '<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Enrichment queue · '+list.length+' leads below qualification</div>'
+      +'<div class="alert-warn" style="margin-bottom:11px">Arrived via Quick Add or bulk import with fewer than the required fields. They cannot advance to <strong>Qualified</strong> — and cannot reach sales — until every gate passes.</div>'
+      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Market</th><th>Missing</th><th>Auto-checks</th><th>Age</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  }
+
+  function paneReturned(){
+    var list=LEADS.filter(function(l){return l.returnClass;});
+    var rows=list.map(function(l){
+      var cls=l.returnClass==='A'?bdg('badge-fail','A'):(l.returnClass==='B'?bdg('badge-n','B'):bdg('badge-esc','No response'));
+      var counts=l.returnClass==='A'?bdg('badge-fail','Yes'):bdg('badge-pass','No');
+      var act=l.returnClass==='A'?'Contest':(l.returnClass==='NR'?'Re-assign':'Re-queue');
+      return '<tr><td onclick="event.stopPropagation()"><input type="checkbox" class="lrs2" onchange="CRM.leadSelSync2()"/></td><td><span class="lot">'+esc(l.id)+'</span></td><td>'+esc(l.company)+'</td><td>'+cls+'</td><td>'+esc(l.returnReason)+'</td><td>'+esc(l.returnBy)+'</td><td>'+counts+'</td><td><button class="btn btn-secondary btn-sm" onclick="CRM.leadReturnAct(\''+l.id+'\')">'+act+'</button></td></tr>';
+    }).join('');
+    var reasons=[['Not a real importer',9,38],['Volume overstated',6,25],['Unreachable contact',4,17],['Cert not achievable',3,12],['Season mismatch',2,8]];
+    var reasonRows=reasons.map(function(r){return fnRow(r[0],r[2],String(r[1]),r[2]+'%');}).join('');
+    var srcRows=[['Fruit Attraction 26',61,4,'6.6%','badge-pass'],['Referral · agents',28,3,'10.7%','badge-pass'],['Inbound · web',44,7,'15.9%','badge-warn'],['Market research list',19,10,'52.6%','badge-fail']]
+      .map(function(r){return '<tr><td>'+r[0]+'</td><td class="mono">'+r[1]+'</td><td class="mono">'+r[2]+'</td><td>'+bdg(r[4],r[3])+'</td></tr>';}).join('');
+    return '<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Returned by sales · '+list.length+'</div>'
+      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px">'
+      +'<select class="form-select" style="width:auto"><option>All returns</option><option>No response only</option><option>Class A</option><option>Class B</option></select>'
+      +'<select class="form-select" style="width:auto"><option>All regions</option>'+L_REGIONS.map(function(r){return '<option>'+esc(r)+'</option>';}).join('')+'</select>'
+      +'<button class="btn btn-secondary btn-sm">Export list</button></div>'
+      +'<div class="bulkbar" id="lbb2"><span class="mono" id="lbbn2">0 selected</span>'
+      +'<button class="btn btn-primary btn-sm" onclick="CRM.leadEscalateOpen()">Escalate to…</button>'
+      +'<button class="btn btn-secondary btn-sm">Re-assign region</button>'
+      +'<button class="btn btn-secondary btn-sm">Park until next season</button>'
+      +'<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="CRM.leadSelClear2()">Clear</button></div>'
+      +'<div class="table-wrap"><table><thead><tr><th style="width:28px"><input type="checkbox" onclick="CRM.leadSelAll2(this)"/></th><th>Lead</th><th>Company</th><th>Class</th><th>Reason</th><th>Returned by</th><th>Counts vs mkt</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'
+      +'<div class="grid2"><div class="card"><div class="section-title"><span class="section-title-bar"></span> Class A reasons · season to date</div>'+reasonRows+'</div>'
+      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Class A rate by source</div>'
+      +'<div class="table-wrap"><table style="min-width:0"><thead><tr><th>Source</th><th>Qualified</th><th>Class A</th><th>Rate</th></tr></thead><tbody>'+srcRows+'</tbody></table></div></div></div>';
+  }
+  function fnRow(label,pct,val,pctTxt,fillColor){
+    return '<div class="fn-row"><div class="fn-l">'+esc(label)+'</div><div class="fn-track"><div class="fn-fill" style="width:'+pct+'%'+(fillColor?';background:'+fillColor:'')+'">'+esc(val)+'</div></div><div class="fn-pct">'+esc(pctTxt)+'</div></div>';
+  }
+
+  function paneCapture(){
+    var cap='<div class="card"><div class="section-title"><span class="section-title-bar"></span> Show mode · stand capture</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+bdg('badge-pass','Campaign locked · Fruit Logistica 27')+bdg('badge-n','Type: Event')+'<span class="badge badge-warn" style="margin-left:auto">Offline · 7 queued</span></div>'
+      +'<div class="capgrid">'
+      +capBtn('Scan QR / vCard','Digital business card → fields')
+      +capBtn('Photo card → OCR','Queues offline, decodes on sync')
+      +capBtn('Manual · 5 fields','~20 seconds')
+      +capBtn('Import organiser CSV','Badge-scanner export')
+      +'</div>'
+      +'<div class="ldp" style="margin-top:13px"><div class="ldp-h">Confirm OCR result <span class="badge badge-warn" style="margin-left:auto">review before saving</span></div><div style="padding:12px">'
+      +'<div class="grid2"><div class="fg"><label class="form-label">Company</label><input class="form-input" value="Nordfrucht Handels GmbH"/></div><div class="fg"><label class="form-label">Contact</label><input class="form-input" value="Stefan Bauer"/></div></div>'
+      +'<div class="grid2"><div class="fg"><label class="form-label">Role</label><input class="form-input" value="Head of Procurement"/></div><div class="fg"><label class="form-label">Email</label><input class="form-input" value="s.bauer@nordfrucht.de"/></div></div>'
+      +'<div class="grid2"><div class="fg"><label class="form-label">Country</label><select class="form-select"><option>Germany</option></select></div><div class="fg"><label class="form-label">Product interest</label><select class="form-select"><option>Grapes</option><option>Mango</option></select></div></div>'
+      +'<div class="fg"><label class="form-label">Notes from the stand <span style="color:var(--red)">· most valuable, shortest-lived</span></label><textarea class="form-input" rows="2" placeholder="Buys 40 cont. from Peru, unhappy with arrival quality, wants wk 8–14…"></textarea></div>'
+      +'<div class="alert-warn">Possible duplicate — <strong>Nordfrucht GmbH</strong>, <span class="lot">LD-2026-0163</span>, same email domain. Save as a new touch on the existing lead?</div>'
+      +'<div class="gset"><button class="btn btn-primary">Save &amp; capture next</button><button class="btn btn-secondary">Add touch to existing</button><button class="btn btn-secondary">Discard</button></div>'
+      +'</div></div></div>';
+    var right='<div>'
+      +'<div class="card" style="margin-bottom:10px"><div class="section-title"><span class="section-title-bar"></span> Self-service · stand QR</div>'
+      +'<div style="display:flex;gap:13px;align-items:center"><div class="qr" aria-hidden="true"></div><div><div style="font-size:13px;font-weight:500">Fruit Logistica 27</div><div class="lot" style="margin-top:5px;display:inline-block">daltex.link/fl27</div></div></div>'
+      +'<div class="gset"><button class="btn btn-secondary btn-sm">Download poster A4</button><button class="btn btn-secondary btn-sm">Copy link</button></div></div>'
+      +'<div class="card" style="margin-bottom:10px"><div class="section-title"><span class="section-title-bar"></span> How staff open capture</div>'
+      +'<div class="gate"><span class="gate-i gate-ok">1</span> <strong>Home-screen icon</strong> — opens straight into capture <span class="gate-src">primary</span></div>'
+      +'<div class="gate"><span class="gate-i gate-ok">2</span> <strong>Capture</strong> in the mobile bottom nav <span class="gate-src">fallback</span></div>'
+      +'<div class="gate"><span class="gate-i gate-ok">3</span> The <strong>live-campaign bar</strong> atop every CRM page <span class="gate-src">contextual</span></div></div>'
+      +'<div class="card" style="margin-bottom:10px"><div class="section-title"><span class="section-title-bar"></span> Public form asks the rubric directly</div>'
+      +['Company, country, destination port','Contact name + role','Products &amp; season window wanted','Expected volume per season','Certifications required','Incoterms / payment expectation'].map(function(x){return '<div class="gate"><span class="gate-i gate-ok">✓</span> '+x+'</div>';}).join('')
+      +'<div class="gate"><span class="gate-i gate-w">!</span> Current suppliers <span class="gate-src">optional</span></div>'
+      +'<div class="alert-ok" style="margin-top:10px">Arrives with 7 of 8 gates pre-filled — enrichment drops from ~3 min to ~30 sec per lead.</div></div>'
+      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Capture methods · what\'s buildable</div>'
+      +'<div class="gate"><span class="gate-i gate-ok">✓</span> Our QR → intake form <span class="gate-src">full control</span></div>'
+      +'<div class="gate"><span class="gate-i gate-ok">✓</span> QR / vCard decode in-browser <span class="gate-src">free win</span></div>'
+      +'<div class="gate"><span class="gate-i gate-w">!</span> Paper card OCR <span class="gate-src">needs confirm step</span></div>'
+      +'<div class="gate"><span class="gate-i gate-no">✕</span> Organiser badge scan <span class="gate-src">paid licence · CSV only</span></div></div>'
+      +'</div>';
+    return '<div class="grid2" style="align-items:start">'+cap+right+'</div>';
+  }
+  function capBtn(t,s){ return '<button class="capbtn"><span class="capt">'+esc(t)+'</span><span class="caps">'+esc(s)+'</span></button>'; }
+
+  /* ═══════════════════ INBOX destination ═══════════════════ */
   function renderInbox(){
     var vc=$('viewContent'); if(!vc) return;
-    var mine=LEADS.filter(function(l){ return l.stage===2 && !l.rep && (IS_ADMIN||ME_REGIONS.indexOf(l.region)>=0); });
-    var owned=LEADS.filter(function(l){ return l.rep===ME && l.stage>=3 && l.stage<6; });
-    var scope=IS_ADMIN?'all regions (admin view)':ME_REGIONS.join(' · ');
-    var head='<div class="section-title"><span class="section-title-bar"></span>My inbox <span class="section-count">'+mine.length+' awaiting decision · '+esc(scope)+'</span></div>';
-    var cards=mine.length?('<div class="card-grid l-inbox">'+mine.map(function(l){
-      var gates=L_GATES.map(function(g){ var v=l.gates[g.k]; var c=v==='fail'?'warn':(v==='warn'?'l-gp-w':'ok');
-        var ic=v==='pass'?'✓':(v==='warn'?'⚠':(v==='fail'?'✗':'–'));
-        return '<span class="l-gchip '+(v==='fail'?'l-gc-f':(v==='warn'?'l-gc-w':'l-gc-ok'))+'" title="'+esc(g.label+' ('+(g.src==='auto'?'auto · DalOS':'marketing')+')')+'">'+ic+' '+esc(g.label)+'</span>';
-      }).join('');
-      return '<div class="l-card">'
-        +'<div class="l-card-top"><div><div class="l-card-co">'+esc(l.company)+'</div><div class="cell-sub">'+esc(l.country)+' · '+esc(l.product)+' · '+esc(L_BANDS[l.band])+'</div></div>'+typeBadge(l.type)+'</div>'
-        +'<div class="l-gates">'+gates+'</div>'
-        +'<div class="l-card-meta">'+slaChip(l)+(l.passCount?' <span class="pchip mut">'+l.passCount+' rep passed</span>':'')+' <span class="cell-sub">from '+esc(l.owner)+' · '+esc(campById(l.campaign)?campById(l.campaign).name:'')+'</span></div>'
-        +'<div class="l-card-act"><button class="btn btn-primary btn-sm" onclick="CRM.leadAccept(\''+l.id+'\')">Accept — claim</button>'
-        +'<button class="btn btn-secondary btn-sm" onclick="CRM.leadPassOpen(\''+l.id+'\')">Pass</button>'
-        +'<span class="link-btn" onclick="CRM.leadOpen(\''+l.id+'\')">Details</span></div>'
-        +'</div>';
-    }).join('')+'</div>'):'<div class="table-wrap"><div class="empty-state">Nothing awaiting your decision. Assigned leads for '+esc(scope)+' land here.</div></div>';
-    var ownedTbl=owned.length?('<div class="section-title" style="margin-top:20px"><span class="section-title-bar"></span>My leads <span class="section-count">'+owned.length+' owned · working</span></div>'
-      +'<div class="table-wrap"><table class="wl"><thead><tr><th>Company</th><th>Product</th><th>Stage</th><th>Next action</th><th class="right">Action</th></tr></thead><tbody>'
-      +owned.map(function(l){ return '<tr class="click" onclick="CRM.leadOpen(\''+l.id+'\')"><td>'+esc(l.company)+'</td><td>'+esc(l.product)+'</td><td>'+stageChip(l.stage)+'</td>'
-        +'<td class="cell-sub">'+(l.stage===3?'Send samples':(l.stage===4?'Follow up on samples':'Chase quote'))+'</td>'
-        +'<td class="right"><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();CRM.leadWonOpen(\''+l.id+'\')">Mark won</button></td></tr>'; }).join('')
-      +'</tbody></table></div>'):'';
-    vc.innerHTML=draftBanner()+head+cards+ownedTbl;
+    var bar=subtabs('inbox',[['inbox','Lead inbox',String(inboxList().length),'badge-fail'],['pip','My pipeline']]);
+    vc.innerHTML=draftBanner()+bar+(LSUB.inbox==='pip'?panePipeline():paneInbox());
+  }
+  function inboxList(){ return LEADS.filter(function(l){return l.stage===1&&l.assigned&&!l.rep&&!l.returnClass&&(IS_ADMIN||ME_REGIONS.indexOf(l.region)>=0);}); }
+  function paneInbox(){
+    var list=inboxList();
+    var cards=list.map(function(l){
+      var chips=[];
+      chips.push(bdg('badge-pass','receiver verified'));
+      if(l.contact) chips.push(bdg('badge-pass','contact: '+l.contact+(l.role?', '+l.role:'')));
+      chips.push(bdg('badge-pass','season ok'));
+      if(l.gates.cert==='warn') chips.push(bdg('badge-warn','cert: BRC + Tesco Nurture · 2/5 packhouses'));
+      else chips.push(bdg('badge-pass','cert ok'));
+      if(l.passCount) chips.push(bdg('badge-warn',l.passCount+' of 3 reps passed — no capacity'));
+      chips.push(bdg('badge-n',campById(l.campaign)?campById(l.campaign).name:''));
+      var border=l.sla<=0?' style="border-color:var(--red-border)"':'';
+      return '<div class="inb"'+border+'><div class="inb-h"><span class="lot">'+esc(l.id)+'</span><span class="inb-t">'+esc(l.company)+'</span>'
+        +bdg('badge-n',l.country+' · '+l.product)+bdg(l.band>=3?'badge-pass':'badge-n',L_BANDS[l.band]+' containers')
+        +'<span style="margin-left:auto">'+slaBadge(l)+'</span></div>'
+        +'<div class="chips">'+chips.join('')+'</div>'
+        +'<div class="gset"><button class="btn btn-primary btn-sm" onclick="CRM.leadAccept(\''+l.id+'\')">Accept &amp; own</button>'
+        +'<button class="btn btn-secondary btn-sm" onclick="CRM.leadPassOpen(\''+l.id+'\')">Pass…</button>'
+        +'<button class="btn btn-secondary btn-sm" onclick="CRM.leadOpen(\''+l.id+'\')">Open lead</button></div></div>';
+    }).join('');
+    var region=IS_ADMIN?'all regions (admin)':ME_REGIONS.join(' · ');
+    return '<div class="card"><div class="section-title"><span class="section-title-bar"></span> Lead inbox · '+esc(region)+' · '+list.length+' awaiting decision</div>'
+      +'<div class="alert-warn" style="margin-bottom:12px"><strong>Accept is a race, reject is a pass.</strong> The first rep to accept becomes sole owner and the lead leaves everyone else\'s inbox. A pass only removes it from yours — the lead returns to marketing when all reps have passed, or at day 5.</div>'
+      +(list.length?cards:'<div class="empty-state">Nothing awaiting your decision.</div>')+'</div>';
+  }
+  function panePipeline(){
+    var mine=LEADS.filter(function(l){return l.rep==='You'&&l.stage>=2;});
+    var kpis=kcard('Leads I own','14','UK &amp; Ireland')+kcard('Quoted · awaiting reply','5','<span class="down">2 over 14d</span>')+kcard('Shipped this season','3','<span class="up">+1 vs 2025</span>')+kcard('My est. containers','72','weighted 41');
+    var rows=mine.map(function(l){
+      var due=l.due?('<span class="sla '+(l.due.indexOf('overdue')>=0?'sla-x':(l.due.indexOf('tomorrow')>=0?'sla-w':'sla-ok'))+'">'+esc(l.due)+'</span>'):'';
+      return '<tr onclick="CRM.leadOpen(\''+l.id+'\')"><td><span class="lot">'+esc(l.id)+'</span></td><td>'+esc(l.company)+'</td><td>'+stageBadge(l)+'</td><td>'+esc(l.nextAction||'—')+'</td><td>'+due+'</td><td class="mono">'+esc(l.est||'—')+'</td><td class="mono">'+esc(l.owned||'—')+'</td></tr>';
+    }).join('');
+    return '<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
+      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> My leads · accepted → shipped</div>'
+      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Stage</th><th>Next action</th><th>Due</th><th>Est.</th><th>Owned since</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+      +'<div class="alert-ok" style="margin-top:11px"><span class="lot">LD-2026-0142</span> shipped — <span class="mono">converted_by</span> set to you, <span class="mono">sourced_by</span> stays with Marketing · Hoda S.</div></div>';
   }
 
-  /* ═══ Funnel conversion ═══ */
-  var funnelType='all';
+  /* ═══════════════════ FUNNEL destination ═══════════════════ */
   function renderLeadFunnel(){
     var vc=$('viewContent'); if(!vc) return;
-    var base=LEADS.filter(function(l){ return funnelType==='all'||l.type===funnelType; });
-    /* reached-or-beyond counts (funnel is cumulative) */
-    var reach=L_STAGES.map(function(s){ return base.filter(function(l){return l.stage>=s.i;}).length; });
-    var maxN=reach[0]||1;
-    var bars=L_STAGES.map(function(s,idx){
-      var n=reach[idx], pct=Math.round(n/maxN*100);
-      var conv=idx>0&&reach[idx-1]? Math.round(n/reach[idx-1]*100):null;
-      return '<div class="l-funrow"><div class="l-funlab">'+esc(s.i+' · '+s.label)+'</div>'
-        +'<div class="l-funbar"><div class="l-funfill '+(s.owner==='sales'?'is-sales':'is-mkt')+'" style="width:'+Math.max(pct,3)+'%"></div></div>'
-        +'<div class="l-funn">'+n+'</div>'
-        +'<div class="l-funconv">'+(conv!=null?conv+'%':'—')+'</div></div>';
+    var bar=subtabs('funnel',[['board','Funnel board'],['conv','Conversion']]);
+    vc.innerHTML=draftBanner()+bar+(LSUB.funnel==='conv'?paneConversion():paneBoard());
+  }
+  var STRIPE={Grapes:'#7a4ea8',Mango:'#c06030',Citrus:'#b0304a',Pomegranate:'#b0304a'};
+  function paneBoard(){
+    var cols=L_STAGES.map(function(s){
+      var items=LEADS.filter(function(l){return l.stage===s.i&&!l.returnClass;});
+      var cards=items.slice(0,4).map(function(l){
+        var f=[]; if(l.rep) f.push(bdg('badge-pass',l.rep)); if(l.gates&&l.gates.cert==='warn') f.push(bdg('badge-warn','cert 2/5'));
+        if(l.stage===6) f.push(bdg('badge-pass','MN-2026-0311'));
+        return '<div class="lc" onclick="CRM.leadOpen(\''+l.id+'\')"><div class="stripe" style="background:'+(STRIPE[l.product]||'#2b5c3f')+'"></div><div class="lc-t">'+esc(l.company)+'</div><div class="lc-m">'+esc(l.country)+' · '+esc(l.product)+(l.band?' · <span class="mono">'+L_BANDS[l.band]+'</span>':'')+'</div>'+(f.length?'<div class="lc-f">'+f.join('')+'</div>':'')+'</div>';
+      }).join('');
+      return '<div class="col"><div class="col-h">'+s.i+' · '+esc(s.label)+' <span class="col-n">'+items.length+'</span></div>'+cards+'</div>';
     }).join('');
-    var typeTabs='<div class="l-funtabs">'+[['all','All types']].concat(Object.keys(L_TYPES).map(function(k){return [k,L_TYPES[k].label];})).map(function(o){
-      return '<span class="ultab'+(funnelType===o[0]?' on':'')+'" onclick="CRM.leadFunType(\''+o[0]+'\')">'+esc(o[1])+'</span>';
-    }).join('')+'</div>';
-    /* Qualified -> Accepted by source (Class A only, dummy) */
-    var bySrc=L_CAMPAIGNS.map(function(c){
-      var ls=LEADS.filter(function(l){return l.campaign===c.id;});
-      var q=ls.filter(function(l){return l.stage>=1;}).length;
-      var acc=ls.filter(function(l){return l.stage>=3;}).length;
-      return {name:c.name,q:q,acc:acc,rate:q?Math.round(acc/q*100):null};
-    }).filter(function(r){return r.q>0;});
-    var srcRows=bySrc.map(function(r){ return '<tr><td>'+esc(r.name)+'</td><td class="right">'+r.q+'</td><td class="right">'+r.acc+'</td><td class="right">'+(r.rate!=null?'<span class="pchip '+(r.rate>=70?'ok':'warn')+'">'+r.rate+'%</span>':'—')+'</td></tr>'; }).join('');
-    var noResp=base.filter(function(l){return l.passCount>=1&&l.stage<=2;}).length;
-    var kpis=kpiStrip([
-      ['Qualified → Accepted', (reach[1]?Math.round(reach[3]/reach[1]*100):0)+'%','Class A only · target ≥70%'],
-      ['No-response rate', (maxN?Math.round(noResp/maxN*100):0)+'%','target <25%'],
-      ['Reached Won', reach[6]+'', 'of '+maxN+' leads'],
-      ['Avg time in stage','6.2d','from stage events']
-    ]);
-    var head='<div class="section-title"><span class="section-title-bar"></span>Funnel <span class="section-count">stage-to-stage conversion · segmented, never blended</span></div>';
-    vc.innerHTML=draftBanner()+kpis+head+typeTabs
-      +'<div class="pulse-panel"><div class="pp-title">Funnel — '+(funnelType==='all'?'all types':esc(L_TYPES[funnelType].label))+'</div>'
-      +'<div class="l-funhead"><span>Stage</span><span></span><span>Count</span><span>Conv</span></div>'+bars+'</div>'
-      +'<div class="pulse-panel" style="margin-top:12px"><div class="pp-title">Qualified → Accepted by source</div>'
-      +'<div class="table-wrap"><table class="wl"><thead><tr><th>Source</th><th class="right">Qualified</th><th class="right">Accepted</th><th class="right">Rate</th></tr></thead><tbody>'+(srcRows||'<tr><td colspan="4" class="cell-sub">No data</td></tr>')+'</tbody></table></div></div>';
+    return '<div class="card"><div class="section-title"><span class="section-title-bar"></span> Funnel board · all leads</div>'
+      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px">'
+      +'<select class="form-select" style="width:auto"><option>All types</option>'+Object.keys(L_TYPES).map(function(k){return '<option>'+L_TYPES[k]+'</option>';}).join('')+'</select>'
+      +'<select class="form-select" style="width:auto"><option>All markets</option>'+L_REGIONS.map(function(r){return '<option>'+esc(r)+'</option>';}).join('')+'</select></div>'
+      +'<div class="kan">'+cols+'</div></div>';
+  }
+  function paneConversion(){
+    var kpis=kcard('Qualified → Accepted','74%','<span class="up">≥70% target</span>')+kcard('Accepted → Quoted','41%','<span class="down">−6 pts vs 2025</span>')+kcard('Quoted → Shipped','28%','<span class="up">+3 pts</span>')+kcard('Median days to ship','138','from registration');
+    var funnel=[['0 Captured',100,'74','100%'],['1 Qualified',82,'61','82%'],['2 Accepted',69,'51','84%'],['3 Engaged',47,'35','69%'],['4 Specs / samples',30,'22','63%'],['5 Quoted',19,'14','64%'],['6 Shipped',7,'5','36%','var(--green)'],['7 Repeat',3,'2','40%','var(--green)']]
+      .map(function(r){return fnRow(r[0],r[1],r[2],r[3],r[4]);}).join('');
+    var byType=[['Event',74,61,51,5,'6.8%','badge-pass'],['Referral',31,28,25,3,'9.7%','badge-pass'],['Inbound',58,44,37,2,'3.4%','badge-warn'],['Outbound sourced',1420,19,9,1,'0.07%','badge-fail'],['Win-back',12,11,10,4,'33.3%','badge-pass']]
+      .map(function(r){return '<tr><td>'+r[0]+'</td><td class="mono">'+r[1]+'</td><td class="mono">'+r[2]+'</td><td class="mono">'+r[3]+'</td><td class="mono">'+r[4]+'</td><td>'+bdg(r[6],r[5])+'</td></tr>';}).join('');
+    var weighted=[['1 Qualified',61,640,'0.08',51],['2 Accepted',51,510,'0.10',51],['3 Engaged',35,390,'0.14',55],['5 Quoted',14,170,'0.17',29]]
+      .map(function(r){return '<tr><td>'+r[0]+'</td><td class="mono">'+r[1]+'</td><td class="mono">'+r[2]+'</td><td class="mono">'+r[3]+'</td><td class="mono">'+r[4]+'</td></tr>';}).join('');
+    var sla=fnRow('Decided ≤ 5 days',76,'39','76%','var(--green)')+fnRow('Decided 6–10 days',16,'8','16%','var(--amber)')+fnRow('Breached / open',8,'4','8%','var(--red)');
+    return '<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
+      +'<div class="grid2" style="margin-bottom:12px">'
+      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Stage funnel · Event leads · season 2026</div>'+funnel+'<div class="hint">Right column is stage-to-stage conversion, not share of total.</div></div>'
+      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> By lead type — never blended</div>'
+      +'<div class="table-wrap"><table style="min-width:0"><thead><tr><th>Type</th><th>Cap.</th><th>Qual.</th><th>Acc.</th><th>Shipped</th><th>End-to-end</th></tr></thead><tbody>'+byType+'</tbody></table></div>'
+      +'<div class="alert-warn" style="margin-top:11px">1 420 sourced rows against 74 event contacts. A single blended funnel would read <strong>0.9%</strong> and describe nothing real.</div></div></div>'
+      +'<div class="grid2"><div class="card"><div class="section-title"><span class="section-title-bar"></span> Weighted pipeline · the lag bridge</div>'
+      +'<div class="table-wrap"><table style="min-width:0"><thead><tr><th>Stage</th><th>Leads</th><th>Est. cont.</th><th>× conv.</th><th>Weighted</th></tr></thead><tbody>'+weighted
+      +'<tr><td colspan="4" style="font-weight:600;color:var(--text)">Weighted pipeline</td><td class="mono" style="font-weight:600;color:var(--text)">186</td></tr></tbody></table></div></div>'
+      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Stage-2 SLA health</div>'+sla+'<div class="alert-fail" style="margin-top:11px">4 leads past SLA — returned to marketing as <strong>no response</strong>. No escalation path in v1.</div></div></div>';
   }
 
-  /* ═══ Campaigns ═══ */
+  /* ═══════════════════ CAMPAIGNS destination ═══════════════════ */
   function renderCampaigns(){
     var vc=$('viewContent'); if(!vc) return;
+    var kpis=kcard('Spend · season 2026','€96k','6 campaigns')+kcard('Cost per qualified lead','€592','<span class="up">−€71 vs 2025</span>')+kcard('Cost per accepted lead','€800','120 accepted')+kcard('Cost per shipped client','€6.9k','<span class="down">14 shipped · lags</span>');
     var rows=L_CAMPAIGNS.map(function(c){
-      var ls=LEADS.filter(function(l){return l.campaign===c.id;});
-      var acc=ls.filter(function(l){return l.stage>=3;}).length;
-      var cpl=(c.cost>0&&acc>0)?(c.cur==='USD'?'$':'€')+Math.round(c.cost/acc).toLocaleString():'—';
-      return '<tr><td>'+esc(c.name)+'<div class="cell-sub">'+esc(c.dates)+'</div></td>'
-        +'<td>'+esc(c.type)+'</td>'
-        +'<td class="right lot">'+(c.cost>0?(c.cur==='USD'?'$':'€')+c.cost.toLocaleString():'—')+'</td>'
-        +'<td class="right">'+ls.length+'</td>'
-        +'<td class="right">'+acc+'</td>'
-        +'<td class="right lot">'+cpl+'</td></tr>';
+      var hl=c.type==='Research'?' style="background:var(--red-bg)"':'';
+      return '<tr'+hl+'><td>'+esc(c.name)+'</td><td>'+bdg('badge-n',c.type)+'</td><td class="mono">'+esc(c.dates)+'</td><td class="mono">'+c.cur+c.cost.toLocaleString()+'</td><td class="mono">'+c.reg.toLocaleString()+'</td><td class="mono">'+c.qual+'</td><td class="mono">'+c.acc+'</td><td class="mono">'+c.shipped+'</td><td class="mono">'+c.cur+c.cq+'</td><td class="mono">'+c.weighted+'</td></tr>';
     }).join('');
-    var head='<div class="section-title"><span class="section-title-bar"></span>Campaigns <span class="section-count">cost per accepted lead · v1 reports conversion, money view a season behind</span></div>';
-    vc.innerHTML=draftBanner()+head
-      +'<div class="table-wrap"><table class="wl"><thead><tr><th>Campaign</th><th>Type</th><th class="right">Cost</th><th class="right">Leads</th><th class="right">Accepted</th><th class="right">Cost / accepted</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
-      +'<div class="hint" style="margin-top:10px">Cost-per-accepted uses each campaign’s native currency (no FX applied) — reporting currency &amp; FX-at-date is an open question (PRD Q4).</div>';
+    var det='<div class="ldp"><div class="ldp-h">Campaign · Fruit Attraction 26</div><div style="padding:13px">'
+      +'<div class="grid2" style="margin-bottom:11px"><div><div class="kpi-l">Cost</div><div class="kpi-v" style="font-size:20px">€41 200</div></div><div><div class="kpi-l">Weighted pipeline</div><div class="kpi-v" style="font-size:20px">78 <span style="font-size:12px;font-family:var(--font-body);color:var(--text3)">cont.</span></div></div></div>'
+      +fnRow('0 Captured',100,'74','100%')+fnRow('1 Qualified',82,'61','82%')+fnRow('2 Accepted',69,'51','84%')+fnRow('5 Quoted',19,'14','64%')+fnRow('6 Shipped',7,'5','36%','var(--green)')
+      +'<div class="alert-ok" style="margin-top:10px">5 shipped clients · <span class="mono">62</span> containers to date · first-container lag median <span class="mono">124d</span></div>'
+      +'<div class="gset"><button class="btn btn-primary btn-sm" onclick="CRM.leadSub(\'leads\',\'cap\')">Start capture session</button><button class="btn btn-secondary btn-sm">View 74 leads</button><button class="btn btn-secondary btn-sm">Edit cost</button></div></div></div>';
+    var over='<div class="card"><div class="section-title"><span class="section-title-bar"></span> Override / broadcast rate</div>'
+      +fnRow('Hoda S.',12,'12%','14/118','var(--green)')+fnRow('Amr K.',61,'61%','79/130','var(--red)')
+      +'<div class="hint">Share of leads where the suggested CRM region was manually overridden.</div></div>';
+    vc.innerHTML='<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
+      +'<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Campaigns · season 2026</div>'
+      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px"><select class="form-select" style="width:auto"><option>Season 2026</option><option>Season 2025</option></select><button class="btn btn-primary btn-sm" style="margin-left:auto">+ New campaign</button></div>'
+      +'<div class="table-wrap"><table style="min-width:900px"><thead><tr><th>Campaign</th><th>Type</th><th>Dates</th><th>Cost</th><th>Reg.</th><th>Qual.</th><th>Acc.</th><th>Shipped</th><th>Cost / qual.</th><th>Weighted</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'
+      +'<div class="grid2">'+det+over+'</div>';
   }
 
-  /* ═══ Drawers / actions ═══ */
-  function field(id,label,val,ph,type){ return '<label class="form-label" style="margin-top:8px">'+esc(label)+'</label>'
-    +'<input class="form-input" id="'+id+'" value="'+esc(val||'')+'" placeholder="'+esc(ph||'')+'" '+(type?'type="'+type+'"':'')+'/>'; }
-  function selField(id,label,opts,val){ return '<label class="form-label" style="margin-top:8px">'+esc(label)+'</label>'
-    +'<select class="form-select" id="'+id+'">'+opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(String(val)===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>'; }
+  /* ═══════════════════ drawers / actions ═══════════════════ */
+  function field(id,label,val,ph){ return '<label class="form-label" style="margin-top:8px">'+esc(label)+'</label><input class="form-input" id="'+id+'" value="'+esc(val||'')+'" placeholder="'+esc(ph||'')+'"/>'; }
+  function selField(id,label,opts,val){ return '<label class="form-label" style="margin-top:8px">'+esc(label)+'</label><select class="form-select" id="'+id+'">'+opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(String(val)===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>'; }
 
   function leadQuickAdd(){
-    var body='<div class="l-form">'
-      +'<div class="l-formnote">Five fields. Creates a stage-0 lead assigned to you. Product × season and active-client checks run automatically.</div>'
-      +field('lqa_co','Company','','e.g. Frutas del Sol')
+    var body='<div class="l-form"><div class="l-formnote">Five fields. Creates a stage-0 lead assigned to you.</div>'
+      +field('lqa_co','Company','','e.g. Meridian Fresh Ltd')
       +selField('lqa_country','Country',[['','— pick —']].concat(Object.keys(L_C2R).map(function(c){return [c,c];})),'')
       +selField('lqa_product','Product interest',['Grapes','Citrus','Mango','Pomegranate'].map(function(p){return [p,p];}),'Grapes')
-      +selField('lqa_campaign','Source / campaign',L_CAMPAIGNS.map(function(c){return [c.id,c.name];}),'C4')
-      +field('lqa_contact','Contact (name / email)','','name or email')
+      +selField('lqa_campaign','Source / campaign',L_CAMPAIGNS.map(function(c){return [c.id,c.name];}),'C1')
+      +field('lqa_contact','Contact (name / email)','','J. Whitfield')
       +'<div id="lqa_warn"></div>'
-      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadSubmitQuickAdd()">Create lead</button>'
-      +'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadSubmitQuickAdd()">Register lead</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
     showDlv('Quick add lead',body);
   }
   function leadSubmitQuickAdd(force){
-    var co=($('lqa_co')||{}).value||'', country=($('lqa_country')||{}).value||'',
-        product=($('lqa_product')||{}).value||'Grapes', campaign=($('lqa_campaign')||{}).value||'C4',
-        contact=($('lqa_contact')||{}).value||'';
-    var warn=$('lqa_warn'); if(warn) warn.innerHTML='';
-    if(!co.trim()){ if(warn) warn.innerHTML='<div class="alert-fail" style="margin-top:10px">Company is required.</div>'; return; }
-    /* blocked: active client / sub-client */
-    var isClient=L_CLIENTS.some(function(c){return c.toLowerCase()===co.trim().toLowerCase();});
-    if(isClient){ if(warn) warn.innerHTML='<div class="alert-fail" style="margin-top:10px"><b>Blocked.</b> “'+esc(co)+'” is already an active client — it can’t be registered as a new lead (you’d be claiming existing revenue).</div>'; return; }
-    /* non-blocking dup vs existing lead */
-    if(!force){ var dup=LEADS.filter(function(l){return l.company.toLowerCase()===co.trim().toLowerCase();})[0];
-      if(dup){ if(warn) warn.innerHTML='<div class="alert-warn" style="margin-top:10px"><b>Possible duplicate.</b> A lead “'+esc(dup.company)+'” already exists ('+esc(stageAt(dup.stage).label)+').'
-        +' <span class="link-btn" onclick="CRM.leadOpen(\''+dup.id+'\')">Open existing</span> · <span class="link-btn" onclick="CRM.leadSubmitQuickAdd(1)">Continue anyway</span></div>'; return; } }
-    var region=L_C2R[country]||'unmapped';
-    var l=mk(co.trim(),country||'—',region,product,'inbound',1,0,ME,{contact:contact,campaign:campaign,age:'now'});
-    LEADS.unshift(l);
-    closeDlv(); toast('Lead <b>'+esc(co)+'</b> created (stage 0). <span class="link-btn" onclick="CRM.leadQualifyOpen(\''+l.id+'\')">Qualify now →</span>');
-    render();
+    var co=($('lqa_co')||{}).value||'',country=($('lqa_country')||{}).value||'',product=($('lqa_product')||{}).value||'Grapes',campaign=($('lqa_campaign')||{}).value||'C1',contact=($('lqa_contact')||{}).value||'';
+    var w=$('lqa_warn'); if(w) w.innerHTML='';
+    if(!co.trim()){ if(w) w.innerHTML='<div class="alert-fail" style="margin-top:10px">Company is required.</div>'; return; }
+    if(L_CLIENTS.some(function(c){return c.toLowerCase()===co.trim().toLowerCase();})){ if(w) w.innerHTML='<div class="alert-fail" style="margin-top:10px"><b>Blocked.</b> “'+esc(co)+'” is already an active client — it can’t be registered as a new lead.</div>'; return; }
+    if(!force){ var dup=LEADS.filter(function(l){return l.company.toLowerCase().indexOf(co.trim().toLowerCase())>=0;})[0];
+      if(dup){ if(w) w.innerHTML='<div class="alert-warn" style="margin-top:10px"><b>Possible duplicate</b> — '+esc(dup.company)+' ('+esc(dup.id)+'). <span class="link-btn" onclick="CRM.leadOpen(\''+dup.id+'\')">Open existing</span> · <span class="link-btn" onclick="CRM.leadSubmitQuickAdd(1)">Continue anyway</span></div>'; return; } }
+    var n=1000+LEADS.length; var id='LD-2026-0'+n;
+    LEADS.unshift(mk(id,co.trim(),country||'—',product,'inbound',0,0,ME,'now',{campaign:campaign,contact:contact,region:L_C2R[country]||'unmapped',missing:'Contact role · volume band'}));
+    closeDlv(); toast('Lead <b>'+esc(co)+'</b> registered at stage 0 (enrichment queue).'); render();
   }
 
   var qState=null;
-  function leadQualifyOpen(id){
-    var l=leadById(id); if(!l) return;
-    qState={id:id, g:{evidence:l.gates.evidence==='pass'?'pass':'todo',role:l.gates.role==='pass'?'pass':'todo',port:l.gates.port==='pass'?'pass':'todo',volume:l.gates.volume==='pass'?'pass':'todo'}, band:l.band};
-    leadQualifyRender();
-  }
+  function leadEnrich(id){ leadQualifyOpen(id); }
+  function leadQualifyOpen(id){ var l=leadById(id); if(!l) return; qState={id:id,g:{receiver:l.gates.receiver==='pass'?'pass':'todo',contact:l.gates.contact==='pass'?'pass':'todo',dest:l.gates.dest==='pass'?'pass':'todo',volume:l.gates.volume==='pass'?'pass':'todo',payment:l.gates.payment==='pass'?'pass':'todo'}}; leadQualifyRender(); }
   function leadQualifyRender(){
     var l=leadById(qState.id); if(!l) return;
-    var autoRows=L_GATES.filter(function(g){return g.src==='auto';}).map(function(g){
-      var v=l.gates[g.k]; var badge=v==='pass'?'<span class="l-gp l-gp-ok">pass</span>':(v==='warn'?'<span class="pchip" style="background:var(--amber-bg);color:var(--amber)">warn</span>':'<span class="pchip warn">fail</span>');
-      return '<div class="l-qgate"><div><div>'+esc(g.label)+'</div><div class="cell-sub">auto · DalOS</div></div>'+badge+'</div>';
-    }).join('');
-    var mktRows=L_GATES.filter(function(g){return g.src==='mkt';}).map(function(g){
-      var v=qState.g[g.k];
-      var seg='<span class="l-seg">'
-        +'<span class="l-segb'+(v==='pass'?' on-ok':'')+'" onclick="CRM.leadGate(\''+g.k+'\',\'pass\')">Pass</span>'
-        +'<span class="l-segb'+(v==='fail'?' on-fail':'')+'" onclick="CRM.leadGate(\''+g.k+'\',\'fail\')">Fail</span></span>';
-      return '<div class="l-qgate"><div><div>'+esc(g.label)+'</div><div class="cell-sub">marketing</div></div>'+seg+'</div>';
-    }).join('');
+    var autoRows=L_GATES.filter(function(g){return g.src==='auto';}).map(function(g){var v=l.gates[g.k];return '<div class="l-qgate"><div><div>'+esc(g.label)+'</div><div class="cell-sub">auto · DalOS</div></div>'+(v==='pass'?bdg('badge-pass','pass'):(v==='warn'?bdg('badge-warn','warn'):bdg('badge-fail','fail')))+'</div>';}).join('');
+    var mktRows=L_GATES.filter(function(g){return g.src==='marketing';}).map(function(g){var v=qState.g[g.k];return '<div class="l-qgate"><div><div>'+esc(g.label)+'</div><div class="cell-sub">marketing</div></div><span class="l-seg"><span class="l-segb'+(v==='pass'?' on-ok':'')+'" onclick="CRM.leadGate(\''+g.k+'\',\'pass\')">Pass</span><span class="l-segb'+(v==='fail'?' on-fail':'')+'" onclick="CRM.leadGate(\''+g.k+'\',\'fail\')">Fail</span></span></div>';}).join('');
     var autoFail=L_GATES.some(function(g){return g.src==='auto'&&l.gates[g.k]==='fail';});
     var mktFail=Object.keys(qState.g).some(function(k){return qState.g[k]==='fail';});
     var mktTodo=Object.keys(qState.g).some(function(k){return qState.g[k]==='todo';});
     var blocked=autoFail||mktFail||mktTodo;
-    var msg=autoFail?'<div class="alert-fail" style="margin-top:10px">An automatic gate is failing — this lead can’t be qualified.</div>'
-      :mktFail?'<div class="alert-fail" style="margin-top:10px">A marketing gate is set to Fail — resolve it before qualifying.</div>'
-      :mktTodo?'<div class="alert-warn" style="margin-top:10px">Set every marketing gate to Pass to qualify.</div>':'';
-    var band='<label class="form-label" style="margin-top:10px">Expected volume (band — stored, not a score)</label>'
-      +'<select class="form-select" id="lq_band">'+L_BANDS.map(function(b,i){return '<option value="'+i+'"'+(i===qState.band?' selected':'')+'>'+esc(b)+'</option>';}).join('')+'</select>';
-    var body='<div class="l-form"><div class="l-formnote">Eight hard gates — no numeric score. Four resolve automatically from DalOS; four are marketing’s call. All eight must pass to advance to <b>Qualified (stage 1)</b>.</div>'
+    var msg=autoFail?'<div class="alert-fail" style="margin-top:10px">An automatic gate is failing — this lead can’t be qualified.</div>':(mktFail?'<div class="alert-fail" style="margin-top:10px">A marketing gate is set to Fail.</div>':(mktTodo?'<div class="alert-warn" style="margin-top:10px">Set every marketing gate to Pass to qualify.</div>':''));
+    var body='<div class="l-form"><div class="l-formnote">Eight hard gates, no numeric score. Four resolve from DalOS; four are marketing’s call.</div>'
       +'<div class="l-qhdr">'+esc(l.company)+' · '+esc(l.country)+' · '+esc(l.product)+'</div>'
-      +'<div class="l-qsec">Automatic · DalOS</div>'+autoRows
-      +'<div class="l-qsec">Marketing</div>'+mktRows+band+msg
-      +'<div class="l-formact"><button class="btn btn-primary" '+(blocked?'disabled':'')+' onclick="CRM.leadQualifySave()">Qualify → stage 1</button>'
-      +'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+      +'<div class="l-qsec">Automatic · DalOS</div>'+autoRows+'<div class="l-qsec">Marketing</div>'+mktRows+msg
+      +'<div class="l-formact"><button class="btn btn-primary" '+(blocked?'disabled':'')+' onclick="CRM.leadQualifySave()">Qualify → stage 1</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
     showDlv('Qualify lead',body);
   }
-  function leadGate(k,v){ if(!qState) return; qState.g[k]=(qState.g[k]===v?'todo':v); leadQualifyRender(); }
-  function leadQualifySave(){
-    var l=leadById(qState.id); if(!l) return;
-    var bandEl=$('lq_band'); if(bandEl) l.band=parseInt(bandEl.value,10)||0;
-    ['evidence','role','port','volume'].forEach(function(k){ l.gates[k]='pass'; });
-    l.stage=1; if(l.region==='unmapped'||!l.region) l.region=L_C2R[l.country]||'unmapped';
-    closeDlv(); toast('<b>'+esc(l.company)+'</b> qualified → region <b>'+esc(l.region)+'</b> pre-filled. Assign it from the Leads table.'); render();
-  }
+  function leadGate(k,v){ if(qState){ qState.g[k]=(qState.g[k]===v?'todo':v); leadQualifyRender(); } }
+  function leadQualifySave(){ var l=leadById(qState.id); if(!l) return; ['receiver','contact','dest','volume','payment'].forEach(function(k){l.gates[k]='pass';}); l.stage=1; l.missing=''; if(l.region==='unmapped') l.region=L_C2R[l.country]||'unmapped'; closeDlv(); toast('<b>'+esc(l.company)+'</b> qualified → assign it to a region.'); render(); }
 
   function leadOpen(id){
     var l=leadById(id); if(!l) return;
-    var gates=L_GATES.map(function(g){ var v=l.gates[g.k];
-      var badge=v==='pass'?'<span class="l-gp l-gp-ok">pass</span>':(v==='warn'?'<span class="pchip" style="background:var(--amber-bg);color:var(--amber)">warn</span>':(v==='fail'?'<span class="pchip warn">fail</span>':'<span class="pchip mut">to check</span>'));
-      return '<div class="l-qgate"><div><div>'+esc(g.label)+'</div><div class="cell-sub">'+(g.src==='auto'?'auto · DalOS':'marketing')+'</div></div>'+badge+'</div>';
-    }).join('');
-    var timeline=L_STAGES.filter(function(s){return s.i<=l.stage;}).map(function(s){
-      return '<div class="l-tl'+(s.i===l.stage?' on':'')+'"><span class="l-tldot"></span><div><b>'+esc(s.label)+'</b><div class="cell-sub">'+(s.owner==='mkt'?'marketing':'sales')+(s.i===l.stage?' · current':'')+'</div></div></div>';
-    }).join('');
-    var passes=l.passes.length?('<div class="l-qsec">Passes</div>'+l.passes.map(function(p){return '<div class="cell-sub">Class '+esc(p.cls)+' · '+esc(p.reason)+' — '+esc(p.rep)+' ('+esc(p.at)+')</div>';}).join('')):'';
-    var won=l.won?('<div class="l-qsec">Conversion</div><div class="cell-sub">Won under <b>'+esc(l.won.entity)+'</b> ('+esc(l.won.kind==='sub_client'?'sub-client':'client')+') · '+esc(l.won.source==='shipment_matched'?'shipment-matched':'sales-confirmed')+'</div>'):'';
-    var act=l.stage===0?'<button class="btn btn-primary" onclick="CRM.leadQualifyOpen(\''+l.id+'\')">Qualify</button>'
-      :l.stage>=3&&l.stage<6&&l.rep?'<button class="btn btn-primary" onclick="CRM.leadWonOpen(\''+l.id+'\')">Mark as won</button>':'';
-    var body='<div class="l-form">'
-      +'<div class="l-qhdr">'+esc(l.company)+'</div>'
+    var gates=L_GATES.map(function(g){var v=l.gates[g.k];return '<div class="l-qgate"><div><div>'+esc(g.label)+'</div><div class="cell-sub">'+(g.src==='auto'?'auto · DalOS':'marketing')+'</div></div>'+(v==='pass'?bdg('badge-pass','pass'):(v==='warn'?bdg('badge-warn','warn'):(v==='fail'?bdg('badge-fail','fail'):bdg('badge-n','to check'))))+'</div>';}).join('');
+    var act=l.stage===0?'<button class="btn btn-primary" onclick="CRM.leadQualifyOpen(\''+l.id+'\')">Qualify</button>':(l.stage>=2&&l.stage<6&&l.rep?'<button class="btn btn-primary" onclick="CRM.leadWonOpen(\''+l.id+'\')">Mark shipped</button>':'');
+    var body='<div class="l-form"><div class="l-qhdr">'+esc(l.company)+'</div>'
+      +'<div class="l-drow"><span class="cell-sub">Lead</span><span class="lot">'+esc(l.id)+'</span></div>'
       +'<div class="l-drow"><span class="cell-sub">Type</span>'+typeBadge(l.type)+'</div>'
-      +'<div class="l-drow"><span class="cell-sub">Stage</span>'+stageChip(l.stage)+'</div>'
+      +'<div class="l-drow"><span class="cell-sub">Stage</span>'+stageBadge(l)+'</div>'
       +'<div class="l-drow"><span class="cell-sub">Country · region</span><span>'+esc(l.country)+' · '+esc(l.region)+'</span></div>'
       +'<div class="l-drow"><span class="cell-sub">Product · volume</span><span>'+esc(l.product)+' · '+esc(L_BANDS[l.band])+'</span></div>'
       +'<div class="l-drow"><span class="cell-sub">Contact</span><span>'+esc(l.contact||'—')+(l.role?' · '+esc(l.role):'')+'</span></div>'
-      +'<div class="l-drow"><span class="cell-sub">Port</span><span>'+esc(l.port||'—')+'</span></div>'
-      +'<div class="l-drow"><span class="cell-sub">Source</span><span>'+esc(campById(l.campaign)?campById(l.campaign).name:'—')+'</span></div>'
-      +'<div class="l-drow"><span class="cell-sub">Owner · rep</span><span>'+esc(l.owner)+(l.rep?' · '+esc(l.rep):'')+'</span></div>'
+      +'<div class="l-drow"><span class="cell-sub">Sourced by</span><span>M · '+esc(l.sourcedBy)+(l.rep?' · rep '+esc(l.rep):'')+'</span></div>'
       +(l.note?'<div class="l-drow"><span class="cell-sub">Note</span><span>'+esc(l.note)+'</span></div>':'')
-      +'<div class="l-qsec">Qualification gates</div>'+gates+passes+won
-      +'<div class="l-qsec">Stage history</div><div class="l-timeline">'+timeline+'</div>'
-      +(act?'<div class="l-formact">'+act+'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Close</button></div>':'')
-      +'</div>';
+      +'<div class="l-qsec">Qualification gates</div>'+gates
+      +(act?'<div class="l-formact">'+act+'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Close</button></div>':'')+'</div>';
     showDlv('Lead',body);
   }
 
-  /* bulk assign to region */
   function leadAssignOpen(){
-    var ids=Object.keys(leadSel).filter(function(id){return leadSel[id];});
-    var ls=ids.map(leadById).filter(Boolean);
-    if(!ls.length){ toast('Select one or more qualified leads first.'); return; }
-    var suggested=ls[0]?ls[0].region:'';
-    var rows=ls.map(function(l){ var pre=L_C2R[l.country]||'unmapped';
-      return '<div class="l-drow"><span>'+esc(l.company)+' <span class="cell-sub">'+esc(l.country)+'</span></span><span class="pchip '+(pre==='unmapped'?'warn':'ok')+'">'+esc(pre)+'</span></div>'; }).join('');
-    var body='<div class="l-form"><div class="l-formnote">Region is pre-filled from each lead’s country. Overriding is recorded (<code>was_override</code>). Assigning sets a 5-working-day SLA and moves the leads to sales inboxes.</div>'
-      +'<div class="l-qhdr">'+ls.length+' lead'+(ls.length>1?'s':'')+' selected</div>'+rows
-      +selField('la_region','Assign all to',[['auto','Use each lead’s suggested region']].concat(L_REGIONS.map(function(r){return [r,r+' (override)'];})),'auto')
-      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadAssignSave()">Assign '+ls.length+' → stage 2</button>'
-      +'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+    var body='<div class="l-form"><div class="l-formnote">Region is pre-filled from country. Choosing a region overrides the suggestion for all selected. Assigning sets a 5-day SLA and routes to sales inboxes.</div>'
+      +'<div class="l-qhdr">Assign to CRM region</div>'
+      +L_REGIONS.map(function(r){return '<div class="who" onclick="CRM.leadPickRegion(this)"><div><div class="who-n">'+esc(r)+'</div><div class="who-s">region</div></div></div>';}).join('')
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadAssignSave()">Assign selected</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
     showDlv('Assign to region',body);
   }
+  function leadPickRegion(el){ /* visual only in drawer */ var ps=el.parentNode.querySelectorAll('.who'); for(var i=0;i<ps.length;i++) ps[i].classList.remove('sel'); el.classList.add('sel'); }
   function leadAssignSave(){
-    var pick=($('la_region')||{}).value||'auto';
-    var ids=Object.keys(leadSel).filter(function(id){return leadSel[id];});
-    var n=0;
-    ids.map(leadById).filter(Boolean).forEach(function(l){
-      l.region=pick==='auto'?(L_C2R[l.country]||'unmapped'):pick;
-      if(pick!=='auto') l.wasOverride=true;
-      l.stage=2; l.sla=5; l.rep=null; n++;
-    });
-    leadSel={}; closeDlv(); toast(n+' lead'+(n>1?'s':'')+' assigned → sales inbox, 5-day SLA started.'); render();
+    var n=0; LEADS.forEach(function(l){ if(l.stage===1&&!l.assigned&&!l.returnClass){ l.assigned=true; l.sla=5; n++; } });
+    closeDlv(); toast((n||'Selected')+' qualified lead(s) assigned → sales inbox, 5-day SLA started.'); render();
   }
 
   function leadEscalateOpen(){
-    var ids=Object.keys(leadSel).filter(function(id){return leadSel[id];});
-    if(!ids.length){ toast('Select leads to escalate.'); return; }
+    var seniors=[['Hany M.','Commercial Director · Gulf, Far East'],['Nour A.','Senior Sales Manager · UK & Ireland, E. Med'],['Karim F.','Senior Sales Manager · N. Europe'],['Tarek G.','Managing Director']];
     var body='<div class="l-form"><div class="l-formnote">Escalation assigns directly to a chosen senior member with a fresh SLA, bypassing region. Every escalation is logged.</div>'
-      +'<div class="l-qhdr">'+ids.length+' lead'+(ids.length>1?'s':'')+'</div>'
-      +selField('le_to','Escalate to',['Tarek Ghanem','Hesham ElNaggar','Ahmed ElNaggar'].map(function(x){return [x,x];}),'Tarek Ghanem')
+      +'<div class="l-qhdr">Escalate untouched leads</div>'
+      +seniors.map(function(s){return '<div class="who" onclick="CRM.leadPickRegion(this)"><div><div class="who-n">'+esc(s[0])+'</div><div class="who-s">'+esc(s[1])+'</div></div></div>';}).join('')
       +field('le_note','Note (optional)','','why this needs a senior look')
-      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadEscalate()">Escalate</button>'
-      +'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+      +selField('le_sla','New SLA',[['3','3 working days'],['5','5 working days'],['0','No SLA']],'3')
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadEscalate()">Escalate</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
     showDlv('Escalate leads',body);
   }
-  function leadEscalate(){
-    var to=($('le_to')||{}).value||'';
-    var ids=Object.keys(leadSel).filter(function(id){return leadSel[id];});
-    ids.map(leadById).filter(Boolean).forEach(function(l){ l.stage=2; l.sla=5; l.rep=null; l.escalatedTo=to; });
-    leadSel={}; closeDlv(); toast(ids.length+' lead(s) escalated to <b>'+esc(to)+'</b> with a fresh SLA.'); render();
-  }
+  function leadEscalate(){ closeDlv(); toast('Selected lead(s) escalated with a fresh SLA.'); render(); }
 
-  function leadAccept(id){
-    var l=leadById(id); if(!l) return;
-    l.rep=ME; l.stage=3; l.sla=null;
-    toast('<b>'+esc(l.company)+'</b> is now yours — removed from your colleagues’ inboxes.'); render();
-  }
+  function leadAccept(id){ var l=leadById(id); if(!l) return; l.rep=ME; l.stage=2; l.assigned=false; l.sla=null; closeDlv(); toast('<b>'+esc(l.company)+'</b> is now yours — removed from colleagues’ inboxes.'); render(); }
+
   var passState=null;
-  function leadPassOpen(id){
-    passState={id:id,cls:'B'};
-    leadPassRender();
-  }
+  function leadPassOpen(id){ passState={id:id,cls:'B'}; leadPassRender(); }
   function leadPassRender(){
     var l=leadById(passState.id); if(!l) return;
-    var aReasons=['Not a genuine receiver','Product/season mismatch','Volume too small','Certification gap'];
-    var bReasons=['Price expectation too low','Payment terms unacceptable','Already sourced elsewhere','Timing / not this season'];
-    var reasons=passState.cls==='A'?aReasons:bReasons;
-    var body='<div class="l-form"><div class="l-formnote">Passing records your reason and keeps the lead visible to other reps in the region. It only returns to marketing when the whole region has passed. Class A (qualification failure) affects marketing’s rate; Class B (commercial decline) does not.</div>'
+    var reasons=passState.cls==='A'?['Not a genuine receiver','Product/season mismatch','Volume overstated','Certification gap']:['No capacity','Price expectation too low','Credit risk / payment terms','Already sourced elsewhere'];
+    var body='<div class="l-form"><div class="l-formnote">Passing keeps the lead visible to other reps; it returns to marketing only when the whole region passes. Class A affects marketing’s rate; Class B does not.</div>'
       +'<div class="l-qhdr">'+esc(l.company)+'</div>'
       +'<div class="l-seg" style="margin-top:8px"><span class="l-segb'+(passState.cls==='A'?' on-fail':'')+'" onclick="CRM.leadPassCls(\'A\')">Class A — qualification</span><span class="l-segb'+(passState.cls==='B'?' on':'')+'" onclick="CRM.leadPassCls(\'B\')">Class B — commercial</span></div>'
       +selField('lp_reason','Reason',reasons.map(function(r){return [r,r];}),reasons[0])
-      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadPass()">Record pass</button>'
-      +'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadPass()">Record pass</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
     showDlv('Pass on lead',body);
   }
   function leadPassCls(c){ if(passState){ passState.cls=c; leadPassRender(); } }
   function leadPass(){
-    var l=leadById(passState.id); if(!l) return;
-    var reason=($('lp_reason')||{}).value||'';
-    l.passes.push({rep:ME,cls:passState.cls,reason:reason,at:'just now'}); l.passCount=(l.passCount||0)+1;
-    var REGION_REPS=3;
-    if(l.passCount>=REGION_REPS){ l.stage=1; l.sla=null; l.returnOutcome=passState.cls==='A'?'class_a':'class_b';
-      closeDlv(); toast('Whole region has passed — <b>'+esc(l.company)+'</b> returned to marketing ('+esc(l.returnOutcome)+').'); }
-    else { closeDlv(); toast('Pass recorded. '+(REGION_REPS-l.passCount)+' other rep(s) can still take <b>'+esc(l.company)+'</b>.'); }
+    var l=leadById(passState.id); if(!l) return; var reason=($('lp_reason')||{}).value||'';
+    l.passCount=(l.passCount||0)+1;
+    if(l.passCount>=3){ l.returnClass=passState.cls; l.returnReason=reason; l.returnBy='region'; l.assigned=false; l.sla=null; closeDlv(); toast('Whole region passed — <b>'+esc(l.company)+'</b> returned to marketing.'); }
+    else { closeDlv(); toast('Pass recorded. '+(3-l.passCount)+' rep(s) can still take <b>'+esc(l.company)+'</b>.'); }
     render();
   }
 
   var wonState=null;
-  function leadWonOpen(id){
-    var l=leadById(id); if(!l) return;
-    wonState={id:id,kind:'existing',entity:l.company};
-    leadWonRender();
-  }
+  function leadWonOpen(id){ var l=leadById(id); if(!l) return; wonState={id:id,kind:'existing'}; leadWonRender(); }
   function leadWonRender(){
     var l=leadById(wonState.id); if(!l) return;
-    var existing=['London Exotics Ltd','Rotterdam Citrus BV','Greenyard Fresh','AMC Fresh','Bakker Barendrecht','Total Produce'];
-    var pickExisting=wonState.kind==='existing';
-    var body='<div class="l-form"><div class="l-formnote">The invoiced entity often differs from the lead name. Pick the client/sub-client it ships under (or create one). A persistent <b>entity alias</b> is stored so later shipments attribute automatically — no re-linking.</div>'
-      +'<div class="l-qhdr">'+esc(l.company)+' → won</div>'
-      +'<div class="l-seg" style="margin-top:8px"><span class="l-segb'+(pickExisting?' on':'')+'" onclick="CRM.leadWonKind(\'existing\')">Existing entity</span><span class="l-segb'+(wonState.kind==='new'?' on':'')+'" onclick="CRM.leadWonKind(\'new\')">Create new</span></div>'
-      +(pickExisting
-        ?selField('lw_entity','Ships under',existing.map(function(e){return [e,e];}),l.company)
-        :field('lw_entity','New entity name',l.company,'client / buying-office name'))
+    var existing=['Gulf Green Import Co','Meridian Fresh Ltd','AMC Fresh','Total Produce'];
+    var body='<div class="l-form"><div class="l-formnote">The invoiced entity often differs from the lead name. Pick the client/sub-client it ships under (or create one). A persistent alias is stored so later shipments attribute automatically.</div>'
+      +'<div class="l-qhdr">'+esc(l.company)+' → shipped</div>'
+      +'<div class="l-seg" style="margin-top:8px"><span class="l-segb'+(wonState.kind==='existing'?' on':'')+'" onclick="CRM.leadWonKind(\'existing\')">Existing entity</span><span class="l-segb'+(wonState.kind==='new'?' on':'')+'" onclick="CRM.leadWonKind(\'new\')">Create new</span></div>'
+      +(wonState.kind==='existing'?selField('lw_entity','Ships under',existing.map(function(e){return [e,e];}),l.company):field('lw_entity','New entity name',l.company,''))
       +'<label class="form-label" style="margin-top:8px"><input type="checkbox" id="lw_alias" checked style="width:auto;margin-right:6px"/>Store alias “'+esc(l.company)+'” → selected entity</label>'
-      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadWonSave()">Mark won → stage 6</button>'
-      +'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
-    showDlv('Mark as won',body);
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.leadWonSave()">Mark shipped → stage 6</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+    showDlv('Mark as shipped',body);
   }
   function leadWonKind(k){ if(wonState){ wonState.kind=k; leadWonRender(); } }
-  function leadWonSave(){
-    var l=leadById(wonState.id); if(!l) return;
-    var entity=($('lw_entity')||{}).value||l.company;
-    l.stage=6; l.won={entity:entity,kind:wonState.kind==='new'?'client':'client',source:'sales_confirmed'};
-    var alias=$('lw_alias'); var aliasNote=(alias&&alias.checked)?' Alias stored — future shipments auto-attribute.':'';
-    closeDlv(); toast('<b>'+esc(l.company)+'</b> won under <b>'+esc(entity)+'</b>.'+aliasNote); render();
-  }
+  function leadWonSave(){ var l=leadById(wonState.id); if(!l) return; var entity=($('lw_entity')||{}).value||l.company; l.stage=6; closeDlv(); toast('<b>'+esc(l.company)+'</b> shipped under <b>'+esc(entity)+'</b>. Alias stored.'); render(); }
 
   function leadImport(){
-    var body='<div class="l-form"><div class="l-formnote">Paste the show organiser’s badge-scanner CSV. Pre-flight classifies every row before anything is imported.</div>'
-      +'<label class="form-label">CSV / paste</label><textarea class="form-input" id="li_csv" rows="4" style="font-family:var(--font-mono);font-size:12px" placeholder="company,country,product,contact&#10;...">Frutas Verdes,Spain,Grapes,a@fv.es&#10;Univeg,Belgium,Citrus,buy@univeg.com&#10;Frutas del Sol,Spain,Grapes,m@fds.es&#10;Nordic Fruit,Sweden,Grapes,k@nordic.se&#10;Berlin Obst Handel,Germany,Grapes,s@bo.de</textarea>'
-      +selField('li_campaign','Against campaign',L_CAMPAIGNS.map(function(c){return [c.id,c.name];}),'C1')
-      +selField('li_type','Lead type',Object.keys(L_TYPES).map(function(k){return [k,L_TYPES[k].label];}),'event')
+    var body='<div class="l-form"><div class="l-formnote">Paste rows or a CSV. Pre-flight classifies every row before anything imports.</div>'
+      +selField('li_campaign','Campaign',L_CAMPAIGNS.map(function(c){return [c.id,c.name];}),'C1')
+      +selField('li_type','Lead type (all rows)',Object.keys(L_TYPES).map(function(k){return [k,L_TYPES[k]];}),'event')
+      +'<label class="form-label" style="margin-top:8px">Paste rows or drop a CSV</label><textarea class="form-input" id="li_csv" rows="4" style="font-family:var(--font-mono);font-size:12px">Meridian Fresh Ltd, UK, grapes\nKingsway Produce Ltd, UK, pomegranate\nNordfrucht GmbH, DE, grapes\nGulf Green Import Co, AE, mango\nNordic Fruit, SE, grapes</textarea>'
       +'<div id="li_pre"></div>'
-      +'<div class="l-formact"><button class="btn btn-secondary" onclick="CRM.leadImportPre()">Pre-flight</button>'
-      +'<button class="btn btn-primary" id="li_go" disabled onclick="CRM.leadImportRun()">Import ready rows</button>'
-      +'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
-    showDlv('Bulk import',body);
-    liLast=null;
+      +'<div class="l-formact"><button class="btn btn-secondary" onclick="CRM.leadImportPre()">Pre-flight</button><button class="btn btn-primary" id="li_go" disabled onclick="CRM.leadImportRun()">Import ready rows</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+    showDlv('Bulk import',body); liLast=null;
   }
   var liLast=null;
   function leadImportPre(){
-    var raw=($('li_csv')||{}).value||'';
-    var lines=raw.split('\n').map(function(x){return x.trim();}).filter(Boolean);
+    var raw=($('li_csv')||{}).value||''; var lines=raw.split('\n').map(function(x){return x.trim();}).filter(Boolean);
     var ready=[],blocked=[],dup=[];
-    lines.forEach(function(ln){ var co=ln.split(',')[0].trim(); if(!co) return;
-      if(L_CLIENTS.some(function(c){return c.toLowerCase()===co.toLowerCase();})) blocked.push(ln);
-      else if(LEADS.some(function(l){return l.company.toLowerCase()===co.toLowerCase();})) dup.push(ln);
-      else ready.push(ln);
-    });
+    lines.forEach(function(ln){var co=ln.split(',')[0].trim(); if(!co) return; if(L_CLIENTS.some(function(c){return c.toLowerCase()===co.toLowerCase();})) blocked.push(ln); else if(LEADS.some(function(l){return l.company.toLowerCase()===co.toLowerCase();})) dup.push(ln); else ready.push(ln);});
     liLast={ready:ready,blocked:blocked,dup:dup};
-    var pre=$('li_pre'); if(pre) pre.innerHTML='<div class="l-preflight">'
-      +'<span class="pchip ok">'+ready.length+' ready</span>'
-      +'<span class="pchip warn">'+blocked.length+' blocked (active client)</span>'
-      +'<span class="pchip" style="background:var(--amber-bg);color:var(--amber)">'+dup.length+' possible duplicate</span>'
-      +'</div>'+(blocked.length?'<div class="cell-sub" style="margin-top:6px">Blocked rows are never imported: '+esc(blocked.map(function(b){return b.split(',')[0];}).join(', '))+'</div>':'');
+    var pre=$('li_pre'); if(pre) pre.innerHTML='<div class="ldp" style="margin-top:10px"><div class="ldp-h">Pre-flight · '+lines.length+' rows</div><div style="padding:10px 12px">'
+      +'<div class="gate"><span class="gate-i gate-ok">✓</span> '+ready.length+' new leads ready to import</div>'
+      +'<div class="gate"><span class="gate-i gate-no">✕</span> '+blocked.length+' blocked — already active clients <span class="gate-src">hard block</span></div>'
+      +'<div class="gate"><span class="gate-i gate-w">!</span> '+dup.length+' possible duplicates <span class="gate-src">warn only</span></div></div></div>';
     var go=$('li_go'); if(go) go.disabled=ready.length===0;
   }
   function leadImportRun(){
-    if(!liLast||!liLast.ready.length){ return; }
-    var camp=($('li_campaign')||{}).value||'C1', type=($('li_type')||{}).value||'event';
-    var n=0;
-    liLast.ready.forEach(function(ln){ var p=ln.split(','); var co=(p[0]||'').trim(), country=(p[1]||'').trim(), product=(p[2]||'Grapes').trim(), contact=(p[3]||'').trim();
-      var region=L_C2R[country]||'unmapped';
-      LEADS.unshift(mk(co,country||'—',region,product,type,1,0,ME,{contact:contact,campaign:camp,age:'now'})); n++;
-    });
-    closeDlv(); toast(n+' lead'+(n>1?'s':'')+' imported at stage 0 — in the enrichment queue.'); render();
+    if(!liLast||!liLast.ready.length) return; var camp=($('li_campaign')||{}).value||'C1', type=($('li_type')||{}).value||'event'; var n=0;
+    liLast.ready.forEach(function(ln){var p=ln.split(','); var co=(p[0]||'').trim(),country=(p[1]||'').trim(),product=(p[2]||'Grapes').trim(); var seq=1000+LEADS.length+n; LEADS.unshift(mk('LD-2026-0'+seq,co,country||'—',product,type,0,0,ME,'now',{campaign:camp,region:L_C2R[country]||'unmapped',missing:'Contact role · volume band'})); n++;});
+    closeDlv(); toast(n+' lead(s) imported at stage 0 — enrichment queue.'); render();
   }
 
-  function leadSet(k,v){ if(k==='missing'){ leadView.missing=!!v; } else { leadView[k]=v; } render(); }
-  function leadSelToggle(id){ leadSel[id]=!leadSel[id]; render(); }
-  function leadSelClear(){ leadSel={}; render(); }
-  function leadFunType(t){ funnelType=t; render(); }
-  function leadReset(){ seed(); leadSel={}; leadView={type:'all',stage:'all',region:'all',product:'all',missing:false,sort:'age'}; toast('Demo data reset.'); render(); }
+  /* selection sync (bulk bars) */
+  function selCount(sel){ var els=document.querySelectorAll(sel); var n=0; for(var i=0;i<els.length;i++) if(els[i].checked) n++; return n; }
+  function leadSelSync(){ var n=selCount('.lrs'); var bb=$('lbb'); if(bb) bb.classList.toggle('on',n>0); var t=$('lbbn'); if(t) t.textContent=n+' selected'; }
+  function leadSelAll(cb){ var els=document.querySelectorAll('.lrs'); for(var i=0;i<els.length;i++) els[i].checked=cb.checked; leadSelSync(); }
+  function leadSelClear(){ var els=document.querySelectorAll('.lrs'); for(var i=0;i<els.length;i++) els[i].checked=false; leadSelSync(); }
+  function leadSelSync2(){ var n=selCount('.lrs2'); var bb=$('lbb2'); if(bb) bb.classList.toggle('on',n>0); var t=$('lbbn2'); if(t) t.textContent=n+' selected'; }
+  function leadSelAll2(cb){ var els=document.querySelectorAll('.lrs2'); for(var i=0;i<els.length;i++) els[i].checked=cb.checked; leadSelSync2(); }
+  function leadSelClear2(){ var els=document.querySelectorAll('.lrs2'); for(var i=0;i<els.length;i++) els[i].checked=false; leadSelSync2(); }
+  function leadReturnAct(id){ toast('Action recorded (draft).'); }
 
-  /* helpers used by renderTabs for the nav counts */
+  function leadSet(k,v){ leadView[k]=v; render(); }
+  function leadSub(dest,key){ LSUB[dest]=key; if(dest==='leads'||dest==='funnel'||dest==='campaigns'){ if(currentTab!==dest){ if(window.CRM) window.CRM.openTab(dest); return; } } render(); }
+  function leadReset(){ seed(); leadView={type:'all',market:'all',stage:'all'}; toast('Demo data reset.'); render(); }
+
+  /* nav-count helpers */
   function leadsEnrichDot(){ return LEADS.filter(function(l){return l.stage===0;}).length; }
-  function leadsInboxDot(){ return LEADS.filter(function(l){return l.stage===2&&!l.rep&&(IS_ADMIN||ME_REGIONS.indexOf(l.region)>=0);}).length; }
+  function leadsInboxDot(){ return inboxList().length; }
 
   return {
     init:init, setSeason:setSeason, teardown:teardown, reload:reload,
@@ -18157,15 +18158,16 @@ window.CRM = (function(){
     rrOpenDrawer:rrOpenDrawer, rrSetField:rrSetField, rrSaveRule:rrSaveRule, rrToggle:rrToggle, rrDelete:rrDelete, rrMove:rrMove,
     rrToggleDefaults:rrToggleDefaults, rrCreateFor:rrCreateFor, rrCommit:rrCommit, rrDiscard:rrDiscard, rrUndo:rrUndo,
     rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy, rrToggleEngine:rrToggleEngine,
-    leadSet:leadSet, leadSelToggle:leadSelToggle, leadSelClear:leadSelClear, leadReset:leadReset,
-    leadOpen:leadOpen, leadQuickAdd:leadQuickAdd, leadSubmitQuickAdd:leadSubmitQuickAdd,
+    leadSub:leadSub, leadSet:leadSet, leadReset:leadReset, leadOpen:leadOpen,
+    leadQuickAdd:leadQuickAdd, leadSubmitQuickAdd:leadSubmitQuickAdd, leadEnrich:leadEnrich,
     leadQualifyOpen:leadQualifyOpen, leadGate:leadGate, leadQualifySave:leadQualifySave,
-    leadAssignOpen:leadAssignOpen, leadAssignSave:leadAssignSave,
+    leadAssignOpen:leadAssignOpen, leadPickRegion:leadPickRegion, leadAssignSave:leadAssignSave,
     leadEscalateOpen:leadEscalateOpen, leadEscalate:leadEscalate,
     leadAccept:leadAccept, leadPassOpen:leadPassOpen, leadPassCls:leadPassCls, leadPass:leadPass,
     leadWonOpen:leadWonOpen, leadWonKind:leadWonKind, leadWonSave:leadWonSave,
     leadImport:leadImport, leadImportPre:leadImportPre, leadImportRun:leadImportRun,
-    leadFunType:leadFunType
+    leadSelSync:leadSelSync, leadSelAll:leadSelAll, leadSelClear:leadSelClear,
+    leadSelSync2:leadSelSync2, leadSelAll2:leadSelAll2, leadSelClear2:leadSelClear2, leadReturnAct:leadReturnAct
   };
 })();
 /* ── CRM island CSS (scoped to .crmv) — injected once ── */
@@ -18735,6 +18737,84 @@ function injectCrmCss(){
 .crmv .l-tl.on .l-tldot{background:var(--accent)}
 .crmv .l-preflight{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 
+/* ── Leads portal (ported from mockup) ── */
+.crmv .badge-pass{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+.crmv .badge-warn{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
+.crmv .badge-fail{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
+.crmv .badge-hold{background:#fff3e0;border:1px solid #e8c090;color:#b06010}
+.crmv .badge-esc{background:#e8eeff;border:1px solid #a0b4e8;color:#2a50c0}
+.crmv .badge-sa{background:#f0e8ff;border:1px solid #c090e0;color:#6a10b0}
+.crmv .badge-sr{background:#fff0e8;border:1px solid #e0b090;color:#b04010}
+.crmv .badge-n{background:var(--bg2);border:1px solid var(--border2);color:var(--text2)}
+.crmv .alert-warn{background:#fff3e0;border:1px solid #e8c090;color:#7a4a10;border-radius:6px;padding:9px 11px;font-size:12px;line-height:1.45}
+.crmv .alert-fail{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:6px;padding:9px 11px;font-size:12px;line-height:1.45}
+.crmv .alert-ok{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);border-radius:6px;padding:9px 11px;font-size:12px;line-height:1.45}
+.crmv .up{color:var(--green)}
+.crmv .down{color:var(--red)}
+.crmv .fg{margin-bottom:11px}
+.crmv .ldp{border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;background:#fff}
+.crmv .ldp-h{background:var(--bg2);padding:9px 13px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.crmv .gset{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+/* in-view sub-tabs */
+.crmv .lsub{display:flex;gap:2px;border-bottom:2px solid var(--border2);margin-bottom:14px;overflow-x:auto}
+.crmv .lsubt{font-size:13px;padding:8px 12px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s}
+.crmv .lsubt:hover{color:var(--text2)}
+.crmv .lsubt.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+/* live campaign bar */
+.crmv .livebar{display:flex;align-items:center;gap:9px;background:var(--sidebar);color:#fff;padding:9px 16px;font-size:12.5px;cursor:pointer;border-radius:var(--r);margin-bottom:12px}
+.crmv .livebar strong{font-weight:600}.crmv .livebar .mono{color:var(--sidebar-muted)}
+.crmv .livedot{width:7px;height:7px;border-radius:50%;background:#f7c948;flex-shrink:0}
+.crmv .livebtn{margin-left:auto;flex-shrink:0}
+/* gates */
+.crmv .gate{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)}
+.crmv .gate:last-child{border-bottom:none}
+.crmv .gate-i{width:15px;height:15px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600}
+.crmv .gate-ok{background:var(--green)}.crmv .gate-no{background:var(--red)}.crmv .gate-w{background:var(--amber)}
+.crmv .gate-src{margin-left:auto;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+/* funnel bars */
+.crmv .fn-row{display:grid;grid-template-columns:132px 1fr 60px;align-items:center;gap:10px;margin-bottom:6px}
+.crmv .fn-l{font-size:12px;color:var(--text2)}
+.crmv .fn-track{background:var(--bg2);border-radius:4px;height:22px;overflow:hidden;border:1px solid var(--border)}
+.crmv .fn-fill{height:100%;background:var(--accent);display:flex;align-items:center;padding-left:7px;color:#fff;font-family:var(--font-mono);font-size:11px;white-space:nowrap}
+.crmv .fn-pct{font-family:var(--font-mono);font-size:12px;color:var(--text3);text-align:right}
+/* kanban */
+.crmv .kan{display:flex;gap:9px;overflow-x:auto;padding-bottom:8px}
+.crmv .col{flex:0 0 210px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:9px;display:flex;flex-direction:column;gap:8px}
+.crmv .col-h{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3)}
+.crmv .col-n{margin-left:auto;font-family:var(--font-mono);font-size:11px;background:#fff;border:1px solid var(--border2);border-radius:4px;padding:0 5px}
+.crmv .lc{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:9px 10px;cursor:pointer;transition:border-color .15s}
+.crmv .lc:hover{border-color:var(--border2)}
+.crmv .lc-t{font-size:13px;font-weight:500;color:var(--text);line-height:1.3}
+.crmv .lc-m{font-size:11px;color:var(--text3);margin-top:3px}
+.crmv .lc-f{margin-top:7px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.crmv .stripe{height:2px;border-radius:2px;margin:-9px -10px 8px;background:var(--accent)}
+/* sla pills */
+.crmv .sla{font-family:var(--font-mono);font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid;white-space:nowrap}
+.crmv .sla-ok{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.crmv .sla-w{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
+.crmv .sla-x{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+/* inbox cards */
+.crmv .inb{border:1px solid var(--border);border-radius:var(--r2);background:#fff;padding:12px 14px;margin-bottom:9px}
+.crmv .inb-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.crmv .inb-t{font-size:14px;font-weight:600;color:var(--text)}
+.crmv .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;margin-bottom:2px}
+/* bulk bar */
+.crmv .bulkbar{display:none;align-items:center;gap:7px;flex-wrap:wrap;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:7px 10px;margin-bottom:10px;font-size:12px;color:var(--text2)}
+.crmv .bulkbar.on{display:flex}
+/* capture */
+.crmv .capgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.crmv .capbtn{display:flex;flex-direction:column;align-items:flex-start;gap:3px;background:#fff;border:1px solid var(--border2);border-radius:var(--r2);padding:13px;cursor:pointer;font-family:var(--font-body);text-align:left;min-height:70px;transition:border-color .15s,background .15s}
+.crmv .capbtn:hover{border-color:var(--accent);background:var(--green-bg)}
+.crmv .capt{font-size:14px;font-weight:600;color:var(--text)}
+.crmv .caps{font-size:11px;color:var(--text3);line-height:1.35}
+.crmv .qr{width:88px;height:88px;flex-shrink:0;border:1px solid var(--border2);border-radius:6px;background:repeating-linear-gradient(90deg,var(--text) 0 6px,#fff 6px 12px),repeating-linear-gradient(0deg,var(--text) 0 6px,#fff 6px 12px);background-blend-mode:multiply}
+/* who / region pick rows (drawers) */
+.crmv .who{display:flex;align-items:center;gap:7px;padding:9px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;cursor:pointer;background:#fff;transition:border-color .15s}
+.crmv .who:hover{border-color:var(--border2)}
+.crmv .who.sel{border-color:var(--accent);background:var(--green-bg)}
+.crmv .who-n{font-size:13px;color:var(--text);font-weight:500}
+.crmv .who-s{font-size:10px;color:var(--text3)}
+
 /* ── Responsive ── */
 @media(max-width:1024px){
   .crmv .kpi-grid{grid-template-columns:repeat(2,1fr)}
@@ -18748,6 +18828,8 @@ function injectCrmCss(){
   .crmv .grid2,.crmv .grid3{grid-template-columns:1fr}
   .crmv .l-inbox{grid-template-columns:1fr}
   .crmv .l-funhead,.crmv .l-funrow{grid-template-columns:96px 1fr 38px 42px;gap:7px}
+  .crmv .capgrid{grid-template-columns:1fr}
+  .crmv .fn-row{grid-template-columns:92px 1fr 44px;gap:7px}
   .crmv input,.crmv select,.crmv textarea{font-size:16px !important}
 }
 
