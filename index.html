@@ -64,6 +64,12 @@ input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--te
 .nav-item.active{background:var(--accent);color:#fff;font-weight:500}
 .nav-icon{width:14px;height:14px;flex-shrink:0;opacity:.65}
 .nav-item.active .nav-icon{opacity:1}
+/* Leads dropdown (sidebar, beneath CRM) */
+.nav-caret{margin-left:auto;font-size:12px;line-height:1;opacity:.55;transition:transform .15s;flex-shrink:0}
+.nav-caret.open{transform:rotate(90deg)}
+.nav-parent.active .nav-caret{opacity:.9}
+.nav-sub{margin:1px 8px 4px;padding-left:14px;border-left:1px solid rgba(255,255,255,.1)}
+.nav-subitem{padding:6px 12px;font-size:12.5px;margin:1px 0}
 .sidebar-bottom{margin-top:auto;padding:7px 8px 6px;border-top:1px solid rgba(255,255,255,.06)}
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
 .topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-shrink:0;gap:8px}
@@ -15393,7 +15399,7 @@ var IPATHS={
    ═══════════════════════════════════════════════════════════════════════════ */
 window.CRM = (function(){
   var SB=null, SEASON=null, IS_ADMIN=false, USER=null, ROOT=null, MOUNTED=false;
-  var CONFIG=null, ON_OPEN_CQC=null, ON_HEADER=null;
+  var CONFIG=null, ON_OPEN_CQC=null, ON_HEADER=null, ON_TAB=null, PENDING_TAB=null;
   var SHIPMENTS=[], REGIONS=[], regionLabel={}, regionOwner={};
   var COUNTRY_REGION={}, REGION_OVERRIDES={country:{},client:{},shipment:{}}, BAND_MAP={};
   /* 13 countries served by >1 region — can't auto-resolve; kept for the admin panel flag. */
@@ -15595,7 +15601,7 @@ window.CRM = (function(){
       {tabs:[{id:'dashboard',label:'Dashboard',dot:attCount,mut:true}]},
       {cap:'Records',tabs:[{id:'shipments',label:'Shipments'},{id:'invoices',label:'Invoices'}]},
       {cap:'Cases',tabs:[{id:'claims',label:'Claims',dot:openClaims},{id:'redirects',label:'Redirects'},{id:'grading',label:'Grading'}]},
-      {cap:'Marketing',tabs:[{id:'leads',label:'Leads',dot:leadsEnrichDot(),mut:true},{id:'inbox',label:'Inbox',dot:leadsInboxDot()},{id:'funnel',label:'Funnel'},{id:'campaigns',label:'Campaigns'}]},
+      {cap:'Marketing',tabs:[{id:'inbox',label:'Leads inbox',dot:leadsInboxDot()}]},   /* Leads / Funnel / Campaigns now live under the sidebar Leads dropdown; the inbox stays here */
       {tabs:[{id:'clean',label:'Clean'}]}
     ];
     if(IS_ADMIN && currentRegion==='all') groups.push({cap:'Setup',tabs:[{id:'regions',label:(CRM_REGION_RULES_V2?'Region rules':'Region mapping'),dot:unassigned,mut:true}]});
@@ -16814,10 +16820,14 @@ window.CRM = (function(){
     /* P2-6: Shipments column filters are scoped to that tab only — clear them on tab change so they don't silently persist/reapply */
     SHIP_FILTER_KEYS.forEach(function(k){ shipView[k]='all'; }); scoreOpen=false;
     currentTab=id; resetPages(); render();
+    if(ON_TAB) ON_TAB(id);   /* let the Vision shell sidebar reflect the active CRM tab (Leads dropdown highlight) */
     var vc=$('viewContent'); if(vc&&vc.scrollTo) vc.scrollTo(0,0);
     if(ROOT&&ROOT.scrollIntoView) ROOT.scrollIntoView({block:'start'});
     if(window.scrollTo) window.scrollTo(0,0);
   }
+  /* Deep-link entry from the sidebar Leads dropdown: open CRM directly on a given tab.
+     If not yet mounted (switching in from another view), stash it and init applies it. */
+  function openTab(id){ if(MOUNTED){ setTab(id); } else { PENDING_TAB=id; } }
   function setRegion(id){ currentRegion=id; resetPages(); showAllSubs=false; render(); }
   function setProduct(p){ currentProduct=p; resetPages(); showAllSubs=false; render(); }
   function onSearch(v){ currentQuery=(v||'').trim(); var w=$('crmSearchWrap'); if(w) w.classList.toggle('has-q',!!currentQuery); resetPages(); clearTimeout(onSearch._t); onSearch._t=setTimeout(function(){ render(); },150); }
@@ -17522,8 +17532,10 @@ window.CRM = (function(){
   function reload(){ invRedirMap=null; return Promise.all([loadVoyages(),loadClaimSettled()]).then(function(){ if(CRM_REGION_RULES_V2) applyV2Regions(); render(); }).catch(function(e){ var vc=$('viewContent'); if(vc) vc.innerHTML='<div class="empty-state">Failed to load CRM data — '+esc(e&&e.message||e)+'</div>'; }); }
   function init(opts){
     SB=opts.supabase; SEASON=opts.seasonId; IS_ADMIN=!!opts.isAdmin; USER=opts.currentUser||null; ROOT=opts.root; MOUNTED=true;
-    CONFIG=opts.config||null; ON_OPEN_CQC=opts.onOpenCqc||null; ON_HEADER=opts.onHeader||null;
+    CONFIG=opts.config||null; ON_OPEN_CQC=opts.onOpenCqc||null; ON_HEADER=opts.onHeader||null; ON_TAB=opts.onTab||null;
     currentTab='dashboard'; currentRegion='all'; currentProduct='all'; currentQuery=''; showAllSubs=false; pulseOpen=true; resetPages();
+    if(PENDING_TAB){ currentTab=PENDING_TAB; PENDING_TAB=null; }   /* sidebar deep-link into a Leads tab on first mount */
+    if(ON_TAB) ON_TAB(currentTab);
     ROOT.innerHTML=template();
     attachListeners();
     /* loadVoyages has no data dependency on the four lookups, so fire it alongside them instead of chaining — removes one round-trip from time-to-dashboard */
@@ -18129,7 +18141,7 @@ window.CRM = (function(){
 
   return {
     init:init, setSeason:setSeason, teardown:teardown, reload:reload,
-    setTab:setTab, setRegion:setRegion, setProduct:setProduct, onSearch:onSearch, clearSearch:clearSearch, clearFilters:clearFilters,
+    setTab:setTab, openTab:openTab, setRegion:setRegion, setProduct:setProduct, onSearch:onSearch, clearSearch:clearSearch, clearFilters:clearFilters,
     setShipFilter:setShipFilter, resetShipFilters:resetShipFilters, setShipSort:setShipSort, setPage:setPage,
     toggleSubs:toggleSubs, togglePulse:togglePulse, pulseGo:pulseGo, openSubDrill:openSubDrill,
     openShipDetail:openShipDetail, openInsp:openInsp, openCqc:openCqc, closeDlv:closeDlv,
@@ -18765,7 +18777,7 @@ function CRMView(props){
   React.useEffect(function(){
     injectCrmCss();
     if(ref.current&&window.CRM){
-      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu,config:cfg,onOpenCqc:props.onOpenCqc,onHeader:props.onHeader});
+      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu,config:cfg,onOpenCqc:props.onOpenCqc,onHeader:props.onHeader,onTab:props.onTab});
       window.openInspPreviewGlobal=function(id){loadInspPreview(id,sPopup[1],cfgRef.current);};
       window.openCqcPreviewGlobal=function(id){loadCqcPreview(id,sCqcPopup[1],cfgRef.current);};
     }
@@ -18797,6 +18809,8 @@ function App(){
   var sNavTarget=useState(null); var navTarget=sNavTarget[0]; var setNavTarget=sNavTarget[1];
   var sCqcLink=useState(null); var cqcLink=sCqcLink[0]; var setCqcLink=sCqcLink[1];
   var sCrmHdr=useState(''); var crmHdr=sCrmHdr[0]; var setCrmHdr=sCrmHdr[1]; /* CRM island lifts its tab bar into the shell topbar via onHeader */
+  var sCrmTab=useState('dashboard'); var crmTab=sCrmTab[0]; var setCrmTab=sCrmTab[1]; /* current CRM tab, mirrored from the island so the sidebar Leads dropdown can highlight */
+  var sLeadsNav=useState(false); var leadsNavOpen=sLeadsNav[0]; var setLeadsNavOpen=sLeadsNav[1]; /* sidebar Leads dropdown expand state */
   React.useEffect(function(){if(view!=='clientqc'&&cqcLink)setCqcLink(null);},[view]);
   var sShipReturn=useState(null); var shipReturn=sShipReturn[0]; var setShipReturn=sShipReturn[1];
   React.useEffect(function(){if(view!=='shipments'&&view!=='clientqc'&&shipReturn)setShipReturn(null);},[view]);
@@ -20499,7 +20513,7 @@ function App(){
         ),
         ce('div',{className:'sidebar-sec'},'Modules'),
         availViews.map(function(v){
-          return ce('div',{key:v.id,className:'nav-item'+(view===v.id?' active':''),onClick:function(){setView(v.id);setMobOpen(false);}},
+          var navEl=ce('div',{key:v.id,className:'nav-item'+(view===v.id?' active':''),onClick:function(){setView(v.id);setMobOpen(false);}},
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:IPATHS[v.id]||IPATHS.fg})),
             ce('div',{style:{flex:1}},
               ce('div',{style:{lineHeight:1.2,display:'flex',alignItems:'center',gap:6}},
@@ -20518,6 +20532,26 @@ function App(){
               ce('div',{style:{fontSize:10,opacity:.5,marginTop:1}},v.sub)
             )
           );
+          /* Leads dropdown lives directly beneath CRM. Leads / Funnel / Campaigns deep-link
+             into the CRM island on their tab; the Leads inbox deliberately stays a CRM tab. */
+          if(v.id==='crm'&&perms.viewCRM){
+            var LEAD_SUBS=[['leads','Leads'],['funnel','Funnel'],['campaigns','Campaigns']];
+            var onLeadTab=(view==='crm'&&['leads','funnel','campaigns'].indexOf(crmTab)>=0);
+            return ce(React.Fragment,{key:'crm-leads-grp'},
+              navEl,
+              ce('div',{className:'nav-item nav-parent'+(onLeadTab?' active':''),onClick:function(){setLeadsNavOpen(!leadsNavOpen);}},
+                ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z'})),
+                ce('div',{style:{flex:1,display:'flex',alignItems:'center',gap:6}},'Leads',
+                  ce('span',{style:{fontSize:8,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',background:'#e8f0e9',color:'#2e5d3a',padding:'1px 5px',borderRadius:10,lineHeight:1.6}},'Draft')),
+                ce('span',{className:'nav-caret'+(leadsNavOpen?' open':'')},'›')
+              ),
+              leadsNavOpen?ce('div',{className:'nav-sub'},LEAD_SUBS.map(function(t){
+                var act=(view==='crm'&&crmTab===t[0]);
+                return ce('div',{key:t[0],className:'nav-item nav-subitem'+(act?' active':''),onClick:function(){setView('crm');if(window.CRM)window.CRM.openTab(t[0]);setCrmTab(t[0]);setLeadsNavOpen(true);setMobOpen(false);}},t[1]);
+              })):null
+            );
+          }
+          return navEl;
         }),
         ce('div',{className:'sidebar-sec',style:{marginTop:6}},'Alerts'),
         sideAlerts.length===0
@@ -20646,7 +20680,7 @@ function App(){
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
-        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
+        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onTab:setCrmTab,onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
