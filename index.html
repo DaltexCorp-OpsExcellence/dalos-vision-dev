@@ -18940,7 +18940,8 @@ function App(){
   var sCqcLink=useState(null); var cqcLink=sCqcLink[0]; var setCqcLink=sCqcLink[1];
   var sCrmHdr=useState(''); var crmHdr=sCrmHdr[0]; var setCrmHdr=sCrmHdr[1]; /* CRM island lifts its tab bar into the shell topbar via onHeader */
   var sCrmTab=useState('dashboard'); var crmTab=sCrmTab[0]; var setCrmTab=sCrmTab[1]; /* current CRM tab, mirrored from the island so the sidebar Leads dropdown can highlight */
-  var sLeadsNav=useState(false); var leadsNavOpen=sLeadsNav[0]; var setLeadsNavOpen=sLeadsNav[1]; /* sidebar Leads dropdown expand state */
+  var sLeadsNav=useState(false); var leadsNavOpen=sLeadsNav[0]; var setLeadsNavOpen=sLeadsNav[1]; /* sidebar "Leads Managements" sub-group expand state */
+  var sCrmNav=useState(false); var crmNavOpen=sCrmNav[0]; var setCrmNavOpen=sCrmNav[1]; /* sidebar CRM group expand (Tracking & Claims / Leads Managements) */
   React.useEffect(function(){if(view!=='clientqc'&&cqcLink)setCqcLink(null);},[view]);
   var sShipReturn=useState(null); var shipReturn=sShipReturn[0]; var setShipReturn=sShipReturn[1];
   React.useEffect(function(){if(view!=='shipments'&&view!=='clientqc'&&shipReturn)setShipReturn(null);},[view]);
@@ -20662,23 +20663,35 @@ function App(){
               ce('div',{style:{fontSize:10,opacity:.5,marginTop:1}},v.sub)
             )
           );
-          /* Leads dropdown lives directly beneath CRM. Leads / Funnel / Campaigns deep-link
-             into the CRM island on their tab; the Leads inbox deliberately stays a CRM tab. */
+          /* CRM is a parent group with two children: "Tracking & Claims" (the original CRM
+             commercial module — shipments/claims/etc.) and "Leads Managements" (the leads portal,
+             with Funnel & Campaign beneath it). Each child sets an explicit CRM tab, so there is
+             always a clear way back to the commercial side from Leads. */
           if(v.id==='crm'&&perms.viewCRM){
-            var LEAD_SUBS=[['leads','Leads'],['funnel','Funnel'],['campaigns','Campaigns']];
-            var onLeadTab=(view==='crm'&&['leads','funnel','campaigns','inbox'].indexOf(crmTab)>=0);
-            return ce(React.Fragment,{key:'crm-leads-grp'},
-              navEl,
-              ce('div',{className:'nav-item nav-parent'+(onLeadTab?' active':''),onClick:function(){setLeadsNavOpen(!leadsNavOpen);}},
-                ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z'})),
-                ce('div',{style:{flex:1,display:'flex',alignItems:'center',gap:6}},'Leads',
-                  ce('span',{style:{fontSize:8,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',background:'#e8f0e9',color:'#2e5d3a',padding:'1px 5px',borderRadius:10,lineHeight:1.6}},'Draft')),
-                ce('span',{className:'nav-caret'+(leadsNavOpen?' open':'')},'›')
+            var isLeadsTab=(['leads','inbox','funnel','campaigns'].indexOf(crmTab)>=0);
+            var crmActive=(view==='crm');
+            var commActive=(crmActive&&!isLeadsTab);
+            var leadsActive=(crmActive&&isLeadsTab);
+            var showCrm=(crmNavOpen||crmActive);
+            var showLeads=(leadsNavOpen||leadsActive);
+            function goTab(t){ setView('crm'); if(window.CRM)window.CRM.openTab(t); setCrmTab(t); setMobOpen(false); }
+            return ce(React.Fragment,{key:'crm-grp'},
+              ce('div',{className:'nav-item nav-parent'+(crmActive?' active':''),onClick:function(){setCrmNavOpen(!crmNavOpen);}},
+                ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:IPATHS[v.id]||IPATHS.fg})),
+                ce('div',{style:{flex:1}},'CRM'),
+                ce('span',{className:'nav-caret'+(showCrm?' open':'')},'›')
               ),
-              leadsNavOpen?ce('div',{className:'nav-sub'},LEAD_SUBS.map(function(t){
-                var act=(view==='crm'&&crmTab===t[0]);
-                return ce('div',{key:t[0],className:'nav-item nav-subitem'+(act?' active':''),onClick:function(){setView('crm');if(window.CRM)window.CRM.openTab(t[0]);setCrmTab(t[0]);setLeadsNavOpen(true);setMobOpen(false);}},t[1]);
-              })):null
+              showCrm?ce('div',{className:'nav-sub'},
+                ce('div',{key:'tc',className:'nav-item nav-subitem'+(commActive?' active':''),onClick:function(){goTab('dashboard');}},'Tracking & Claims'),
+                ce('div',{key:'lm',className:'nav-item nav-subitem nav-parent'+(leadsActive?' active':''),onClick:function(){setLeadsNavOpen(true);goTab('leads');}},
+                  ce('span',{style:{flex:1,whiteSpace:'nowrap'}},'Leads Managements'),
+                  ce('span',{className:'nav-caret'+(showLeads?' open':''),onClick:function(e){e.stopPropagation();setLeadsNavOpen(!leadsNavOpen);}},'›')
+                ),
+                showLeads?ce('div',{className:'nav-sub'},
+                  ce('div',{key:'fn',className:'nav-item nav-subitem'+(leadsActive&&crmTab==='funnel'?' active':''),onClick:function(){goTab('funnel');}},'Funnel'),
+                  ce('div',{key:'cmp',className:'nav-item nav-subitem'+(leadsActive&&crmTab==='campaigns'?' active':''),onClick:function(){goTab('campaigns');}},'Campaign')
+                ):null
+              ):null
             );
           }
           return navEl;
