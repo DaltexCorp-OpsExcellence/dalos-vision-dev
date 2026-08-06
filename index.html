@@ -17184,10 +17184,10 @@ function App(){
             function goView(dest,sub,key){ setView('crm'); if(window.CRM)window.CRM.leadNav(dest,sub); setCrmTab(dest); setCrmLeadKey(key); setMobOpen(false); }
             var LM_BTNS=[['leads','ws','ws','Workspace'],['leads','enr','enr','Enrichment queue'],['leads','rej','rej','Returned by sales'],['inbox','pip','pip','My pipeline'],['leads','cap','cap','Show mode'],['funnel','board','board','Funnel'],['campaigns','','campaigns','Campaign']];
             return ce(React.Fragment,{key:'crm-grp'},
-              ce('div',{className:'nav-item nav-parent'+(crmActive?' active':''),onClick:function(){setCrmNavOpen(!crmNavOpen);}},
+              ce('div',{className:'nav-item nav-parent'+(crmActive?' active':''),onClick:function(){setCrmNavOpen(true);goTab('dashboard');}},
                 ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:IPATHS[v.id]||IPATHS.fg})),
                 ce('div',{style:{flex:1}},'CRM'),
-                ce('span',{className:'nav-caret'+(showCrm?' open':'')},'›')
+                ce('span',{className:'nav-caret'+(showCrm?' open':''),onClick:function(e){e.stopPropagation();setCrmNavOpen(!crmNavOpen);}},'›')
               ),
               showCrm?ce('div',{className:'nav-sub'},
                 ce('div',{key:'tc',className:'nav-item nav-subitem'+(commActive?' active':''),onClick:function(){goTab('dashboard');}},'Tracking & Claims'),
