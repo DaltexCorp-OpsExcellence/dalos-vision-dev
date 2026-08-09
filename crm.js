@@ -2769,28 +2769,148 @@ window.CRM = (function(){
       +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Stage-2 SLA health</div>'+sla+'<div class="alert-fail" style="margin-top:11px">4 leads past SLA — returned to marketing as <strong>no response</strong>. No escalation path in v1.</div></div></div>';
   }
 
-  /* ═══════════════════ CAMPAIGNS destination ═══════════════════ */
+  /* ═══════════════════ CAMPAIGNS destination (REAL — crm_campaigns) ═══════════════════ */
+  var FORM_HOST='https://daltexcorp-opsexcellence.github.io/daltex-lead-form/';
+  var CAMP={items:[],loaded:false,loading:false,logoData:null,editId:null,qrToken:null};
+  var CAMP_TYPES=[['exhibition','Exhibition'],['digital','Digital'],['research','Research'],['referral','Referral'],['other','Other']];
+  var CAMP_CUR=[['EUR','€ EUR'],['USD','$ USD'],['GBP','£ GBP']];
+  function campCurSym(c){ return c==='USD'?'$':(c==='GBP'?'£':'€'); }
+  function campLink(tok){ return FORM_HOST+'?c='+encodeURIComponent(tok||''); }
+  function campLoad(){
+    if(!SB){ CAMP.loaded=true; renderCampaigns(); return; }
+    CAMP.loading=true;
+    SB.rpc('crm_campaigns_with_stats').then(function(res){
+      CAMP.loading=false; CAMP.loaded=true;
+      if(res&&!res.error) CAMP.items=res.data||[];
+      if(currentTab==='campaigns') renderCampaigns();
+    }).catch(function(){ CAMP.loading=false; CAMP.loaded=true; if(currentTab==='campaigns') renderCampaigns(); });
+  }
+  function campReload(){ CAMP.loaded=false; campLoad(); }
+  function campCopy(tok){ var link=campLink(tok);
+    try{ navigator.clipboard.writeText(link).then(function(){ toast('Link copied · <span class="mono">'+esc(link)+'</span>'); }); }
+    catch(e){ toast('Copy failed — link: <span class="mono">'+esc(link)+'</span>'); } }
+  function campToggle(id,to){ if(!SB) return;
+    SB.from('crm_campaigns').update({active:to,updated_at:new Date().toISOString()}).eq('id',id).then(function(res){
+      if(res&&res.error){ toast('<b>Could not update.</b> '+esc(res.error.message||'')); return; }
+      toast(to?'Campaign activated — its link is live.':'Campaign deactivated — its link now rejects new leads.'); campReload();
+    }); }
+  function campLogoPick(input){
+    var f=input&&input.files&&input.files[0]; if(!f) return;
+    if(f.size>6*1024*1024){ toast('<b>Image too large.</b> Pick one under 6 MB.'); input.value=''; return; }
+    var rd=new FileReader();
+    rd.onload=function(ev){ var img=new Image();
+      img.onload=function(){ var max=260, w=img.width, h=img.height; var sc=Math.min(1,max/Math.max(w,h)); w=Math.round(w*sc); h=Math.round(h*sc);
+        var cv=document.createElement('canvas'); cv.width=w; cv.height=h; cv.getContext('2d').drawImage(img,0,0,w,h);
+        try{ CAMP.logoData=cv.toDataURL('image/png'); }catch(e){ CAMP.logoData=ev.target.result; }
+        var pv=$('camp_logo_pv'); if(pv){ pv.innerHTML='<img src="'+CAMP.logoData+'" style="max-height:52px;max-width:150px;border-radius:6px;background:#fff;padding:4px;border:1px solid var(--border)"/> <span class="link-btn" onclick="CRM.campLogoClear()">remove</span>'; }
+      };
+      img.onerror=function(){ toast('<b>Could not read that image.</b>'); };
+      img.src=ev.target.result;
+    };
+    rd.readAsDataURL(f);
+  }
+  function campLogoClear(){ CAMP.logoData=null; var pv=$('camp_logo_pv'); if(pv) pv.innerHTML='<span class="cell-sub">No logo — the form shows the Daltex mark only.</span>'; var fi=$('camp_logo'); if(fi) fi.value=''; }
+  function campNew(id){
+    CAMP.editId=id||null; CAMP.logoData=null;
+    var c=id?CAMP.items.filter(function(x){return x.id===id;})[0]:null;
+    if(c&&c.logo_url) CAMP.logoData=c.logo_url;
+    var typeOpts=CAMP_TYPES.map(function(o){return '<option value="'+o[0]+'"'+(c&&c.type===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('');
+    var curOpts=CAMP_CUR.map(function(o){return '<option value="'+o[0]+'"'+((c?c.currency:'EUR')===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('');
+    var pv=CAMP.logoData?'<img src="'+CAMP.logoData+'" style="max-height:52px;max-width:150px;border-radius:6px;background:#fff;padding:4px;border:1px solid var(--border)"/> <span class="link-btn" onclick="CRM.campLogoClear()">remove</span>':'<span class="cell-sub">No logo — the form shows the Daltex mark only.</span>';
+    var body='<div class="l-form"><div class="l-formnote">Creating a campaign generates its own <b>public capture link + QR</b> automatically. Share the QR at the stand; every scan lands as a lead tagged to this campaign.</div>'
+      +field('camp_name','Event / campaign name',c?c.name:'','e.g. Fruit Logistica 2026 — Berlin')
+      +'<div class="grid2"><div>'+'<label class="form-label" style="margin-top:8px">Type</label><select class="form-select" id="camp_type">'+typeOpts+'</select></div>'
+      +'<div><label class="form-label" style="margin-top:8px">Currency</label><select class="form-select" id="camp_cur">'+curOpts+'</select></div></div>'
+      +'<div class="grid2"><div>'+field('camp_start','Start date',c&&c.start_date?c.start_date:'','')+'</div><div>'+field('camp_end','End date',c&&c.end_date?c.end_date:'','')+'</div></div>'
+      +'<div class="l-formhint" style="margin:-2px 0 6px">Dates accept <span class="mono">YYYY-MM-DD</span>.</div>'
+      +field('camp_cost','Cost (optional)',c&&c.cost!=null?String(c.cost):'','e.g. 41200')
+      +'<label class="form-label" style="margin-top:10px">Event logo (optional)</label>'
+      +'<div id="camp_logo_pv" style="margin:4px 0 6px">'+pv+'</div>'
+      +'<label class="capbtn" style="cursor:pointer;display:inline-flex;position:relative"><span class="capt">Upload logo ↑</span><span class="caps">PNG/JPG — shown on the public form</span><input type="file" id="camp_logo" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0" onchange="CRM.campLogoPick(this)"/></label>'
+      +'<div id="camp_warn"></div>'
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.campSave()">'+(id?'Save changes':'Create campaign')+'</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+    showDlv(id?'Edit campaign':'New campaign',body);
+  }
+  function campSave(){
+    if(!SB){ return; }
+    var name=(($('camp_name')||{}).value||'').trim();
+    var w=$('camp_warn'); if(w) w.innerHTML='';
+    if(!name){ if(w) w.innerHTML='<div class="alert-fail" style="margin-top:10px">A campaign name is required.</div>'; return; }
+    var start=(($('camp_start')||{}).value||'').trim(), end=(($('camp_end')||{}).value||'').trim();
+    var dre=/^\d{4}-\d{2}-\d{2}$/;
+    if(start&&!dre.test(start)){ if(w) w.innerHTML='<div class="alert-fail" style="margin-top:10px">Start date must be YYYY-MM-DD.</div>'; return; }
+    if(end&&!dre.test(end)){ if(w) w.innerHTML='<div class="alert-fail" style="margin-top:10px">End date must be YYYY-MM-DD.</div>'; return; }
+    var costRaw=(($('camp_cost')||{}).value||'').replace(/[, ]/g,'').trim();
+    var cost=costRaw?Number(costRaw):null; if(cost!=null&&isNaN(cost)){ if(w) w.innerHTML='<div class="alert-fail" style="margin-top:10px">Cost must be a number.</div>'; return; }
+    var rec={ name:name, type:($('camp_type')||{}).value||'exhibition', currency:($('camp_cur')||{}).value||'EUR',
+      start_date:start||null, end_date:end||null, cost:cost, logo_url:CAMP.logoData||null, updated_at:new Date().toISOString() };
+    var btn=w&&w.parentNode?w.parentNode.querySelector('.btn-primary'):null; if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+    var q=CAMP.editId ? SB.from('crm_campaigns').update(rec).eq('id',CAMP.editId).select('id,public_token').single()
+                      : SB.from('crm_campaigns').insert(rec).select('id,public_token').single();
+    q.then(function(res){
+      if(res&&res.error){ if(w) w.innerHTML='<div class="alert-fail" style="margin-top:10px"><b>Save failed.</b> '+esc(res.error.message||'')+'</div>'; if(btn){btn.disabled=false;btn.textContent=CAMP.editId?'Save changes':'Create campaign';} return; }
+      var row=res&&res.data; var wasNew=!CAMP.editId; CAMP.editId=null; CAMP.logoData=null; closeDlv();
+      toast(wasNew?'Campaign <b>'+esc(name)+'</b> created — link & QR ready.':'Campaign <b>'+esc(name)+'</b> updated.');
+      campReload();
+      if(wasNew && row && row.public_token) setTimeout(function(){ campQrByToken(row.public_token,name); },250);
+    }).catch(function(e){ if(w) w.innerHTML='<div class="alert-fail" style="margin-top:10px"><b>Save failed.</b> '+esc(String(e))+'</div>'; if(btn){btn.disabled=false;btn.textContent=CAMP.editId?'Save changes':'Create campaign';} });
+  }
+  function campQr(id){ var c=CAMP.items.filter(function(x){return x.id===id;})[0]; if(!c) return; campQrByToken(c.public_token,c.name); }
+  function campQrByToken(tok,name){
+    CAMP.qrToken=tok;
+    var link=campLink(tok);
+    var body='<div class="l-form"><div class="l-formnote">Print this for the stand. Each scan opens the public registration form for <b>'+esc(name||'')+'</b> and lands as a lead here.</div>'
+      +'<div id="camp_qr_box" style="display:flex;justify-content:center;padding:14px;background:#fff;border-radius:10px;border:1px solid var(--border);min-height:200px;align-items:center"><span class="cell-sub">Generating QR…</span></div>'
+      +'<label class="form-label" style="margin-top:12px">Shareable link</label>'
+      +'<div style="display:flex;gap:6px"><input class="form-input mono" id="camp_qr_link" readonly value="'+esc(link)+'" style="flex:1;font-size:12px"/><button class="btn btn-secondary btn-sm" onclick="CRM.campCopy(\''+esc(tok)+'\')">Copy</button></div>'
+      +'<div class="l-formact"><button class="btn btn-primary" id="camp_qr_dl" onclick="CRM.campQrDownload(\''+esc(name||'campaign')+'\')" disabled>Download QR (PNG)</button><a class="btn btn-secondary" href="'+esc(link)+'" target="_blank" rel="noopener">Open form ↗</a><button class="btn btn-secondary" onclick="CRM.closeDlv()">Close</button></div></div>';
+    showDlv('Campaign link & QR',body);
+    capLoadScript('https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@04f46c6a0708418cb7b96fc563eacae0fbf77674/qrcode.min.js').then(function(){
+      var box=$('camp_qr_box'); if(!box) return; box.innerHTML='';
+      try{ new window.QRCode(box,{text:link,width:200,height:200,correctLevel:window.QRCode.CorrectLevel.M}); var dl=$('camp_qr_dl'); if(dl) dl.disabled=false; }
+      catch(e){ box.innerHTML='<span class="cell-sub">QR unavailable — use the link above.</span>'; }
+    }).catch(function(){ var box=$('camp_qr_box'); if(box) box.innerHTML='<span class="cell-sub">QR library blocked — use the link above.</span>'; });
+  }
+  function campQrDownload(name){
+    var box=$('camp_qr_box'); if(!box) return;
+    var cv=box.querySelector('canvas'); var data=null;
+    if(cv){ try{ data=cv.toDataURL('image/png'); }catch(e){} }
+    if(!data){ var im=box.querySelector('img'); if(im) data=im.src; }
+    if(!data){ toast('QR not ready yet.'); return; }
+    var a=document.createElement('a'); a.href=data; a.download='daltex-qr-'+String(name||'campaign').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
   function renderCampaigns(){
     var vc=$('viewContent'); if(!vc) return;
-    var kpis=kcard('Spend · season 2026','€96k','6 campaigns')+kcard('Cost per qualified lead','€592','<span class="up">−€71 vs 2025</span>')+kcard('Cost per accepted lead','€800','120 accepted')+kcard('Cost per shipped client','€6.9k','<span class="down">14 shipped · lags</span>');
-    var rows=L_CAMPAIGNS.map(function(c){
-      var hl=c.type==='Research'?' style="background:var(--red-bg)"':'';
-      return '<tr'+hl+'><td>'+esc(c.name)+'</td><td>'+bdg('badge-n',c.type)+'</td><td class="mono">'+esc(c.dates)+'</td><td class="mono">'+c.cur+c.cost.toLocaleString()+'</td><td class="mono">'+c.reg.toLocaleString()+'</td><td class="mono">'+c.qual+'</td><td class="mono">'+c.acc+'</td><td class="mono">'+c.shipped+'</td><td class="mono">'+c.cur+c.cq+'</td><td class="mono">'+c.weighted+'</td></tr>';
+    if(!CAMP.loaded){ if(!CAMP.loading) campLoad();
+      vc.innerHTML='<div class="lead-portal">'+liveBar()+'<div class="card"><div class="cell-sub" style="padding:6px 2px">Loading campaigns…</div></div></div>'; return; }
+    var items=CAMP.items;
+    var active=items.filter(function(c){return c.active;}).length;
+    var totLeads=items.reduce(function(a,c){return a+Number(c.lead_count||0);},0);
+    var spendByCur={}; items.forEach(function(c){ if(c.cost!=null){ var k=c.currency||'EUR'; spendByCur[k]=(spendByCur[k]||0)+Number(c.cost); } });
+    var spendStr=Object.keys(spendByCur).length?Object.keys(spendByCur).map(function(k){return campCurSym(k)+Number(spendByCur[k]).toLocaleString();}).join(' · '):'—';
+    var kpis=kcard('Campaigns',String(items.length),active+' active')
+      +kcard('Leads captured',String(totLeads),'across all campaigns')
+      +kcard('Recorded spend',spendStr,'sum of entered cost');
+    var rows=items.map(function(c){
+      var sym=campCurSym(c.currency);
+      var dates=(c.start_date||'')+(c.end_date?' → '+c.end_date:''); if(!c.start_date&&!c.end_date) dates='—';
+      var pill=c.active?'<span class="badge badge-pass">Live</span>':'<span class="badge badge-n">Off</span>';
+      var logo=c.logo_url?'<img src="'+esc(c.logo_url)+'" style="height:26px;max-width:70px;border-radius:4px;background:#fff;padding:2px;vertical-align:middle"/>':'<span class="cell-sub">—</span>';
+      var acts='<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">'
+        +'<button class="btn btn-secondary btn-sm" onclick="CRM.campQr(\''+c.id+'\')">Link · QR</button>'
+        +'<button class="btn btn-secondary btn-sm" onclick="CRM.campCopy(\''+esc(c.public_token)+'\')">Copy</button>'
+        +'<button class="btn btn-secondary btn-sm" onclick="CRM.campNew(\''+c.id+'\')">Edit</button>'
+        +'<button class="btn btn-secondary btn-sm" onclick="CRM.campToggle(\''+c.id+'\','+(c.active?'false':'true')+')">'+(c.active?'Deactivate':'Activate')+'</button>'
+        +'</div>';
+      return '<tr'+(c.active?'':' style="opacity:.62"')+'><td>'+logo+'</td><td><b>'+esc(c.name)+'</b></td><td>'+bdg('badge-n',c.type||'—')+'</td><td class="mono">'+esc(dates)+'</td><td class="mono">'+(c.cost!=null?sym+Number(c.cost).toLocaleString():'—')+'</td><td class="mono">'+Number(c.lead_count||0)+'</td><td>'+pill+'</td><td>'+acts+'</td></tr>';
     }).join('');
-    var det='<div class="ldp"><div class="ldp-h">Campaign · Fruit Attraction 26</div><div style="padding:13px">'
-      +'<div class="grid2" style="margin-bottom:11px"><div><div class="kpi-l">Cost</div><div class="kpi-v" style="font-size:20px">€41 200</div></div><div><div class="kpi-l">Weighted pipeline</div><div class="kpi-v" style="font-size:20px">78 <span style="font-size:12px;font-family:var(--font-body);color:var(--text3)">cont.</span></div></div></div>'
-      +fnRow('0 Captured',100,'74','100%')+fnRow('1 Qualified',82,'61','82%')+fnRow('2 Accepted',69,'51','84%')+fnRow('5 Quoted',19,'14','64%')+fnRow('6 Shipped',7,'5','36%','var(--green)')
-      +'<div class="alert-ok" style="margin-top:10px">5 shipped clients · <span class="mono">62</span> containers to date · first-container lag median <span class="mono">124d</span></div>'
-      +'<div class="gset"><button class="btn btn-primary btn-sm" onclick="CRM.leadSub(\'leads\',\'cap\')">Start capture session</button><button class="btn btn-secondary btn-sm">View 74 leads</button><button class="btn btn-secondary btn-sm">Edit cost</button></div></div></div>';
-    var over='<div class="card"><div class="section-title"><span class="section-title-bar"></span> Override / broadcast rate</div>'
-      +fnRow('Hoda S.',12,'12%','14/118','var(--green)')+fnRow('Amr K.',61,'61%','79/130','var(--red)')
-      +'<div class="hint">Share of leads where the suggested CRM region was manually overridden.</div></div>';
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()
+    if(!items.length) rows='<tr><td colspan="8" class="cell-sub" style="padding:16px;text-align:center">No campaigns yet. Create one to generate a stand QR.</td></tr>';
+    vc.innerHTML='<div class="lead-portal">'+liveBar()
       +'<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
-      +'<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Campaigns · season 2026</div>'
-      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px"><select class="form-select" style="width:auto"><option>Season 2026</option><option>Season 2025</option></select><select class="form-select" style="width:auto"><option>All types</option><option>Exhibition</option><option>Digital</option><option>Research</option><option>Referral</option></select><button class="btn btn-primary btn-sm" style="margin-left:auto">+ New campaign</button></div>'
-      +'<div class="table-wrap"><table style="min-width:900px"><thead><tr><th>Campaign</th><th>Type</th><th>Dates</th><th>Cost</th><th>Reg.</th><th>Qual.</th><th>Acc.</th><th>Shipped</th><th>Cost / qual.</th><th>Weighted</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'
-      +'<div class="grid2">'+det+over+'</div></div>';
+      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Campaigns <span style="margin-left:auto"><button class="btn btn-primary btn-sm" onclick="CRM.campNew()">+ New campaign</button></span></div>'
+      +'<div class="l-formhint" style="margin:0 0 10px">Each campaign carries its own capture link + QR. Deactivating a campaign instantly stops its public form from accepting leads.</div>'
+      +'<div class="table-wrap"><table style="min-width:820px"><thead><tr><th>Logo</th><th>Campaign</th><th>Type</th><th>Dates</th><th>Cost</th><th>Leads</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
   }
 
   /* ═══════════════════ drawers / actions ═══════════════════ */
@@ -3007,7 +3127,9 @@ window.CRM = (function(){
     leadSelSync:leadSelSync, leadSelAll:leadSelAll, leadSelClear:leadSelClear,
     leadSelSync2:leadSelSync2, leadSelAll2:leadSelAll2, leadSelClear2:leadSelClear2, leadReturnAct:leadReturnAct,
     capSave:capSave, capClear:capClear, capSetCampaign:capSetCampaign, capExport:capExport,
-    capScan:capScan, capScanCancel:capScanStop, capOcrPick:capOcrPick
+    capScan:capScan, capScanCancel:capScanStop, capOcrPick:capOcrPick,
+    campNew:campNew, campSave:campSave, campToggle:campToggle, campCopy:campCopy, campQr:campQr,
+    campQrDownload:campQrDownload, campLogoPick:campLogoPick, campLogoClear:campLogoClear
   };
 })();
 /* ── CRM island CSS (scoped to .crmv) — injected once ── */
