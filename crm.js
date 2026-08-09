@@ -2592,7 +2592,7 @@ window.CRM = (function(){
     toast('Reading the card…');
     capLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js').then(function(){
       if(!window.Tesseract) throw new Error('OCR engine unavailable');
-      return window.Tesseract.recognize(file,'eng+ara');   /* bilingual: Latin + Arabic (Gulf/Egypt cards are usually both) */
+      return window.Tesseract.recognize(file,'eng');   /* English only for now — Arabic accuracy needs a cloud engine (planned) */
     }).then(function(res){
       var f=capParseOcr((res&&res.data&&res.data.text)||'');
       if(!f.email && !f.company && !f.name){ toast('Could not read the card — enter it manually.'); return; }
@@ -2657,7 +2657,7 @@ window.CRM = (function(){
       +'<div id="cap_head">'+capHeadHtml()+'</div>'
       +'<div class="capgrid" style="margin-bottom:12px">'
         +'<button type="button" class="capbtn" onclick="CRM.capScan()"><span class="capt">Scan QR / vCard</span><span class="caps">Digital card → fields</span></button>'
-        +'<label class="capbtn" style="cursor:pointer"><span class="capt">Photo → OCR</span><span class="caps">Read a paper card · English + عربي</span><input type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0" onchange="CRM.capOcrPick(this)"/></label>'
+        +'<label class="capbtn" style="cursor:pointer"><span class="capt">Photo → OCR</span><span class="caps">Read a paper card (English)</span><input type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0" onchange="CRM.capOcrPick(this)"/></label>'
       +'</div>'
       +'<div class="grid2">'+capFld('company','Company','e.g. Nordfrucht GmbH')+capFld('contact','Contact name','')+'</div>'
       +'<div class="grid2">'+capFld('role','Role','Head of Procurement')+capFld('email','Email','name@company.com','email')+'</div>'
@@ -3688,6 +3688,14 @@ function injectCrmCss(){
   .crmv .capgrid{grid-template-columns:1fr}
   .crmv .fn-row{grid-template-columns:92px 1fr 44px;gap:7px}
   .crmv input,.crmv select,.crmv textarea{font-size:16px !important}
+  /* phone-fit hardening: nothing in the island may exceed the viewport width */
+  .crmv,.crmv .page,.crmv .page-inner,.crmv #viewContent,.crmv .lead-portal{max-width:100vw}
+  .crmv .lead-portal input,.crmv .lead-portal select,.crmv .lead-portal textarea{max-width:100%;min-width:0;box-sizing:border-box}
+  .crmv .lead-portal .card{padding:12px}
+  .crmv .capbtn{min-height:auto;padding:11px 12px}
+  .crmv .crm-nav,.crmv .ultabs{max-width:100vw;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .crmv .form-label{white-space:normal;overflow-wrap:anywhere}
+  #cap_head select{max-width:100%}
 }
 
 /* ── host-integration overrides: island flows inside Vision's page scroll ── */
