@@ -2786,6 +2786,7 @@ window.CRM = (function(){
     }).catch(function(){ CAMP.loading=false; CAMP.loaded=true; if(currentTab==='campaigns') renderCampaigns(); });
   }
   function campReload(){ CAMP.loaded=false; campLoad(); }
+  function campRefresh(btn){ if(btn){ btn.disabled=true; btn.textContent='↻ Refreshing…'; } campReload(); }
   function campCopy(tok){ var link=campLink(tok);
     try{ navigator.clipboard.writeText(link).then(function(){ toast('Link copied · <span class="mono">'+esc(link)+'</span>'); }); }
     catch(e){ toast('Copy failed — link: <span class="mono">'+esc(link)+'</span>'); } }
@@ -2908,7 +2909,7 @@ window.CRM = (function(){
     if(!items.length) rows='<tr><td colspan="8" class="cell-sub" style="padding:16px;text-align:center">No campaigns yet. Create one to generate a stand QR.</td></tr>';
     vc.innerHTML='<div class="lead-portal">'+liveBar()
       +'<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
-      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Campaigns <span style="margin-left:auto"><button class="btn btn-primary btn-sm" onclick="CRM.campNew()">+ New campaign</button></span></div>'
+      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Campaigns <span style="margin-left:auto;display:inline-flex;gap:6px"><button class="btn btn-secondary btn-sm" onclick="CRM.campRefresh(this)">↻ Refresh</button><button class="btn btn-primary btn-sm" onclick="CRM.campNew()">+ New campaign</button></span></div>'
       +'<div class="l-formhint" style="margin:0 0 10px">Each campaign carries its own capture link + QR. Deactivating a campaign instantly stops its public form from accepting leads.</div>'
       +'<div class="table-wrap"><table style="min-width:820px"><thead><tr><th>Logo</th><th>Campaign</th><th>Type</th><th>Dates</th><th>Cost</th><th>Leads</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
   }
@@ -3129,7 +3130,7 @@ window.CRM = (function(){
     capSave:capSave, capClear:capClear, capSetCampaign:capSetCampaign, capExport:capExport,
     capScan:capScan, capScanCancel:capScanStop, capOcrPick:capOcrPick,
     campNew:campNew, campSave:campSave, campToggle:campToggle, campCopy:campCopy, campQr:campQr,
-    campQrDownload:campQrDownload, campLogoPick:campLogoPick, campLogoClear:campLogoClear
+    campQrDownload:campQrDownload, campLogoPick:campLogoPick, campLogoClear:campLogoClear, campRefresh:campRefresh
   };
 })();
 /* ── CRM island CSS (scoped to .crmv) — injected once ── */
