@@ -3872,6 +3872,8 @@ function injectCrmCss(){
   /* phone-fit hardening: nothing in the island may exceed the viewport width */
   .crmv,.crmv .page,.crmv .page-inner,.crmv #viewContent,.crmv .lead-portal{max-width:100vw}
   .crmv .lead-portal input,.crmv .lead-portal select,.crmv .lead-portal textarea{max-width:100%;min-width:0;box-sizing:border-box}
+  .crmv .grid2>*,.crmv .grid3>*{min-width:0}
+  .crmv .table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .crmv .lead-portal .card{padding:12px}
   .crmv .capbtn{min-height:auto;padding:11px 12px}
   .crmv .crm-nav,.crmv .ultabs{max-width:100vw;overflow-x:auto;-webkit-overflow-scrolling:touch}
