@@ -2459,7 +2459,11 @@ window.CRM = (function(){
   }
 
   /* ═══════════════════ SHOW MODE — real capture (offline-safe, writes crm_leads) ═══════════════════ */
-  var CAP={campaigns:[],campaignId:null,items:[],loaded:false,syncing:false,online:(typeof navigator!=='undefined'?navigator.onLine:true),_timer:null};
+  var CAP={campaigns:[],campaignId:null,items:[],loaded:false,syncing:false,online:(typeof navigator!=='undefined'?navigator.onLine:true),_timer:null,chips:{},exporter:'',importer:'',bullets:false,moreOpen:false};
+  var CAP_PRODUCTS=['Potatoes','Citrus','Grapes','Onions','Spring Onions','Pomegranate','Field Crops','Mango','Carrots','Sweet Potato','Pumpkin','Peanuts','Other'];
+  var CAP_EXP=['Grower','Trader','Association','Other'];
+  var CAP_IMP=['Agent','Retailer','Wholesaler','Other'];
+  var CAP_TAGS=['🔥 Hot lead','Wants samples','Price-sensitive','Big volume','Follow up after show','Decision maker','Just browsing','Send catalogue'];
 
   function capUuid(){ try{ return crypto.randomUUID(); }catch(e){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}); } }
   function capDB(){ return new Promise(function(res,rej){ var r=indexedDB.open('dalos_capture',1); r.onupgradeneeded=function(e){ var db=e.target.result; if(!db.objectStoreNames.contains('queue')) db.createObjectStore('queue',{keyPath:'client_uuid'}); }; r.onsuccess=function(){res(r.result);}; r.onerror=function(){rej(r.error);}; }); }
@@ -2502,6 +2506,7 @@ window.CRM = (function(){
     [['company','company'],['name','contact'],['role','role'],['email','email'],['phone','phone'],['website','website'],['country','country'],['address','address']].forEach(function(p){
       if(f[p[0]]){ var el=$('cap_'+p[1]); if(el) el.value=f[p[0]]; }
     });
+    if(f.role||f.website||f.country||f.address) capMoreOpen();
   }
 
   function capParseVcard(t){
@@ -2608,15 +2613,27 @@ window.CRM = (function(){
     if(!CAP.campaignId){ toast('Pick a campaign first.'); return; }
     var company=capField('company');
     if(!company){ toast('Company is required.'); var c0=$('cap_company'); if(c0) c0.focus(); return; }
+    var products=CAP_PRODUCTS.filter(function(p){ return CAP.chips[p]; });
+    var extra={};
+    if(CAP.exporter) extra.exporter_type=CAP.exporter;
+    if(CAP.importer) extra.importer_type=CAP.importer;
+    var po=capField('products_other'); if(po && CAP.chips['Other']) extra.products_other=po;
+    var pi=capField('products_industries'); if(pi) extra.products_industries=pi;
+    var tc=capField('trade_countries'); if(tc) extra.trade_countries=tc;
+    var aq=capField('annual_quantity'); if(aq) extra.annual_quantity=aq;
     var rec={ client_uuid:capUuid(), campaign_id:CAP.campaignId, source:(capSource||'manual'), status:'captured',
       company_name:company, contact_name:capField('contact')||null, contact_role:capField('role')||null,
       email:capField('email')||null, phone:capField('phone')||null, website:capField('website')||null,
       country:capField('country')||null, address:capField('address')||null,
-      product_interest:(capField('product')?[capField('product')]:null), notes:capField('notes')||null,
+      product_interest:(products.length?products:null), notes:capField('notes')||null,
       captured_at:new Date().toISOString(), _synced:false };
+    if(Object.keys(extra).length) rec.raw_payload=extra;
     capPut(rec).then(function(){ CAP.items.unshift(rec); toast('Captured <b>'+esc(company)+'</b> — '+(CAP.online?'syncing…':'queued offline')); capClear(); capSync(); capRenderList(); capRenderHead(); var c=$('cap_company'); if(c) c.focus(); }).catch(function(){ toast('Could not save capture on the device.'); });
   }
-  function capClear(){ capSource='manual'; ['company','contact','role','email','phone','website','country','address','product','notes'].forEach(function(id){ var el=$('cap_'+id); if(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; } }); }
+  function capClear(){ capSource='manual'; CAP.chips={}; CAP.exporter=''; CAP.importer='';
+    ['company','contact','role','email','phone','website','country','address','products_industries','trade_countries','annual_quantity','products_other','notes'].forEach(function(id){ var el=$('cap_'+id); if(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; } });
+    var pane=$('viewContent'); if(pane){ var ch=pane.querySelectorAll('.capchip.on'); for(var i=0;i<ch.length;i++) ch[i].classList.remove('on'); }
+    var o=$('cap_products_other'); if(o) o.style.display='none'; }
   function capSetCampaign(id){ CAP.campaignId=id; capRenderHead(); }
 
   function capExport(){
@@ -2655,6 +2672,17 @@ window.CRM = (function(){
   function capRenderList(){ var el=$('cap_list'); if(el) el.innerHTML=capListHtml(); }
 
   function capFld(id,label,ph,type){ return '<div class="fg"><label class="form-label">'+esc(label)+'</label><input class="form-input" id="cap_'+id+'"'+(type?' type="'+type+'"':'')+(ph?' placeholder="'+esc(ph)+'"':'')+' autocomplete="off"/></div>'; }
+  /* ── Show-mode chips / type / notes helpers ── */
+  function capProdChipsHtml(){ return CAP_PRODUCTS.map(function(p){ return '<button type="button" class="capchip'+(CAP.chips[p]?' on':'')+'" data-prod="'+esc(p)+'" onclick="CRM.capToggleProd(this)">'+esc(p)+'</button>'; }).join(''); }
+  function capToggleProd(btn){ var p=btn.getAttribute('data-prod'); CAP.chips[p]=!CAP.chips[p]; btn.classList.toggle('on',!!CAP.chips[p]); if(p==='Other'){ var o=$('cap_products_other'); if(o){ o.style.display=CAP.chips[p]?'block':'none'; if(CAP.chips[p]) o.focus(); else o.value=''; } } }
+  function capTypeChipsHtml(kind){ var arr=kind==='exp'?CAP_EXP:CAP_IMP, cur=kind==='exp'?CAP.exporter:CAP.importer; return arr.map(function(v){ return '<button type="button" class="capchip sm'+(cur===v?' on':'')+'" data-k="'+kind+'" data-v="'+esc(v)+'" onclick="CRM.capType(this)">'+esc(v)+'</button>'; }).join(''); }
+  function capType(btn){ var k=btn.getAttribute('data-k'), v=btn.getAttribute('data-v'); var now; if(k==='exp'){ CAP.exporter=(CAP.exporter===v?'':v); now=CAP.exporter; } else { CAP.importer=(CAP.importer===v?'':v); now=CAP.importer; } var wrap=btn.parentNode; if(wrap){ var cs=wrap.querySelectorAll('.capchip'); for(var i=0;i<cs.length;i++) cs[i].classList.remove('on'); } if(now===v) btn.classList.add('on'); }
+  function capTagsHtml(){ return CAP_TAGS.map(function(t){ return '<button type="button" class="captag" data-tag="'+esc(t)+'" onclick="CRM.capQuickTag(this)">'+esc(t)+'</button>'; }).join(''); }
+  function capQuickTag(btn){ var t=btn.getAttribute('data-tag'); var ta=$('cap_notes'); if(!ta) return; var v=ta.value.replace(/\s+$/,''); ta.value=(v?v+'\n':'')+'• '+t+'\n'; ta.focus(); ta.selectionStart=ta.selectionEnd=ta.value.length; }
+  function capBulletsToggle(el){ CAP.bullets=!CAP.bullets; if(el) el.classList.toggle('on',CAP.bullets); var ta=$('cap_notes'); if(ta){ if(CAP.bullets && !ta.value.trim()){ ta.value='• '; } ta.focus(); ta.selectionStart=ta.selectionEnd=ta.value.length; } }
+  function capNotesKey(e){ if(CAP.bullets && e.key==='Enter' && !e.shiftKey){ e.preventDefault(); var ta=e.target, p=ta.selectionStart, val=ta.value; ta.value=val.slice(0,p)+'\n• '+val.slice(p); var np=p+3; ta.selectionStart=ta.selectionEnd=np; } }
+  function capMore(){ CAP.moreOpen=!CAP.moreOpen; var s=$('cap_more'); if(s) s.style.display=CAP.moreOpen?'block':'none'; var b=$('cap_morebtn'); if(b) b.innerHTML=(CAP.moreOpen?'▴ Fewer details':'▾ More details')+' <span class="cell-sub" style="text-transform:none;letter-spacing:0">type · industries · trade countries · quantity · address</span>'; }
+  function capMoreOpen(){ if(!CAP.moreOpen) capMore(); }
   function paneCapture(){
     capBootstrap();
     var form='<div class="card">'
@@ -2664,14 +2692,26 @@ window.CRM = (function(){
         +'<button type="button" class="capbtn" onclick="CRM.capScan()"><span class="capt">Scan QR / vCard</span><span class="caps">Digital card → fields</span></button>'
         +'<label class="capbtn" style="cursor:pointer"><span class="capt">Photo → OCR</span><span class="caps">Read a paper card (English)</span><input type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0" onchange="CRM.capOcrPick(this)"/></label>'
       +'</div>'
-      +'<div class="grid2">'+capFld('company','Company','e.g. Nordfrucht GmbH')+capFld('contact','Contact name','')+'</div>'
-      +'<div class="grid2">'+capFld('role','Role','Head of Procurement')+capFld('email','Email','name@company.com','email')+'</div>'
-      +'<div class="grid2">'+capFld('phone','Phone','','tel')+capFld('website','Website','www.company.com')+'</div>'
-      +'<div class="grid2">'
-        +'<div class="fg"><label class="form-label">Country</label><input class="form-input" id="cap_country" list="cap_countries" autocomplete="off"/></div>'
-        +'<div class="fg"><label class="form-label">Product interest</label><select class="form-select" id="cap_product"><option value="">—</option><option>Grapes</option><option>Citrus</option><option>Mango</option><option>Pomegranate</option></select></div></div>'
-      +'<div class="fg"><label class="form-label">Address</label><input class="form-input" id="cap_address" autocomplete="off" placeholder="street, city, country"/></div>'
-      +'<div class="fg"><label class="form-label">Notes from the stand <span style="color:var(--red)">· most valuable, shortest-lived</span></label><textarea class="form-input" id="cap_notes" rows="2" placeholder="Buys 40 cont. from Peru, wants wk 8–14…"></textarea></div>'
+      +'<div class="grid2">'+capFld('company','Company *','e.g. Nordfrucht GmbH')+capFld('contact','Contact name','')+'</div>'
+      +'<div class="grid2">'+capFld('email','Email','name@company.com','email')+capFld('phone','Phone','','tel')+'</div>'
+      +'<div class="fg"><label class="form-label">Products of interest</label><div class="capchips" id="cap_prodchips">'+capProdChipsHtml()+'</div>'
+        +'<input class="form-input" id="cap_products_other" autocomplete="off" placeholder="Other — which products?" style="display:none;margin-top:6px"/></div>'
+      +'<div class="fg"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label class="form-label" style="margin:0">Notes from the stand <span style="color:var(--red)">· most valuable, shortest-lived</span></label>'
+        +'<button type="button" class="cap-bt" id="cap_bt"'+(CAP.bullets?' data-on="1"':'')+' onclick="CRM.capBulletsToggle(this)">• Bullets</button></div>'
+        +'<div class="capchips" style="margin:6px 0">'+capTagsHtml()+'</div>'
+        +'<textarea class="form-input" id="cap_notes" rows="4" placeholder="Tap a chip above or type — buys 40 cont. from Peru, wants wk 8–14…" onkeydown="CRM.capNotesKey(event)"></textarea>'
+        +'<div class="hint" style="margin-top:4px">Tip: hit the mic on your phone keyboard to dictate while you talk.</div></div>'
+      +'<button type="button" class="cap-more-btn" id="cap_morebtn" onclick="CRM.capMore()">▾ More details <span class="cell-sub" style="text-transform:none;letter-spacing:0">type · industries · trade countries · quantity · address</span></button>'
+      +'<div id="cap_more" style="display:none">'
+        +'<div class="grid2"><div class="fg"><label class="form-label">Exporter type</label><div class="capchips" id="cap_exp">'+capTypeChipsHtml('exp')+'</div></div>'
+        +'<div class="fg"><label class="form-label">Importer type</label><div class="capchips" id="cap_imp">'+capTypeChipsHtml('imp')+'</div></div></div>'
+        +'<div class="grid2">'+capFld('role','Role','Head of Procurement')+capFld('website','Website','www.company.com')+'</div>'
+        +'<div class="grid2"><div class="fg"><label class="form-label">Country</label><input class="form-input" id="cap_country" list="cap_countries" autocomplete="off"/></div>'
+        +capFld('annual_quantity','Annual quantity','e.g. 300 cont. / season')+'</div>'
+        +'<div class="fg"><label class="form-label">Products / industries they deal in</label><input class="form-input" id="cap_products_industries" autocomplete="off" placeholder="what they trade"/></div>'
+        +'<div class="fg"><label class="form-label">Countries of export / import</label><input class="form-input" id="cap_trade_countries" autocomplete="off" placeholder="e.g. UK, Germany, UAE"/></div>'
+        +'<div class="fg"><label class="form-label">Address</label><input class="form-input" id="cap_address" autocomplete="off" placeholder="street, city, country"/></div>'
+      +'</div>'
       +'<div class="gset"><button class="btn btn-primary" onclick="CRM.capSave()">Save &amp; capture next</button><button class="btn btn-secondary" onclick="CRM.capClear()">Clear</button></div>'
       +'<div class="hint" style="margin-top:8px">Scan a digital card’s QR, snap a paper card (OCR), or type it — then <b>Save</b>. Everything saves on the device instantly and syncs when online, so dead stand wifi never loses a card.</div>'
       +'</div>';
@@ -3129,6 +3169,7 @@ window.CRM = (function(){
     leadSelSync2:leadSelSync2, leadSelAll2:leadSelAll2, leadSelClear2:leadSelClear2, leadReturnAct:leadReturnAct,
     capSave:capSave, capClear:capClear, capSetCampaign:capSetCampaign, capExport:capExport,
     capScan:capScan, capScanCancel:capScanStop, capOcrPick:capOcrPick,
+    capToggleProd:capToggleProd, capType:capType, capQuickTag:capQuickTag, capBulletsToggle:capBulletsToggle, capNotesKey:capNotesKey, capMore:capMore,
     campNew:campNew, campSave:campSave, campToggle:campToggle, campCopy:campCopy, campQr:campQr,
     campQrDownload:campQrDownload, campLogoPick:campLogoPick, campLogoClear:campLogoClear, campRefresh:campRefresh
   };
@@ -3771,6 +3812,18 @@ function injectCrmCss(){
 .crmv .capt{font-size:14px;font-weight:600;color:var(--text)}
 .crmv .caps{font-size:11px;color:var(--text3);line-height:1.35}
 .crmv .qr{width:88px;height:88px;flex-shrink:0;border:1px solid var(--border2);border-radius:6px;background:repeating-linear-gradient(90deg,var(--text) 0 6px,#fff 6px 12px),repeating-linear-gradient(0deg,var(--text) 0 6px,#fff 6px 12px);background-blend-mode:multiply}
+/* show-mode capture chips / tags / notes */
+.crmv .capchips{display:flex;flex-wrap:wrap;gap:7px;margin:3px 0 2px}
+.crmv .capchip{display:inline-flex;align-items:center;gap:4px;padding:8px 13px;border:1px solid var(--border2);border-radius:999px;background:#fff;font-family:var(--font-body);font-size:13px;color:var(--text2);cursor:pointer;min-height:36px;line-height:1;transition:background .12s,border-color .12s,color .12s;-webkit-tap-highlight-color:transparent}
+.crmv .capchip:hover{border-color:var(--accent)}
+.crmv .capchip.on{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+.crmv .capchip.sm{padding:6px 11px;font-size:12px;min-height:32px}
+.crmv .captag{display:inline-flex;align-items:center;padding:7px 12px;border:1px dashed var(--accent);border-radius:999px;background:transparent;font-family:var(--font-body);font-size:12.5px;color:var(--accent);cursor:pointer;min-height:34px;line-height:1;transition:background .12s;-webkit-tap-highlight-color:transparent}
+.crmv .captag:hover{background:var(--green-bg)}
+.crmv .cap-bt{margin-left:auto;padding:5px 11px;border:1px solid var(--border2);border-radius:999px;background:#fff;font-family:var(--font-body);font-size:12px;color:var(--text3);cursor:pointer;min-height:28px}
+.crmv .cap-bt[data-on="1"]{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+.crmv .cap-more-btn{width:100%;text-align:left;display:flex;align-items:center;gap:8px;padding:11px 13px;margin:2px 0 10px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg2);font-family:var(--font-body);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer}
+.crmv .cap-more-btn:hover{border-color:var(--accent)}
 /* who / region pick rows (drawers) */
 .crmv .who{display:flex;align-items:center;gap:7px;padding:9px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;cursor:pointer;background:#fff;transition:border-color .15s}
 .crmv .who:hover{border-color:var(--border2)}
