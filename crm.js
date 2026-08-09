@@ -2592,7 +2592,7 @@ window.CRM = (function(){
     toast('Reading the card…');
     capLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js').then(function(){
       if(!window.Tesseract) throw new Error('OCR engine unavailable');
-      return window.Tesseract.recognize(file,'eng');
+      return window.Tesseract.recognize(file,'eng+ara');   /* bilingual: Latin + Arabic (Gulf/Egypt cards are usually both) */
     }).then(function(res){
       var f=capParseOcr((res&&res.data&&res.data.text)||'');
       if(!f.email && !f.company && !f.name){ toast('Could not read the card — enter it manually.'); return; }
@@ -2657,7 +2657,7 @@ window.CRM = (function(){
       +'<div id="cap_head">'+capHeadHtml()+'</div>'
       +'<div class="capgrid" style="margin-bottom:12px">'
         +'<button type="button" class="capbtn" onclick="CRM.capScan()"><span class="capt">Scan QR / vCard</span><span class="caps">Digital card → fields</span></button>'
-        +'<label class="capbtn" style="cursor:pointer"><span class="capt">Photo → OCR</span><span class="caps">Read a paper card</span><input type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0" onchange="CRM.capOcrPick(this)"/></label>'
+        +'<label class="capbtn" style="cursor:pointer"><span class="capt">Photo → OCR</span><span class="caps">Read a paper card · English + عربي</span><input type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0" onchange="CRM.capOcrPick(this)"/></label>'
       +'</div>'
       +'<div class="grid2">'+capFld('company','Company','e.g. Nordfrucht GmbH')+capFld('contact','Contact name','')+'</div>'
       +'<div class="grid2">'+capFld('role','Role','Head of Procurement')+capFld('email','Email','name@company.com','email')+'</div>'
