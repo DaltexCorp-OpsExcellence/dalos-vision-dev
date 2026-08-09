@@ -2341,7 +2341,9 @@ window.CRM = (function(){
     else if(LSUB.leads==='rej') pane=paneReturned();
     else if(LSUB.leads==='cap') pane=paneCapture();
     else pane=paneWorkspace();
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+pane+'</div>';
+    /* Show Mode is a REAL feature (persists to IndexedDB + crm_leads) — omit the dummy draft/live bars there */
+    var chrome = (LSUB.leads==='cap') ? '' : (draftBanner()+liveBar());
+    vc.innerHTML='<div class="lead-portal">'+chrome+pane+'</div>';
   }
 
   function paneWorkspace(){
@@ -2456,44 +2458,111 @@ window.CRM = (function(){
     return '<div class="fn-row"><div class="fn-l">'+esc(label)+'</div><div class="fn-track"><div class="fn-fill" style="width:'+pct+'%'+(fillColor?';background:'+fillColor:'')+'">'+esc(val)+'</div></div><div class="fn-pct">'+esc(pctTxt)+'</div></div>';
   }
 
-  function paneCapture(){
-    var cap='<div class="card"><div class="section-title"><span class="section-title-bar"></span> Show mode · stand capture</div>'
-      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+bdg('badge-pass','Campaign locked · Fruit Logistica 27')+bdg('badge-n','Type: Event')+'<span class="badge badge-warn" style="margin-left:auto">Offline · 7 queued</span></div>'
-      +'<div class="capgrid">'
-      +capBtn('Scan QR / vCard','Digital business card → fields')
-      +capBtn('Photo card → OCR','Queues offline, decodes on sync')
-      +capBtn('Manual · 5 fields','~20 seconds')
-      +capBtn('Import organiser CSV','Badge-scanner export')
-      +'</div>'
-      +'<div class="ldp" style="margin-top:13px"><div class="ldp-h">Confirm OCR result <span class="badge badge-warn" style="margin-left:auto">review before saving</span></div><div style="padding:12px">'
-      +'<div class="grid2"><div class="fg"><label class="form-label">Company</label><input class="form-input" value="Nordfrucht Handels GmbH"/></div><div class="fg"><label class="form-label">Contact</label><input class="form-input" value="Stefan Bauer"/></div></div>'
-      +'<div class="grid2"><div class="fg"><label class="form-label">Role</label><input class="form-input" value="Head of Procurement"/></div><div class="fg"><label class="form-label">Email</label><input class="form-input" value="s.bauer@nordfrucht.de"/></div></div>'
-      +'<div class="grid2"><div class="fg"><label class="form-label">Country</label><select class="form-select"><option>Germany</option></select></div><div class="fg"><label class="form-label">Product interest</label><select class="form-select"><option>Grapes</option><option>Mango</option></select></div></div>'
-      +'<div class="fg"><label class="form-label">Notes from the stand <span style="color:var(--red)">· most valuable, shortest-lived</span></label><textarea class="form-input" rows="2" placeholder="Buys 40 cont. from Peru, unhappy with arrival quality, wants wk 8–14…"></textarea></div>'
-      +'<div class="alert-warn">Possible duplicate — <strong>Nordfrucht GmbH</strong>, <span class="lot">LD-2026-0163</span>, same email domain. Save as a new touch on the existing lead?</div>'
-      +'<div class="gset"><button class="btn btn-primary">Save &amp; capture next</button><button class="btn btn-secondary">Add touch to existing</button><button class="btn btn-secondary">Discard</button></div>'
-      +'</div></div></div>';
-    var right='<div>'
-      +'<div class="card" style="margin-bottom:10px"><div class="section-title"><span class="section-title-bar"></span> Self-service · stand QR</div>'
-      +'<div style="display:flex;gap:13px;align-items:center"><div class="qr" aria-hidden="true"></div><div><div style="font-size:13px;font-weight:500">Fruit Logistica 27</div><div class="lot" style="margin-top:5px;display:inline-block">daltex.link/fl27</div></div></div>'
-      +'<div class="gset"><button class="btn btn-secondary btn-sm">Download poster A4</button><button class="btn btn-secondary btn-sm">Copy link</button></div></div>'
-      +'<div class="card" style="margin-bottom:10px"><div class="section-title"><span class="section-title-bar"></span> How staff open capture</div>'
-      +'<div class="gate"><span class="gate-i gate-ok">1</span> <strong>Home-screen icon</strong> — opens straight into capture <span class="gate-src">primary</span></div>'
-      +'<div class="gate"><span class="gate-i gate-ok">2</span> <strong>Capture</strong> in the mobile bottom nav <span class="gate-src">fallback</span></div>'
-      +'<div class="gate"><span class="gate-i gate-ok">3</span> The <strong>live-campaign bar</strong> atop every CRM page <span class="gate-src">contextual</span></div></div>'
-      +'<div class="card" style="margin-bottom:10px"><div class="section-title"><span class="section-title-bar"></span> Public form asks the rubric directly</div>'
-      +['Company, country, destination port','Contact name + role','Products &amp; season window wanted','Expected volume per season','Certifications required','Incoterms / payment expectation'].map(function(x){return '<div class="gate"><span class="gate-i gate-ok">✓</span> '+x+'</div>';}).join('')
-      +'<div class="gate"><span class="gate-i gate-w">!</span> Current suppliers <span class="gate-src">optional</span></div>'
-      +'<div class="alert-ok" style="margin-top:10px">Arrives with 7 of 8 gates pre-filled — enrichment drops from ~3 min to ~30 sec per lead.</div></div>'
-      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Capture methods · what\'s buildable</div>'
-      +'<div class="gate"><span class="gate-i gate-ok">✓</span> Our QR → intake form <span class="gate-src">full control</span></div>'
-      +'<div class="gate"><span class="gate-i gate-ok">✓</span> QR / vCard decode in-browser <span class="gate-src">free win</span></div>'
-      +'<div class="gate"><span class="gate-i gate-w">!</span> Paper card OCR <span class="gate-src">needs confirm step</span></div>'
-      +'<div class="gate"><span class="gate-i gate-no">✕</span> Organiser badge scan <span class="gate-src">paid licence · CSV only</span></div></div>'
-      +'</div>';
-    return '<div class="grid2" style="align-items:start">'+cap+right+'</div>';
+  /* ═══════════════════ SHOW MODE — real capture (offline-safe, writes crm_leads) ═══════════════════ */
+  var CAP={campaigns:[],campaignId:null,items:[],loaded:false,syncing:false,online:(typeof navigator!=='undefined'?navigator.onLine:true),_timer:null};
+
+  function capUuid(){ try{ return crypto.randomUUID(); }catch(e){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}); } }
+  function capDB(){ return new Promise(function(res,rej){ var r=indexedDB.open('dalos_capture',1); r.onupgradeneeded=function(e){ var db=e.target.result; if(!db.objectStoreNames.contains('queue')) db.createObjectStore('queue',{keyPath:'client_uuid'}); }; r.onsuccess=function(){res(r.result);}; r.onerror=function(){rej(r.error);}; }); }
+  function capPut(rec){ return capDB().then(function(db){ return new Promise(function(res,rej){ var tx=db.transaction('queue','readwrite'); tx.objectStore('queue').put(rec); tx.oncomplete=function(){res();}; tx.onerror=function(){rej(tx.error);}; }); }); }
+  function capLoadQueue(){ return capDB().then(function(db){ return new Promise(function(res,rej){ var out=[]; var tx=db.transaction('queue','readonly'); var c=tx.objectStore('queue').openCursor(); c.onsuccess=function(e){ var cur=e.target.result; if(cur){ out.push(cur.value); cur.continue(); } else res(out); }; c.onerror=function(){rej(c.error);}; }); }); }
+
+  function capPending(){ return CAP.items.filter(function(r){return !r._synced;}); }
+
+  function capBootstrap(){
+    if(CAP.loaded){ capSync(); return; }
+    CAP.loaded=true;
+    capLoadQueue().then(function(items){ CAP.items=items.sort(function(a,b){return (b.captured_at||'').localeCompare(a.captured_at||'');}); capRenderList(); capRenderHead(); capSync(); }).catch(function(){});
+    if(SB) SB.from('crm_campaigns').select('id,name,type,active,public_token').eq('active',true).order('created_at',{ascending:false}).then(function(res){ if(res&&!res.error){ CAP.campaigns=res.data||[]; if(!CAP.campaignId && CAP.campaigns.length) CAP.campaignId=CAP.campaigns[0].id; capRenderHead(); } }).catch(function(){});
+    try{ window.addEventListener('online',function(){ CAP.online=true; capRenderHead(); capSync(); }); window.addEventListener('offline',function(){ CAP.online=false; capRenderHead(); }); }catch(e){}
+    if(!CAP._timer) CAP._timer=setInterval(function(){ if(CAP.online && capPending().length) capSync(); },20000);
   }
-  function capBtn(t,s){ return '<button class="capbtn"><span class="capt">'+esc(t)+'</span><span class="caps">'+esc(s)+'</span></button>'; }
+
+  function capSync(){
+    if(CAP.syncing||!CAP.online||!SB) return;
+    var pending=capPending(); if(!pending.length) return;
+    CAP.syncing=true; capRenderHead();
+    var payload=pending.map(function(r){ var o={}; for(var k in r){ if(k.charAt(0)!=='_') o[k]=r[k]; } return o; });
+    SB.from('crm_leads').upsert(payload,{onConflict:'client_uuid',ignoreDuplicates:true}).then(function(res){
+      CAP.syncing=false;
+      if(res&&res.error){ toast('Sync will retry — '+esc(res.error.message||'')); capRenderHead(); return; }
+      pending.forEach(function(r){ r._synced=true; capPut(r); });
+      capRenderHead(); capRenderList();
+    },function(){ CAP.syncing=false; capRenderHead(); });
+  }
+
+  function capField(id){ var el=$('cap_'+id); return el?(el.value||'').trim():''; }
+  function capSave(){
+    if(!CAP.campaignId){ toast('Pick a campaign first.'); return; }
+    var company=capField('company');
+    if(!company){ toast('Company is required.'); var c0=$('cap_company'); if(c0) c0.focus(); return; }
+    var rec={ client_uuid:capUuid(), campaign_id:CAP.campaignId, source:'manual', status:'captured',
+      company_name:company, contact_name:capField('contact')||null, contact_role:capField('role')||null,
+      email:capField('email')||null, phone:capField('phone')||null, country:capField('country')||null,
+      product_interest:(capField('product')?[capField('product')]:null), notes:capField('notes')||null,
+      captured_at:new Date().toISOString(), _synced:false };
+    capPut(rec).then(function(){ CAP.items.unshift(rec); toast('Captured <b>'+esc(company)+'</b> — '+(CAP.online?'syncing…':'queued offline')); capClear(); capSync(); capRenderList(); capRenderHead(); var c=$('cap_company'); if(c) c.focus(); }).catch(function(){ toast('Could not save capture on the device.'); });
+  }
+  function capClear(){ ['company','contact','role','email','phone','country','product','notes'].forEach(function(id){ var el=$('cap_'+id); if(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; } }); }
+  function capSetCampaign(id){ CAP.campaignId=id; capRenderHead(); }
+
+  function capExport(){
+    if(!CAP.items.length){ toast('Nothing to export yet.'); return; }
+    var cols=['captured_at','company_name','contact_name','contact_role','email','phone','country','product_interest','notes','source','status','_synced'];
+    var q=function(v){ if(v==null) v=''; if(Array.isArray(v)) v=v.join('; '); return '"'+String(v).replace(/"/g,'""')+'"'; };
+    var lines=[cols.join(',')].concat(CAP.items.map(function(r){ return cols.map(function(c){return q(r[c]);}).join(','); }));
+    var blob=new Blob([lines.join('\n')],{type:'text/csv'}), url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=url; a.download='captured-leads.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  }
+
+  function capStatusPill(){
+    var pend=capPending().length, synced=CAP.items.length-pend;
+    if(!CAP.online) return '<span class="badge badge-warn">● Offline · '+pend+' queued</span>';
+    if(CAP.syncing) return '<span class="badge badge-n">● Syncing…</span>';
+    if(pend) return '<span class="badge badge-warn">● '+pend+' pending</span>';
+    return '<span class="badge badge-pass">● Online · '+synced+' synced</span>';
+  }
+  function capHeadHtml(){
+    var opts=CAP.campaigns.length ? CAP.campaigns.map(function(c){ return '<option value="'+esc(c.id)+'"'+(c.id===CAP.campaignId?' selected':'')+'>'+esc(c.name)+'</option>'; }).join('') : '<option value="">No active campaign yet</option>';
+    return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
+      +'<span class="badge badge-pass">Campaign</span>'
+      +'<select class="form-select" style="width:auto;max-width:260px" onchange="CRM.capSetCampaign(this.value)">'+opts+'</select>'
+      +'<span style="margin-left:auto">'+capStatusPill()+'</span></div>';
+  }
+  function capListHtml(){
+    if(!CAP.items.length) return '<div class="empty-state">No captures yet. Fill the form and tap <b>Save &amp; capture next</b>.</div>';
+    return '<div class="table-wrap"><table><thead><tr><th>Time</th><th>Company</th><th>Contact</th><th>Email</th><th class="right"></th></tr></thead><tbody>'
+      +CAP.items.slice(0,50).map(function(r){
+        var t=r.captured_at?r.captured_at.slice(11,16):'';
+        var sync=r._synced?'<span class="badge badge-pass" title="synced to lead store">✓</span>':'<span class="badge badge-warn" title="pending sync">…</span>';
+        return '<tr><td class="mono">'+esc(t)+'</td><td>'+esc(r.company_name||'—')+'</td><td>'+esc(r.contact_name||'—')+(r.contact_role?'<div class="cell-sub">'+esc(r.contact_role)+'</div>':'')+'</td><td class="cell-sub">'+esc(r.email||'—')+'</td><td class="right">'+sync+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }
+  function capRenderHead(){ var el=$('cap_head'); if(el) el.innerHTML=capHeadHtml(); }
+  function capRenderList(){ var el=$('cap_list'); if(el) el.innerHTML=capListHtml(); }
+
+  function capFld(id,label,ph,type){ return '<div class="fg"><label class="form-label">'+esc(label)+'</label><input class="form-input" id="cap_'+id+'"'+(type?' type="'+type+'"':'')+(ph?' placeholder="'+esc(ph)+'"':'')+' autocomplete="off"/></div>'; }
+  function paneCapture(){
+    capBootstrap();
+    var form='<div class="card">'
+      +'<div class="section-title"><span class="section-title-bar"></span> Show mode · stand capture</div>'
+      +'<div id="cap_head">'+capHeadHtml()+'</div>'
+      +'<div class="grid2">'+capFld('company','Company','e.g. Nordfrucht GmbH')+capFld('contact','Contact name','')+'</div>'
+      +'<div class="grid2">'+capFld('role','Role','Head of Procurement')+capFld('email','Email','name@company.com','email')+'</div>'
+      +'<div class="grid2">'+capFld('phone','Phone','','tel')
+        +'<div class="fg"><label class="form-label">Country</label><input class="form-input" id="cap_country" list="cap_countries" autocomplete="off"/></div></div>'
+      +'<div class="grid2">'
+        +'<div class="fg"><label class="form-label">Product interest</label><select class="form-select" id="cap_product"><option value="">—</option><option>Grapes</option><option>Citrus</option><option>Mango</option><option>Pomegranate</option></select></div>'
+        +'<div class="fg"></div></div>'
+      +'<div class="fg"><label class="form-label">Notes from the stand <span style="color:var(--red)">· most valuable, shortest-lived</span></label><textarea class="form-input" id="cap_notes" rows="2" placeholder="Buys 40 cont. from Peru, wants wk 8–14…"></textarea></div>'
+      +'<div class="gset"><button class="btn btn-primary" onclick="CRM.capSave()">Save &amp; capture next</button><button class="btn btn-secondary" onclick="CRM.capClear()">Clear</button></div>'
+      +'<div class="hint" style="margin-top:8px">Saves on the device instantly and syncs to the lead store when online — dead stand wifi never loses a card. QR/vCard scan &amp; card OCR arrive next.</div>'
+      +'</div>';
+    var list='<div class="card">'
+      +'<div class="section-title"><span class="section-title-bar"></span> Captured this session <span class="link-btn" style="margin-left:auto" onclick="CRM.capExport()">Export CSV ↓</span></div>'
+      +'<div id="cap_list">'+capListHtml()+'</div></div>';
+    var datalist='<datalist id="cap_countries">'+['United Kingdom','Germany','Netherlands','France','Belgium','Spain','Italy','Poland','UAE','Saudi Arabia','Qatar','Kuwait','Russia','Turkey','China','India'].map(function(c){return '<option value="'+esc(c)+'"></option>';}).join('')+'</datalist>';
+    return '<div class="grid2" style="align-items:start">'+form+list+'</div>'+datalist;
+  }
 
   /* ═══════════════════ INBOX destination ═══════════════════ */
   function renderInbox(){
@@ -2818,7 +2887,8 @@ window.CRM = (function(){
     leadWonOpen:leadWonOpen, leadWonKind:leadWonKind, leadWonSave:leadWonSave,
     leadImport:leadImport, leadImportPre:leadImportPre, leadImportRun:leadImportRun,
     leadSelSync:leadSelSync, leadSelAll:leadSelAll, leadSelClear:leadSelClear,
-    leadSelSync2:leadSelSync2, leadSelAll2:leadSelAll2, leadSelClear2:leadSelClear2, leadReturnAct:leadReturnAct
+    leadSelSync2:leadSelSync2, leadSelAll2:leadSelAll2, leadSelClear2:leadSelClear2, leadReturnAct:leadReturnAct,
+    capSave:capSave, capClear:capClear, capSetCampaign:capSetCampaign, capExport:capExport
   };
 })();
 /* ── CRM island CSS (scoped to .crmv) — injected once ── */
