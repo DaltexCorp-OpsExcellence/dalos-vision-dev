@@ -2490,19 +2490,128 @@ window.CRM = (function(){
     },function(){ CAP.syncing=false; capRenderHead(); });
   }
 
+  /* ── QR/vCard scan + card OCR (both prefill the same manual form; rep confirms then Saves) ── */
+  var capSource='manual', capLibs={}, capScanState={stream:null,raf:null,active:false};
+
+  function capLoadScript(url){
+    if(capLibs[url]) return capLibs[url];
+    capLibs[url]=new Promise(function(res,rej){ var s=document.createElement('script'); s.src=url; s.onload=function(){res();}; s.onerror=function(){ capLibs[url]=null; rej(new Error('load failed')); }; document.head.appendChild(s); });
+    return capLibs[url];
+  }
+  function capPrefill(f){
+    [['company','company'],['name','contact'],['role','role'],['email','email'],['phone','phone']].forEach(function(p){
+      if(f[p[0]]){ var el=$('cap_'+p[1]); if(el) el.value=f[p[0]]; }
+    });
+  }
+
+  function capParseVcard(t){
+    var f={}, g=function(re){ var m=t.match(re); return m?m[1].trim():''; };
+    if(/BEGIN:VCARD/i.test(t)){
+      f.name=g(/(?:^|\n)FN[^:\n]*:(.+)/i);
+      if(!f.name){ var n=g(/(?:^|\n)N[^:\n]*:(.+)/i); if(n) f.name=n.split(';').filter(Boolean).reverse().join(' ').trim(); }
+      f.company=(g(/(?:^|\n)ORG[^:\n]*:(.+)/i)||'').split(';')[0];
+      f.role=g(/(?:^|\n)TITLE[^:\n]*:(.+)/i);
+      f.email=g(/(?:^|\n)EMAIL[^:\n]*:(.+)/i);
+      f.phone=g(/(?:^|\n)TEL[^:\n]*:(.+)/i);
+    } else if(/^MECARD:/i.test(t)){
+      f.name=g(/N:([^;]+)/i); f.company=g(/ORG:([^;]+)/i); f.email=g(/EMAIL:([^;]+)/i); f.phone=g(/TEL:([^;]+)/i);
+    } else {
+      f.email=(t.match(/[\w.+-]+@[\w-]+\.[\w.-]+/)||[''])[0];
+      if(/^https?:/i.test(t)) f._url=t;
+    }
+    return f;
+  }
+
+  var CAP_COHINT=/\b(gmbh|ltd|llc|bv|sarl|inc|co|company|trading|foods?|fresh|produce|import|export|fruit|obst|handel|primeurs|ortofrutta|dmcc|wll|spa|group|market)\b/i;
+  var CAP_ROLEHINT=/\b(manager|director|head|procurement|buyer|purchas|owner|ceo|cfo|coo|gm|general manager|sales|commercial|category|founder|partner)\b/i;
+  function capParseOcr(text){
+    var f={};
+    var lines=(text||'').split(/\n+/).map(function(l){return l.replace(/\s+/g,' ').trim();}).filter(function(l){return l.length>1;});
+    var joined=lines.join('\n');
+    f.email=((joined.match(/[\w.+-]+@[\w-]+\.[\w.-]+/)||[''])[0]||'').toLowerCase();
+    var ph=joined.match(/(\+?\d[\d\s().\-\/]{6,}\d)/); f.phone=ph?ph[1].replace(/\s+/g,' ').trim():'';
+    var comp=null,i;
+    for(i=0;i<lines.length;i++){ if(CAP_COHINT.test(lines[i])){ comp=lines[i]; break; } }
+    if(!comp && f.email){ var dom=(f.email.split('@')[1]||'').split('.')[0]; if(dom) comp=dom.charAt(0).toUpperCase()+dom.slice(1); }
+    f.company=comp||'';
+    var role=null;
+    for(i=0;i<lines.length;i++){ if(CAP_ROLEHINT.test(lines[i]) && lines[i].length<40){ role=lines[i]; break; } }
+    f.role=role||'';
+    var name='';
+    for(i=0;i<lines.length;i++){ var l=lines[i];
+      if(l===f.company||l===f.role) continue;
+      if(/@|\d{3}/.test(l)) continue;
+      if(CAP_COHINT.test(l)||CAP_ROLEHINT.test(l)) continue;
+      var w=l.split(' '); if(w.length<1||w.length>4) continue;
+      if(/^[A-Z]/.test(l)){ name=l; break; }
+    }
+    f.name=name;
+    return f;
+  }
+
+  function capScan(){
+    var ov=$('cap_scan'); if(ov) ov.style.display='flex';
+    capScanState.active=true;
+    capLoadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js').then(function(){
+      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) throw new Error('no camera API');
+      return navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});
+    }).then(function(stream){
+      capScanState.stream=stream; var v=$('cap_video'); if(!v){ capScanStop(); return; }
+      v.srcObject=stream; v.setAttribute('playsinline',''); v.muted=true; v.play();
+      var cv=document.createElement('canvas'), cx=cv.getContext('2d');
+      function loop(){
+        if(!capScanState.active) return;
+        if(v.readyState===v.HAVE_ENOUGH_DATA && v.videoWidth){
+          cv.width=v.videoWidth; cv.height=v.videoHeight; cx.drawImage(v,0,0,cv.width,cv.height);
+          try{ var img=cx.getImageData(0,0,cv.width,cv.height); var code=window.jsQR?window.jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'}):null; if(code&&code.data){ capScanStop(); capHandleScan(code.data); return; } }catch(e){}
+        }
+        capScanState.raf=requestAnimationFrame(loop);
+      }
+      loop();
+    }).catch(function(e){ capScanStop(); toast('Camera unavailable — '+esc((e&&e.message)||'permission denied')); });
+  }
+  function capScanStop(){ capScanState.active=false; if(capScanState.raf){ cancelAnimationFrame(capScanState.raf); capScanState.raf=null; } if(capScanState.stream){ capScanState.stream.getTracks().forEach(function(t){t.stop();}); capScanState.stream=null; } var ov=$('cap_scan'); if(ov) ov.style.display='none'; }
+  function capHandleScan(data){
+    var f=capParseVcard(data);
+    if(!f.email && !f.name && !f.company && !f.phone){
+      if(f._url){ var n=$('cap_notes'); if(n) n.value=(n.value?n.value+' · ':'')+data; toast('Scanned a link — added to notes.'); return; }
+      toast('That code has no contact details.'); return;
+    }
+    capSource='qr_vcard'; capPrefill(f); toast('Prefilled from the scanned card — review &amp; save.');
+  }
+  function capScanOverlay(){
+    return '<div id="cap_scan" style="display:none;position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.86);align-items:center;justify-content:center;flex-direction:column;gap:14px">'
+      +'<video id="cap_video" playsinline style="max-width:92vw;max-height:66vh;border-radius:12px;background:#000"></video>'
+      +'<div style="color:#fff;font-size:13px;opacity:.9">Point the camera at the QR / vCard code…</div>'
+      +'<button class="btn btn-secondary" onclick="CRM.capScanCancel()">Cancel</button></div>';
+  }
+
+  function capOcrPick(input){
+    var file=input&&input.files&&input.files[0]; if(!file){ return; }
+    input.value='';
+    toast('Reading the card…');
+    capLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js').then(function(){
+      if(!window.Tesseract) throw new Error('OCR engine unavailable');
+      return window.Tesseract.recognize(file,'eng');
+    }).then(function(res){
+      var f=capParseOcr((res&&res.data&&res.data.text)||'');
+      if(!f.email && !f.company && !f.name){ toast('Could not read the card — enter it manually.'); return; }
+      capSource='ocr_card'; capPrefill(f); toast('OCR done — check the fields &amp; save.');
+    }).catch(function(e){ toast('OCR failed — '+esc((e&&e.message)||'')); });
+  }
   function capField(id){ var el=$('cap_'+id); return el?(el.value||'').trim():''; }
   function capSave(){
     if(!CAP.campaignId){ toast('Pick a campaign first.'); return; }
     var company=capField('company');
     if(!company){ toast('Company is required.'); var c0=$('cap_company'); if(c0) c0.focus(); return; }
-    var rec={ client_uuid:capUuid(), campaign_id:CAP.campaignId, source:'manual', status:'captured',
+    var rec={ client_uuid:capUuid(), campaign_id:CAP.campaignId, source:(capSource||'manual'), status:'captured',
       company_name:company, contact_name:capField('contact')||null, contact_role:capField('role')||null,
       email:capField('email')||null, phone:capField('phone')||null, country:capField('country')||null,
       product_interest:(capField('product')?[capField('product')]:null), notes:capField('notes')||null,
       captured_at:new Date().toISOString(), _synced:false };
     capPut(rec).then(function(){ CAP.items.unshift(rec); toast('Captured <b>'+esc(company)+'</b> — '+(CAP.online?'syncing…':'queued offline')); capClear(); capSync(); capRenderList(); capRenderHead(); var c=$('cap_company'); if(c) c.focus(); }).catch(function(){ toast('Could not save capture on the device.'); });
   }
-  function capClear(){ ['company','contact','role','email','phone','country','product','notes'].forEach(function(id){ var el=$('cap_'+id); if(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; } }); }
+  function capClear(){ capSource='manual'; ['company','contact','role','email','phone','country','product','notes'].forEach(function(id){ var el=$('cap_'+id); if(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; } }); }
   function capSetCampaign(id){ CAP.campaignId=id; capRenderHead(); }
 
   function capExport(){
@@ -2546,6 +2655,10 @@ window.CRM = (function(){
     var form='<div class="card">'
       +'<div class="section-title"><span class="section-title-bar"></span> Show mode · stand capture</div>'
       +'<div id="cap_head">'+capHeadHtml()+'</div>'
+      +'<div class="capgrid" style="margin-bottom:12px">'
+        +'<button type="button" class="capbtn" onclick="CRM.capScan()"><span class="capt">Scan QR / vCard</span><span class="caps">Digital card → fields</span></button>'
+        +'<label class="capbtn" style="cursor:pointer"><span class="capt">Photo → OCR</span><span class="caps">Read a paper card</span><input type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0" onchange="CRM.capOcrPick(this)"/></label>'
+      +'</div>'
       +'<div class="grid2">'+capFld('company','Company','e.g. Nordfrucht GmbH')+capFld('contact','Contact name','')+'</div>'
       +'<div class="grid2">'+capFld('role','Role','Head of Procurement')+capFld('email','Email','name@company.com','email')+'</div>'
       +'<div class="grid2">'+capFld('phone','Phone','','tel')
@@ -2555,13 +2668,13 @@ window.CRM = (function(){
         +'<div class="fg"></div></div>'
       +'<div class="fg"><label class="form-label">Notes from the stand <span style="color:var(--red)">· most valuable, shortest-lived</span></label><textarea class="form-input" id="cap_notes" rows="2" placeholder="Buys 40 cont. from Peru, wants wk 8–14…"></textarea></div>'
       +'<div class="gset"><button class="btn btn-primary" onclick="CRM.capSave()">Save &amp; capture next</button><button class="btn btn-secondary" onclick="CRM.capClear()">Clear</button></div>'
-      +'<div class="hint" style="margin-top:8px">Saves on the device instantly and syncs to the lead store when online — dead stand wifi never loses a card. QR/vCard scan &amp; card OCR arrive next.</div>'
+      +'<div class="hint" style="margin-top:8px">Scan a digital card’s QR, snap a paper card (OCR), or type it — then <b>Save</b>. Everything saves on the device instantly and syncs when online, so dead stand wifi never loses a card.</div>'
       +'</div>';
     var list='<div class="card">'
       +'<div class="section-title"><span class="section-title-bar"></span> Captured this session <span class="link-btn" style="margin-left:auto" onclick="CRM.capExport()">Export CSV ↓</span></div>'
       +'<div id="cap_list">'+capListHtml()+'</div></div>';
     var datalist='<datalist id="cap_countries">'+['United Kingdom','Germany','Netherlands','France','Belgium','Spain','Italy','Poland','UAE','Saudi Arabia','Qatar','Kuwait','Russia','Turkey','China','India'].map(function(c){return '<option value="'+esc(c)+'"></option>';}).join('')+'</datalist>';
-    return '<div class="grid2" style="align-items:start">'+form+list+'</div>'+datalist;
+    return '<div class="grid2" style="align-items:start">'+form+list+'</div>'+datalist+capScanOverlay();
   }
 
   /* ═══════════════════ INBOX destination ═══════════════════ */
@@ -2888,7 +3001,8 @@ window.CRM = (function(){
     leadImport:leadImport, leadImportPre:leadImportPre, leadImportRun:leadImportRun,
     leadSelSync:leadSelSync, leadSelAll:leadSelAll, leadSelClear:leadSelClear,
     leadSelSync2:leadSelSync2, leadSelAll2:leadSelAll2, leadSelClear2:leadSelClear2, leadReturnAct:leadReturnAct,
-    capSave:capSave, capClear:capClear, capSetCampaign:capSetCampaign, capExport:capExport
+    capSave:capSave, capClear:capClear, capSetCampaign:capSetCampaign, capExport:capExport,
+    capScan:capScan, capScanCancel:capScanStop, capOcrPick:capOcrPick
   };
 })();
 /* ── CRM island CSS (scoped to .crmv) — injected once ── */
