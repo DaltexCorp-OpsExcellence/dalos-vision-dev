@@ -2499,7 +2499,7 @@ window.CRM = (function(){
     return capLibs[url];
   }
   function capPrefill(f){
-    [['company','company'],['name','contact'],['role','role'],['email','email'],['phone','phone']].forEach(function(p){
+    [['company','company'],['name','contact'],['role','role'],['email','email'],['phone','phone'],['website','website'],['country','country'],['address','address']].forEach(function(p){
       if(f[p[0]]){ var el=$('cap_'+p[1]); if(el) el.value=f[p[0]]; }
     });
   }
@@ -2513,8 +2513,11 @@ window.CRM = (function(){
       f.role=g(/(?:^|\n)TITLE[^:\n]*:(.+)/i);
       f.email=g(/(?:^|\n)EMAIL[^:\n]*:(.+)/i);
       f.phone=g(/(?:^|\n)TEL[^:\n]*:(.+)/i);
+      f.website=g(/(?:^|\n)URL[^:\n]*:(.+)/i);
+      var adr=g(/(?:^|\n)ADR[^:\n]*:(.+)/i);
+      if(adr){ var ac=adr.split(';'); f.address=[ac[2],ac[3],ac[4],ac[5]].filter(function(x){return x&&x.trim();}).join(', ').trim(); f.country=(ac[6]||'').trim(); if(!f.address) f.address=adr.replace(/;+/g,', ').replace(/(^, |, $)/g,'').trim(); }
     } else if(/^MECARD:/i.test(t)){
-      f.name=g(/N:([^;]+)/i); f.company=g(/ORG:([^;]+)/i); f.email=g(/EMAIL:([^;]+)/i); f.phone=g(/TEL:([^;]+)/i);
+      f.name=g(/N:([^;]+)/i); f.company=g(/ORG:([^;]+)/i); f.email=g(/EMAIL:([^;]+)/i); f.phone=g(/TEL:([^;]+)/i); f.website=g(/URL:([^;]+)/i); f.address=g(/ADR:([^;]+)/i);
     } else {
       f.email=(t.match(/[\w.+-]+@[\w-]+\.[\w.-]+/)||[''])[0];
       if(/^https?:/i.test(t)) f._url=t;
@@ -2546,6 +2549,7 @@ window.CRM = (function(){
       if(/^[A-Z]/.test(l)){ name=l; break; }
     }
     f.name=name;
+    var wm=joined.match(/((?:https?:\/\/)?www\.[\w.-]+\.[a-z]{2,})/i); if(wm) f.website=wm[1].replace(/^https?:\/\//i,'');
     return f;
   }
 
@@ -2606,17 +2610,18 @@ window.CRM = (function(){
     if(!company){ toast('Company is required.'); var c0=$('cap_company'); if(c0) c0.focus(); return; }
     var rec={ client_uuid:capUuid(), campaign_id:CAP.campaignId, source:(capSource||'manual'), status:'captured',
       company_name:company, contact_name:capField('contact')||null, contact_role:capField('role')||null,
-      email:capField('email')||null, phone:capField('phone')||null, country:capField('country')||null,
+      email:capField('email')||null, phone:capField('phone')||null, website:capField('website')||null,
+      country:capField('country')||null, address:capField('address')||null,
       product_interest:(capField('product')?[capField('product')]:null), notes:capField('notes')||null,
       captured_at:new Date().toISOString(), _synced:false };
     capPut(rec).then(function(){ CAP.items.unshift(rec); toast('Captured <b>'+esc(company)+'</b> — '+(CAP.online?'syncing…':'queued offline')); capClear(); capSync(); capRenderList(); capRenderHead(); var c=$('cap_company'); if(c) c.focus(); }).catch(function(){ toast('Could not save capture on the device.'); });
   }
-  function capClear(){ capSource='manual'; ['company','contact','role','email','phone','country','product','notes'].forEach(function(id){ var el=$('cap_'+id); if(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; } }); }
+  function capClear(){ capSource='manual'; ['company','contact','role','email','phone','website','country','address','product','notes'].forEach(function(id){ var el=$('cap_'+id); if(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; } }); }
   function capSetCampaign(id){ CAP.campaignId=id; capRenderHead(); }
 
   function capExport(){
     if(!CAP.items.length){ toast('Nothing to export yet.'); return; }
-    var cols=['captured_at','company_name','contact_name','contact_role','email','phone','country','product_interest','notes','source','status','_synced'];
+    var cols=['captured_at','company_name','contact_name','contact_role','email','phone','website','country','address','product_interest','notes','source','status','_synced'];
     var q=function(v){ if(v==null) v=''; if(Array.isArray(v)) v=v.join('; '); return '"'+String(v).replace(/"/g,'""')+'"'; };
     var lines=[cols.join(',')].concat(CAP.items.map(function(r){ return cols.map(function(c){return q(r[c]);}).join(','); }));
     var blob=new Blob([lines.join('\n')],{type:'text/csv'}), url=URL.createObjectURL(blob);
@@ -2661,11 +2666,11 @@ window.CRM = (function(){
       +'</div>'
       +'<div class="grid2">'+capFld('company','Company','e.g. Nordfrucht GmbH')+capFld('contact','Contact name','')+'</div>'
       +'<div class="grid2">'+capFld('role','Role','Head of Procurement')+capFld('email','Email','name@company.com','email')+'</div>'
-      +'<div class="grid2">'+capFld('phone','Phone','','tel')
-        +'<div class="fg"><label class="form-label">Country</label><input class="form-input" id="cap_country" list="cap_countries" autocomplete="off"/></div></div>'
+      +'<div class="grid2">'+capFld('phone','Phone','','tel')+capFld('website','Website','www.company.com')+'</div>'
       +'<div class="grid2">'
-        +'<div class="fg"><label class="form-label">Product interest</label><select class="form-select" id="cap_product"><option value="">—</option><option>Grapes</option><option>Citrus</option><option>Mango</option><option>Pomegranate</option></select></div>'
-        +'<div class="fg"></div></div>'
+        +'<div class="fg"><label class="form-label">Country</label><input class="form-input" id="cap_country" list="cap_countries" autocomplete="off"/></div>'
+        +'<div class="fg"><label class="form-label">Product interest</label><select class="form-select" id="cap_product"><option value="">—</option><option>Grapes</option><option>Citrus</option><option>Mango</option><option>Pomegranate</option></select></div></div>'
+      +'<div class="fg"><label class="form-label">Address</label><input class="form-input" id="cap_address" autocomplete="off" placeholder="street, city, country"/></div>'
       +'<div class="fg"><label class="form-label">Notes from the stand <span style="color:var(--red)">· most valuable, shortest-lived</span></label><textarea class="form-input" id="cap_notes" rows="2" placeholder="Buys 40 cont. from Peru, wants wk 8–14…"></textarea></div>'
       +'<div class="gset"><button class="btn btn-primary" onclick="CRM.capSave()">Save &amp; capture next</button><button class="btn btn-secondary" onclick="CRM.capClear()">Clear</button></div>'
       +'<div class="hint" style="margin-top:8px">Scan a digital card’s QR, snap a paper card (OCR), or type it — then <b>Save</b>. Everything saves on the device instantly and syncs when online, so dead stand wifi never loses a card.</div>'
