@@ -2336,10 +2336,11 @@ window.CRM = (function(){
   /* ═══════════════════════════════════════════════════════════════════════
      LM — REAL leads (crm_leads via crm_leads_list RPC). Phase 1.
      Powers Workspace, Enrichment queue and My-pipeline off live data, and
-     persists Enrich / Qualify / Assign / Return via authed crm_leads UPDATEs
-     (RLS: crm_is_admin OR commercial). The dummy LEADS array + lead* handlers
-     below still power the DEFERRED views (Returned by sales, Lead inbox,
-     Funnel, Conversion) — those stay demo-only until the Phase-2 rules land.
+     persists Enrich / Qualify / Assign / Return / Re-queue via authed crm_leads
+     UPDATEs (RLS: crm_is_admin OR commercial). Returned-by-sales is REAL too
+     (a recoverable list; A/B/No-response classification deferred). The dummy
+     LEADS array + lead* handlers below still power the DEFERRED views (Lead
+     inbox, Funnel, Conversion) — demo-only until the Phase-2 rules land.
      ═══════════════════════════════════════════════════════════════════════ */
   var LM={rows:[],loaded:false,loading:false,q:'',f:{source:'all',region:'all',stage:'all'}};
   var LM_REGIONS=['UK & Ireland','N. Europe','Gulf','Russia & CIS','E. Med','Far East'];
@@ -2451,7 +2452,11 @@ window.CRM = (function(){
     if(!lmAsg||!lmAsg.region){ toast('Pick a region first.'); return; }
     lmUpdate(lmAsg.id,{ assigned_region:lmAsg.region, assigned_to:(USER&&USER.id)||null, assigned_at:new Date().toISOString(), stage:2 },'Assigned to '+esc(lmAsg.region)+' · added to your pipeline.');
   }
-  function lmReturn(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ disposition:'returned' },'<b>'+esc(l.company)+'</b> returned to marketing.'); }
+  /* Return to marketing: mark returned AND drop rep ownership so it leaves the pipeline.
+     assigned_region is kept as context for the Returned-by-sales list. */
+  function lmReturn(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ disposition:'returned', assigned_to:null, assigned_at:null },'<b>'+esc(l.company)+'</b> returned to marketing.'); }
+  /* Re-queue a returned lead back into the Workspace, clean and unassigned. */
+  function lmRequeue(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ disposition:null, assigned_region:null },'<b>'+esc(l.company)+'</b> re-queued to the Workspace.'); }
   function lmSearch(v){ LM.q=v; clearTimeout(lmSearch._t); lmSearch._t=setTimeout(function(){ render(); var el=$('lm_q'); if(el){ el.focus(); el.value=LM.q; try{ el.selectionStart=el.selectionEnd=el.value.length; }catch(e){} } },160); }
   function lmSetF(k,v){ LM.f[k]=v; render(); }
 
@@ -2463,9 +2468,8 @@ window.CRM = (function(){
     else if(LSUB.leads==='rej') pane=paneReturned();
     else if(LSUB.leads==='cap') pane=paneCapture();
     else pane=paneWorkspace();
-    /* Workspace/Enrichment/Capture are REAL now — only the deferred "Returned by sales" view keeps the dummy draft/live bars */
-    var chrome = (LSUB.leads==='rej') ? (draftBanner()+liveBar()) : '';
-    vc.innerHTML='<div class="lead-portal">'+chrome+pane+'</div>';
+    /* All four Leads views (Workspace/Enrichment/Returned/Capture) are REAL now — no dummy draft/live chrome. */
+    vc.innerHTML='<div class="lead-portal">'+pane+'</div>';
   }
 
   function paneWorkspace(){
@@ -2554,32 +2558,27 @@ window.CRM = (function(){
       +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Country</th><th>Source</th><th>Missing</th><th>Product</th><th>Age</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }
 
+  /* Returned by sales — REAL (crm_leads where disposition='returned').
+     Phase 1: a visible, recoverable list so returned leads don't vanish. The A/B/No-response
+     classification, reason codes and Class-A analytics are DEFERRED to the Phase-2 returned-lead rules. */
   function paneReturned(){
-    var list=LEADS.filter(function(l){return l.returnClass;});
+    if(!LM.loaded){ lmEnsure(); return lmSkel(); }
+    var list=LM.rows.filter(function(l){return l.disposition==='returned';});
     var rows=list.map(function(l){
-      var cls=l.returnClass==='A'?bdg('badge-fail','A'):(l.returnClass==='B'?bdg('badge-n','B'):bdg('badge-esc','No response'));
-      var counts=l.returnClass==='A'?bdg('badge-fail','Yes'):bdg('badge-pass','No');
-      var act=l.returnClass==='A'?'Contest':(l.returnClass==='NR'?'Re-assign':'Re-queue');
-      return '<tr><td onclick="event.stopPropagation()"><input type="checkbox" class="lrs2" onchange="CRM.leadSelSync2()"/></td><td><span class="lot">'+esc(l.id)+'</span></td><td>'+esc(l.company)+'</td><td>'+cls+'</td><td>'+esc(l.returnReason)+'</td><td>'+esc(l.returnBy)+'</td><td>'+counts+'</td><td><button class="btn btn-secondary btn-sm" onclick="CRM.leadReturnAct(\''+l.id+'\')">'+act+'</button></td></tr>';
+      return '<tr onclick="CRM.lmOpen(\''+l.id+'\')">'
+        +'<td><span class="lot">'+esc(l.ref)+'</span></td>'
+        +'<td>'+esc(l.company)+'</td><td>'+esc(l.country)+'</td>'
+        +'<td>'+(l.assignedRegion?bdg('badge-n',l.assignedRegion):bdg('badge-warn','unassigned'))+'</td>'
+        +'<td>'+esc(l.product)+'</td>'
+        +'<td>'+bdg('badge-n',lmSourceLabel(l.source))+'</td>'
+        +'<td class="mono">'+esc(l.age)+'</td>'
+        +'<td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRequeue(\''+l.id+'\')">Re-queue</button></td></tr>';
     }).join('');
-    var reasons=[['Not a real importer',9,38],['Volume overstated',6,25],['Unreachable contact',4,17],['Cert not achievable',3,12],['Season mismatch',2,8]];
-    var reasonRows=reasons.map(function(r){return fnRow(r[0],r[2],String(r[1]),r[2]+'%');}).join('');
-    var srcRows=[['Fruit Attraction 26',61,4,'6.6%','badge-pass'],['Referral · agents',28,3,'10.7%','badge-pass'],['Inbound · web',44,7,'15.9%','badge-warn'],['Market research list',19,10,'52.6%','badge-fail']]
-      .map(function(r){return '<tr><td>'+r[0]+'</td><td class="mono">'+r[1]+'</td><td class="mono">'+r[2]+'</td><td>'+bdg(r[4],r[3])+'</td></tr>';}).join('');
-    return '<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Returned by sales · '+list.length+'</div>'
-      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px">'
-      +'<select class="form-select" style="width:auto"><option>All returns</option><option>No response only</option><option>Class A</option><option>Class B</option></select>'
-      +'<select class="form-select" style="width:auto"><option>All regions</option>'+L_REGIONS.map(function(r){return '<option>'+esc(r)+'</option>';}).join('')+'</select>'
-      +'<button class="btn btn-secondary btn-sm">Export list</button></div>'
-      +'<div class="bulkbar" id="lbb2"><span class="mono" id="lbbn2">0 selected</span>'
-      +'<button class="btn btn-primary btn-sm" onclick="CRM.leadEscalateOpen()">Escalate to…</button>'
-      +'<button class="btn btn-secondary btn-sm">Re-assign region</button>'
-      +'<button class="btn btn-secondary btn-sm">Park until next season</button>'
-      +'<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="CRM.leadSelClear2()">Clear</button></div>'
-      +'<div class="table-wrap"><table><thead><tr><th style="width:28px"><input type="checkbox" onclick="CRM.leadSelAll2(this)"/></th><th>Lead</th><th>Company</th><th>Class</th><th>Reason</th><th>Returned by</th><th>Counts vs mkt</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'
-      +'<div class="grid2"><div class="card"><div class="section-title"><span class="section-title-bar"></span> Class A reasons · season to date</div>'+reasonRows+'</div>'
-      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> Class A rate by source</div>'
-      +'<div class="table-wrap"><table style="min-width:0"><thead><tr><th>Source</th><th>Qualified</th><th>Class A</th><th>Rate</th></tr></thead><tbody>'+srcRows+'</tbody></table></div></div></div>';
+    if(!list.length) rows='<tr><td colspan="8" class="cell-sub" style="padding:16px;text-align:center">No leads have been returned to marketing.</td></tr>';
+    return '<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Returned by sales · '+list.length+' lead(s)'
+      +' <span style="margin-left:auto"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRefresh(this)">↻ Refresh</button></span></div>'
+      +'<div class="alert-warn" style="margin-bottom:11px">Leads a rep sent back to marketing. <strong>Re-queue</strong> puts one back in the Workspace for re-triage. Reason codes and the A / B / No-response classification arrive with the Phase-2 returned-lead rules.</div>'
+      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Country</th><th>Region</th><th>Product</th><th>Source</th><th>Age</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }
   function fnRow(label,pct,val,pctTxt,fillColor){
     return '<div class="fn-row"><div class="fn-l">'+esc(label)+'</div><div class="fn-track"><div class="fn-fill" style="width:'+pct+'%'+(fillColor?';background:'+fillColor:'')+'">'+esc(val)+'</div></div><div class="fn-pct">'+esc(pctTxt)+'</div></div>';
@@ -2885,7 +2884,7 @@ window.CRM = (function(){
   function panePipeline(){
     if(!LM.loaded){ lmEnsure(); return lmSkel(); }
     var uid=(USER&&USER.id)||null;
-    var mine=LM.rows.filter(function(l){return l.assignedTo && uid && l.assignedTo===uid;});
+    var mine=LM.rows.filter(function(l){return l.assignedTo && uid && l.assignedTo===uid && l.disposition!=='returned';});
     var rows=mine.map(function(l){
       return '<tr onclick="CRM.lmOpen(\''+l.id+'\')"><td><span class="lot">'+esc(l.ref)+'</span></td><td>'+esc(l.company)+'</td>'
         +'<td>'+(l.assignedRegion?bdg('badge-n',l.assignedRegion):'—')+'</td>'
@@ -3290,7 +3289,7 @@ window.CRM = (function(){
     rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy, rrToggleEngine:rrToggleEngine,
     lmRefresh:lmRefresh, lmOpen:lmOpen, lmEnrichOpen:lmEnrichOpen, lmEnrichSave:lmEnrichSave,
     lmQualify:lmQualify, lmAssignOpen:lmAssignOpen, lmPickRegion:lmPickRegion, lmAssignSave:lmAssignSave,
-    lmReturn:lmReturn, lmSearch:lmSearch, lmSetF:lmSetF,
+    lmReturn:lmReturn, lmRequeue:lmRequeue, lmSearch:lmSearch, lmSetF:lmSetF,
     leadSub:leadSub, leadNav:leadNav, leadSet:leadSet, leadReset:leadReset, leadOpen:leadOpen,
     leadQuickAdd:leadQuickAdd, leadSubmitQuickAdd:leadSubmitQuickAdd, leadEnrich:leadEnrich,
     leadQualifyOpen:leadQualifyOpen, leadGate:leadGate, leadQualifySave:leadQualifySave,
