@@ -2378,10 +2378,17 @@ window.CRM = (function(){
     var k='<div class="kpi"><span class="sk" style="width:45%;height:9px"></span><span class="sk" style="width:58%;height:24px;margin-top:11px"></span></div>';
     return '<div class="kpi-grid" style="margin-bottom:12px">'+k+k+k+k+'</div><div class="card"><span class="sk" style="width:100%;height:220px;display:block"></span></div>';
   }
+  /* Single source of truth for lead state — a lead is exactly one of returned / assigned / qualified / captured.
+     Derived from (disposition, assignedTo, stage) so badge, KPIs and action gates never disagree
+     (e.g. a re-queued lead has disposition=null but stage>=1 → still Qualified and assignable). */
+  function lmIsReturned(l){ return l.disposition==='returned'; }
+  function lmIsAssigned(l){ return !!l.assignedTo && !lmIsReturned(l); }
+  function lmIsQualified(l){ return !lmIsReturned(l) && !lmIsAssigned(l) && (l.disposition==='qualified'||l.stage>=1); }
+  function lmIsCaptured(l){ return !lmIsReturned(l) && !lmIsAssigned(l) && !lmIsQualified(l); }
   function lmStageBadge(l){
-    if(l.disposition==='returned') return bdg('badge-fail','Returned');
-    if(l.assignedTo) return bdg('badge-pass','Assigned');
-    if(l.disposition==='qualified'||l.stage>=1) return bdg('badge-warn','Qualified');
+    if(lmIsReturned(l)) return bdg('badge-fail','Returned');
+    if(lmIsAssigned(l)) return bdg('badge-pass','Assigned');
+    if(lmIsQualified(l)) return bdg('badge-warn','Qualified');
     return bdg('badge-hold','Captured');
   }
   function lmMissing(l){ var m=[]; if(!l.contact) m.push('contact'); if(!l.role) m.push('role'); if(!l.band) m.push('volume'); if(!l.port) m.push('port'); return m.length?m.join(' · '):'—'; }
@@ -2415,9 +2422,9 @@ window.CRM = (function(){
       +(l.notes?row('Notes',esc(l.notes).replace(/\n/g,'<br>')):'');
     var acts=[];
     acts.push('<button class="btn btn-secondary" onclick="CRM.lmEnrichOpen(\''+l.id+'\')">Enrich</button>');
-    if(l.disposition!=='returned' && !(l.disposition==='qualified'||l.stage>=1)) acts.push('<button class="btn btn-primary" onclick="CRM.lmQualify(\''+l.id+'\')">Qualify</button>');
-    if(l.disposition==='qualified' && !l.assignedTo) acts.push('<button class="btn btn-primary" onclick="CRM.lmAssignOpen(\''+l.id+'\')">Assign to region…</button>');
-    if(l.disposition!=='returned') acts.push('<button class="btn btn-secondary" onclick="CRM.lmReturnOpen(\''+l.id+'\')">Return to marketing</button>');
+    if(lmIsCaptured(l)) acts.push('<button class="btn btn-primary" onclick="CRM.lmQualify(\''+l.id+'\')">Qualify</button>');
+    if(lmIsQualified(l)) acts.push('<button class="btn btn-primary" onclick="CRM.lmAssignOpen(\''+l.id+'\')">Assign to region…</button>');
+    if(!lmIsReturned(l)) acts.push('<button class="btn btn-secondary" onclick="CRM.lmReturnOpen(\''+l.id+'\')">Return to marketing</button>');
     body+='<div class="l-formact">'+acts.join('')+'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Close</button></div></div>';
     showDlv('Lead',body);
   }
@@ -2495,10 +2502,10 @@ window.CRM = (function(){
 
   function paneWorkspace(){
     if(!LM.loaded){ lmEnsure(); return lmSkel(); }
-    var all=LM.rows.filter(function(l){return l.disposition!=='returned';});
-    var enrN=LM.rows.filter(function(l){return l.stage===0&&l.disposition!=='returned';}).length;
-    var qualN=LM.rows.filter(function(l){return l.disposition==='qualified';}).length;
-    var asgN=LM.rows.filter(function(l){return l.assignedTo && l.disposition!=='returned';}).length;
+    var all=LM.rows.filter(function(l){return !lmIsReturned(l);});
+    var enrN=LM.rows.filter(lmIsCaptured).length;
+    var qualN=LM.rows.filter(lmIsQualified).length;
+    var asgN=LM.rows.filter(lmIsAssigned).length;
     var kpis=
       kcard('Leads captured',String(LM.rows.length),'all capture sources')+
       kcard('In enrichment',String(enrN),'stage 0 · needs fields')+
@@ -2565,7 +2572,7 @@ window.CRM = (function(){
 
   function paneEnrichment(){
     if(!LM.loaded){ lmEnsure(); return lmSkel(); }
-    var list=LM.rows.filter(function(l){return l.stage===0&&l.disposition!=='returned';});
+    var list=LM.rows.filter(lmIsCaptured);
     var rows=list.map(function(l){
       return '<tr onclick="CRM.lmOpen(\''+l.id+'\')"><td><span class="lot">'+esc(l.ref)+'</span></td><td>'+esc(l.company)+'</td><td>'+esc(l.country)+'</td>'
         +'<td>'+bdg('badge-n',lmSourceLabel(l.source))+'</td>'
