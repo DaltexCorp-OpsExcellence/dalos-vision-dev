@@ -2354,6 +2354,7 @@ window.CRM = (function(){
       product:(r.product_interest&&r.product_interest.length?r.product_interest.join(', '):'—'), products:r.product_interest||[],
       source:r.source||'', status:r.status||'', stage:r.stage||0, disposition:r.disposition||null,
       assignedRegion:r.assigned_region||'', assignedTo:r.assigned_to||null, assignedAt:r.assigned_at||null,
+      returnReason:r.return_reason||'', returnedAt:r.returned_at||null, returnedBy:r.returned_by||null,
       contact:r.contact_name||'', role:r.contact_role||'', email:r.email||'', phone:r.phone||'',
       port:r.destination_port||'', band:r.expected_volume_band||'', season:r.season_window||'', notes:r.notes||'',
       website:r.website||'', campaign:r.campaign_name||'', campaignId:r.campaign_id||null,
@@ -2401,6 +2402,7 @@ window.CRM = (function(){
     var body='<div class="l-form"><div class="l-qhdr">'+esc(l.company)+'</div>'
       +row('Lead','<span class="lot">'+esc(l.ref)+'</span>')
       +row('Stage',lmStageBadge(l))
+      +(l.disposition==='returned'?row('Returned',esc(l.returnReason||'—')+(l.returnedAt?' · '+esc(lmDate(l.returnedAt)):'')):'')
       +row('Country · region',esc(l.country)+' · '+(l.assignedRegion?esc(l.assignedRegion):'<span class="cell-sub">unassigned</span>'))
       +row('Product',esc(l.product))
       +row('Volume band',esc(l.band||'—'))
@@ -2415,7 +2417,7 @@ window.CRM = (function(){
     acts.push('<button class="btn btn-secondary" onclick="CRM.lmEnrichOpen(\''+l.id+'\')">Enrich</button>');
     if(l.disposition!=='returned' && !(l.disposition==='qualified'||l.stage>=1)) acts.push('<button class="btn btn-primary" onclick="CRM.lmQualify(\''+l.id+'\')">Qualify</button>');
     if(l.disposition==='qualified' && !l.assignedTo) acts.push('<button class="btn btn-primary" onclick="CRM.lmAssignOpen(\''+l.id+'\')">Assign to region…</button>');
-    if(l.disposition!=='returned') acts.push('<button class="btn btn-secondary" onclick="CRM.lmReturn(\''+l.id+'\')">Return to marketing</button>');
+    if(l.disposition!=='returned') acts.push('<button class="btn btn-secondary" onclick="CRM.lmReturnOpen(\''+l.id+'\')">Return to marketing</button>');
     body+='<div class="l-formact">'+acts.join('')+'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Close</button></div></div>';
     showDlv('Lead',body);
   }
@@ -2452,11 +2454,30 @@ window.CRM = (function(){
     if(!lmAsg||!lmAsg.region){ toast('Pick a region first.'); return; }
     lmUpdate(lmAsg.id,{ assigned_region:lmAsg.region, assigned_to:(USER&&USER.id)||null, assigned_at:new Date().toISOString(), stage:2 },'Assigned to '+esc(lmAsg.region)+' · added to your pipeline.');
   }
-  /* Return to marketing: mark returned AND drop rep ownership so it leaves the pipeline.
-     assigned_region is kept as context for the Returned-by-sales list. */
-  function lmReturn(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ disposition:'returned', assigned_to:null, assigned_at:null },'<b>'+esc(l.company)+'</b> returned to marketing.'); }
-  /* Re-queue a returned lead back into the Workspace, clean and unassigned. */
-  function lmRequeue(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ disposition:null, assigned_region:null },'<b>'+esc(l.company)+'</b> re-queued to the Workspace.'); }
+  /* Return to marketing — captures a reason (why), who, and when. Drops rep ownership so the
+     lead leaves the pipeline; keeps assigned_region as context for the Returned-by-sales list.
+     Reasons mirror the mockup's Class A/B vocabulary; the A/B/No-response CLASSIFICATION is Phase 2. */
+  var LM_RETURN_REASONS=['No capacity','Price / terms too low','Credit risk','Already sourced elsewhere','Not a genuine importer','Product / season mismatch','Volume overstated','Certification gap','Other'];
+  var lmRet=null;
+  function lmReturnOpen(id){
+    var l=lmById(id); if(!l) return; lmRet={id:id,reason:null};
+    var chips=LM_RETURN_REASONS.map(function(r){ return '<button type="button" class="capchip" data-r="'+esc(r)+'" onclick="CRM.lmReturnPick(this)">'+esc(r)+'</button>'; }).join('');
+    var body='<div class="l-form"><div class="l-formnote">Why is this going back to marketing? The reason shows in <b>Returned by sales</b>. The A / B / No-response classification arrives with the Phase-2 rules.</div>'
+      +'<div class="l-qhdr">'+esc(l.company)+' → return to marketing</div>'
+      +'<label class="form-label" style="margin-top:8px">Reason</label><div style="display:flex;flex-wrap:wrap;gap:6px">'+chips+'</div>'
+      +'<label class="form-label" style="margin-top:10px">Note (optional)</label><textarea class="form-input" id="lm_ret_note" rows="2" placeholder="Anything marketing should know…"></textarea>'
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.lmReturnSave()">Return to marketing</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+    showDlv('Return to marketing',body);
+  }
+  function lmReturnPick(btn){ if(!lmRet) return; lmRet.reason=btn.getAttribute('data-r'); var cs=btn.parentNode.querySelectorAll('.capchip'); for(var i=0;i<cs.length;i++) cs[i].classList.remove('on'); btn.classList.add('on'); }
+  function lmReturnSave(){
+    if(!lmRet) return; var note=lmVal('lm_ret_note'); var reason=lmRet.reason||'';
+    if(reason==='Other') reason=note||'Other'; else if(note) reason=(reason?reason+' — '+note:note);
+    if(!reason){ toast('Pick a reason first.'); return; }
+    lmUpdate(lmRet.id,{ disposition:'returned', return_reason:reason, returned_at:new Date().toISOString(), returned_by:(USER&&USER.id)||null, assigned_to:null, assigned_at:null },'Returned to marketing.');
+  }
+  /* Re-queue a returned lead back into the Workspace, clean and unassigned (clears the return record). */
+  function lmRequeue(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ disposition:null, assigned_region:null, return_reason:null, returned_at:null, returned_by:null },'<b>'+esc(l.company)+'</b> re-queued to the Workspace.'); }
   function lmSearch(v){ LM.q=v; clearTimeout(lmSearch._t); lmSearch._t=setTimeout(function(){ render(); var el=$('lm_q'); if(el){ el.focus(); el.value=LM.q; try{ el.selectionStart=el.selectionEnd=el.value.length; }catch(e){} } },160); }
   function lmSetF(k,v){ LM.f[k]=v; render(); }
 
@@ -2567,18 +2588,19 @@ window.CRM = (function(){
     var rows=list.map(function(l){
       return '<tr onclick="CRM.lmOpen(\''+l.id+'\')">'
         +'<td><span class="lot">'+esc(l.ref)+'</span></td>'
-        +'<td>'+esc(l.company)+'</td><td>'+esc(l.country)+'</td>'
+        +'<td>'+esc(l.company)+'</td>'
         +'<td>'+(l.assignedRegion?bdg('badge-n',l.assignedRegion):bdg('badge-warn','unassigned'))+'</td>'
         +'<td>'+esc(l.product)+'</td>'
         +'<td>'+bdg('badge-n',lmSourceLabel(l.source))+'</td>'
-        +'<td class="mono">'+esc(l.age)+'</td>'
+        +'<td>'+(l.returnReason?esc(l.returnReason):'<span class="cell-sub">—</span>')+'</td>'
+        +'<td class="mono">'+esc(l.returnedAt?lmDate(l.returnedAt):'—')+'</td>'
         +'<td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRequeue(\''+l.id+'\')">Re-queue</button></td></tr>';
     }).join('');
     if(!list.length) rows='<tr><td colspan="8" class="cell-sub" style="padding:16px;text-align:center">No leads have been returned to marketing.</td></tr>';
     return '<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Returned by sales · '+list.length+' lead(s)'
       +' <span style="margin-left:auto"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRefresh(this)">↻ Refresh</button></span></div>'
       +'<div class="alert-warn" style="margin-bottom:11px">Leads a rep sent back to marketing. <strong>Re-queue</strong> puts one back in the Workspace for re-triage. Reason codes and the A / B / No-response classification arrive with the Phase-2 returned-lead rules.</div>'
-      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Country</th><th>Region</th><th>Product</th><th>Source</th><th>Age</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Region</th><th>Product</th><th>Source</th><th>Reason</th><th>Returned</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }
   function fnRow(label,pct,val,pctTxt,fillColor){
     return '<div class="fn-row"><div class="fn-l">'+esc(label)+'</div><div class="fn-track"><div class="fn-fill" style="width:'+pct+'%'+(fillColor?';background:'+fillColor:'')+'">'+esc(val)+'</div></div><div class="fn-pct">'+esc(pctTxt)+'</div></div>';
@@ -3289,7 +3311,7 @@ window.CRM = (function(){
     rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy, rrToggleEngine:rrToggleEngine,
     lmRefresh:lmRefresh, lmOpen:lmOpen, lmEnrichOpen:lmEnrichOpen, lmEnrichSave:lmEnrichSave,
     lmQualify:lmQualify, lmAssignOpen:lmAssignOpen, lmPickRegion:lmPickRegion, lmAssignSave:lmAssignSave,
-    lmReturn:lmReturn, lmRequeue:lmRequeue, lmSearch:lmSearch, lmSetF:lmSetF,
+    lmReturnOpen:lmReturnOpen, lmReturnPick:lmReturnPick, lmReturnSave:lmReturnSave, lmRequeue:lmRequeue, lmSearch:lmSearch, lmSetF:lmSetF,
     leadSub:leadSub, leadNav:leadNav, leadSet:leadSet, leadReset:leadReset, leadOpen:leadOpen,
     leadQuickAdd:leadQuickAdd, leadSubmitQuickAdd:leadSubmitQuickAdd, leadEnrich:leadEnrich,
     leadQualifyOpen:leadQualifyOpen, leadGate:leadGate, leadQualifySave:leadQualifySave,
