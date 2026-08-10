@@ -17110,24 +17110,30 @@ function App(){
     /* Mount the CRM island straight away — post-login routing may have sent us to home,
        and CRMView (and thus window.CRM) only exists while view==='crm'. */
     setView('crm'); setCrmNavOpen(true); setLeadsNavOpen(true); setCrmTab('leads'); setCrmLeadKey('cap');
+    /* window.CRM is a module global that exists as soon as crm.js loads — long before the
+       island is MOUNTED. Calling leadNav too early is a silent no-op, and the island then
+       renders its default (dashboard) tab. So re-assert leadNav every tick until Show Mode is
+       actually on screen (#cap_head appears), rather than trusting that the method exists. */
     var tries=0;
     var iv=setInterval(function(){
       tries++;
-      if(window.CRM&&window.CRM.leadNav){
+      try{ if(window.CRM&&window.CRM.leadNav) window.CRM.leadNav('leads','cap'); }catch(e){}
+      setCrmTab('leads'); setCrmLeadKey('cap');
+      if(document.getElementById('cap_head')){
         it.done=true; try{sessionStorage.removeItem('dalos_cap_intent');}catch(e){}
         clearInterval(iv);
-        setCrmTab('leads'); setCrmLeadKey('cap');
-        window.CRM.leadNav('leads','cap');
+        /* survive a late default-tab render from the island's own init */
+        setTimeout(function(){ try{ if(!document.getElementById('cap_head')) window.CRM.leadNav('leads','cap'); }catch(e){} },250);
         if(it.token){
           try{ supabase.from('crm_campaigns').select('id,name').eq('public_token',it.token).maybeSingle().then(function(res){
             if(res&&res.data){
-              if(window.CRM.capSetCampaign) setTimeout(function(){ try{window.CRM.capSetCampaign(res.data.id);}catch(e){} },500);
+              if(window.CRM.capSetCampaign) setTimeout(function(){ try{window.CRM.capSetCampaign(res.data.id);}catch(e){} },600);
               document.title=res.data.name+' — DalOS Capture';
               var at=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(at) at.setAttribute('content',res.data.name);
             }
           }); }catch(e){}
         }
-      } else if(tries>100){ clearInterval(iv); }
+      } else if(tries>120){ clearInterval(iv); }
     },120);
     return function(){ clearInterval(iv); };
   },[liveCurrentUser]);
