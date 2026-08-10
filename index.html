@@ -17107,13 +17107,16 @@ function App(){
     var it=window.__capIntent;
     if(!it){ try{ var s=sessionStorage.getItem('dalos_cap_intent'); if(s){ it=JSON.parse(s); window.__capIntent=it; } }catch(e){} }
     if(!it||it.done) return;
+    /* Mount the CRM island straight away — post-login routing may have sent us to home,
+       and CRMView (and thus window.CRM) only exists while view==='crm'. */
+    setView('crm'); setCrmNavOpen(true); setLeadsNavOpen(true); setCrmTab('leads'); setCrmLeadKey('cap');
     var tries=0;
     var iv=setInterval(function(){
       tries++;
       if(window.CRM&&window.CRM.leadNav){
         it.done=true; try{sessionStorage.removeItem('dalos_cap_intent');}catch(e){}
         clearInterval(iv);
-        setView('crm'); setCrmNavOpen(true); setLeadsNavOpen(true); setCrmTab('leads'); setCrmLeadKey('cap');
+        setCrmTab('leads'); setCrmLeadKey('cap');
         window.CRM.leadNav('leads','cap');
         if(it.token){
           try{ supabase.from('crm_campaigns').select('id,name').eq('public_token',it.token).maybeSingle().then(function(res){
@@ -17124,7 +17127,7 @@ function App(){
             }
           }); }catch(e){}
         }
-      } else if(tries>50){ clearInterval(iv); }
+      } else if(tries>100){ clearInterval(iv); }
     },120);
     return function(){ clearInterval(iv); };
   },[liveCurrentUser]);
@@ -17137,6 +17140,9 @@ function App(){
     /* Load config from DB now that we have an authenticated session */
     loadConfigFromDB();
     if(u.packhouses&&u.packhouses.length===1&&u.packhouses[0]!=='All') setPhId(u.packhouses[0]);
+    /* #capture deep link: go to CRM (the capture effect opens Show Mode) instead of the perms default */
+    var capIt=window.__capIntent; if(!capIt){ try{ capIt=JSON.parse(sessionStorage.getItem('dalos_cap_intent')||'null'); }catch(e){} }
+    if(capIt&&!capIt.done){ setView('crm'); return; }
     var r=ROLES[u.role]||ROLES.inspector;
     var p=r.perms;
     if(p.viewEscalation&&!p.viewFG) setView('escalation');
