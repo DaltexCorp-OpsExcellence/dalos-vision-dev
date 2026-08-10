@@ -2529,7 +2529,10 @@ window.CRM = (function(){
   function lmRequeueSave(){
     if(!lmRq) return; var l=lmById(lmRq.id); var note=lmVal('lm_rq_note');
     var thread=(l&&l.thread?l.thread.slice():[]); thread.push(lmThreadEntry('requeue',note));
-    lmUpdate(lmRq.id,{ disposition:null, assigned_region:null, handoff_log:thread },'<b>'+esc(l?l.company:'Lead')+'</b> re-queued to the Workspace.');
+    /* Land it cleanly back in the Workspace: unowned, region cleared, and dropped from the Assigned
+       stage back to Qualified (stage 2 -> 1) so state stays coherent. Keeps return_* as history. */
+    var st=(l&&l.stage>=2)?1:((l&&l.stage)||0);
+    lmUpdate(lmRq.id,{ disposition:null, assigned_region:null, assigned_to:null, assigned_at:null, stage:st, handoff_log:thread },'<b>'+esc(l?l.company:'Lead')+'</b> re-queued to the Workspace.');
   }
   function lmSearch(v){ LM.q=v; clearTimeout(lmSearch._t); lmSearch._t=setTimeout(function(){ render(); var el=$('lm_q'); if(el){ el.focus(); el.value=LM.q; try{ el.selectionStart=el.selectionEnd=el.value.length; }catch(e){} } },160); }
   function lmSetF(k,v){ LM.f[k]=v; render(); }
