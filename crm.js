@@ -2675,11 +2675,12 @@ window.CRM = (function(){
   }
 
   /* ═══════════════════ SHOW MODE — real capture (offline-safe, writes crm_leads) ═══════════════════ */
-  var CAP={campaigns:[],campaignId:null,items:[],loaded:false,syncing:false,online:(typeof navigator!=='undefined'?navigator.onLine:true),_timer:null,chips:{},exporter:'',importer:'',bullets:false,moreOpen:false};
+  var CAP={campaigns:[],campaignId:null,items:[],loaded:false,syncing:false,online:(typeof navigator!=='undefined'?navigator.onLine:true),_timer:null,chips:{},exporter:'',importer:'',bullets:false,moreOpen:false,followups:{},notesOverlay:false};
   var CAP_PRODUCTS=['Potatoes','Citrus','Grapes','Onions','Spring Onions','Pomegranate','Field Crops','Mango','Carrots','Sweet Potato','Pumpkin','Peanuts','Other'];
   var CAP_EXP=['Grower','Trader','Association','Other'];
   var CAP_IMP=['Agent','Retailer','Wholesaler','Other'];
-  var CAP_TAGS=['🔥 Hot lead','Wants samples','Price-sensitive','Big volume','Follow up after show','Decision maker','Just browsing','Send catalogue'];
+  var CAP_TAGS=['🔥 Hot lead','Price-sensitive','Big volume','Decision maker','Just browsing'];
+  var CAP_FOLLOWUPS=[['send_samples','Send samples'],['send_offer','Send price offer'],['send_catalogue','Send catalogue'],['schedule_call','Schedule call'],['followup_show','Follow up after show'],['mailing_list','Add to mailing list']];
 
   function capUuid(){ try{ return crypto.randomUUID(); }catch(e){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}); } }
   function capDB(){ return new Promise(function(res,rej){ var r=indexedDB.open('dalos_capture',1); r.onupgradeneeded=function(e){ var db=e.target.result; if(!db.objectStoreNames.contains('queue')) db.createObjectStore('queue',{keyPath:'client_uuid'}); }; r.onsuccess=function(){res(r.result);}; r.onerror=function(){rej(r.error);}; }); }
@@ -2837,6 +2838,8 @@ window.CRM = (function(){
     var pi=capField('products_industries'); if(pi) extra.products_industries=pi;
     var tc=capField('trade_countries'); if(tc) extra.trade_countries=tc;
     var aq=capField('annual_quantity'); if(aq) extra.annual_quantity=aq;
+    var fu=CAP_FOLLOWUPS.filter(function(o){ return CAP.followups[o[0]]; }).map(function(o){ return o[0]; });
+    if(fu.length) extra.follow_ups=fu;
     var rec={ client_uuid:capUuid(), campaign_id:CAP.campaignId, source:(capSource||'manual'), status:'captured',
       company_name:company, contact_name:capField('contact')||null, contact_role:capField('role')||null,
       email:capField('email')||null, phone:capField('phone')||null, website:capField('website')||null,
@@ -2846,8 +2849,8 @@ window.CRM = (function(){
     if(Object.keys(extra).length) rec.raw_payload=extra;
     capPut(rec).then(function(){ CAP.items.unshift(rec); toast('Captured <b>'+esc(company)+'</b> — '+(CAP.online?'syncing…':'queued offline')); capClear(); capSync(); capRenderList(); capRenderHead(); var c=$('cap_company'); if(c) c.focus(); }).catch(function(){ toast('Could not save capture on the device.'); });
   }
-  function capClear(){ capSource='manual'; CAP.chips={}; CAP.exporter=''; CAP.importer='';
-    ['company','contact','role','email','phone','website','country','address','products_industries','trade_countries','annual_quantity','products_other','notes'].forEach(function(id){ var el=$('cap_'+id); if(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; } });
+  function capClear(){ capSource='manual'; CAP.chips={}; CAP.exporter=''; CAP.importer=''; CAP.followups={};
+    ['company','contact','role','email','phone','website','country','address','products_industries','trade_countries','annual_quantity','products_other','notes','notes_big'].forEach(function(id){ var el=$('cap_'+id); if(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; } });
     var pane=$('viewContent'); if(pane){ var ch=pane.querySelectorAll('.capchip.on'); for(var i=0;i<ch.length;i++) ch[i].classList.remove('on'); }
     var o=$('cap_products_other'); if(o) o.style.display='none'; }
   function capSetCampaign(id){ CAP.campaignId=id; capRenderHead(); }
@@ -2894,9 +2897,27 @@ window.CRM = (function(){
   function capTypeChipsHtml(kind){ var arr=kind==='exp'?CAP_EXP:CAP_IMP, cur=kind==='exp'?CAP.exporter:CAP.importer; return arr.map(function(v){ return '<button type="button" class="capchip sm'+(cur===v?' on':'')+'" data-k="'+kind+'" data-v="'+esc(v)+'" onclick="CRM.capType(this)">'+esc(v)+'</button>'; }).join(''); }
   function capType(btn){ var k=btn.getAttribute('data-k'), v=btn.getAttribute('data-v'); var now; if(k==='exp'){ CAP.exporter=(CAP.exporter===v?'':v); now=CAP.exporter; } else { CAP.importer=(CAP.importer===v?'':v); now=CAP.importer; } var wrap=btn.parentNode; if(wrap){ var cs=wrap.querySelectorAll('.capchip'); for(var i=0;i<cs.length;i++) cs[i].classList.remove('on'); } if(now===v) btn.classList.add('on'); }
   function capTagsHtml(){ return CAP_TAGS.map(function(t){ return '<button type="button" class="captag" data-tag="'+esc(t)+'" onclick="CRM.capQuickTag(this)">'+esc(t)+'</button>'; }).join(''); }
-  function capQuickTag(btn){ var t=btn.getAttribute('data-tag'); var ta=$('cap_notes'); if(!ta) return; var v=ta.value.replace(/\s+$/,''); ta.value=(v?v+'\n':'')+'• '+t+'\n'; ta.focus(); ta.selectionStart=ta.selectionEnd=ta.value.length; }
-  function capBulletsToggle(el){ CAP.bullets=!CAP.bullets; if(el) el.classList.toggle('on',CAP.bullets); var ta=$('cap_notes'); if(ta){ if(CAP.bullets && !ta.value.trim()){ ta.value='• '; } ta.focus(); ta.selectionStart=ta.selectionEnd=ta.value.length; } }
-  function capNotesKey(e){ if(CAP.bullets && e.key==='Enter' && !e.shiftKey){ e.preventDefault(); var ta=e.target, p=ta.selectionStart, val=ta.value; ta.value=val.slice(0,p)+'\n• '+val.slice(p); var np=p+3; ta.selectionStart=ta.selectionEnd=np; } }
+  function capFollowupsHtml(){ return CAP_FOLLOWUPS.map(function(o){ return '<button type="button" class="capchip'+(CAP.followups[o[0]]?' on':'')+'" data-fu="'+o[0]+'" onclick="CRM.capToggleFollowup(this)">'+esc(o[1])+'</button>'; }).join(''); }
+  function capToggleFollowup(btn){ var k=btn.getAttribute('data-fu'); CAP.followups[k]=!CAP.followups[k]; btn.classList.toggle('on',!!CAP.followups[k]); }
+  /* notes: an inline field + a full-screen pad share one value (mirrored both ways) */
+  function capActiveNotes(){ return $(CAP.notesOverlay?'cap_notes_big':'cap_notes'); }
+  function capNotesMirror(from){ var a=$('cap_notes'),b=$('cap_notes_big'); if(!a||!b) return; if(from==='big') a.value=b.value; else b.value=a.value; }
+  function capActiveMirror(){ capNotesMirror(CAP.notesOverlay?'big':'inline'); }
+  function capQuickTag(btn){ var t=btn.getAttribute('data-tag'); var ta=capActiveNotes(); if(!ta) return; var v=ta.value.replace(/\s+$/,''); ta.value=(v?v+'\n':'')+'• '+t+'\n'; ta.focus(); ta.selectionStart=ta.selectionEnd=ta.value.length; capActiveMirror(); }
+  function capBulletsToggle(){ CAP.bullets=!CAP.bullets; ['cap_bt','cap_bt_big'].forEach(function(id){ var el=$(id); if(el){ if(CAP.bullets) el.setAttribute('data-on','1'); else el.removeAttribute('data-on'); el.classList.toggle('on',CAP.bullets); } }); var ta=capActiveNotes(); if(ta){ if(CAP.bullets && !ta.value.trim()){ ta.value='• '; capActiveMirror(); } ta.focus(); ta.selectionStart=ta.selectionEnd=ta.value.length; } }
+  function capNotesKey(e){ if(CAP.bullets && e.key==='Enter' && !e.shiftKey){ e.preventDefault(); var ta=e.target, p=ta.selectionStart, val=ta.value; ta.value=val.slice(0,p)+'\n• '+val.slice(p); var np=p+3; ta.selectionStart=ta.selectionEnd=np; capActiveMirror(); } }
+  function capNotesExpand(){ var a=$('cap_notes'),b=$('cap_notes_big'); if(a&&b) b.value=a.value; CAP.notesOverlay=true; var ov=$('capNotesOv'); if(ov) ov.classList.add('open'); if(b){ b.focus(); b.selectionStart=b.selectionEnd=b.value.length; } }
+  function capNotesClose(){ var a=$('cap_notes'),b=$('cap_notes_big'); if(a&&b) a.value=b.value; CAP.notesOverlay=false; var ov=$('capNotesOv'); if(ov) ov.classList.remove('open'); }
+  function capNotesOverlay(){
+    return '<div class="cap-notes-ov" id="capNotesOv"><div class="cap-notes-ovcard">'
+      +'<div class="cap-notes-ovhead"><span class="cap-notes-ovt">Notes from the stand</span>'
+      +'<button type="button" class="cap-bt" id="cap_bt_big"'+(CAP.bullets?' data-on="1"':'')+' onclick="CRM.capBulletsToggle()">• Bullets</button>'
+      +'<button type="button" class="btn btn-primary btn-sm" style="margin-left:auto" onclick="CRM.capNotesClose()">Done</button></div>'
+      +'<div class="capchips" style="margin:8px 0">'+capTagsHtml()+'</div>'
+      +'<textarea class="form-input cap-notes-bigta" id="cap_notes_big" placeholder="Write freely while you talk — tap the chips or the keyboard mic…" oninput="CRM.capNotesMirror(\'big\')" onkeydown="CRM.capNotesKey(event)"></textarea>'
+      +'<div class="hint" style="margin-top:6px">Tap <b>Done</b> to return to the form. Your notes are saved with the lead.</div>'
+      +'</div></div>';
+  }
   function capMore(){ CAP.moreOpen=!CAP.moreOpen; var s=$('cap_more'); if(s) s.style.display=CAP.moreOpen?'block':'none'; var b=$('cap_morebtn'); if(b) b.innerHTML=(CAP.moreOpen?'▴ Fewer details':'▾ More details')+' <span class="cell-sub" style="text-transform:none;letter-spacing:0">type · industries · trade countries · quantity · address</span>'; }
   function capMoreOpen(){ if(!CAP.moreOpen) capMore(); }
   function paneCapture(){
@@ -2912,11 +2933,6 @@ window.CRM = (function(){
       +'<div class="grid2">'+capFld('email','Email','name@company.com','email')+capFld('phone','Phone','','tel')+'</div>'
       +'<div class="fg"><label class="form-label">Products of interest</label><div class="capchips" id="cap_prodchips">'+capProdChipsHtml()+'</div>'
         +'<input class="form-input" id="cap_products_other" autocomplete="off" placeholder="Other — which products?" style="display:none;margin-top:6px"/></div>'
-      +'<div class="fg"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label class="form-label" style="margin:0">Notes from the stand <span style="color:var(--red)">· most valuable, shortest-lived</span></label>'
-        +'<button type="button" class="cap-bt" id="cap_bt"'+(CAP.bullets?' data-on="1"':'')+' onclick="CRM.capBulletsToggle(this)">• Bullets</button></div>'
-        +'<div class="capchips" style="margin:6px 0">'+capTagsHtml()+'</div>'
-        +'<textarea class="form-input" id="cap_notes" rows="4" placeholder="Tap a chip above or type — buys 40 cont. from Peru, wants wk 8–14…" onkeydown="CRM.capNotesKey(event)"></textarea>'
-        +'<div class="hint" style="margin-top:4px">Tip: hit the mic on your phone keyboard to dictate while you talk.</div></div>'
       +'<button type="button" class="cap-more-btn" id="cap_morebtn" onclick="CRM.capMore()">▾ More details <span class="cell-sub" style="text-transform:none;letter-spacing:0">type · industries · trade countries · quantity · address</span></button>'
       +'<div id="cap_more" style="display:none">'
         +'<div class="grid2"><div class="fg"><label class="form-label">Exporter type</label><div class="capchips" id="cap_exp">'+capTypeChipsHtml('exp')+'</div></div>'
@@ -2928,6 +2944,13 @@ window.CRM = (function(){
         +'<div class="fg"><label class="form-label">Countries of export / import</label><input class="form-input" id="cap_trade_countries" autocomplete="off" placeholder="e.g. UK, Germany, UAE"/></div>'
         +'<div class="fg"><label class="form-label">Address</label><input class="form-input" id="cap_address" autocomplete="off" placeholder="street, city, country"/></div>'
       +'</div>'
+      +'<div class="fg"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label class="form-label" style="margin:0">Notes from the stand <span style="color:var(--red)">· most valuable, shortest-lived</span></label>'
+        +'<button type="button" class="cap-bt" id="cap_bt"'+(CAP.bullets?' data-on="1"':'')+' onclick="CRM.capBulletsToggle()">• Bullets</button>'
+        +'<button type="button" class="cap-bt" style="margin-left:auto" onclick="CRM.capNotesExpand()">⤢ Expand</button></div>'
+        +'<div class="capchips" style="margin:6px 0">'+capTagsHtml()+'</div>'
+        +'<textarea class="form-input" id="cap_notes" rows="4" placeholder="Tap a chip above or type — buys 40 cont. from Peru, wants wk 8–14…" oninput="CRM.capNotesMirror(\'inline\')" onkeydown="CRM.capNotesKey(event)"></textarea>'
+        +'<div class="hint" style="margin-top:4px">Tip: tap <b>⤢ Expand</b> for a full-screen pad, or use your phone keyboard mic to dictate while you talk.</div></div>'
+      +'<div class="fg"><label class="form-label">Follow-up actions <span class="cell-sub" style="text-transform:none;letter-spacing:0">what we owe this lead</span></label><div class="capchips" id="cap_followups">'+capFollowupsHtml()+'</div></div>'
       +'<div class="gset"><button class="btn btn-primary" onclick="CRM.capSave()">Save &amp; capture next</button><button class="btn btn-secondary" onclick="CRM.capClear()">Clear</button></div>'
       +'<div class="hint" style="margin-top:8px">Scan a digital card’s QR, snap a paper card (OCR), or type it — then <b>Save</b>. Everything saves on the device instantly and syncs when online, so dead stand wifi never loses a card.</div>'
       +'</div>';
@@ -2935,7 +2958,7 @@ window.CRM = (function(){
       +'<div class="section-title"><span class="section-title-bar"></span> Captured this session <span class="link-btn" style="margin-left:auto" onclick="CRM.capExport()">Export CSV ↓</span></div>'
       +'<div id="cap_list">'+capListHtml()+'</div></div>';
     var datalist='<datalist id="cap_countries">'+['United Kingdom','Germany','Netherlands','France','Belgium','Spain','Italy','Poland','UAE','Saudi Arabia','Qatar','Kuwait','Russia','Turkey','China','India'].map(function(c){return '<option value="'+esc(c)+'"></option>';}).join('')+'</datalist>';
-    return '<div class="grid2" style="align-items:start">'+form+list+'</div>'+datalist+capScanOverlay();
+    return '<div class="grid2" style="align-items:start">'+form+list+'</div>'+datalist+capScanOverlay()+capNotesOverlay();
   }
 
   /* ═══════════════════ INBOX destination ═══════════════════ */
@@ -3400,6 +3423,7 @@ window.CRM = (function(){
     capSave:capSave, capClear:capClear, capSetCampaign:capSetCampaign, capExport:capExport,
     capScan:capScan, capScanCancel:capScanStop, capOcrPick:capOcrPick,
     capToggleProd:capToggleProd, capType:capType, capQuickTag:capQuickTag, capBulletsToggle:capBulletsToggle, capNotesKey:capNotesKey, capMore:capMore,
+    capToggleFollowup:capToggleFollowup, capNotesExpand:capNotesExpand, capNotesClose:capNotesClose, capNotesMirror:capNotesMirror,
     campNew:campNew, campSave:campSave, campToggle:campToggle, campCopy:campCopy, campQr:campQr,
     campQrDownload:campQrDownload, campLogoPick:campLogoPick, campLogoClear:campLogoClear, campRefresh:campRefresh
   };
@@ -4054,6 +4078,18 @@ function injectCrmCss(){
 .crmv .cap-bt[data-on="1"]{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
 .crmv .cap-more-btn{width:100%;text-align:left;display:flex;align-items:center;gap:8px;padding:11px 13px;margin:2px 0 10px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg2);font-family:var(--font-body);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer}
 .crmv .cap-more-btn:hover{border-color:var(--accent)}
+/* full-screen notes pad (Show Mode) */
+.crmv .cap-notes-ov{position:fixed;inset:0;z-index:1200;background:rgba(20,30,25,.5);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;padding:16px}
+.crmv .cap-notes-ov.open{display:flex}
+.crmv .cap-notes-ovcard{background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);width:100%;max-width:640px;max-height:92vh;display:flex;flex-direction:column;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.crmv .cap-notes-ovhead{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.crmv .cap-notes-ovt{font-family:var(--font-serif,var(--font-body));font-size:16px;font-weight:600;color:var(--text)}
+.crmv .cap-notes-bigta{flex:1;min-height:38vh;font-size:16px !important;line-height:1.5;resize:none}
+@media(max-width:767px){
+  .crmv .cap-notes-ov{padding:0}
+  .crmv .cap-notes-ovcard{max-width:100%;height:100dvh;max-height:100dvh;border-radius:0;border:0}
+  .crmv .cap-notes-bigta{min-height:0}
+}
 /* who / region pick rows (drawers) */
 .crmv .who{display:flex;align-items:center;gap:7px;padding:9px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;cursor:pointer;background:#fff;transition:border-color .15s}
 .crmv .who:hover{border-color:var(--border2)}
