@@ -2477,7 +2477,7 @@ window.CRM = (function(){
     var all=LM.rows.filter(function(l){return l.disposition!=='returned';});
     var enrN=LM.rows.filter(function(l){return l.stage===0&&l.disposition!=='returned';}).length;
     var qualN=LM.rows.filter(function(l){return l.disposition==='qualified';}).length;
-    var asgN=LM.rows.filter(function(l){return l.assignedTo;}).length;
+    var asgN=LM.rows.filter(function(l){return l.assignedTo && l.disposition!=='returned';}).length;
     var kpis=
       kcard('Leads captured',String(LM.rows.length),'all capture sources')+
       kcard('In enrichment',String(enrN),'stage 0 · needs fields')+
