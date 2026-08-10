@@ -2355,6 +2355,7 @@ window.CRM = (function(){
       source:r.source||'', status:r.status||'', stage:r.stage||0, disposition:r.disposition||null,
       assignedRegion:r.assigned_region||'', assignedTo:r.assigned_to||null, assignedAt:r.assigned_at||null,
       returnReason:r.return_reason||'', returnedAt:r.returned_at||null, returnedBy:r.returned_by||null,
+      thread:(r.handoff_log&&r.handoff_log.length?r.handoff_log:[]),
       contact:r.contact_name||'', role:r.contact_role||'', email:r.email||'', phone:r.phone||'',
       port:r.destination_port||'', band:r.expected_volume_band||'', season:r.season_window||'', notes:r.notes||'',
       website:r.website||'', campaign:r.campaign_name||'', campaignId:r.campaign_id||null,
@@ -2425,12 +2426,14 @@ window.CRM = (function(){
       +row('Season window',esc(l.season||'—'))
       +row('Source · campaign',esc(lmSourceLabel(l.source))+(l.campaign?' · '+esc(l.campaign):''))
       +row('Captured',esc(lmDate(l.capturedAt))+' · '+esc(l.age))
-      +(l.notes?row('Notes',esc(l.notes).replace(/\n/g,'<br>')):'');
+      +(l.notes?row('Notes',esc(l.notes).replace(/\n/g,'<br>')):'')
+      +lmThreadHtml(l);
     var acts=[];
     acts.push('<button class="btn btn-secondary" onclick="CRM.lmEnrichOpen(\''+l.id+'\')">Enrich</button>');
     if(lmIsCaptured(l)) acts.push('<button class="btn btn-primary" onclick="CRM.lmQualify(\''+l.id+'\')">Qualify</button>');
     if(lmIsQualified(l)) acts.push('<button class="btn btn-primary" onclick="CRM.lmAssignOpen(\''+l.id+'\')">Assign to region…</button>');
     if(lmIsUnclaimed(l)) acts.push('<button class="btn btn-primary" onclick="CRM.lmClaim(\''+l.id+'\')">Claim (assign to me)</button>');
+    if(lmIsReturned(l)) acts.push('<button class="btn btn-primary" onclick="CRM.lmRequeueOpen(\''+l.id+'\')">Re-queue</button>');
     if(!lmIsReturned(l)) acts.push('<button class="btn btn-secondary" onclick="CRM.lmReturnOpen(\''+l.id+'\')">Return to marketing</button>');
     body+='<div class="l-formact">'+acts.join('')+'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Close</button></div></div>';
     showDlv('Lead',body);
@@ -2476,12 +2479,26 @@ window.CRM = (function(){
      lead leaves the pipeline; keeps assigned_region as context for the Returned-by-sales list.
      Reasons mirror the mockup's Class A/B vocabulary; the A/B/No-response CLASSIFICATION is Phase 2. */
   var LM_RETURN_REASONS=['No capacity','Price / terms too low','Credit risk','Already sourced elsewhere','Not a genuine importer','Product / season mismatch','Volume overstated','Certification gap','Other'];
-  var lmRet=null;
+  var lmRet=null, lmRq=null;
+  /* Append-only sales<->marketing handoff thread (l.thread ← crm_leads.handoff_log). Read-modify-write
+     from the in-memory row; low-volume so a rare clobber is acceptable (atomic RPC is a Phase-2 item). */
+  function lmThreadEntry(kind,note){ return { at:new Date().toISOString(), by:(USER&&USER.id)||null, kind:kind, note:(note||'') }; }
+  function lmThreadHtml(l){
+    var t=(l.thread||[]); if(!t.length) return '';
+    var rows=t.slice().reverse().map(function(e){
+      var who=e.kind==='requeue'?'Marketing · re-queued':'Sales · returned';
+      var when=e.at?lmDate(e.at):'';
+      var txt=e.note?esc(e.note):'<span class="cell-sub">(no note)</span>';
+      return '<div class="l-drow" style="align-items:flex-start;gap:10px"><span class="cell-sub" style="min-width:132px">'+esc(who)+(when?' · '+esc(when):'')+'</span><span>'+txt+'</span></div>';
+    }).join('');
+    return '<div class="l-qsec">Handoff history</div>'+rows;
+  }
   function lmReturnOpen(id){
     var l=lmById(id); if(!l) return; lmRet={id:id,reason:null};
     var chips=LM_RETURN_REASONS.map(function(r){ return '<button type="button" class="capchip" data-r="'+esc(r)+'" onclick="CRM.lmReturnPick(this)">'+esc(r)+'</button>'; }).join('');
     var body='<div class="l-form"><div class="l-formnote">Why is this going back to marketing? The reason shows in <b>Returned by sales</b>. The A / B / No-response classification arrives with the Phase-2 rules.</div>'
       +'<div class="l-qhdr">'+esc(l.company)+' → return to marketing</div>'
+      +lmThreadHtml(l)
       +'<label class="form-label" style="margin-top:8px">Reason</label><div style="display:flex;flex-wrap:wrap;gap:6px">'+chips+'</div>'
       +'<label class="form-label" style="margin-top:10px">Note (optional)</label><textarea class="form-input" id="lm_ret_note" rows="2" placeholder="Anything marketing should know…"></textarea>'
       +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.lmReturnSave()">Return to marketing</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
@@ -2489,13 +2506,31 @@ window.CRM = (function(){
   }
   function lmReturnPick(btn){ if(!lmRet) return; lmRet.reason=btn.getAttribute('data-r'); var cs=btn.parentNode.querySelectorAll('.capchip'); for(var i=0;i<cs.length;i++) cs[i].classList.remove('on'); btn.classList.add('on'); }
   function lmReturnSave(){
-    if(!lmRet) return; var note=lmVal('lm_ret_note'); var reason=lmRet.reason||'';
+    if(!lmRet) return; var l=lmById(lmRet.id); var note=lmVal('lm_ret_note'); var reason=lmRet.reason||'';
     if(reason==='Other') reason=note||'Other'; else if(note) reason=(reason?reason+' — '+note:note);
     if(!reason){ toast('Pick a reason first.'); return; }
-    lmUpdate(lmRet.id,{ disposition:'returned', return_reason:reason, returned_at:new Date().toISOString(), returned_by:(USER&&USER.id)||null, assigned_to:null, assigned_at:null },'Returned to marketing.');
+    var thread=(l&&l.thread?l.thread.slice():[]); thread.push(lmThreadEntry('return',reason));
+    lmUpdate(lmRet.id,{ disposition:'returned', return_reason:reason, returned_at:new Date().toISOString(), returned_by:(USER&&USER.id)||null, assigned_to:null, assigned_at:null, handoff_log:thread },'Returned to marketing.');
   }
-  /* Re-queue a returned lead back into the Workspace, clean and unassigned (clears the return record). */
-  function lmRequeue(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ disposition:null, assigned_region:null, return_reason:null, returned_at:null, returned_by:null },'<b>'+esc(l.company)+'</b> re-queued to the Workspace.'); }
+  /* Re-queue = marketing pushes back into the Workspace. Captures a note and PRESERVES the sales
+     return note (append to the thread; do NOT wipe return_reason) so the history survives round-trips. */
+  function lmRequeueOpen(id){
+    var l=lmById(id); if(!l) return; lmRq={id:id};
+    var lastRet=(l.thread||[]).slice().reverse().filter(function(e){return e.kind==='return';})[0];
+    var lastNote=(lastRet&&lastRet.note)||l.returnReason||'';
+    var body='<div class="l-form"><div class="l-formnote">Re-queue sends this back into the Workspace for re-triage. Add a note if you’re pushing back on the sales return — the handoff history is kept.</div>'
+      +'<div class="l-qhdr">'+esc(l.company)+' → re-queue</div>'
+      +(lastNote?'<div class="alert-warn" style="margin:2px 0 4px">Sales returned this: <b>'+esc(lastNote)+'</b></div>':'')
+      +lmThreadHtml(l)
+      +'<label class="form-label" style="margin-top:8px">Note to sales (optional)</label><textarea class="form-input" id="lm_rq_note" rows="2" placeholder="Why it’s going back — e.g. capacity confirmed, please re-engage"></textarea>'
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.lmRequeueSave()">Re-queue</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+    showDlv('Re-queue lead',body);
+  }
+  function lmRequeueSave(){
+    if(!lmRq) return; var l=lmById(lmRq.id); var note=lmVal('lm_rq_note');
+    var thread=(l&&l.thread?l.thread.slice():[]); thread.push(lmThreadEntry('requeue',note));
+    lmUpdate(lmRq.id,{ disposition:null, assigned_region:null, handoff_log:thread },'<b>'+esc(l?l.company:'Lead')+'</b> re-queued to the Workspace.');
+  }
   function lmSearch(v){ LM.q=v; clearTimeout(lmSearch._t); lmSearch._t=setTimeout(function(){ render(); var el=$('lm_q'); if(el){ el.focus(); el.value=LM.q; try{ el.selectionStart=el.selectionEnd=el.value.length; }catch(e){} } },160); }
   function lmSetF(k,v){ LM.f[k]=v; render(); }
 
@@ -2612,7 +2647,7 @@ window.CRM = (function(){
         +'<td>'+bdg('badge-n',lmSourceLabel(l.source))+'</td>'
         +'<td>'+(l.returnReason?esc(l.returnReason):'<span class="cell-sub">—</span>')+'</td>'
         +'<td class="mono">'+esc(l.returnedAt?lmDate(l.returnedAt):'—')+'</td>'
-        +'<td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRequeue(\''+l.id+'\')">Re-queue</button></td></tr>';
+        +'<td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRequeueOpen(\''+l.id+'\')">Re-queue</button></td></tr>';
     }).join('');
     if(!list.length) rows='<tr><td colspan="8" class="cell-sub" style="padding:16px;text-align:center">No leads have been returned to marketing.</td></tr>';
     return '<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Returned by sales · '+list.length+' lead(s)'
@@ -3326,7 +3361,7 @@ window.CRM = (function(){
     rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy, rrToggleEngine:rrToggleEngine,
     lmRefresh:lmRefresh, lmOpen:lmOpen, lmEnrichOpen:lmEnrichOpen, lmEnrichSave:lmEnrichSave,
     lmQualify:lmQualify, lmAssignOpen:lmAssignOpen, lmPickRegion:lmPickRegion, lmAssignSave:lmAssignSave,
-    lmReturnOpen:lmReturnOpen, lmReturnPick:lmReturnPick, lmReturnSave:lmReturnSave, lmRequeue:lmRequeue, lmClaim:lmClaim, lmSearch:lmSearch, lmSetF:lmSetF,
+    lmReturnOpen:lmReturnOpen, lmReturnPick:lmReturnPick, lmReturnSave:lmReturnSave, lmRequeueOpen:lmRequeueOpen, lmRequeueSave:lmRequeueSave, lmClaim:lmClaim, lmSearch:lmSearch, lmSetF:lmSetF,
     leadSub:leadSub, leadNav:leadNav, leadSet:leadSet, leadReset:leadReset, leadOpen:leadOpen,
     leadQuickAdd:leadQuickAdd, leadSubmitQuickAdd:leadSubmitQuickAdd, leadEnrich:leadEnrich,
     leadQualifyOpen:leadQualifyOpen, leadGate:leadGate, leadQualifySave:leadQualifySave,
