@@ -17126,6 +17126,11 @@ function App(){
         clearInterval(iv);
         /* survive a late default-tab render from the island's own init */
         setTimeout(function(){ try{ if(!document.getElementById('cap_head')) window.CRM.leadNav('leads','cap'); }catch(e){} },250);
+        /* Restore #capture in the address bar (the app rewrote it to #crm on boot). Without a
+           web-manifest start_url, an iOS home-screen icon relaunches whatever URL was saved —
+           so the saved/relaunched URL must be #capture[=token], not #crm, or it lands on home.
+           view stays 'crm', so the hash=view effect won't clobber this again. */
+        try{ var _h='capture'+(it.token?'='+encodeURIComponent(it.token):''); history.replaceState(null,'','#'+_h); }catch(e){}
         /* Name the home-screen icon after the event: token → that campaign; else the newest active campaign
            (matches the picker's default). Sets both <title> and apple-mobile-web-app-title (what iOS uses). */
         var setCapName=function(nm){ document.title=nm+' — DalOS Capture'; var at=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(at) at.setAttribute('content',nm); };
