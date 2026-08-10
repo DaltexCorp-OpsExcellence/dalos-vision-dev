@@ -2333,6 +2333,128 @@ window.CRM = (function(){
   }
   function draftBanner(){ return '<div class="l-draft"><b>Draft</b> · Marketing Leads Portal — dummy data, UI/UX only; a reload resets it. <span class="link-btn" onclick="CRM.leadReset()">Reset demo data</span></div>'; }
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     LM — REAL leads (crm_leads via crm_leads_list RPC). Phase 1.
+     Powers Workspace, Enrichment queue and My-pipeline off live data, and
+     persists Enrich / Qualify / Assign / Return via authed crm_leads UPDATEs
+     (RLS: crm_is_admin OR commercial). The dummy LEADS array + lead* handlers
+     below still power the DEFERRED views (Returned by sales, Lead inbox,
+     Funnel, Conversion) — those stay demo-only until the Phase-2 rules land.
+     ═══════════════════════════════════════════════════════════════════════ */
+  var LM={rows:[],loaded:false,loading:false,q:'',f:{source:'all',region:'all',stage:'all'}};
+  var LM_REGIONS=['UK & Ireland','N. Europe','Gulf','Russia & CIS','E. Med','Far East'];
+  var LM_SOURCES=[['manual','Manual'],['qr_vcard','QR / vCard'],['ocr_card','Card OCR'],['public_form','Public form'],['csv_import','CSV import']];
+  function lmSourceLabel(s){ for(var i=0;i<LM_SOURCES.length;i++) if(LM_SOURCES[i][0]===s) return LM_SOURCES[i][1]; return s||'—'; }
+  function lmAge(ts){ if(!ts) return '—'; var d=Math.floor((Date.now()-new Date(ts).getTime())/86400000); if(d<=0) return 'today'; if(d===1) return '1d'; if(d<30) return d+'d'; return Math.floor(d/30)+'mo'; }
+  function lmDate(ts){ if(!ts) return '—'; try{ return new Date(ts).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return String(ts).slice(0,10); } }
+  function lmMap(r){
+    return {id:r.id, ref:'#'+String(r.id||'').slice(0,8),
+      company:r.company_name||'—', country:r.country||'—',
+      product:(r.product_interest&&r.product_interest.length?r.product_interest.join(', '):'—'), products:r.product_interest||[],
+      source:r.source||'', status:r.status||'', stage:r.stage||0, disposition:r.disposition||null,
+      assignedRegion:r.assigned_region||'', assignedTo:r.assigned_to||null, assignedAt:r.assigned_at||null,
+      contact:r.contact_name||'', role:r.contact_role||'', email:r.email||'', phone:r.phone||'',
+      port:r.destination_port||'', band:r.expected_volume_band||'', season:r.season_window||'', notes:r.notes||'',
+      website:r.website||'', campaign:r.campaign_name||'', campaignId:r.campaign_id||null,
+      capturedAt:r.captured_at, capturedBy:r.captured_by, age:lmAge(r.captured_at), raw:r};
+  }
+  function lmById(id){ for(var i=0;i<LM.rows.length;i++) if(LM.rows[i].id===id) return LM.rows[i]; return null; }
+  function lmLoad(){
+    if(!SB){ LM.loaded=true; return; }
+    LM.loading=true;
+    SB.rpc('crm_leads_list').then(function(res){
+      LM.loading=false; LM.loaded=true;
+      if(res&&res.error) toast('<b>Could not load leads.</b> '+esc(res.error.message||''));
+      else LM.rows=((res&&res.data)||[]).map(lmMap);
+      if(currentTab==='leads'||currentTab==='inbox') render();
+    }).catch(function(){ LM.loading=false; LM.loaded=true; if(currentTab==='leads'||currentTab==='inbox') render(); });
+  }
+  function lmEnsure(){ if(!LM.loaded && !LM.loading) lmLoad(); }
+  function lmReload(){ LM.loaded=false; LM.loading=false; lmLoad(); }
+  function lmRefresh(btn){ if(btn){ btn.disabled=true; btn.textContent='↻ Refreshing…'; } lmReload(); }
+  function lmSkel(){
+    var k='<div class="kpi"><span class="sk" style="width:45%;height:9px"></span><span class="sk" style="width:58%;height:24px;margin-top:11px"></span></div>';
+    return '<div class="kpi-grid" style="margin-bottom:12px">'+k+k+k+k+'</div><div class="card"><span class="sk" style="width:100%;height:220px;display:block"></span></div>';
+  }
+  function lmStageBadge(l){
+    if(l.disposition==='returned') return bdg('badge-fail','Returned');
+    if(l.assignedTo) return bdg('badge-pass','Assigned');
+    if(l.disposition==='qualified'||l.stage>=1) return bdg('badge-warn','Qualified');
+    return bdg('badge-hold','Captured');
+  }
+  function lmMissing(l){ var m=[]; if(!l.contact) m.push('contact'); if(!l.role) m.push('role'); if(!l.band) m.push('volume'); if(!l.port) m.push('port'); return m.length?m.join(' · '):'—'; }
+  function lmVal(id){ var el=$(id); if(!el) return null; var v=(el.value||'').trim(); return v||null; }
+  function lmUpdate(id,patch,msg){
+    if(!SB){ toast('No connection.'); return; }
+    patch.updated_at=new Date().toISOString();
+    SB.from('crm_leads').update(patch).eq('id',id).then(function(res){
+      if(res&&res.error){ toast('<b>Save failed.</b> '+esc(res.error.message||'')); return; }
+      closeDlv(); toast(msg||'Saved.'); lmReload();
+    }).catch(function(e){ toast('<b>Save failed.</b> '+esc(String(e))); });
+  }
+
+  /* ── real leads · row-level actions ── */
+  function lmOpen(id){
+    var l=lmById(id); if(!l) return;
+    function row(lbl,val){ return '<div class="l-drow"><span class="cell-sub">'+lbl+'</span><span>'+val+'</span></div>'; }
+    var body='<div class="l-form"><div class="l-qhdr">'+esc(l.company)+'</div>'
+      +row('Lead','<span class="lot">'+esc(l.ref)+'</span>')
+      +row('Stage',lmStageBadge(l))
+      +row('Country · region',esc(l.country)+' · '+(l.assignedRegion?esc(l.assignedRegion):'<span class="cell-sub">unassigned</span>'))
+      +row('Product',esc(l.product))
+      +row('Volume band',esc(l.band||'—'))
+      +row('Contact',esc(l.contact||'—')+(l.role?' · '+esc(l.role):''))
+      +row('Email · phone',esc(l.email||'—')+(l.phone?' · '+esc(l.phone):''))
+      +row('Destination port',esc(l.port||'—'))
+      +row('Season window',esc(l.season||'—'))
+      +row('Source · campaign',esc(lmSourceLabel(l.source))+(l.campaign?' · '+esc(l.campaign):''))
+      +row('Captured',esc(lmDate(l.capturedAt))+' · '+esc(l.age))
+      +(l.notes?row('Notes',esc(l.notes).replace(/\n/g,'<br>')):'');
+    var acts=[];
+    acts.push('<button class="btn btn-secondary" onclick="CRM.lmEnrichOpen(\''+l.id+'\')">Enrich</button>');
+    if(l.disposition!=='returned' && !(l.disposition==='qualified'||l.stage>=1)) acts.push('<button class="btn btn-primary" onclick="CRM.lmQualify(\''+l.id+'\')">Qualify</button>');
+    if(l.disposition==='qualified' && !l.assignedTo) acts.push('<button class="btn btn-primary" onclick="CRM.lmAssignOpen(\''+l.id+'\')">Assign to region…</button>');
+    if(l.disposition!=='returned') acts.push('<button class="btn btn-secondary" onclick="CRM.lmReturn(\''+l.id+'\')">Return to marketing</button>');
+    body+='<div class="l-formact">'+acts.join('')+'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Close</button></div></div>';
+    showDlv('Lead',body);
+  }
+  function lmEnrichOpen(id){
+    var l=lmById(id); if(!l) return;
+    var body='<div class="l-form"><div class="l-formnote">Fill in the missing detail so the lead can be qualified. Saves straight to the lead record.</div>'
+      +'<div class="l-qhdr">'+esc(l.company)+'</div>'
+      +field('lm_contact','Contact name',l.contact,'e.g. J. Whitfield')
+      +field('lm_role','Contact role / title',l.role,'e.g. Procurement Manager')
+      +field('lm_band','Expected volume band',l.band,'e.g. 1–5 containers')
+      +field('lm_port','Destination port',l.port,'e.g. Jebel Ali')
+      +field('lm_season','Season window',l.season,'e.g. wk 40–48')
+      +'<label class="form-label" style="margin-top:8px">Notes</label><textarea class="form-input" id="lm_notes" rows="3">'+esc(l.notes)+'</textarea>'
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.lmEnrichSave(\''+l.id+'\')">Save enrichment</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+    showDlv('Enrich lead',body);
+  }
+  function lmEnrichSave(id){
+    lmUpdate(id,{ contact_name:lmVal('lm_contact'), contact_role:lmVal('lm_role'),
+      expected_volume_band:lmVal('lm_band'), destination_port:lmVal('lm_port'),
+      season_window:lmVal('lm_season'), notes:lmVal('lm_notes') },'Enrichment saved.');
+  }
+  function lmQualify(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ stage:1, disposition:'qualified', qualified_at:new Date().toISOString() },'<b>'+esc(l.company)+'</b> qualified → assign it to a region.'); }
+  var lmAsg=null;
+  function lmAssignOpen(id){
+    lmAsg={id:id,region:null};
+    var body='<div class="l-form"><div class="l-formnote">Choose the CRM region. Assigning routes the lead to your pipeline (assigned to you).</div>'
+      +'<div class="l-qhdr">Assign to CRM region</div>'
+      +LM_REGIONS.map(function(r,i){return '<div class="who" onclick="CRM.lmPickRegion(this,'+i+')"><div><div class="who-n">'+esc(r)+'</div><div class="who-s">region</div></div></div>';}).join('')
+      +'<div class="l-formact"><button class="btn btn-primary" onclick="CRM.lmAssignSave()">Assign</button><button class="btn btn-secondary" onclick="CRM.closeDlv()">Cancel</button></div></div>';
+    showDlv('Assign to region',body);
+  }
+  function lmPickRegion(el,i){ if(!lmAsg) return; lmAsg.region=LM_REGIONS[i]; var ps=el.parentNode.querySelectorAll('.who'); for(var j=0;j<ps.length;j++) ps[j].classList.remove('sel'); el.classList.add('sel'); }
+  function lmAssignSave(){
+    if(!lmAsg||!lmAsg.region){ toast('Pick a region first.'); return; }
+    lmUpdate(lmAsg.id,{ assigned_region:lmAsg.region, assigned_to:(USER&&USER.id)||null, assigned_at:new Date().toISOString(), stage:2 },'Assigned to '+esc(lmAsg.region)+' · added to your pipeline.');
+  }
+  function lmReturn(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ disposition:'returned' },'<b>'+esc(l.company)+'</b> returned to marketing.'); }
+  function lmSearch(v){ LM.q=v; clearTimeout(lmSearch._t); lmSearch._t=setTimeout(function(){ render(); var el=$('lm_q'); if(el){ el.focus(); el.value=LM.q; try{ el.selectionStart=el.selectionEnd=el.value.length; }catch(e){} } },160); }
+  function lmSetF(k,v){ LM.f[k]=v; render(); }
+
   /* ═══════════════════ LEADS destination ═══════════════════ */
   function renderLeads(){
     var vc=$('viewContent'); if(!vc) return;
@@ -2341,56 +2463,57 @@ window.CRM = (function(){
     else if(LSUB.leads==='rej') pane=paneReturned();
     else if(LSUB.leads==='cap') pane=paneCapture();
     else pane=paneWorkspace();
-    /* Show Mode is a REAL feature (persists to IndexedDB + crm_leads) — omit the dummy draft/live bars there */
-    var chrome = (LSUB.leads==='cap') ? '' : (draftBanner()+liveBar());
+    /* Workspace/Enrichment/Capture are REAL now — only the deferred "Returned by sales" view keeps the dummy draft/live bars */
+    var chrome = (LSUB.leads==='rej') ? (draftBanner()+liveBar()) : '';
     vc.innerHTML='<div class="lead-portal">'+chrome+pane+'</div>';
   }
 
   function paneWorkspace(){
+    if(!LM.loaded){ lmEnsure(); return lmSkel(); }
+    var all=LM.rows.filter(function(l){return l.disposition!=='returned';});
+    var enrN=LM.rows.filter(function(l){return l.stage===0&&l.disposition!=='returned';}).length;
+    var qualN=LM.rows.filter(function(l){return l.disposition==='qualified';}).length;
+    var asgN=LM.rows.filter(function(l){return l.assignedTo;}).length;
     var kpis=
-      kcard('Registered · this season','248','<span class="up">+31 last 30d</span>')+
-      kcard('Qualified → Accepted','74%','<span class="up">target ≥ 70%</span>')+
-      kcard('Awaiting sales · SLA','17','<span class="down">4 breached (&gt;5d)</span>')+
-      kcard('Weighted pipeline','186','containers · season est.');
-    var list=LEADS.filter(function(l){return !l.returnClass;}).filter(function(l){
-      if(leadView.type!=='all'&&l.type!==leadView.type) return false;
-      if(leadView.market!=='all'&&l.region!==leadView.market) return false;
-      if(leadView.stage!=='all'&&String(l.stage)!==leadView.stage) return false;
+      kcard('Leads captured',String(LM.rows.length),'all capture sources')+
+      kcard('In enrichment',String(enrN),'stage 0 · needs fields')+
+      kcard('Qualified',String(qualN),'ready to assign')+
+      kcard('Assigned',String(asgN),'in a rep pipeline');
+    var q=(LM.q||'').toLowerCase();
+    var list=all.filter(function(l){
+      if(LM.f.source!=='all'&&l.source!==LM.f.source) return false;
+      if(LM.f.region!=='all'&&(l.assignedRegion||'')!==LM.f.region) return false;
+      if(LM.f.stage!=='all'&&String(l.stage)!==LM.f.stage) return false;
+      if(q){ var hay=(l.company+' '+l.contact+' '+l.email+' '+l.country).toLowerCase(); if(hay.indexOf(q)<0) return false; }
       return true;
     });
-    function tsel(key,label,opts){
-      return '<select class="form-select" style="width:auto" onchange="CRM.leadSet(\''+key+'\',this.value)">'
+    function fsel(key,label,opts){
+      return '<select class="form-select" style="width:auto" onchange="CRM.lmSetF(\''+key+'\',this.value)">'
         +'<option value="all">'+label+'</option>'
-        +opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(String(leadView[key])===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>';
+        +opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(String(LM.f[key])===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>';
     }
     var filters='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px">'
-      +tsel('type','All types',Object.keys(L_TYPES).map(function(k){return [k,L_TYPES[k]];}))
-      +tsel('market','All markets',L_REGIONS.map(function(r){return [r,r];}))
-      +tsel('stage','All stages',L_STAGES.map(function(s){return [s.i,s.i+' · '+s.label];}))
-      +'<input class="form-input" style="width:auto;flex:1;min-width:150px" placeholder="Search company, contact, domain…"/></div>';
-    var bulk='<div class="bulkbar" id="lbb"><span class="mono" id="lbbn">0 selected</span>'
-      +'<button class="btn btn-primary btn-sm" onclick="CRM.leadAssignOpen()">Assign to region…</button>'
-      +'<button class="btn btn-secondary btn-sm">Set type</button>'
-      +'<button class="btn btn-secondary btn-sm">Set campaign</button>'
-      +'<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="CRM.leadSelClear()">Clear</button></div>';
+      +fsel('source','All sources',LM_SOURCES)
+      +fsel('region','All regions',LM_REGIONS.map(function(r){return [r,r];}))
+      +fsel('stage','All stages',[['0','Captured'],['1','Qualified'],['2','Assigned']])
+      +'<input class="form-input" id="lm_q" value="'+esc(LM.q)+'" style="width:auto;flex:1;min-width:150px" placeholder="Search company, contact, email, country…" oninput="CRM.lmSearch(this.value)"/></div>';
     var rows=list.map(function(l){
-      return '<tr onclick="CRM.leadOpen(\''+l.id+'\')">'
-        +'<td onclick="event.stopPropagation()"><input type="checkbox" class="lrs" onchange="CRM.leadSelSync()"/></td>'
-        +'<td><span class="lot">'+esc(l.id)+'</span></td>'
+      return '<tr onclick="CRM.lmOpen(\''+l.id+'\')">'
+        +'<td><span class="lot">'+esc(l.ref)+'</span></td>'
         +'<td>'+esc(l.company)+'</td><td>'+esc(l.country)+'</td>'
-        +'<td>'+(l.region==='unmapped'?bdg('badge-warn','unmapped'):bdg('badge-n',l.region))+'</td>'
-        +'<td>'+esc(l.product)+'</td><td>'+typeBadge(l.type)+'</td>'
-        +'<td class="mono">'+esc(L_BANDS[l.band])+'</td>'
-        +'<td>'+stageBadge(l)+'</td>'
-        +'<td>M · '+esc(l.sourcedBy)+'</td><td class="mono">'+esc(l.age)+'</td></tr>';
+        +'<td>'+(l.assignedRegion?bdg('badge-n',l.assignedRegion):bdg('badge-warn','unassigned'))+'</td>'
+        +'<td>'+esc(l.product)+'</td>'
+        +'<td>'+bdg('badge-n',lmSourceLabel(l.source))+'</td>'
+        +'<td class="mono">'+esc(l.band||'—')+'</td>'
+        +'<td>'+lmStageBadge(l)+'</td>'
+        +'<td class="mono">'+esc(l.age)+'</td></tr>';
     }).join('');
-    var table='<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> All leads · '+list.length+'</div>'
-      +filters+bulk
-      +'<div class="table-wrap"><table><thead><tr><th style="width:28px"><input type="checkbox" onclick="CRM.leadSelAll(this)"/></th><th>Lead</th><th>Company</th><th>Country</th><th>CRM region</th><th>Product</th><th>Type</th><th>Vol.</th><th>Stage</th><th>Sourced by</th><th>Age</th></tr></thead><tbody id="lwt">'+rows+'</tbody></table></div></div>';
-    /* detail + touches for a reference qualified lead */
-    var det=leadById('LD-2026-0181');
-    var detail=det?leadDetailPanel(det):'';
-    return '<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'+table+detail;
+    if(!list.length) rows='<tr><td colspan="9" class="cell-sub" style="padding:16px;text-align:center">No leads match. Captures from Show Mode and the public form land here.</td></tr>';
+    return '<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
+      +'<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> All leads · '+list.length
+      +' <span style="margin-left:auto"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRefresh(this)">↻ Refresh</button></span></div>'
+      +filters
+      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Country</th><th>CRM region</th><th>Product</th><th>Source</th><th>Vol.</th><th>Stage</th><th>Age</th></tr></thead><tbody id="lwt">'+rows+'</tbody></table></div></div>';
   }
   function kcard(l,v,s){ return '<div class="card"><div class="kpi-l">'+l+'</div><div class="kpi-v">'+v+'</div><div class="kpi-s">'+(s||'')+'</div></div>'; }
 
@@ -2416,15 +2539,19 @@ window.CRM = (function(){
   }
 
   function paneEnrichment(){
-    var list=LEADS.filter(function(l){return l.stage===0;});
+    if(!LM.loaded){ lmEnsure(); return lmSkel(); }
+    var list=LM.rows.filter(function(l){return l.stage===0&&l.disposition!=='returned';});
     var rows=list.map(function(l){
-      var ac=(l.autochk||[]).map(function(a){return bdg(a[0]==='pass'?'badge-pass':(a[0]==='warn'?'badge-warn':'badge-fail'),a[1]);}).join(' ');
-      return '<tr><td><span class="lot">'+esc(l.id)+'</span></td><td>'+esc(l.company)+'</td><td>'+esc(l.country)+'</td><td>'+esc(l.missing||'—')+'</td><td>'+ac+'</td><td class="mono">'+esc(l.age)+'</td>'
-        +'<td><button class="btn btn-secondary btn-sm" onclick="CRM.leadEnrich(\''+l.id+'\')">Enrich</button></td></tr>';
+      return '<tr onclick="CRM.lmOpen(\''+l.id+'\')"><td><span class="lot">'+esc(l.ref)+'</span></td><td>'+esc(l.company)+'</td><td>'+esc(l.country)+'</td>'
+        +'<td>'+bdg('badge-n',lmSourceLabel(l.source))+'</td>'
+        +'<td>'+esc(lmMissing(l))+'</td><td>'+esc(l.product)+'</td><td class="mono">'+esc(l.age)+'</td>'
+        +'<td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm" onclick="CRM.lmEnrichOpen(\''+l.id+'\')">Enrich</button></td></tr>';
     }).join('');
-    return '<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Enrichment queue · '+list.length+' leads below qualification</div>'
-      +'<div class="alert-warn" style="margin-bottom:11px">Arrived via Quick Add or bulk import with fewer than the required fields. They cannot advance to <strong>Qualified</strong> — and cannot reach sales — until every gate passes.</div>'
-      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Market</th><th>Missing</th><th>Auto-checks</th><th>Age</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    if(!list.length) rows='<tr><td colspan="8" class="cell-sub" style="padding:16px;text-align:center">Enrichment queue is clear — every captured lead has its detail.</td></tr>';
+    return '<div class="card" style="margin-bottom:12px"><div class="section-title"><span class="section-title-bar"></span> Enrichment queue · '+list.length+' captured lead(s)'
+      +' <span style="margin-left:auto"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRefresh(this)">↻ Refresh</button></span></div>'
+      +'<div class="alert-warn" style="margin-bottom:11px">Captured at the stand or via the public form. Fill in the missing detail, then <strong>Qualify</strong> to advance the lead and route it to a region.</div>'
+      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Country</th><th>Source</th><th>Missing</th><th>Product</th><th>Age</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }
 
   function paneReturned(){
@@ -2725,7 +2852,9 @@ window.CRM = (function(){
   /* ═══════════════════ INBOX destination ═══════════════════ */
   function renderInbox(){
     var vc=$('viewContent'); if(!vc) return;
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+(LSUB.inbox==='pip'?panePipeline():paneInbox())+'</div>';
+    /* My pipeline is REAL (assigned_to = current user); the lead inbox stays a deferred dummy view */
+    if(LSUB.inbox==='pip'){ vc.innerHTML='<div class="lead-portal">'+panePipeline()+'</div>'; return; }
+    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+paneInbox()+'</div>';
   }
   function inboxList(){ return LEADS.filter(function(l){return l.stage===1&&l.assigned&&!l.rep&&!l.returnClass&&(IS_ADMIN||ME_REGIONS.indexOf(l.region)>=0);}); }
   function paneInbox(){
@@ -2754,16 +2883,18 @@ window.CRM = (function(){
       +(list.length?cards:'<div class="empty-state">Nothing awaiting your decision.</div>')+'</div>';
   }
   function panePipeline(){
-    var mine=LEADS.filter(function(l){return l.rep==='You'&&l.stage>=2;});
-    var kpis=kcard('Leads I own','14','UK &amp; Ireland')+kcard('Quoted · awaiting reply','5','<span class="down">2 over 14d</span>')+kcard('Shipped this season','3','<span class="up">+1 vs 2025</span>')+kcard('My est. containers','72','weighted 41');
+    if(!LM.loaded){ lmEnsure(); return lmSkel(); }
+    var uid=(USER&&USER.id)||null;
+    var mine=LM.rows.filter(function(l){return l.assignedTo && uid && l.assignedTo===uid;});
     var rows=mine.map(function(l){
-      var due=l.due?('<span class="sla '+(l.due.indexOf('overdue')>=0?'sla-x':(l.due.indexOf('tomorrow')>=0?'sla-w':'sla-ok'))+'">'+esc(l.due)+'</span>'):'';
-      return '<tr onclick="CRM.leadOpen(\''+l.id+'\')"><td><span class="lot">'+esc(l.id)+'</span></td><td>'+esc(l.company)+'</td><td>'+stageBadge(l)+'</td><td>'+esc(l.nextAction||'—')+'</td><td>'+due+'</td><td class="mono">'+esc(l.est||'—')+'</td><td class="mono">'+esc(l.owned||'—')+'</td></tr>';
+      return '<tr onclick="CRM.lmOpen(\''+l.id+'\')"><td><span class="lot">'+esc(l.ref)+'</span></td><td>'+esc(l.company)+'</td>'
+        +'<td>'+(l.assignedRegion?bdg('badge-n',l.assignedRegion):'—')+'</td>'
+        +'<td>'+esc(l.product)+'</td><td>'+lmStageBadge(l)+'</td><td class="mono">'+esc(lmDate(l.assignedAt||l.capturedAt))+'</td></tr>';
     }).join('');
-    return '<div class="kpi-grid" style="margin-bottom:12px">'+kpis+'</div>'
-      +'<div class="card"><div class="section-title"><span class="section-title-bar"></span> My leads · accepted → shipped</div>'
-      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Stage</th><th>Next action</th><th>Due</th><th>Est.</th><th>Owned since</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
-      +'<div class="alert-ok" style="margin-top:11px"><span class="lot">LD-2026-0142</span> shipped — <span class="mono">converted_by</span> set to you, <span class="mono">sourced_by</span> stays with Marketing · Hoda S.</div></div>';
+    if(!mine.length) rows='<tr><td colspan="6" class="cell-sub" style="padding:16px;text-align:center">Nothing assigned to you yet. Qualify a lead in the Workspace, then <b>Assign to region</b> to add it here.</td></tr>';
+    return '<div class="card"><div class="section-title"><span class="section-title-bar"></span> My pipeline · '+mine.length+' lead(s) assigned to me'
+      +' <span style="margin-left:auto"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRefresh(this)">↻ Refresh</button></span></div>'
+      +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Region</th><th>Product</th><th>Stage</th><th>Assigned</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }
 
   /* ═══════════════════ FUNNEL destination ═══════════════════ */
@@ -3157,6 +3288,9 @@ window.CRM = (function(){
     rrOpenDrawer:rrOpenDrawer, rrSetField:rrSetField, rrSaveRule:rrSaveRule, rrToggle:rrToggle, rrDelete:rrDelete, rrMove:rrMove,
     rrToggleDefaults:rrToggleDefaults, rrCreateFor:rrCreateFor, rrCommit:rrCommit, rrDiscard:rrDiscard, rrUndo:rrUndo,
     rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy, rrToggleEngine:rrToggleEngine,
+    lmRefresh:lmRefresh, lmOpen:lmOpen, lmEnrichOpen:lmEnrichOpen, lmEnrichSave:lmEnrichSave,
+    lmQualify:lmQualify, lmAssignOpen:lmAssignOpen, lmPickRegion:lmPickRegion, lmAssignSave:lmAssignSave,
+    lmReturn:lmReturn, lmSearch:lmSearch, lmSetF:lmSetF,
     leadSub:leadSub, leadNav:leadNav, leadSet:leadSet, leadReset:leadReset, leadOpen:leadOpen,
     leadQuickAdd:leadQuickAdd, leadSubmitQuickAdd:leadSubmitQuickAdd, leadEnrich:leadEnrich,
     leadQualifyOpen:leadQualifyOpen, leadGate:leadGate, leadQualifySave:leadQualifySave,
