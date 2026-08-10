@@ -2382,9 +2382,14 @@ window.CRM = (function(){
      Derived from (disposition, assignedTo, stage) so badge, KPIs and action gates never disagree
      (e.g. a re-queued lead has disposition=null but stage>=1 → still Qualified and assignable). */
   function lmIsReturned(l){ return l.disposition==='returned'; }
-  function lmIsAssigned(l){ return !!l.assignedTo && !lmIsReturned(l); }
+  /* Assigned is the STAGE = assigned to a REGION (not to a user). The owning rep is a separate
+     flag (l.assignedTo, set by Claim) that does NOT change the stage. Unclaimed = assigned stage
+     with no owner flag → shows in the region Lead inbox; claimed → shows in that rep's My pipeline. */
+  function lmIsAssigned(l){ return !lmIsReturned(l) && (!!l.assignedRegion || l.stage>=2); }
   function lmIsQualified(l){ return !lmIsReturned(l) && !lmIsAssigned(l) && (l.disposition==='qualified'||l.stage>=1); }
   function lmIsCaptured(l){ return !lmIsReturned(l) && !lmIsAssigned(l) && !lmIsQualified(l); }
+  function lmIsUnclaimed(l){ return lmIsAssigned(l) && !l.assignedTo; }
+  function lmIsMine(l){ var uid=(USER&&USER.id)||null; return !!l.assignedTo && uid && l.assignedTo===uid && !lmIsReturned(l); }
   function lmStageBadge(l){
     if(lmIsReturned(l)) return bdg('badge-fail','Returned');
     if(lmIsAssigned(l)) return bdg('badge-pass','Assigned');
@@ -2410,6 +2415,7 @@ window.CRM = (function(){
       +row('Lead','<span class="lot">'+esc(l.ref)+'</span>')
       +row('Stage',lmStageBadge(l))
       +(l.disposition==='returned'?row('Returned',esc(l.returnReason||'—')+(l.returnedAt?' · '+esc(lmDate(l.returnedAt)):'')):'')
+      +(lmIsAssigned(l)?row('Owner',lmIsMine(l)?'You':(l.assignedTo?'Another rep':'<span class="cell-sub">Unclaimed · in the region inbox</span>')):'')
       +row('Country · region',esc(l.country)+' · '+(l.assignedRegion?esc(l.assignedRegion):'<span class="cell-sub">unassigned</span>'))
       +row('Product',esc(l.product))
       +row('Volume band',esc(l.band||'—'))
@@ -2424,6 +2430,7 @@ window.CRM = (function(){
     acts.push('<button class="btn btn-secondary" onclick="CRM.lmEnrichOpen(\''+l.id+'\')">Enrich</button>');
     if(lmIsCaptured(l)) acts.push('<button class="btn btn-primary" onclick="CRM.lmQualify(\''+l.id+'\')">Qualify</button>');
     if(lmIsQualified(l)) acts.push('<button class="btn btn-primary" onclick="CRM.lmAssignOpen(\''+l.id+'\')">Assign to region…</button>');
+    if(lmIsUnclaimed(l)) acts.push('<button class="btn btn-primary" onclick="CRM.lmClaim(\''+l.id+'\')">Claim (assign to me)</button>');
     if(!lmIsReturned(l)) acts.push('<button class="btn btn-secondary" onclick="CRM.lmReturnOpen(\''+l.id+'\')">Return to marketing</button>');
     body+='<div class="l-formact">'+acts.join('')+'<button class="btn btn-secondary" onclick="CRM.closeDlv()">Close</button></div></div>';
     showDlv('Lead',body);
@@ -2459,8 +2466,12 @@ window.CRM = (function(){
   function lmPickRegion(el,i){ if(!lmAsg) return; lmAsg.region=LM_REGIONS[i]; var ps=el.parentNode.querySelectorAll('.who'); for(var j=0;j<ps.length;j++) ps[j].classList.remove('sel'); el.classList.add('sel'); }
   function lmAssignSave(){
     if(!lmAsg||!lmAsg.region){ toast('Pick a region first.'); return; }
-    lmUpdate(lmAsg.id,{ assigned_region:lmAsg.region, assigned_to:(USER&&USER.id)||null, assigned_at:new Date().toISOString(), stage:2 },'Assigned to '+esc(lmAsg.region)+' · added to your pipeline.');
+    /* Region assignment = the Assigned stage. Does NOT set an owner — the lead lands unclaimed in
+       that region's Lead inbox until a rep claims it. */
+    lmUpdate(lmAsg.id,{ assigned_region:lmAsg.region, assigned_at:new Date().toISOString(), stage:2 },'Assigned to '+esc(lmAsg.region)+' · now in the region lead inbox to claim.');
   }
+  /* Claim = flag the lead to a rep (the owner). Separate from the stage; moves it into that rep's pipeline. */
+  function lmClaim(id){ var l=lmById(id); if(!l) return; lmUpdate(id,{ assigned_to:(USER&&USER.id)||null },'<b>'+esc(l.company)+'</b> claimed — it’s in your pipeline.'); }
   /* Return to marketing — captures a reason (why), who, and when. Drops rep ownership so the
      lead leaves the pipeline; keeps assigned_region as context for the Returned-by-sales list.
      Reasons mirror the mockup's Class A/B vocabulary; the A/B/No-response CLASSIFICATION is Phase 2. */
@@ -2510,7 +2521,7 @@ window.CRM = (function(){
       kcard('Leads captured',String(LM.rows.length),'all capture sources')+
       kcard('In enrichment',String(enrN),'stage 0 · needs fields')+
       kcard('Qualified',String(qualN),'ready to assign')+
-      kcard('Assigned',String(asgN),'in a rep pipeline');
+      kcard('Assigned',String(asgN),'to a region');
     var q=(LM.q||'').toLowerCase();
     var list=all.filter(function(l){
       if(LM.f.source!=='all'&&l.source!==LM.f.source) return false;
@@ -2880,46 +2891,43 @@ window.CRM = (function(){
   /* ═══════════════════ INBOX destination ═══════════════════ */
   function renderInbox(){
     var vc=$('viewContent'); if(!vc) return;
-    /* My pipeline is REAL (assigned_to = current user); the lead inbox stays a deferred dummy view */
-    if(LSUB.inbox==='pip'){ vc.innerHTML='<div class="lead-portal">'+panePipeline()+'</div>'; return; }
-    vc.innerHTML='<div class="lead-portal">'+draftBanner()+liveBar()+paneInbox()+'</div>';
+    /* Both real now: Lead inbox = region-assigned & unclaimed; My pipeline = flagged (claimed) to me. */
+    vc.innerHTML='<div class="lead-portal">'+(LSUB.inbox==='pip'?panePipeline():paneInbox())+'</div>';
   }
-  function inboxList(){ return LEADS.filter(function(l){return l.stage===1&&l.assigned&&!l.rep&&!l.returnClass&&(IS_ADMIN||ME_REGIONS.indexOf(l.region)>=0);}); }
+  /* Lead inbox = leads at the Assigned stage (region set) with no owner flag yet.
+     Per-rep region routing (each rep sees only their region), the accept-race and SLA timers are Phase-2. */
+  function inboxList(){ return LM.rows.filter(lmIsUnclaimed); }
   function paneInbox(){
+    if(!LM.loaded){ lmEnsure(); return lmSkel(); }
     var list=inboxList();
     var cards=list.map(function(l){
       var chips=[];
-      chips.push(bdg('badge-pass','receiver verified'));
-      if(l.contact) chips.push(bdg('badge-pass','contact: '+l.contact+(l.role?', '+l.role:'')));
-      chips.push(bdg('badge-pass','season ok'));
-      if(l.gates.cert==='warn') chips.push(bdg('badge-warn','cert: BRC + Tesco Nurture · 2/5 packhouses'));
-      else chips.push(bdg('badge-pass','cert ok'));
-      if(l.passCount) chips.push(bdg('badge-warn',l.passCount+' of 3 reps passed — no capacity'));
-      chips.push(bdg('badge-n',campById(l.campaign)?campById(l.campaign).name:''));
-      var border=l.sla<=0?' style="border-color:var(--red-border)"':'';
-      return '<div class="inb"'+border+'><div class="inb-h"><span class="lot">'+esc(l.id)+'</span><span class="inb-t">'+esc(l.company)+'</span>'
-        +bdg('badge-n',l.country+' · '+l.product)+bdg(l.band>=3?'badge-pass':'badge-n',L_BANDS[l.band]+' containers')
-        +'<span style="margin-left:auto">'+slaBadge(l)+'</span></div>'
+      chips.push(bdg('badge-n',l.assignedRegion||'—'));
+      if(l.contact) chips.push(bdg('badge-pass',l.contact+(l.role?' · '+l.role:'')));
+      if(l.product&&l.product!=='—') chips.push(bdg('badge-n',l.product));
+      if(l.band) chips.push(bdg('badge-n',esc(l.band)));
+      chips.push(bdg('badge-n',lmSourceLabel(l.source)));
+      if(l.campaign) chips.push(bdg('badge-n',l.campaign));
+      return '<div class="inb"><div class="inb-h"><span class="lot">'+esc(l.ref)+'</span><span class="inb-t">'+esc(l.company)+'</span>'
+        +'<span style="margin-left:auto">'+bdg('badge-warn','unclaimed')+'</span></div>'
         +'<div class="chips">'+chips.join('')+'</div>'
-        +'<div class="gset"><button class="btn btn-primary btn-sm" onclick="CRM.leadAccept(\''+l.id+'\')">Accept &amp; own</button>'
-        +'<button class="btn btn-secondary btn-sm" onclick="CRM.leadPassOpen(\''+l.id+'\')">Pass…</button>'
-        +'<button class="btn btn-secondary btn-sm" onclick="CRM.leadOpen(\''+l.id+'\')">Open lead</button></div></div>';
+        +'<div class="gset"><button class="btn btn-primary btn-sm" onclick="CRM.lmClaim(\''+l.id+'\')">Claim &amp; own</button>'
+        +'<button class="btn btn-secondary btn-sm" onclick="CRM.lmOpen(\''+l.id+'\')">Open lead</button></div></div>';
     }).join('');
-    var region=IS_ADMIN?'all regions (admin)':ME_REGIONS.join(' · ');
-    return '<div class="card"><div class="section-title"><span class="section-title-bar"></span> Lead inbox · '+esc(region)+' · '+list.length+' awaiting decision</div>'
-      +'<div class="alert-warn" style="margin-bottom:12px"><strong>Accept is a race, reject is a pass.</strong> The first rep to accept becomes sole owner and the lead leaves everyone else\'s inbox. A pass only removes it from yours — the lead returns to marketing when all reps have passed, or at day 5.</div>'
-      +(list.length?cards:'<div class="empty-state">Nothing awaiting your decision.</div>')+'</div>';
+    return '<div class="card"><div class="section-title"><span class="section-title-bar"></span> Lead inbox · all regions · '+list.length+' unclaimed'
+      +' <span style="margin-left:auto"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRefresh(this)">↻ Refresh</button></span></div>'
+      +'<div class="alert-warn" style="margin-bottom:12px">Leads assigned to a region, waiting for a rep. <strong>Claim</strong> takes ownership — the lead moves to your pipeline. Per-region routing (each rep sees only their region), the accept-race and SLA timers arrive with the Phase-2 rules.</div>'
+      +(list.length?cards:'<div class="empty-state">No unclaimed leads. Qualify a lead, then <b>Assign to region</b> to route it here.</div>')+'</div>';
   }
   function panePipeline(){
     if(!LM.loaded){ lmEnsure(); return lmSkel(); }
-    var uid=(USER&&USER.id)||null;
-    var mine=LM.rows.filter(function(l){return l.assignedTo && uid && l.assignedTo===uid && l.disposition!=='returned';});
+    var mine=LM.rows.filter(lmIsMine);
     var rows=mine.map(function(l){
       return '<tr onclick="CRM.lmOpen(\''+l.id+'\')"><td><span class="lot">'+esc(l.ref)+'</span></td><td>'+esc(l.company)+'</td>'
         +'<td>'+(l.assignedRegion?bdg('badge-n',l.assignedRegion):'—')+'</td>'
         +'<td>'+esc(l.product)+'</td><td>'+lmStageBadge(l)+'</td><td class="mono">'+esc(lmDate(l.assignedAt||l.capturedAt))+'</td></tr>';
     }).join('');
-    if(!mine.length) rows='<tr><td colspan="6" class="cell-sub" style="padding:16px;text-align:center">Nothing assigned to you yet. Qualify a lead in the Workspace, then <b>Assign to region</b> to add it here.</td></tr>';
+    if(!mine.length) rows='<tr><td colspan="6" class="cell-sub" style="padding:16px;text-align:center">Nothing claimed yet. <b>Claim</b> a region-assigned lead from the Lead inbox to add it here.</td></tr>';
     return '<div class="card"><div class="section-title"><span class="section-title-bar"></span> My pipeline · '+mine.length+' lead(s) assigned to me'
       +' <span style="margin-left:auto"><button class="btn btn-secondary btn-sm" onclick="CRM.lmRefresh(this)">↻ Refresh</button></span></div>'
       +'<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Company</th><th>Region</th><th>Product</th><th>Stage</th><th>Assigned</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
@@ -3318,7 +3326,7 @@ window.CRM = (function(){
     rrOpenAlias:rrOpenAlias, rrMapAlias:rrMapAlias, rrWhy:rrWhy, rrToggleEngine:rrToggleEngine,
     lmRefresh:lmRefresh, lmOpen:lmOpen, lmEnrichOpen:lmEnrichOpen, lmEnrichSave:lmEnrichSave,
     lmQualify:lmQualify, lmAssignOpen:lmAssignOpen, lmPickRegion:lmPickRegion, lmAssignSave:lmAssignSave,
-    lmReturnOpen:lmReturnOpen, lmReturnPick:lmReturnPick, lmReturnSave:lmReturnSave, lmRequeue:lmRequeue, lmSearch:lmSearch, lmSetF:lmSetF,
+    lmReturnOpen:lmReturnOpen, lmReturnPick:lmReturnPick, lmReturnSave:lmReturnSave, lmRequeue:lmRequeue, lmClaim:lmClaim, lmSearch:lmSearch, lmSetF:lmSetF,
     leadSub:leadSub, leadNav:leadNav, leadSet:leadSet, leadReset:leadReset, leadOpen:leadOpen,
     leadQuickAdd:leadQuickAdd, leadSubmitQuickAdd:leadSubmitQuickAdd, leadEnrich:leadEnrich,
     leadQualifyOpen:leadQualifyOpen, leadGate:leadGate, leadQualifySave:leadQualifySave,
