@@ -7360,7 +7360,7 @@ function HomeView(props){
   if(perms.viewShipments) tiles.push({key:'shipments',view:'shipments',  eyebrow:'Logistics',  label:'Shipments',        icon:'\uD83D\uDEA2', hint:'Records & tracking', glow:'#d98a1f', eyebrowColor:'#e8c489'});
   if(perms.viewAnalytics) tiles.push({key:'analytics',view:'analytics',  eyebrow:'Insights',   label:'Inspections Analytics',     icon:'\uD83D\uDCCA', hint:'Season trends', glow:'#3d9e6b', eyebrowColor:'#8fe0ad'});
   if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Escalation Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
-  if(perms.viewCRM)       tiles.push({key:'crm',       view:'crm',        eyebrow:'Commercial', label:'CRM', glow:'#c07ce8', eyebrowColor:'#d7b6f0',
+  if(perms.viewCRM||perms.viewLeads) tiles.push({key:'crm',       view:'crm',        eyebrow:'Commercial', label:'CRM', glow:'#c07ce8', eyebrowColor:'#d7b6f0',
       icon:ce('span',{dangerouslySetInnerHTML:{__html:'<svg viewBox="0 0 16 16" fill="currentColor" style="width:1em;height:1em;display:block"><path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002a.274.274 0 0 1-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>'}}),
       hint:(crmStats?(crmStats.total.toLocaleString()+' in scope \u00b7 '+crmStats.open+' open claim'+(crmStats.open===1?'':'s')):'Claims & regions'),
       pulse:!!(crmStats&&crmStats.open>0)});
@@ -8083,9 +8083,9 @@ function ExportView(props){
 ═══════════════════════════════════════ */
 var ROLES = {
   admin:       {label:'Admin',                color:'#1e2d22',badge:'#2b5c3f',
-                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, giveAccess:true}},
+                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true, manageLeads:true, giveAccess:true}},
   power_user:  {label:'Power User',           color:'#0f5a52',badge:'#159085',
-                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, giveAccess:false}},
+                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true, manageLeads:true, giveAccess:false}},
   board:       {label:'Senior Board',         color:'#2a0a5a',badge:'#6a10b0',
                 perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:false,viewExport:false,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:true, escalate:false,allPackhouses:true, viewShipments:true}},
   qc_manager:  {label:'QC Manager',           color:'#2b5c3f',badge:'#4a8c62',
@@ -8097,7 +8097,9 @@ var ROLES = {
   inspector:   {label:'Inspector',            color:'#3a6a3a',badge:'#5a9a5a',
                 perms:{viewFG:true, createFG:true, editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false, viewShipments:false}},
   commercial:  {label:'Commercial / Export',  color:'#7a5010',badge:'#b87820',
-                perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true, viewCRM:true}},
+                perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true}},
+  marketing:   {label:'Marketing',             color:'#6a2ca0',badge:'#9a5ad0',
+                perms:{viewFG:false,createFG:false,editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false,viewShipments:false,viewCRM:true, editCRM:false,viewLeads:true, editLeadStatus:true, manageLeads:true}},
   client_qc:   {label:'Client QC Management',color:'#1a4a7a',badge:'#2a6aaa',
                 perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true}},
   executive:   {label:'Executive',            color:'#8a1a1a',badge:'#b03030',
@@ -8107,7 +8109,8 @@ var PERM_LABELS = {
   viewFG:'View inspections',createFG:'Create inspections',editFG:'Edit inspections',
   approveFG:'Approve / reject',viewClientQC:'View client reports',createClientQC:'Submit client reports',
   viewExport:'Export data',viewAnalytics:'Analytics dashboard',viewAdmin:'User management',viewConfig:'System configuration',
-  viewEscalation:'Board review / escalation queue',escalate:'Escalate batches',allPackhouses:'All packhouses',viewShipments:'View shipments',viewCRM:'CRM (claims & regions)'
+  viewEscalation:'Board review / escalation queue',escalate:'Escalate batches',allPackhouses:'All packhouses',viewShipments:'View shipments',viewCRM:'CRM — claims & regions (view)',
+  editCRM:'CRM — raise/edit claims, grade, redirect',viewLeads:'Leads — view',editLeadStatus:'Leads — change status & add notes',manageLeads:'Leads — full management (create, import, assign, campaigns)'
 };
 var INITIAL_USERS = []; /* Demo users removed — users load from Supabase */
 /* Format users.last_login (raw ISO/UTC) → readable Cairo-time stamp. */
@@ -15415,6 +15418,11 @@ function CRMView(props){
   var seasonId=cfg.trueActiveSeasonId||cfg.activeSeasonId||CRM_FALLBACK_SEASON;
   var cu=props.currentUser||{};
   var isAdmin=cu.role==='admin'||cu.role==='power_user';
+  /* Admin-only role preview (dev/review aid): set localStorage.crmPreviewRole='marketing'|'commercial'|... then
+     reload to see that role's CRM/leads gates while keeping full admin data scope. No effect for non-admins;
+     purely client-side (real enforcement is RLS, pass 2). Clear with: delete localStorage.crmPreviewRole */
+  var effPerms=props.perms||{};
+  if(isAdmin){ try{ var _pv=localStorage.getItem('crmPreviewRole')||''; if(_pv&&ROLES[_pv]){ effPerms=ROLES[_pv].perms; } }catch(e){} }
   var sPopup=React.useState(null);
   var sCqcPopup=React.useState(null);
   /* Live-config ref: the openCqc/openInsp globals are wired in a mount-only effect,
@@ -15425,7 +15433,7 @@ function CRMView(props){
   React.useEffect(function(){
     injectCrmCss();
     if(ref.current&&window.CRM){
-      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu,config:cfg,onOpenCqc:props.onOpenCqc,onHeader:props.onHeader,onTab:props.onTab});
+      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu,config:cfg,perms:effPerms,onOpenCqc:props.onOpenCqc,onHeader:props.onHeader,onTab:props.onTab});
       window.openInspPreviewGlobal=function(id){loadInspPreview(id,sPopup[1],cfgRef.current);};
       window.openCqcPreviewGlobal=function(id){loadCqcPreview(id,sCqcPopup[1],cfgRef.current);};
     }
@@ -17178,7 +17186,7 @@ function App(){
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & tracking'});
-  if(perms.viewCRM)          availViews.push({id:'crm',        label:'CRM',               sub:'Claims & regions'});
+  if(perms.viewCRM||perms.viewLeads) availViews.push({id:'crm',        label:'CRM',               sub:'Claims & regions'});
   if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'Inspections Analytics',      sub:'Dashboard'});
   if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Escalation Review',      sub:'Escalation queue'});
   if(perms.viewAdmin)        availViews.push({id:'admin',      label:'Admin',             sub:'Users & access'});
@@ -17415,7 +17423,7 @@ function App(){
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
-        view==='crm'        &&perms.viewCRM       &&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onTab:function(t,k){setCrmTab(t);setCrmLeadKey(k||'');},onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
+        view==='crm'        &&(perms.viewCRM||perms.viewLeads)&&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onTab:function(t,k){setCrmTab(t);setCrmLeadKey(k||'');},onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
