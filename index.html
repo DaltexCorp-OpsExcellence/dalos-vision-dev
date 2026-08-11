@@ -474,12 +474,20 @@ input,select,textarea{font-size:16px!important}
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
-<!-- CRM island (window.CRM + injectCrmCss) — extracted from index.html for deploy isolation; must load before the main inline script -->
-<script src="crm.js?cb=20"></script>
+<!-- CRM retired from Vision → standalone DalOS Commercial app (Workspace card). See CRM_ENABLED_IN_VISION flag below. -->
 
 <script type="text/javascript">
 var useState = React.useState;
 var ce = React.createElement;
+/* ── CRM retired from Vision ──────────────────────────────────────────────────
+   The full CRM now lives in the standalone DalOS Commercial app (reached from the
+   Workspace card): repo dalos-commercial, its own index.html + crm.js. Vision keeps
+   the ROLES map (incl. the 'marketing' role) + Admin “Users & access” as the ROLE-
+   ASSIGNMENT control surface only — the Commercial app reads users.role and enforces.
+   This flag disables every CRM entry point in Vision (tile, view, sidebar nav, #capture
+   deep-link). To restore: set true AND re-add <script src="crm.js"> (backup lives in
+   ~/Desktop/dalos/backups/crm-vision-embedded-*.js). */
+var CRM_ENABLED_IN_VISION = false;
 var Frag = React.Fragment;
 /* Settings > Sub-clients: parent list = distinct parents of existing sub-clients (incl. inactive clients) + active clients */
 function cfgSubClientParents(config){var seen={};var l=[];(config.subClients||[]).forEach(function(s){var n=(config.clientsIdToName||{})[s.clientId];if(n&&!seen[n]){seen[n]=1;l.push(n);}});(config.clients||[]).forEach(function(n){if(!seen[n]){seen[n]=1;l.push(n);}});return l.sort(function(a,b){return a.localeCompare(b);});}
@@ -7306,7 +7314,7 @@ function HomeView(props){
   /* CRM home stats — region-scoped by crm_voyages RLS (admins all, members their region); fetched async so the heavy view never blocks Home. Only runs for CRM-access users. */
   var sCrm=useState(null); var crmStats=sCrm[0]; var setCrmStats=sCrm[1];
   React.useEffect(function(){
-    if(!perms.viewCRM) return;
+    if(!CRM_ENABLED_IN_VISION||!perms.viewCRM) return;
     var season=config.trueActiveSeasonId||config.activeSeasonId||CRM_FALLBACK_SEASON;
     var live=true;
     function load(attempt){
@@ -7360,7 +7368,7 @@ function HomeView(props){
   if(perms.viewShipments) tiles.push({key:'shipments',view:'shipments',  eyebrow:'Logistics',  label:'Shipments',        icon:'\uD83D\uDEA2', hint:'Records & tracking', glow:'#d98a1f', eyebrowColor:'#e8c489'});
   if(perms.viewAnalytics) tiles.push({key:'analytics',view:'analytics',  eyebrow:'Insights',   label:'Inspections Analytics',     icon:'\uD83D\uDCCA', hint:'Season trends', glow:'#3d9e6b', eyebrowColor:'#8fe0ad'});
   if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Escalation Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
-  if(perms.viewCRM||perms.viewLeads) tiles.push({key:'crm',       view:'crm',        eyebrow:'Commercial', label:'CRM', glow:'#c07ce8', eyebrowColor:'#d7b6f0',
+  if(CRM_ENABLED_IN_VISION&&(perms.viewCRM||perms.viewLeads)) tiles.push({key:'crm',       view:'crm',        eyebrow:'Commercial', label:'CRM', glow:'#c07ce8', eyebrowColor:'#d7b6f0',
       icon:ce('span',{dangerouslySetInnerHTML:{__html:'<svg viewBox="0 0 16 16" fill="currentColor" style="width:1em;height:1em;display:block"><path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002a.274.274 0 0 1-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>'}}),
       hint:(crmStats?(crmStats.total.toLocaleString()+' in scope \u00b7 '+crmStats.open+' open claim'+(crmStats.open===1?'':'s')):'Claims & regions'),
       pulse:!!(crmStats&&crmStats.open>0)});
@@ -17114,6 +17122,7 @@ function App(){
   /* #capture deep link → once signed in and the CRM island is mounted, open Show Mode straight away.
      Intent was stashed by the view initializer (also mirrored to sessionStorage to survive login). */
   React.useEffect(function(){
+    if(!CRM_ENABLED_IN_VISION) return;   /* CRM (incl. #capture Show Mode) now lives in the Commercial app */
     if(!liveCurrentUser) return;
     var it=window.__capIntent;
     if(!it){ try{ var s=sessionStorage.getItem('dalos_cap_intent'); if(s){ it=JSON.parse(s); window.__capIntent=it; } }catch(e){} }
@@ -17186,7 +17195,7 @@ function App(){
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & tracking'});
-  if(perms.viewCRM||perms.viewLeads) availViews.push({id:'crm',        label:'CRM',               sub:'Claims & regions'});
+  if(CRM_ENABLED_IN_VISION&&(perms.viewCRM||perms.viewLeads)) availViews.push({id:'crm',        label:'CRM',               sub:'Claims & regions'});
   if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'Inspections Analytics',      sub:'Dashboard'});
   if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Escalation Review',      sub:'Escalation queue'});
   if(perms.viewAdmin)        availViews.push({id:'admin',      label:'Admin',             sub:'Users & access'});
@@ -17252,7 +17261,7 @@ function App(){
              commercial module — shipments/claims/etc.) and "Leads Managements" (the leads portal,
              with Funnel & Campaign beneath it). Each child sets an explicit CRM tab, so there is
              always a clear way back to the commercial side from Leads. */
-          if(v.id==='crm'&&perms.viewCRM){
+          if(CRM_ENABLED_IN_VISION&&v.id==='crm'&&perms.viewCRM){
             var isLeadsTab=(['leads','inbox','funnel','campaigns'].indexOf(crmTab)>=0);
             var crmActive=(view==='crm');
             var commActive=(crmActive&&!isLeadsTab);
@@ -17423,7 +17432,7 @@ function App(){
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
-        view==='crm'        &&(perms.viewCRM||perms.viewLeads)&&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onTab:function(t,k){setCrmTab(t);setCrmLeadKey(k||'');},onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
+        CRM_ENABLED_IN_VISION&&view==='crm'&&(perms.viewCRM||perms.viewLeads)&&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onTab:function(t,k){setCrmTab(t);setCrmLeadKey(k||'');},onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
