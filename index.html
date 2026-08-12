@@ -8112,6 +8112,11 @@ var ROLES = {
                 perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true}},
   executive:   {label:'Executive',            color:'#8a1a1a',badge:'#b03030',
                 perms:{viewFG:false,createFG:false,editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true}},
+  /* Land Cloud (Farm Structure) roles — no Vision permissions; access is granted in the Land Cloud app via the shared farm_can_read/write gates. Present here so admins can assign them. */
+  agronomy_admin: {label:'Agronomy Admin (Land Cloud)', color:'#0d3f3d',badge:'#0d6a68',
+                perms:{viewFG:false,createFG:false,editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false,viewShipments:false}},
+  agronomy_viewer:{label:'Agronomy Viewer (Land Cloud)',color:'#155e5b',badge:'#159490',
+                perms:{viewFG:false,createFG:false,editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false,viewShipments:false}},
 };
 var PERM_LABELS = {
   viewFG:'View inspections',createFG:'Create inspections',editFG:'Edit inspections',
