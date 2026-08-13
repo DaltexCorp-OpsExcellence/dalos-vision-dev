@@ -1161,8 +1161,8 @@ function InspectionForm(props){
   var sGrpSession=useState(null);
   var grpSessionId=(function(){
     if(sGrpSession[0]) return sGrpSession[0]; /* locked session id — all crops */
+    if(batch&&batch.id) return batch.id; /* editing an existing inspection (any crop) — use its id (needed for citrus pallet move) */
     if(cropId!=='grapes') return '';
-    if(batch&&batch.id) return batch.id;
     var prod=(config.products||[]).find(function(p){return p.id==='grapes';})||{inspection_prefix:'GR'};
     var prefix=prod.inspection_prefix||'GR';
     var ph=(packhouse&&packhouse.initials)||'XX';
@@ -3028,7 +3028,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                   onClick:function(e){e.stopPropagation();addPalletSameLOT();}
                 },'+ Pallet')
               :ce('button',{className:'btn btn-sm',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap',display:'inline-flex'},onClick:function(e){e.stopPropagation();if(isEdit){addPalletSameLOT();}else{setShowNP(true);}}},'+ Pallet'),
-              (cropId==='grapes'||((cropId==='mango'||cropId==='citrus')&&pallets.length>1))&&ce('button',{className:'btn btn-sm',
+              (cropId==='grapes'||cropId==='citrus'||(cropId==='mango'&&pallets.length>1))&&ce('button',{className:'btn btn-sm',
                 style:{background:'var(--bg2)',color:'var(--text2)',border:'1px solid var(--border2)',fontSize:11,flexShrink:0,opacity:animatingPalletId?.5:1,transition:'opacity .2s'},
                 disabled:!!animatingPalletId,
                 onClick:function(i,p){return function(e){e.stopPropagation();openMoveModal(i,p);};}(pIdx,pallet)
