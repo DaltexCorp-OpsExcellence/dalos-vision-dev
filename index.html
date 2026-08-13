@@ -16398,6 +16398,19 @@ function App(){
     }
     return p;
   }
+  /* Pomegranate payload = the generic mango builder (pomegranate is single-farm /
+     mango-shaped) + the citrus-style pallet-number blanking so the server auto-assigns
+     {inspection_id}-{n}. Existing pallets keep their stored number (round-tripped via
+     palletNo → buildMango's pallet_number); NEW pallets (temp numeric palletId) send an
+     empty number. No multi-farm header fields (unlike citrus). */
+  function buildPomegranateSavePayload(newBatch, userId, seasonId, isEditFlag, editId){
+    var p=buildMangoSavePayload(newBatch, userId, seasonId, isEditFlag, editId);
+    var _src=newBatch.pallets||[];
+    if((p.pallets||[]).length===_src.length){
+      p.pallets.forEach(function(pr,i){ if(_src[i]&&typeof _src[i].palletId==='number') pr.pallet_number=''; });
+    }
+    return p;
+  }
   /* Build an accurate save-failure message. A response-level error (res.error) means the
      SERVER answered with a rejection — this is NOT a connectivity problem, so we must not
      tell the inspector to check their wifi (they'd retry forever, as happens with a
@@ -16560,6 +16573,68 @@ function App(){
           });
         }catch(e){
           console.error('[DalOS] Failed to build citrus edit payload, falling back to legacy path:',e&&e.message);
+          /* fall through to legacy edit path */
+        }
+      }
+      /* ── ATOMIC POMEGRANATE NEW-SAVE (shaky-network safe) ────────────────
+         Pomegranate joined the atomic path for the 2025/26 season. Mango-shaped
+         (single-farm); reuses buildPomegranateSavePayload (the mango builder plus
+         citrus-style server-assigned pallet numbers) and the product-guarded
+         save_pomegranate_inspection_full RPC. */
+      if(!isEditMode && (newBatch.crop||'').toLowerCase()==='pomegranate'){
+        try{
+          var psp=buildPomegranateSavePayload(newBatch, userId, seasonId);
+          return supabase.rpc('save_pomegranate_inspection_full',{payload:psp}).then(function(res){
+            if(res.error){
+              console.error('[DalOS] Atomic pomegranate save failed:',res.error.message);
+              if(onDone){onDone(mangoServerErrMsg(res.error.message,false));onDone=null;}
+              return {__handled:true};
+            }
+            var newRealId=res.data&&res.data.id;
+            console.log('[DalOS] Atomic pomegranate save OK:',newRealId,res.data);
+            if(onDone){onDone(null,newRealId);onDone=null;}
+            try{ if(typeof refreshBatchesById==='function'&&newRealId) setTimeout(function(){refreshBatchesById([newRealId]);},1200); }catch(e){}
+            return {__handled:true};
+          }).catch(function(e){
+            console.error('[DalOS] Atomic pomegranate save threw:',e&&e.message);
+            if(onDone){onDone('RETRY:Save didn’t go through — your data is still here. Check your connection and tap Save again.');onDone=null;}
+            return {__handled:true};
+          });
+        }catch(e){
+          console.error('[DalOS] Failed to build pomegranate payload, falling back to legacy path:',e&&e.message);
+          /* fall through to legacy path below */
+        }
+      }
+      /* ── ATOMIC POMEGRANATE EDIT (shaky-network safe) ────────────────────
+         Header update under optimistic lock, then incremental child reconcile,
+         all-or-nothing; stale lock surfaces as CONFLICT. */
+      if(isEditMode && (newBatch.crop||'').toLowerCase()==='pomegranate'){
+        try{
+          var pep=buildPomegranateSavePayload(newBatch, userId, seasonId, true, newBatch.id);
+          return supabase.rpc('edit_pomegranate_inspection_full',{payload:pep}).then(function(res){
+            if(res.error){
+              var msg=res.error.message||'';
+              if(msg.indexOf('CONFLICT')>=0){
+                console.warn('[DalOS] Atomic pomegranate edit conflict:',msg);
+                if(onDone){onDone('CONFLICT',newBatch.id);onDone=null;}
+                return {__handled:true};
+              }
+              console.error('[DalOS] Atomic pomegranate edit failed:',msg);
+              if(onDone){onDone(mangoServerErrMsg(msg,true));onDone=null;}
+              return {__handled:true};
+            }
+            var eid=(res.data&&res.data.id)||newBatch.id;
+            console.log('[DalOS] Atomic pomegranate edit OK:',eid,res.data);
+            if(onDone){onDone(null,eid);onDone=null;}
+            try{ if(typeof refreshBatchesById==='function') setTimeout(function(){refreshBatchesById([eid]);},1200); }catch(e){}
+            return {__handled:true};
+          }).catch(function(e){
+            console.error('[DalOS] Atomic pomegranate edit threw:',e&&e.message);
+            if(onDone){onDone('RETRY:Save didn’t go through — your changes are still here. Check your connection and tap Save again.');onDone=null;}
+            return {__handled:true};
+          });
+        }catch(e){
+          console.error('[DalOS] Failed to build pomegranate edit payload, falling back to legacy edit path:',e&&e.message);
           /* fall through to legacy edit path */
         }
       }
