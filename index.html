@@ -2955,7 +2955,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
           /* Pallet header */
           ce('div',{style:{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,background:isActive?'var(--accent)08':'var(--bg2)',cursor:'pointer'},onClick:function(){setActivePalletIdx(pIdx);}},
             ce('div',{style:{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}},
-              /* Grapes + Mango: typed pallet label. Citrus: system-assigned number (read-only). Others: numbered badge */
+              /* Grapes + Mango: typed pallet label. Citrus + Pomegranate: system-assigned number (read-only). Others: numbered badge */
               (cropId==='grapes'||cropId==='mango')
               ?ce('div',{style:{display:'flex',flexDirection:'column',gap:3,flexShrink:0},'data-field':'palletLabel-'+pIdx,onClick:function(e){e.stopPropagation();}},
                   ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Pallet #'),
@@ -2972,7 +2972,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                     })
                   )
                 )
-              :cropId==='citrus'
+              :(cropId==='citrus'||cropId==='pomegranate')
               ?ce('div',{style:{display:'flex',flexDirection:'column',gap:3,flexShrink:0},onClick:function(e){e.stopPropagation();}},
                   ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Pallet #'),
                   ce('div',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600,color:(typeof pallet.palletId==='string')?'var(--accent)':'var(--text3)',whiteSpace:'nowrap'}},
@@ -3028,7 +3028,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                   onClick:function(e){e.stopPropagation();addPalletSameLOT();}
                 },'+ Pallet')
               :ce('button',{className:'btn btn-sm',style:{background:'#eef4ff',border:'1px solid #a0b8e8',color:'#2a5aa0',fontWeight:500,flexShrink:0,whiteSpace:'nowrap',display:'inline-flex'},onClick:function(e){e.stopPropagation();if(isEdit){addPalletSameLOT();}else{setShowNP(true);}}},'+ Pallet'),
-              (cropId==='grapes'||cropId==='citrus'||(cropId==='mango'&&pallets.length>1))&&ce('button',{className:'btn btn-sm',
+              (cropId==='grapes'||cropId==='citrus'||cropId==='pomegranate'||(cropId==='mango'&&pallets.length>1))&&ce('button',{className:'btn btn-sm',
                 style:{background:'var(--bg2)',color:'var(--text2)',border:'1px solid var(--border2)',fontSize:11,flexShrink:0,opacity:animatingPalletId?.5:1,transition:'opacity .2s'},
                 disabled:!!animatingPalletId,
                 onClick:function(i,p){return function(e){e.stopPropagation();openMoveModal(i,p);};}(pIdx,pallet)
