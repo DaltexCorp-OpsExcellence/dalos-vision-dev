@@ -2976,7 +2976,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               ?ce('div',{style:{display:'flex',flexDirection:'column',gap:3,flexShrink:0},onClick:function(e){e.stopPropagation();}},
                   ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Pallet #'),
                   ce('div',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600,color:(typeof pallet.palletId==='string')?'var(--accent)':'var(--text3)',whiteSpace:'nowrap'}},
-                    (typeof pallet.palletId==='string'&&pallet.palletNo)?String(pallet.palletNo):'Auto on save')
+                    (typeof pallet.palletId==='string'&&pallet.palletNo)?String(pallet.palletNo):String(pIdx+1))
                 )
               :ce('div',{style:{width:28,height:28,borderRadius:7,background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#fff',flexShrink:0}},pallet.palletNo),
               ce('div',{style:{minWidth:0,overflow:'hidden'}},
