@@ -1296,12 +1296,8 @@ function InspectionForm(props){
         if(unassignedTC.length>0) errs.push('All trace codes must be assigned V1, V2 or Both in a mixed variety session');
       }
     }
-    /* Citrus adopted the label/container/trace pallet model — require a label on
-       every pallet (the atomic save keys pallets by pallet_number = prefix+label). */
-    if(cropId==='citrus'){
-      var missingLabelsC=pallets.filter(function(p){return !(p.palletLabel||'').trim();});
-      if(missingLabelsC.length>0) errs.push('Pallet label required for all pallets (e.g. P-4471)');
-    }
+    /* Citrus pallet numbers are system-assigned ({inspection_id}-{n}) on save —
+       nothing to validate here (no typed label). */
     if(!variety.trim()) errs.push('Variety');
     if(!decision) errs.push('Decision \u2014 Accept or Reject must be selected');
     /* ── DUPLICATE PALLET LABEL BLOCK (session-scoped, all products) ──────────
@@ -2959,8 +2955,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
           /* Pallet header */
           ce('div',{style:{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,background:isActive?'var(--accent)08':'var(--bg2)',cursor:'pointer'},onClick:function(){setActivePalletIdx(pIdx);}},
             ce('div',{style:{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}},
-              /* Grapes + Mango: pallet label input. Others: numbered badge */
-              (cropId==='grapes'||cropId==='mango'||cropId==='citrus')
+              /* Grapes + Mango: typed pallet label. Citrus: system-assigned number (read-only). Others: numbered badge */
+              (cropId==='grapes'||cropId==='mango')
               ?ce('div',{style:{display:'flex',flexDirection:'column',gap:3,flexShrink:0},'data-field':'palletLabel-'+pIdx,onClick:function(e){e.stopPropagation();}},
                   ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Pallet #'),
                   ce('div',{style:{display:'flex',alignItems:'center',gap:4}},
@@ -2975,6 +2971,12 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         minHeight:'auto'}
                     })
                   )
+                )
+              :cropId==='citrus'
+              ?ce('div',{style:{display:'flex',flexDirection:'column',gap:3,flexShrink:0},onClick:function(e){e.stopPropagation();}},
+                  ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Pallet #'),
+                  ce('div',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600,color:(typeof pallet.palletId==='string')?'var(--accent)':'var(--text3)',whiteSpace:'nowrap'}},
+                    (typeof pallet.palletId==='string'&&pallet.palletNo)?String(pallet.palletNo):'Auto on save')
                 )
               :ce('div',{style:{width:28,height:28,borderRadius:7,background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#fff',flexShrink:0}},pallet.palletNo),
               ce('div',{style:{minWidth:0,overflow:'hidden'}},
@@ -16386,6 +16388,14 @@ function App(){
     if(newBatch.farm4) h.farm4_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm4])||null;
     if(newBatch.plot4!==undefined) h.plot4=newBatch.plot4||null;
     h.additional_farms=(newBatch.additionalFarms||[]).map(function(af){return {farm_id:af.farmId||null,plot:af.plot||null};});
+    /* Citrus pallet numbers are system-assigned ({inspection_id}-{n}) server-side.
+       Existing pallets keep their stored number (round-tripped via palletNo →
+       buildMango's pallet_number); NEW pallets (temp numeric palletId) send an
+       empty number so the RPC assigns the next sequential one. */
+    var _src=newBatch.pallets||[];
+    if((p.pallets||[]).length===_src.length){
+      p.pallets.forEach(function(pr,i){ if(_src[i]&&typeof _src[i].palletId==='number') pr.pallet_number=''; });
+    }
     return p;
   }
   /* Build an accurate save-failure message. A response-level error (res.error) means the
