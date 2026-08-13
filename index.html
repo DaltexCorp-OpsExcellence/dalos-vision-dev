@@ -2511,14 +2511,14 @@ function InspectionForm(props){
               ),
               farm==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm name',onChange:function(e){setFarm(e.target.value);}})
             ),
-            /* Plot (grapes only) */
-            cropId==='grapes'&&ce('div',{className:'form-field'},
+            /* Plot (grapes + citrus) */
+            (cropId==='grapes'||cropId==='citrus')&&ce('div',{className:'form-field'},
               ce('label',{className:'form-label'},'Plot'),
               ce('input',{className:'form-input',value:plot,placeholder:'Plot no.',onChange:function(e){setPlot(e.target.value);}})
             )
           ),
           /* Farm 2 + Plot 2 — + button toggle */
-          cropId==='grapes'&&(!farm2
+          (cropId==='grapes'||cropId==='citrus')&&(!farm2
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
                   onClick:function(){setFarm2('__selecting__');}
@@ -2546,7 +2546,7 @@ function InspectionForm(props){
               )
           ),
           /* Farm 3 — only shown when farm2 is filled */
-          cropId==='grapes'&&farm2&&farm2!=='__selecting__'&&(!farm3
+          (cropId==='grapes'||cropId==='citrus')&&farm2&&farm2!=='__selecting__'&&(!farm3
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
                   onClick:function(){setFarm3('__selecting__');}
@@ -2574,7 +2574,7 @@ function InspectionForm(props){
               )
           ),
           /* Farm 4 — only shown when farm3 is filled */
-          cropId==='grapes'&&farm3&&farm3!=='__selecting__'&&(!farm4
+          (cropId==='grapes'||cropId==='citrus')&&farm3&&farm3!=='__selecting__'&&(!farm4
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
                   onClick:function(){setFarm4('__selecting__');}
@@ -2602,7 +2602,7 @@ function InspectionForm(props){
               )
           ),
           /* Additional farms 5+ — unlimited, only when farm4 is filled */
-          cropId==='grapes'&&farm4&&farm4!=='__selecting__'&&ce('div',null,
+          (cropId==='grapes'||cropId==='citrus')&&farm4&&farm4!=='__selecting__'&&ce('div',null,
             additionalFarms.map(function(af,aidx){
               return ce('div',{key:aidx,className:'grid4',style:{marginBottom:10}},
                 ce('div',{className:'form-field'},
@@ -16293,6 +16293,22 @@ function App(){
     });
     return {inspection:header,pallets:pallets,sticker_checks:stickerChecks,clearance:clearance};
   }
+  /* Citrus payload = the generic mango builder + the multi-farm header fields the
+     mango builder omits (mango is single-farm). Per-sample farm/plot ride along in
+     each sample's extra_fields (sampleFarm/samplePlot), exactly like grapes. */
+  function buildCitrusSavePayload(newBatch, userId, seasonId, isEditFlag, editId){
+    var p=buildMangoSavePayload(newBatch, userId, seasonId, isEditFlag, editId);
+    var h=p.inspection;
+    if(newBatch.plot!==undefined) h.plot=newBatch.plot||null;
+    if(newBatch.farm2) h.farm2_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm2])||null;
+    if(newBatch.plot2!==undefined) h.plot2=newBatch.plot2||null;
+    if(newBatch.farm3) h.farm3_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm3])||null;
+    if(newBatch.plot3!==undefined) h.plot3=newBatch.plot3||null;
+    if(newBatch.farm4) h.farm4_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm4])||null;
+    if(newBatch.plot4!==undefined) h.plot4=newBatch.plot4||null;
+    h.additional_farms=(newBatch.additionalFarms||[]).map(function(af){return {farm_id:af.farmId||null,plot:af.plot||null};});
+    return p;
+  }
   /* Build an accurate save-failure message. A response-level error (res.error) means the
      SERVER answered with a rejection — this is NOT a connectivity problem, so we must not
      tell the inspector to check their wifi (they'd retry forever, as happens with a
@@ -16403,7 +16419,7 @@ function App(){
          dedicated save_citrus_inspection_full RPC (product-guarded 'citrus'). */
       if(!isEditMode && (newBatch.crop||'').toLowerCase()==='citrus'){
         try{
-          var csp=buildMangoSavePayload(newBatch, userId, seasonId);
+          var csp=buildCitrusSavePayload(newBatch, userId, seasonId);
           return supabase.rpc('save_citrus_inspection_full',{payload:csp}).then(function(res){
             if(res.error){
               console.error('[DalOS] Atomic citrus save failed:',res.error.message);
@@ -16430,7 +16446,7 @@ function App(){
          all-or-nothing; stale lock surfaces as CONFLICT. */
       if(isEditMode && (newBatch.crop||'').toLowerCase()==='citrus'){
         try{
-          var cep=buildMangoSavePayload(newBatch, userId, seasonId, true, newBatch.id);
+          var cep=buildCitrusSavePayload(newBatch, userId, seasonId, true, newBatch.id);
           return supabase.rpc('edit_citrus_inspection_full',{payload:cep}).then(function(res){
             if(res.error){
               var msg=res.error.message||'';
