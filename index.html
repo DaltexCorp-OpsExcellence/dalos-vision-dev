@@ -2507,14 +2507,14 @@ function InspectionForm(props){
               ),
               farm==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm name',onChange:function(e){setFarm(e.target.value);}})
             ),
-            /* Plot (grapes + citrus) */
-            (cropId==='grapes'||cropId==='citrus')&&ce('div',{className:'form-field'},
+            /* Plot (grapes + citrus + mango) */
+            (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&ce('div',{className:'form-field'},
               ce('label',{className:'form-label'},'Plot'),
               ce('input',{className:'form-input',value:plot,placeholder:'Plot no.',onChange:function(e){setPlot(e.target.value);}})
             )
           ),
           /* Farm 2 + Plot 2 — + button toggle */
-          (cropId==='grapes'||cropId==='citrus')&&(!farm2
+          (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&(!farm2
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
                   onClick:function(){setFarm2('__selecting__');}
@@ -2542,7 +2542,7 @@ function InspectionForm(props){
               )
           ),
           /* Farm 3 — only shown when farm2 is filled */
-          (cropId==='grapes'||cropId==='citrus')&&farm2&&farm2!=='__selecting__'&&(!farm3
+          (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&farm2&&farm2!=='__selecting__'&&(!farm3
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
                   onClick:function(){setFarm3('__selecting__');}
@@ -2570,7 +2570,7 @@ function InspectionForm(props){
               )
           ),
           /* Farm 4 — only shown when farm3 is filled */
-          (cropId==='grapes'||cropId==='citrus')&&farm3&&farm3!=='__selecting__'&&(!farm4
+          (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&farm3&&farm3!=='__selecting__'&&(!farm4
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
                   onClick:function(){setFarm4('__selecting__');}
@@ -2598,7 +2598,7 @@ function InspectionForm(props){
               )
           ),
           /* Additional farms 5+ — unlimited, only when farm4 is filled */
-          (cropId==='grapes'||cropId==='citrus')&&farm4&&farm4!=='__selecting__'&&ce('div',null,
+          (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&farm4&&farm4!=='__selecting__'&&ce('div',null,
             additionalFarms.map(function(af,aidx){
               return ce('div',{key:aidx,className:'grid4',style:{marginBottom:10}},
                 ce('div',{className:'form-field'},
@@ -3639,8 +3639,9 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               var isMangoTbl=cropId==='mango';
               /* Citrus joins mango's leading S# expand column; Firm + the notes hover-popup stay mango-only */
               var showExpandCol=(cropId==='mango'||cropId==='citrus');
-              /* Citrus also gets per-sample Farm + Plot columns (grapes-style, single variety) */
-              var showFarmCol=(cropId==='citrus');
+              /* Citrus + mango also get per-sample Farm + Plot columns (grapes-style, single variety —
+                 neither crop exposes the mixed-variety toggle, so no split V1/V2 pickers) */
+              var showFarmCol=(cropId==='citrus'||cropId==='mango');
               /* Citrus wax moved from header to a per-sample column */
               var showWaxCol=(cropId==='citrus');
               var gridTpl=(showExpandCol?'26px ':'')+(showFarmCol?'104px 66px ':'')+'90px 100px 70px 60px 60px 60px '+(isMangoTbl?'60px ':'')+(showWaxCol?'70px ':'')+secCols+' 1fr 54px '+(showExpandCol?'':'22px ')+'22px';
@@ -16319,6 +16320,16 @@ function App(){
     if(newBatch.stickerImg) header.sticker_image_url=newBatch.stickerImg;
     if(newBatch.extraLabels) header.extra_labels=newBatch.extraLabels;
     if(newBatch.farm) header.farm_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm])||null;
+    /* Multi-farm header fields — shared by mango and citrus (citrus wraps this builder).
+       Crops without the multi-farm UI simply leave these undefined/empty. */
+    if(newBatch.plot!==undefined) header.plot=newBatch.plot||null;
+    if(newBatch.farm2) header.farm2_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm2])||null;
+    if(newBatch.plot2!==undefined) header.plot2=newBatch.plot2||null;
+    if(newBatch.farm3) header.farm3_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm3])||null;
+    if(newBatch.plot3!==undefined) header.plot3=newBatch.plot3||null;
+    if(newBatch.farm4) header.farm4_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm4])||null;
+    if(newBatch.plot4!==undefined) header.plot4=newBatch.plot4||null;
+    header.additional_farms=(newBatch.additionalFarms||[]).map(function(af){return {farm_id:af.farmId||null,plot:af.plot||null};});
     if(newBatch.formOpenedAt instanceof Date){
       header.draft_started_at=newBatch.formOpenedAt.toISOString();
       header.completion_minutes=Math.max(0,Math.round((Date.now()-newBatch.formOpenedAt.getTime())/60000));
@@ -16374,20 +16385,12 @@ function App(){
     });
     return {inspection:header,pallets:pallets,sticker_checks:stickerChecks,clearance:clearance};
   }
-  /* Citrus payload = the generic mango builder + the multi-farm header fields the
-     mango builder omits (mango is single-farm). Per-sample farm/plot ride along in
-     each sample's extra_fields (sampleFarm/samplePlot), exactly like grapes. */
+  /* Citrus payload = the generic mango builder + citrus-only pallet numbering.
+     The multi-farm header fields now live in buildMangoSavePayload (shared with mango);
+     per-sample farm/plot ride along in each sample's extra_fields
+     (sampleFarm/samplePlot), exactly like grapes. */
   function buildCitrusSavePayload(newBatch, userId, seasonId, isEditFlag, editId){
     var p=buildMangoSavePayload(newBatch, userId, seasonId, isEditFlag, editId);
-    var h=p.inspection;
-    if(newBatch.plot!==undefined) h.plot=newBatch.plot||null;
-    if(newBatch.farm2) h.farm2_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm2])||null;
-    if(newBatch.plot2!==undefined) h.plot2=newBatch.plot2||null;
-    if(newBatch.farm3) h.farm3_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm3])||null;
-    if(newBatch.plot3!==undefined) h.plot3=newBatch.plot3||null;
-    if(newBatch.farm4) h.farm4_id=(config.farmsIdMap&&config.farmsIdMap[newBatch.farm4])||null;
-    if(newBatch.plot4!==undefined) h.plot4=newBatch.plot4||null;
-    h.additional_farms=(newBatch.additionalFarms||[]).map(function(af){return {farm_id:af.farmId||null,plot:af.plot||null};});
     /* Citrus pallet numbers are system-assigned ({inspection_id}-{n}) server-side.
        Existing pallets keep their stored number (round-tripped via palletNo →
        buildMango's pallet_number); NEW pallets (temp numeric palletId) send an
@@ -16402,7 +16405,8 @@ function App(){
      mango-shaped) + the citrus-style pallet-number blanking so the server auto-assigns
      {inspection_id}-{n}. Existing pallets keep their stored number (round-tripped via
      palletNo → buildMango's pallet_number); NEW pallets (temp numeric palletId) send an
-     empty number. No multi-farm header fields (unlike citrus). */
+     empty number. Pomegranate exposes no multi-farm UI, so the multi-farm header fields
+     inherited from buildMangoSavePayload stay empty/null. */
   function buildPomegranateSavePayload(newBatch, userId, seasonId, isEditFlag, editId){
     var p=buildMangoSavePayload(newBatch, userId, seasonId, isEditFlag, editId);
     var _src=newBatch.pallets||[];
