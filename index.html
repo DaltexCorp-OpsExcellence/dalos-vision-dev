@@ -902,11 +902,6 @@ function InspectionForm(props){
      on a remount the form re-initialises from that draft — which is how a filled
      header came back blank on staging. */
   var snapRef=React.useRef(null);
-  snapRef.current={lot:lot,date:date,variety:variety,category:category,varietyType:varietyType,variety2:variety2,category2:category2,client:client,country:country,farm:farm,farm2:farm2,farm3:farm3,farm4:farm4,additionalFarms:additionalFarms,plot:plot,plot2:plot2,plot3:plot3,plot4:plot4,container:container,cls:cls,wax:wax,packing:packing,labelling:labelling,cartonCompany:cartonCompany,cartonCompany2:cartonCompany2,cartonColor:cartonColor,pallets:pallets,decision:decision,
-    traceCodes:traceCodes,ggn:ggn,phCode:phCode,farmCode:farmCode,netWt:netWt,
-    importer:importer,importerAddr:importerAddr,stickerImg:stickerImg,
-    extraLabels:extraLabels,hdrLocked:hdrLocked,stickerChecks:stickerChecks,
-    cartonType:cartonType,grpSessionId:grpSessionId||null};
 
   React.useEffect(function(){
     if(!isDirty) return;
@@ -1144,6 +1139,14 @@ function InspectionForm(props){
       }]
     :(restoredDraft&&restoredDraft.pallets&&restoredDraft.pallets.length>0?restoredDraft.pallets:[newPallet(1)]);
   var sPallets=useState(initPallets); var pallets=sPallets[0]; var setPallets=sPallets[1];
+  /* Assigned HERE, after every useState above, not up beside the effect: these are
+     `var`s, so at the effect's position they are still hoisted-undefined and the
+     snapshot would capture nothing. */
+  snapRef.current={lot:lot,date:date,variety:variety,category:category,varietyType:varietyType,variety2:variety2,category2:category2,client:client,country:country,farm:farm,farm2:farm2,farm3:farm3,farm4:farm4,additionalFarms:additionalFarms,plot:plot,plot2:plot2,plot3:plot3,plot4:plot4,container:container,cls:cls,wax:wax,packing:packing,labelling:labelling,cartonCompany:cartonCompany,cartonCompany2:cartonCompany2,cartonColor:cartonColor,pallets:pallets,decision:decision,
+    traceCodes:traceCodes,ggn:ggn,phCode:phCode,farmCode:farmCode,netWt:netWt,
+    importer:importer,importerAddr:importerAddr,stickerImg:stickerImg,
+    extraLabels:extraLabels,hdrLocked:hdrLocked,stickerChecks:stickerChecks,
+    cartonType:cartonType,grpSessionId:grpSessionId||null};
   var sDeletedPallets=useState([]); var deletedPalletIds=sDeletedPallets[0]; var setDeletedPalletIds=sDeletedPallets[1];
   var sActivePallet=useState(0); var activePalletIdx=sActivePallet[0]; var setActivePalletIdx=sActivePallet[1];
   var sExp=useState(null); var expandedRow=sExp[0]; var setExpandedRow=sExp[1];
