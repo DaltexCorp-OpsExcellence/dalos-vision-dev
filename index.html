@@ -15654,8 +15654,11 @@ function App(){
   var sInsLoading=useState(true); var inspLoading=sInsLoading[0]; var setInspLoading=sInsLoading[1];
   function setBatches(v){var next=typeof v==='function'?v:function(){return v;};setBatchesRaw(function(prev){var n=next(prev);return n;});}
   /* Refresh specific batch IDs from DB after a pallet move */
+  /* Returns a Promise resolving to the freshly-mapped batch objects for `ids`, so
+     callers (e.g. opening the edit form) can wait for current DB data instead of
+     using the possibly-stale local cache. Still updates local state as before. */
   function refreshBatchesById(ids){
-    if(!ids||!ids.length) return;
+    if(!ids||!ids.length) return Promise.resolve([]);
     /* BroadcastChannel listener — refresh listing when another tab saves */
     if(!window.__dalosBCInit){
       window.__dalosBCInit=true;
@@ -15679,13 +15682,46 @@ function App(){
           (r.data||[]).forEach(function(row){
             var idx=updated.findIndex(function(b){return b.id===row.id;});
             if(idx>=0){
+              /* Header fields must be re-read from the DB too, not just aggregates.
+                 The atomic RPC save paths (mango/citrus/pomegranate) return early and
+                 never write the saved header back into local state — they rely on this
+                 refresh. Patching only aggregates left farm/plot/farm2..4, variety,
+                 class, client etc. holding pre-save values, so the next Edit opened
+                 stale and its save wrote those stale values back over the DB
+                 (reported: Farm 2 + Plot 2 "disappearing" after a later save).
+                 The legacy grapes path updates state directly, which is why it was
+                 never affected. */
+              var _cfg=config||{};
+              var _vn=_cfg.varietiesIdToName||{}, _cn=_cfg.clientsIdToName||{}, _scn=_cfg.subClientsIdToName||{},
+                  _con=_cfg.countriesIdToName||{}, _fn=_cfg.farmsIdToName||{}, _kn=_cfg.classesIdToName||{},
+                  _ctn=_cfg.cartonTypesIdToName||{};
+              var _header={
+                date:row.date||updated[idx].date, lot:row.lot_number||'',
+                variety:_vn[row.variety_id]||'', variety2:_vn[row.variety2_id]||'',
+                varietyType:row.variety_type||'single',
+                cls:_kn[row.class_id]||'',
+                client:(row.sub_client_id&&_scn[row.sub_client_id])||_cn[row.client_id]||'',
+                country:_con[row.country_id]||'',
+                farm:_fn[row.farm_id]||'', plot:row.plot||'',
+                farm2:_fn[row.farm2_id]||'', plot2:row.plot2||'',
+                farm3:_fn[row.farm3_id]||'', plot3:row.plot3||'',
+                farm4:_fn[row.farm4_id]||'', plot4:row.plot4||'',
+                additionalFarms:(row.additional_farms||[]).map(function(af){return {farmId:af.farm_id||'',farmName:_fn[af.farm_id]||'',plot:af.plot||''};}),
+                cartonType:_ctn[row.carton_type_id]||'', cartonColor:row.carton_color||'',
+                cartonCompany:row.carton_company||'', cartonCompany2:row.carton_company2||'',
+                wax:row.wax||'', packing:row.packing||'', labelling:row.labelling||'',
+                ggn:row.ggn||'', phCode:row.ph_code||'', farmCode:row.farm_code||'',
+                netWt:row.net_weight||'', importer:row.importer||'',
+                importerAddr:row.importer_address||'', stickerImg:row.sticker_image_url||'',
+                extraLabels:row.extra_labels||[]
+              };
               /* Existing row — patch live aggregates + traceCodes + savedAt.
                  savedAt must stay in sync with DB updated_at so that loadedVersionRef
                  initialises correctly the next time the user opens Edit mode.
                  Without this, any save that advances updated_at (e.g. "Add more pallets"
                  continuation saves) leaves savedAt stale, causing every subsequent
                  Edit save to immediately fire a false optimistic-lock conflict. */
-              updated[idx]=Object.assign({},updated[idx],{
+              updated[idx]=Object.assign({},updated[idx],_header,{
                 container:row.container_number||updated[idx].container||'',
                 totalDefect:row.live_avg_total_defect!=null?row.live_avg_total_defect:(row.avg_total_defect||0),
                 hasCrit:row.live_has_critical!=null?!!row.live_has_critical:!!(row.has_critical||false),
