@@ -173,6 +173,11 @@ tr.click:hover td{background:var(--bg)}
 /* INSPECTION FORM */
 .form-field{margin-bottom:10px}
 .form-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;display:block}
+/* Locked inspection header: children stay non-interactive, but the wrapper itself
+   receives the click so we can tell the inspector why nothing happened. Previously
+   the whole block was pointerEvents:none, so an edit attempt was silently lost. */
+.hdr-locked{pointer-events:auto!important;cursor:not-allowed}
+.hdr-locked *{pointer-events:none!important}
 .form-input{width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--card);outline:none;transition:border-color .15s;font-size:14px;color:var(--text)}
 .form-input:focus{border-color:var(--accent)}
 .form-select{width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--card);outline:none;font-size:14px;color:var(--text)}
@@ -991,6 +996,19 @@ function InspectionForm(props){
   var strace=useState((function(){var r=normTC(batch&&batch.traceCodes?batch.traceCodes:(batch&&batch.traceCode?[batch.traceCode]:[]));return r.length?r:[{code:'',variety:null}];})()); var traceCodes=strace[0]; var setTraceCodes=strace[1];
   var sdec=useState(batch?batch.decision:''); var decision=sdec[0]; var setDecision=sdec[1];
   var sHL=useState(isEdit); var hdrLocked=sHL[0]; var setHdrLocked=sHL[1];
+  /* The locked header uses pointerEvents:none, so clicks and typing are swallowed
+     with no feedback — the fields still look editable. Inspectors (and I, twice
+     while testing) type into a locked header, hit Save, and believe the change
+     landed. This flag drives a transient "header is locked" hint when someone
+     interacts with the locked block. */
+  var sLockHint=useState(false); var lockHint=sLockHint[0]; var setLockHint=sLockHint[1];
+  var lockHintTimerRef=React.useRef(null);
+  function flashLockHint(){
+    setLockHint(true);
+    if(lockHintTimerRef.current) clearTimeout(lockHintTimerRef.current);
+    lockHintTimerRef.current=setTimeout(function(){setLockHint(false);},3000);
+  }
+  React.useEffect(function(){return function(){if(lockHintTimerRef.current) clearTimeout(lockHintTimerRef.current);};},[]);
   var sGGN=useState(batch?batch.ggn||'':''); var ggn=sGGN[0]; var setGGN=sGGN[1];
   var sCC=useState(batch?batch.cartonColor||'':''); var cartonColor=sCC[0]; var setCartonColor=sCC[1];
   var sCCo=useState(batch?batch.cartonCompany||'':''); var cartonCompany=sCCo[0]; var setCartonCompany=sCCo[1];
@@ -2480,14 +2498,25 @@ function InspectionForm(props){
             ce('div',{className:'section-title-bar',style:{background:'#2b5c3f'}}),'Inspection header',
             hdrLocked&&ce('span',{style:{fontSize:10,background:'var(--green-bg)',color:'var(--green)',border:'1px solid var(--green-border)',borderRadius:10,padding:'1px 8px',marginLeft:6}},'Locked')
           ),
-          hdrLocked?ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setHdrLocked(false);}},'Unlock to edit'):ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setHdrLocked(true);}},'Lock header')
+          hdrLocked?ce('button',{className:'btn btn-secondary btn-sm',
+            style:lockHint?{borderColor:'var(--amber)',boxShadow:'0 0 0 3px #e8c87a55',color:'var(--amber)'}:null,
+            onClick:function(){setHdrLocked(false);setLockHint(false);}},'Unlock to edit')
+            :ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setHdrLocked(true);}},'Lock header')
+        ),
+        /* Shown when someone tries to edit while locked — otherwise the attempt is silent. */
+        hdrLocked&&lockHint&&ce('div',{style:{marginBottom:10,padding:'8px 12px',background:'var(--amber-bg)',border:'1px solid var(--amber-border)',borderRadius:6,fontSize:12,color:'#7a4a10',display:'flex',alignItems:'center',gap:8}},
+          ce('span',{style:{fontSize:14}},'🔒'),
+          ce('span',null,ce('strong',null,'Header is locked. '),'Tap ',ce('strong',null,'Unlock to edit'),' above before changing these fields — otherwise your changes are not saved.')
         ),
         ce('div',{style:{display:'flex',alignItems:'center',gap:10,background:packhouse.color+'0e',border:'1px solid '+packhouse.color+'30',borderRadius:8,padding:'8px 12px',marginBottom:12}},
           ce('div',{style:{width:30,height:30,borderRadius:7,background:packhouse.color,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--font-mono)',fontSize:11,fontWeight:700,color:'#fff',flexShrink:0}},packhouse.initials||packhouse.id.slice(0,2)),
           ce('div',null,ce('div',{style:{fontWeight:600,fontSize:13,color:packhouse.color}},packhouse.name),ce('div',{style:{fontSize:11,color:'var(--text3)'}},'Check place: '+packhouse.id)),
           ce('div',{style:{marginLeft:'auto',fontSize:11,color:'var(--text3)',fontStyle:'italic'}},'Set at login')
         ),
-        ce('div',{style:{opacity:hdrLocked?.6:1,pointerEvents:hdrLocked?'none':'auto'}},
+        ce('div',{className:hdrLocked?'hdr-locked':null,
+          onClick:hdrLocked?flashLockHint:null,
+          title:hdrLocked?'Header is locked — tap "Unlock to edit" above':null,
+          style:{opacity:hdrLocked?.6:1}},
           ce('div',{className:'grid4',style:{marginBottom:10}},
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Date'),ce('input',{className:'form-input',type:'date',value:date,onChange:function(e){setDate(e.target.value);}})),
             cropId==='grapes'
