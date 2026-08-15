@@ -1006,7 +1006,7 @@ function InspectionForm(props){
   function flashLockHint(){
     setLockHint(true);
     if(lockHintTimerRef.current) clearTimeout(lockHintTimerRef.current);
-    lockHintTimerRef.current=setTimeout(function(){setLockHint(false);},3000);
+    lockHintTimerRef.current=setTimeout(function(){setLockHint(false);},6000);
   }
   React.useEffect(function(){return function(){if(lockHintTimerRef.current) clearTimeout(lockHintTimerRef.current);};},[]);
   var sGGN=useState(batch?batch.ggn||'':''); var ggn=sGGN[0]; var setGGN=sGGN[1];
