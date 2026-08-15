@@ -888,19 +888,29 @@ function InspectionForm(props){
     try{localStorage.removeItem(draftKey);}catch(e){}
     onClose();
   }
+  /* Snapshot lives in a ref, rebuilt every render, so the autosave always writes
+     CURRENT values. Previously the snapshot was built inside the interval closure
+     and the effect depended on a hand-maintained field list — any field missing
+     from that list was captured stale, and because the interval was torn down and
+     recreated on every keystroke it only ever fired after 30s of inactivity. The
+     draft written could therefore be older than what the inspector had typed, and
+     on a remount the form re-initialises from that draft — which is how a filled
+     header came back blank on staging. */
+  var snapRef=React.useRef(null);
+  snapRef.current={lot:lot,date:date,variety:variety,category:category,varietyType:varietyType,variety2:variety2,category2:category2,client:client,country:country,farm:farm,farm2:farm2,farm3:farm3,farm4:farm4,additionalFarms:additionalFarms,plot:plot,plot2:plot2,plot3:plot3,plot4:plot4,container:container,cls:cls,wax:wax,packing:packing,labelling:labelling,cartonCompany:cartonCompany,cartonCompany2:cartonCompany2,cartonColor:cartonColor,pallets:pallets,decision:decision,
+    traceCodes:traceCodes,ggn:ggn,phCode:phCode,farmCode:farmCode,netWt:netWt,
+    importer:importer,importerAddr:importerAddr,stickerImg:stickerImg,
+    extraLabels:extraLabels,hdrLocked:hdrLocked,stickerChecks:stickerChecks,
+    cartonType:cartonType,grpSessionId:grpSessionId||null};
+
   React.useEffect(function(){
     if(!isDirty) return;
     var timer=setInterval(function(){
       /* ── localStorage snapshot (existing) ── */
       try{
-        var snap={lot:lot,date:date,variety:variety,category:category,varietyType:varietyType,variety2:variety2,category2:category2,client:client,country:country,farm:farm,farm2:farm2,farm3:farm3,farm4:farm4,additionalFarms:additionalFarms,plot:plot,plot2:plot2,plot3:plot3,plot4:plot4,container:container,cls:cls,wax:wax,packing:packing,labelling:labelling,cartonCompany:cartonCompany,cartonCompany2:cartonCompany2,cartonColor:cartonColor,pallets:pallets,decision:decision,
-          /* Extended fields for Supabase snapshot completeness */
-          traceCodes:traceCodes,ggn:ggn,phCode:phCode,farmCode:farmCode,netWt:netWt,
-          importer:importer,importerAddr:importerAddr,stickerImg:stickerImg,
-          extraLabels:extraLabels,hdrLocked:hdrLocked,stickerChecks:stickerChecks,
-          cartonType:cartonType,cartonCompany2:cartonCompany2,
-          grpSessionId:grpSessionId||null,
-          ts:Date.now()};
+        var snap=Object.assign({},snapRef.current,{ts:Date.now()});
+        /* Never persist an empty draft over a real one — see dalosDraftHasContent. */
+        if(!dalosDraftHasContent(snap)) return;
         localStorage.setItem(draftKey,JSON.stringify(snap));
       }catch(e){}
       /* ── Supabase save_drafts upsert (fire-and-forget) ── */
@@ -931,7 +941,12 @@ function InspectionForm(props){
       }catch(e){console.warn('[DalOS] Autosave error:',e);}
     },30000);
     return function(){clearInterval(timer);};
-  },[isDirty,lot,date,variety,client,country,farm,container,pallets,decision,grpSessionId,stickerChecks,extraLabels]);
+    /* Deps are intentionally just [isDirty]: the snapshot comes from snapRef, which
+       is current on every render, so the interval no longer needs to be recreated
+       when a field changes. It also means the timer actually fires every 30s while
+       the inspector is typing, instead of being reset by each keystroke and only
+       firing after 30s of stillness. */
+  },[isDirty]);
   /* MOVED UP (was defined ~140 lines below): compute restoredDraft BEFORE _d so that
      _d — and every useState() default that reads _d — actually sees the recovered
      draft. Previously restoredDraft was declared later, so at this point it was
@@ -15578,6 +15593,27 @@ function dalosNoteConflict(id){
   if(s.count>=DALOS_CONFLICT_MAX) console.error('[DalOS] Conflict circuit-breaker OPEN for',id,'—',s.count,'consecutive conflicts; further auto re-sends blocked.');
 }
 function dalosClearConflicts(id){ if(id) delete DALOS_CONFLICT_STRIKES[id]; }
+/* An autosave snapshot with nothing in it has zero recovery value and can only do
+   harm: on any remount the form re-initialises from the draft, so persisting an
+   empty snapshot lets it blank a header the inspector has since filled in. Only
+   persist a draft that actually carries something worth recovering. */
+function dalosDraftHasContent(s){
+  if(!s) return false;
+  if(s.lot||s.container||s.farm||s.variety||s.cls||s.client||s.country||s.plot) return true;
+  var ps=s.pallets||[];
+  for(var i=0;i<ps.length;i++){
+    var p=ps[i]||{};
+    if(p.palletLabel||p.palletContainer||p.actualTraceCode) return true;
+    var rows=p.rows||[];
+    for(var j=0;j<rows.length;j++){
+      var r=rows[j]||{};
+      if(r.cartonWt||r.brix||r.brixV2||r.size||r.sampleSize||r.notes) return true;
+      var d=r.defects||{};
+      for(var k in d){ if(d[k]) return true; }
+    }
+  }
+  return false;
+}
 function dalosBreakerOpen(id){
   var s=id&&DALOS_CONFLICT_STRIKES[id];
   return !!(s&&s.count>=DALOS_CONFLICT_MAX&&(Date.now()-s.last)<DALOS_CONFLICT_WINDOW_MS);
