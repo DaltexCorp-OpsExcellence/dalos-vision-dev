@@ -15554,13 +15554,36 @@ function CRMView(props){
 }
 
 
+/* ── Runaway re-send guards — MODULE scope, deliberately outside App ──────────
+   These were previously a React.useRef inside App. A ref survives re-renders but
+   is recreated on REMOUNT, so anything that remounts App resets the cooldown and
+   the throttle never sees a previous dispatch. That is how the July guard was
+   defeated in prod on 2026-08-15: ~19,000 CONFLICT re-sends/minute against a
+   single inspection (MN-2026-0041) for 3.4h, from a client that had the guard.
+   Module scope cannot be reset by any React lifecycle — only a page reload.
+
+   DALOS_LAST_DISPATCH  — last dispatch ms per inspection id (3s cooldown).
+   DALOS_CONFLICT_STRIKES — consecutive CONFLICTs per id; after MAX we stop
+   dispatching entirely and surface it, so no failure mode can produce an
+   unbounded retry regardless of what triggered it. Cleared on any success. */
+var DALOS_LAST_DISPATCH={};
+var DALOS_CONFLICT_STRIKES={};
+var DALOS_CONFLICT_MAX=3;
+var DALOS_CONFLICT_WINDOW_MS=60000;
+function dalosNoteConflict(id){
+  if(!id) return;
+  var now=Date.now(); var s=DALOS_CONFLICT_STRIKES[id];
+  if(!s||(now-s.last)>DALOS_CONFLICT_WINDOW_MS) s={count:0,last:now};
+  s.count++; s.last=now; DALOS_CONFLICT_STRIKES[id]=s;
+  if(s.count>=DALOS_CONFLICT_MAX) console.error('[DalOS] Conflict circuit-breaker OPEN for',id,'—',s.count,'consecutive conflicts; further auto re-sends blocked.');
+}
+function dalosClearConflicts(id){ if(id) delete DALOS_CONFLICT_STRIKES[id]; }
+function dalosBreakerOpen(id){
+  var s=id&&DALOS_CONFLICT_STRIKES[id];
+  return !!(s&&s.count>=DALOS_CONFLICT_MAX&&(Date.now()-s.last)<DALOS_CONFLICT_WINDOW_MS);
+}
+
 function App(){
-  /* FIX (re-send guard): last dispatch time per inspection id, in App scope where
-     addBatch lives. A human retry after a conflict is always seconds apart; a runaway
-     automatic re-send hammers far faster. We ignore any dispatch for the same id
-     within a 3s cooldown — kills the CONFLICT loop without weakening the lock or
-     blocking a real tap. */
-  var lastDispatchRef=React.useRef({});
   var sUser=useState(null); var currentUser=sUser[0]; var setCurrentUser=sUser[1];
   var sSessionExp=useState(false); var sessionExpired=sSessionExp[0]; var setSessionExpired=sSessionExp[1];
   var sc=useState(null); var cropId=sc[0]; var setCropId=sc[1];
@@ -16476,9 +16499,17 @@ function App(){
        inspections with no stable id yet. */
     if(newBatch&&newBatch.id){
       var _now=Date.now();
-      var _prev=lastDispatchRef.current[newBatch.id]||0;
+      /* Circuit breaker first: once an id has hit MAX consecutive conflicts we stop
+         dispatching entirely until it succeeds or the window lapses. This bounds any
+         runaway regardless of what is driving it. */
+      if(dalosBreakerOpen(newBatch.id)){
+        console.error('[DalOS] Dispatch blocked — conflict circuit-breaker open for',newBatch.id);
+        if(onDone){onDone('RETRY:This session keeps clashing with another device. Reload the page, then try again.');onDone=null;}
+        return;
+      }
+      var _prev=DALOS_LAST_DISPATCH[newBatch.id]||0;
       if(_now-_prev<3000){console.warn('[DalOS] Rapid re-dispatch throttled for',newBatch.id,'(',(_now-_prev),'ms since last)');return;}
-      lastDispatchRef.current[newBatch.id]=_now;
+      DALOS_LAST_DISPATCH[newBatch.id]=_now;
     }
     if(newBatch) newBatch._dispatched=true;
     var isEditMode=batches.some(function(b){return b.id===newBatch.id;});
@@ -16532,6 +16563,7 @@ function App(){
               var msg=res.error.message||'';
               if(msg.indexOf('CONFLICT')>=0){
                 console.warn('[DalOS] Atomic mango edit conflict:',msg);
+                dalosNoteConflict(newBatch.id);
                 if(onDone){onDone('CONFLICT',newBatch.id);onDone=null;}
                 return {__handled:true};
               }
@@ -16541,6 +16573,7 @@ function App(){
             }
             var eid=(res.data&&res.data.id)||newBatch.id;
             console.log('[DalOS] Atomic mango edit OK:',eid,res.data);
+            dalosClearConflicts(eid);
             if(onDone){onDone(null,eid);onDone=null;}
             try{ if(typeof refreshBatchesById==='function') setTimeout(function(){refreshBatchesById([eid]);},1200); }catch(e){}
             return {__handled:true};
@@ -16594,6 +16627,7 @@ function App(){
               var msg=res.error.message||'';
               if(msg.indexOf('CONFLICT')>=0){
                 console.warn('[DalOS] Atomic citrus edit conflict:',msg);
+                dalosNoteConflict(newBatch.id);
                 if(onDone){onDone('CONFLICT',newBatch.id);onDone=null;}
                 return {__handled:true};
               }
@@ -16603,6 +16637,7 @@ function App(){
             }
             var eid=(res.data&&res.data.id)||newBatch.id;
             console.log('[DalOS] Atomic citrus edit OK:',eid,res.data);
+            dalosClearConflicts(eid);
             if(onDone){onDone(null,eid);onDone=null;}
             try{ if(typeof refreshBatchesById==='function') setTimeout(function(){refreshBatchesById([eid]);},1200); }catch(e){}
             return {__handled:true};
@@ -16656,6 +16691,7 @@ function App(){
               var msg=res.error.message||'';
               if(msg.indexOf('CONFLICT')>=0){
                 console.warn('[DalOS] Atomic pomegranate edit conflict:',msg);
+                dalosNoteConflict(newBatch.id);
                 if(onDone){onDone('CONFLICT',newBatch.id);onDone=null;}
                 return {__handled:true};
               }
@@ -16665,6 +16701,7 @@ function App(){
             }
             var eid=(res.data&&res.data.id)||newBatch.id;
             console.log('[DalOS] Atomic pomegranate edit OK:',eid,res.data);
+            dalosClearConflicts(eid);
             if(onDone){onDone(null,eid);onDone=null;}
             try{ if(typeof refreshBatchesById==='function') setTimeout(function(){refreshBatchesById([eid]);},1200); }catch(e){}
             return {__handled:true};
