@@ -85,6 +85,10 @@ input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--te
 .nav-sub{margin:1px 8px 4px;padding-left:14px;border-left:1px solid rgba(255,255,255,.1)}
 .nav-subitem{padding:6px 12px;font-size:12.5px;margin:1px 0}
 .sidebar-bottom{margin-top:auto;padding:7px 8px 6px;border-top:1px solid rgba(255,255,255,.06)}
+/* Sidebar Workspace switch — same style as DalOS Land Cloud (.lc-ws) */
+.side-ws{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;border-radius:9px;background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--sidebar-text);font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;text-align:left}
+.side-ws:hover{background:var(--sidebar2);border-color:color-mix(in srgb,var(--accent2) 60%,rgba(255,255,255,.15))}
+.side-ws svg{width:15px;height:15px;opacity:.8;flex-shrink:0}
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
 .topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-shrink:0;gap:8px}
 .topbar-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
@@ -17750,6 +17754,12 @@ function App(){
               );
             }),
         ce('div',{className:'sidebar-bottom'},
+          ce('div',{style:{padding:'2px 8px 8px'}},
+            ce('button',{className:'side-ws',onClick:function(){ window.location.href = (location.pathname.indexOf('/dalos-vision-dev/')===0 ? 'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/' : 'https://daltexcorp-opsexcellence.github.io/dalos-workspace/workspace.html'); }},
+              ce('svg',{viewBox:'0 0 16 16',fill:'currentColor','aria-hidden':'true'},
+                [[1.4,1.4],[6.3,1.4],[11.2,1.4],[1.4,6.3],[6.3,6.3],[11.2,6.3],[1.4,11.2],[6.3,11.2],[11.2,11.2]].map(function(p,i){ return ce('rect',{key:i,x:p[0],y:p[1],width:3.4,height:3.4,rx:0.8}); })),
+              'Workspace')
+          ),
           ce('div',{style:{margin:'2px 8px 8px',padding:'7px 10px',borderRadius:6,background:'rgba(255,255,255,.07)',display:'flex',alignItems:'center',gap:8,marginBottom:2}},
             ce('div',{style:{width:26,height:26,borderRadius:'50%',background:role.badge,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0}},
               liveCurrentUser.name.split(' ').map(function(n){return n[0];}).slice(0,2).join('')),
@@ -17891,6 +17901,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(ce(App,null));
 <script>
 (function(){
   if(window.__dalosSwitcher) return; window.__dalosSwitcher=1;
+  /* Temporarily hidden — the app switch moved to a Workspace button in the sidebar
+     (same style as Land Cloud). Flip to true to restore the floating FAB switcher. */
+  var SWITCHER_ENABLED_IN_VISION = false;
+  if(!SWITCHER_ENABLED_IN_VISION) return;
   function build(){
     if(!document.body || document.getElementById('dalos-switcher')) return;
     var isDev = location.pathname.indexOf('/dalos-vision-dev/')===0;
