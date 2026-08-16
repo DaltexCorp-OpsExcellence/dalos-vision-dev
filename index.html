@@ -2555,13 +2555,13 @@ function InspectionForm(props){
               farm==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm name',onChange:function(e){setFarm(e.target.value);}})
             ),
             /* Plot (grapes + citrus + mango) */
-            (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&ce('div',{className:'form-field'},
+            (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&ce('div',{className:'form-field'},
               ce('label',{className:'form-label'},'Plot'),
               ce('input',{className:'form-input',value:plot,placeholder:'Plot no.',onChange:function(e){setPlot(e.target.value);}})
             )
           ),
           /* Farm 2 + Plot 2 — + button toggle */
-          (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&(!farm2
+          (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&(!farm2
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
                   onClick:function(){setFarm2('__selecting__');}
@@ -2589,7 +2589,7 @@ function InspectionForm(props){
               )
           ),
           /* Farm 3 — only shown when farm2 is filled */
-          (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&farm2&&farm2!=='__selecting__'&&(!farm3
+          (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&farm2&&farm2!=='__selecting__'&&(!farm3
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
                   onClick:function(){setFarm3('__selecting__');}
@@ -2617,7 +2617,7 @@ function InspectionForm(props){
               )
           ),
           /* Farm 4 — only shown when farm3 is filled */
-          (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&farm3&&farm3!=='__selecting__'&&(!farm4
+          (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&farm3&&farm3!=='__selecting__'&&(!farm4
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
                   onClick:function(){setFarm4('__selecting__');}
@@ -2645,7 +2645,7 @@ function InspectionForm(props){
               )
           ),
           /* Additional farms 5+ — unlimited, only when farm4 is filled */
-          (cropId==='grapes'||cropId==='citrus'||cropId==='mango')&&farm4&&farm4!=='__selecting__'&&ce('div',null,
+          (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&farm4&&farm4!=='__selecting__'&&ce('div',null,
             additionalFarms.map(function(af,aidx){
               return ce('div',{key:aidx,className:'grid4',style:{marginBottom:10}},
                 ce('div',{className:'form-field'},
@@ -3686,9 +3686,9 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               var isMangoTbl=cropId==='mango';
               /* Citrus joins mango's leading S# expand column; Firm + the notes hover-popup stay mango-only */
               var showExpandCol=(cropId==='mango'||cropId==='citrus');
-              /* Citrus + mango also get per-sample Farm + Plot columns (grapes-style, single variety —
-                 neither crop exposes the mixed-variety toggle, so no split V1/V2 pickers) */
-              var showFarmCol=(cropId==='citrus'||cropId==='mango');
+              /* Citrus + mango + pomegranate also get per-sample Farm + Plot columns (grapes-style,
+                 single variety — none of these expose the mixed-variety toggle, so no split V1/V2 pickers) */
+              var showFarmCol=(cropId==='citrus'||cropId==='mango'||cropId==='pomegranate');
               /* Citrus wax moved from header to a per-sample column */
               var showWaxCol=(cropId==='citrus');
               var gridTpl=(showExpandCol?'26px ':'')+(showFarmCol?'104px 66px ':'')+'90px 100px 70px 60px 60px 60px '+(isMangoTbl?'60px ':'')+(showWaxCol?'70px ':'')+secCols+' 1fr 54px '+(showExpandCol?'':'22px ')+'22px';
