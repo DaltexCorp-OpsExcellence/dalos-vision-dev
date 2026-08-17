@@ -3701,10 +3701,10 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               /* Citrus: a per-sample Packing Date (auto = today) alongside the adjustable Op. Date, to track storage days before packing */
               var showPackDate=(cropId==='citrus');
               var gridTpl=(showExpandCol?'26px ':'')+(showFarmCol?'104px 66px ':'')+'90px 100px '+(showPackDate?'100px ':'')+'70px 60px 60px 60px '+(isMangoTbl?'60px ':'')+(showWaxCol?'70px ':'')+secCols+' 1fr 54px '+(showExpandCol?'':'22px ')+'22px';
-              var hdrLabels=(showExpandCol?['']:[]).concat(showFarmCol?['Farm','Plot']:[]).concat(['Time','Op. Date']).concat(showPackDate?['Pack Date']:[]).concat(['Sample #','Size',(cropId==='citrus'?'Net Weight':'Wt (kg)'),'Brix']).concat(isMangoTbl?['Firm']:[]).concat(showWaxCol?['Wax']:[]).concat(defSections.map(function(s){return (s.section||s.name||'Defect').split(' ')[0];})).concat(showExpandCol?['Notes','P/F','']:['Notes','P/F','▼','']);
+              var hdrLabels=(showExpandCol?['']:[]).concat(showFarmCol?['Farm','Plot']:[]).concat(['Time','Op. Date']).concat(showPackDate?['Pack Date']:[]).concat(['Sample #','Size',(cropId==='citrus'?'Net\nWeight':'Wt (kg)'),'Brix']).concat(isMangoTbl?['Firm']:[]).concat(showWaxCol?['Wax']:[]).concat(defSections.map(function(s){return (s.section||s.name||'Defect').split(' ')[0];})).concat(showExpandCol?['Notes','P/F','']:['Notes','P/F','▼','']);
               return ce('div',{style:{minWidth:showPackDate?1240:(showFarmCol?1140:900)}},
                 ce('div',{style:{display:'grid',gridTemplateColumns:gridTpl,gap:4,padding:'5px 14px',background:'var(--bg2)',borderBottom:'1px solid var(--border2)'}},
-                  hdrLabels.map(function(h,i){return ce('div',{key:i,style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.04em',textAlign:i>=((showExpandCol?1:0)+(showFarmCol?2:0)+6+(showPackDate?1:0)+(isMangoTbl?1:0)+(showWaxCol?1:0))?'center':'left'}},h);})
+                  hdrLabels.map(function(h,i){return ce('div',{key:i,style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.04em',whiteSpace:'pre-line',lineHeight:1.15,textAlign:i>=((showExpandCol?1:0)+(showFarmCol?2:0)+6+(showPackDate?1:0)+(isMangoTbl?1:0)+(showWaxCol?1:0))?'center':'left'}},h);})
                 ),
                 pRows.map(function(row,ri){
                   var rowCrit=defSections.some(function(sec){return sec.items.some(function(d){return d.sev==='Critical'&&(parseFloat(row.defects[d.key])||0)>0;});});
