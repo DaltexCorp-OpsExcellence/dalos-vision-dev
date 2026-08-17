@@ -545,6 +545,9 @@ var CITRUS_VARIETIES = ['Navel','Navelina Navel','Lanelate Navel','Caracara Nave
 var CITRUS_SIZES = ['18','23','24','30','36','40','48','55','56','64','72','80','88','100','102','105','113','115','125','126','137','138','150','162','168','200'];
 var CITRUS_CLASSES = ['Class 1','Class 1.5','Class 2','Juice'];
 var WAX_CODES = [{code:'CR',label:'Carnauba (CR)'},{code:'SH',label:'Shellac (SH)'},{code:'No Wax',label:'No Wax'}];
+/* Standard carton colours — a closed list so inspectors pick instead of free-typing
+   (prevents the "GREEN/green/Green", "black " (trailing space) mis-spellings seen in data). */
+var CARTON_COLORS = ['Brown','White','Green','Blue','Black','Red'];
 var CURRENCY_OPTIONS = ['USD','EUR','GBP','AED','SAR','JPY'];
 var CLEARANCE_ITEMS = [
   'Removing all remaining from previous product',
@@ -2783,7 +2786,7 @@ function InspectionForm(props){
 ,ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton type'),ce('select',{className:'form-select',value:cartonType,onChange:function(e){setCartonType(e.target.value);}},
   [ce('option',{key:'',value:''},'— Select —')].concat((config.cartonTypes||[]).map(function(c){return ce('option',{key:c,value:c},c);})).concat(cartonType&&!(config.cartonTypes||[]).includes(cartonType)?[ce('option',{key:'deact',value:cartonType,style:{color:'var(--text3)'}},cartonType+' (inactive)')]:[])
 )),
-            cropId==='citrus'&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton color'),ce('input',{className:'form-input',value:cartonColor,onChange:function(e){setCartonColor(e.target.value);},placeholder:'e.g. Brown, White...'})),
+            cropId==='citrus'&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton color'),ce('select',{className:'form-select',value:cartonColor,onChange:function(e){setCartonColor(e.target.value);}},ce('option',{value:''},'— Select —'),CARTON_COLORS.map(function(c){return ce('option',{key:c,value:c},c);}),(cartonColor&&!CARTON_COLORS.includes(cartonColor))?ce('option',{key:'_cur',value:cartonColor},cartonColor+' (existing)'):null)),
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton company'),ce('input',{className:'form-input',value:cartonCompany,onChange:function(e){setCartonCompany(e.target.value);},placeholder:'e.g. Smurfit Kappa...'})),
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton company 2'),ce('input',{className:'form-input',value:cartonCompany2,onChange:function(e){setCartonCompany2(e.target.value);},placeholder:'e.g. DS Smith...'})),
             ce('div',{className:'form-field','data-field':'client'},ce('label',{className:'form-label'},'Client'),
