@@ -3390,6 +3390,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           /* Citrus: per-sample plot = the chosen sample farm's Land Cloud plots (full code) */
                           plotOpts=selFarm?plotsForFarm(selFarm).slice():[];
                           if(curPlot&&plotOpts.indexOf(curPlot)<0) plotOpts.unshift(curPlot); /* keep current/old value */
+                          try{window.__dbgPlot={selFarm:selFarm,cropId:cropId,pffLen:plotsForFarm(selFarm).length,fid:(config.farmsIdMap||{})[selFarm],pbfHas:!!(plotsByFarm&&plotsByFarm[(config.farmsIdMap||{})[selFarm]]),pbfKeys:plotsByFarm?Object.keys(plotsByFarm).length:-1};}catch(e){window.__dbgPlot={err:String(e)};}
                         }else{
                           if(selFarm===farm&&plot) plotOpts.push(plot);
                           if(selFarm===farm2&&plot2) plotOpts.push(plot2);
