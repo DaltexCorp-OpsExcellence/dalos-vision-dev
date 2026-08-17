@@ -3386,7 +3386,6 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         var selFarm=ef.sampleFarm||'';
                         var curPlot=ef.samplePlot||'';
                         var plotOpts=[];
-                        try{window.__dbgPlot={cropId:(typeof cropId!=='undefined'?cropId:'<undef>'),selFarm:selFarm};}catch(e){window.__dbgPlot={err:String(e)};}
                         if(cropId==='citrus'){
                           /* Citrus: per-sample plot = the chosen sample farm's Land Cloud plots (full code) */
                           plotOpts=selFarm?plotsForFarm(selFarm).slice():[];
@@ -3786,13 +3785,20 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       showFarmCol&&(function(){
                         var ef=row.extraFields||{};
                         var selFarm=ef.sampleFarm||'';
+                        var curPlot=ef.samplePlot||'';
                         var plotOpts=[];
-                        if(selFarm===farm&&plot) plotOpts.push(plot);
-                        if(selFarm===farm2&&plot2) plotOpts.push(plot2);
-                        if(selFarm===farm3&&plot3) plotOpts.push(plot3);
-                        if(selFarm===farm4&&plot4) plotOpts.push(plot4);
-                        additionalFarms.forEach(function(af){if(selFarm===af.farmName&&af.plot)plotOpts.push(af.plot);});
-                        if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts.push(af.plot);});}
+                        if(cropId==='citrus'){
+                          /* Citrus: per-sample plot = the chosen sample farm's Land Cloud plots (full code) */
+                          plotOpts=selFarm?plotsForFarm(selFarm).slice():[];
+                          if(curPlot&&plotOpts.indexOf(curPlot)<0) plotOpts.unshift(curPlot);
+                        }else{
+                          if(selFarm===farm&&plot) plotOpts.push(plot);
+                          if(selFarm===farm2&&plot2) plotOpts.push(plot2);
+                          if(selFarm===farm3&&plot3) plotOpts.push(plot3);
+                          if(selFarm===farm4&&plot4) plotOpts.push(plot4);
+                          additionalFarms.forEach(function(af){if(selFarm===af.farmName&&af.plot)plotOpts.push(af.plot);});
+                          if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts.push(af.plot);});}
+                        }
                         return ce('select',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:11,width:'100%',background:'var(--card)'},
                           value:ef.samplePlot||'',
                           onChange:function(i,id){return function(e){var ef2=row.extraFields||{};updateRowField(i,id,'extraFields',Object.assign({},ef2,{samplePlot:e.target.value}));};}(pIdx,row.id)},
@@ -4230,13 +4236,10 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       )
                     ),
                     cropId==='citrus'&&(function(){
-                      var ef=row.extraFields||{};var selFarm=ef.sampleFarm||'';var plotOpts=[];
-                      if(selFarm===farm&&plot) plotOpts.push(plot);
-                      if(selFarm===farm2&&plot2) plotOpts.push(plot2);
-                      if(selFarm===farm3&&plot3) plotOpts.push(plot3);
-                      if(selFarm===farm4&&plot4) plotOpts.push(plot4);
-                      additionalFarms.forEach(function(af){if(selFarm===af.farmName&&af.plot)plotOpts.push(af.plot);});
-                      if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts.push(af.plot);});}
+                      var ef=row.extraFields||{};var selFarm=ef.sampleFarm||'';var curPlot=ef.samplePlot||'';
+                      /* Citrus: per-sample plot = the chosen sample farm's Land Cloud plots (full code) */
+                      var plotOpts=selFarm?plotsForFarm(selFarm).slice():[];
+                      if(curPlot&&plotOpts.indexOf(curPlot)<0) plotOpts.unshift(curPlot);
                       return ce('div',null,
                         ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Plot'),
                         ce('select',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:14,background:'var(--card)',minHeight:40},
