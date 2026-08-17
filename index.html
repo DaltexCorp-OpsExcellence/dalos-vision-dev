@@ -3384,14 +3384,20 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         }
                         /* Single variety */
                         var selFarm=ef.sampleFarm||'';
-                        var plotOpts=[];
-                        if(selFarm===farm&&plot) plotOpts.push(plot);
-                        if(selFarm===farm2&&plot2) plotOpts.push(plot2);
-                        if(selFarm===farm3&&plot3) plotOpts.push(plot3);
-                        if(selFarm===farm4&&plot4) plotOpts.push(plot4);
-                        additionalFarms.forEach(function(af){if(selFarm===af.farmName&&af.plot)plotOpts.push(af.plot);});
-                        if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts.push(af.plot);});}
                         var curPlot=ef.samplePlot||'';
+                        var plotOpts=[];
+                        if(cropId==='citrus'){
+                          /* Citrus: per-sample plot = the chosen sample farm's Land Cloud plots (full code) */
+                          plotOpts=selFarm?plotsForFarm(selFarm).slice():[];
+                          if(curPlot&&plotOpts.indexOf(curPlot)<0) plotOpts.unshift(curPlot); /* keep current/old value */
+                        }else{
+                          if(selFarm===farm&&plot) plotOpts.push(plot);
+                          if(selFarm===farm2&&plot2) plotOpts.push(plot2);
+                          if(selFarm===farm3&&plot3) plotOpts.push(plot3);
+                          if(selFarm===farm4&&plot4) plotOpts.push(plot4);
+                          additionalFarms.forEach(function(af){if(selFarm===af.farmName&&af.plot)plotOpts.push(af.plot);});
+                          if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts.push(af.plot);});}
+                        }
                         return ce('select',{style:{padding:'3px 4px',border:(pfTried[row.id]&&!curPlot)?'1.5px solid var(--red)':'1px solid var(--border2)',borderRadius:4,fontSize:11,background:(pfTried[row.id]&&!curPlot)?'var(--red-bg)':'var(--card)',width:'100%'},
                           value:curPlot,
                           onChange:function(i,id){return function(e){
@@ -3979,13 +3985,19 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         (function(){
                           var ef=row.extraFields||{};
                           var selFarm=ef.sampleFarm||'';
+                          var curPlot=ef.samplePlot||'';
                           var plotOpts=[];
-                          if(selFarm===farm&&plot)plotOpts.push(plot);
-                          if(selFarm===farm2&&plot2)plotOpts.push(plot2);
-                          if(selFarm===farm3&&plot3)plotOpts.push(plot3);
-                          if(selFarm===farm4&&plot4)plotOpts.push(plot4);
-                          additionalFarms.forEach(function(af){if(selFarm===af.farmName&&af.plot)plotOpts.push(af.plot);});
-                          if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts.push(af.plot);});}
+                          if(cropId==='citrus'){
+                            plotOpts=selFarm?plotsForFarm(selFarm).slice():[];
+                            if(curPlot&&plotOpts.indexOf(curPlot)<0) plotOpts.unshift(curPlot);
+                          }else{
+                            if(selFarm===farm&&plot)plotOpts.push(plot);
+                            if(selFarm===farm2&&plot2)plotOpts.push(plot2);
+                            if(selFarm===farm3&&plot3)plotOpts.push(plot3);
+                            if(selFarm===farm4&&plot4)plotOpts.push(plot4);
+                            additionalFarms.forEach(function(af){if(selFarm===af.farmName&&af.plot)plotOpts.push(af.plot);});
+                            if(!selFarm){if(plot)plotOpts.push(plot);if(plot2)plotOpts.push(plot2);if(plot3)plotOpts.push(plot3);if(plot4)plotOpts.push(plot4);additionalFarms.forEach(function(af){if(af.plot)plotOpts.push(af.plot);});}
+                          }
                           return ce('select',{style:{width:'100%',padding:'8px 10px',border:(pfTried[row.id]&&!ef.samplePlot)?'1.5px solid var(--red)':'1px solid '+(isMixed?'#97c459':'var(--border2)'),borderRadius:6,fontSize:15,background:(pfTried[row.id]&&!ef.samplePlot)?'var(--red-bg)':(isMixed?'#f5fbf0':'var(--card)'),minHeight:44},
                             value:ef.samplePlot||'',
                             onChange:function(i,id){return function(e){
