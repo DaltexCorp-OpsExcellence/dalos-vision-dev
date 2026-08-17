@@ -476,10 +476,34 @@ input,select,textarea{font-size:16px!important}
 .eid-desktop-only{}
 .eid-mobile-strip{display:none}
 @media(max-width:767px){.eid-desktop-only{display:none!important}.eid-mobile-strip{display:flex!important}}
+/* ===== Entry loading splash (family style, matches Workspace redirect + Land Cloud/Analytics) ===== */
+#vision-splash{position:fixed;inset:0;z-index:99999;background:radial-gradient(120% 120% at 50% 38%,#1f3527 0%,#16251a 60%,#101d14 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .45s ease}
+#vision-splash .vs-word{font-family:var(--font-display);font-size:23px;letter-spacing:-.3px}
+#vision-splash .vs-sub{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#6a8068;font-weight:600;font-family:var(--font-body)}
+.vs-anim .vs-ring{transform-box:fill-box;transform-origin:center;animation:vs-ring 3.4s ease-in-out infinite}
+.vs-anim .vs-grape{transform-box:fill-box;transform-origin:center;animation:vs-grape 1.9s ease-in-out infinite}
+.vs-anim .vs-grape:nth-of-type(2){animation-delay:.1s}
+.vs-anim .vs-grape:nth-of-type(3){animation-delay:.2s}
+.vs-anim .vs-grape:nth-of-type(4){animation-delay:.3s}
+.vs-anim .vs-grape:nth-of-type(5){animation-delay:.4s}
+.vs-anim .vs-grape:nth-of-type(6){animation-delay:.5s}
+@keyframes vs-ring{0%,100%{opacity:.4;transform:scale(.96) rotate(0deg)}50%{opacity:.85;transform:scale(1.03) rotate(6deg)}}
+@keyframes vs-grape{0%,100%{opacity:.45;transform:scale(.72)}45%,72%{opacity:1;transform:scale(1.12)}}
+@media(prefers-reduced-motion:reduce){.vs-anim .vs-ring,.vs-anim .vs-grape{animation:none;opacity:1;transform:none}}
 </style>
 </head>
 <body>
 <div id="root"></div>
+<!-- Entry splash: shows instantly (before React/fonts/supabase), fades out once the app shell paints. Matches the Workspace redirect splash so launch is one continuous animation. -->
+<div id="vision-splash">
+  <svg class="vs-anim" width="60" height="60" viewBox="0 0 48 48" fill="none" aria-label="DalOS Vision">
+    <circle class="vs-ring" cx="24" cy="24" r="17" stroke="#4a8c62" stroke-width="1.4"/>
+    <g fill="#8fe0ad"><circle class="vs-grape" cx="24" cy="17" r="3.1"/><circle class="vs-grape" cx="19" cy="22" r="3.1"/><circle class="vs-grape" cx="29" cy="22" r="3.1"/><circle class="vs-grape" cx="21.5" cy="27" r="3.1"/><circle class="vs-grape" cx="26.5" cy="27" r="3.1"/><circle class="vs-grape" cx="24" cy="32" r="3.1"/></g>
+    <path d="M24 14 V11 Q27 10 29 12" stroke="#6fc191" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+  </svg>
+  <div class="vs-word"><span style="color:#f4f1e8">Dal</span><span style="color:#6fc191">OS</span><span style="color:#f4f1e8"> Vision</span></div>
+  <div class="vs-sub">Loading…</div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
@@ -17957,6 +17981,21 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(ce(App,null));
+</script>
+<script>
+/* Fade the entry splash once the app shell first paints (React commits to #root),
+   with a hard fallback so it can never stick. */
+(function(){
+  var sp=document.getElementById('vision-splash'); if(!sp) return;
+  var done=false;
+  function clear(){ if(done) return; done=true; sp.style.opacity='0'; setTimeout(function(){ if(sp.parentNode) sp.parentNode.removeChild(sp); },480); }
+  var root=document.getElementById('root');
+  if(root && window.MutationObserver){
+    if(root.childNodes.length){ setTimeout(clear,180); }
+    else { var mo=new MutationObserver(function(){ if(root.childNodes.length){ mo.disconnect(); setTimeout(clear,180); } }); mo.observe(root,{childList:true}); }
+  } else { setTimeout(clear,600); }
+  setTimeout(clear,4000);
+})();
 </script>
 <script>
 (function(){
