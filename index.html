@@ -687,6 +687,8 @@ function Typeahead(props){
   }
 
   function handleKey(e){
+    /* allowFree: Enter commits the typed value unless a suggestion is highlighted */
+    if(e.key==='Enter'&&allowFree&&!(open&&activeIdx>=0&&filtered[activeIdx])){onChange(q);setOpen(false);e.preventDefault();return;}
     if(!open) return;
     if(e.key==='ArrowDown'){setActiveIdx(function(i){return Math.min(i+1,filtered.length-1);});e.preventDefault();}
     if(e.key==='ArrowUp'){setActiveIdx(function(i){return Math.max(i-1,0);});e.preventDefault();}
@@ -716,11 +718,13 @@ function Typeahead(props){
         setQ(e.target.value);
         setOpen(true);
         setActiveIdx(-1);
+        /* Clear commits immediately. For allowFree we DON'T commit per-keystroke —
+           that re-renders the parent and collapses the open dropdown. Free text is
+           committed on blur / Enter instead (see onBlur + handleKey). */
         if(!e.target.value){onChange('');}
-        else if(allowFree){onChange(e.target.value);}
       },
       onFocus:function(){if(q.length>=minChars) setOpen(true);},
-      onBlur:function(){setTimeout(function(){setOpen(false);},180);},
+      onBlur:function(){if(allowFree&&q!==value)onChange(q);setTimeout(function(){setOpen(false);},180);},
       onKeyDown:handleKey
     }),
     open&&filtered.length>0&&ce('div',{style:{
