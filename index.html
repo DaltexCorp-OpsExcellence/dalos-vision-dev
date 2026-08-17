@@ -665,6 +665,9 @@ function Typeahead(props){
   var placeholder=props.placeholder||'Type to search...';
   var minChars=props.minChars||2;
   var disabled=props.disabled||false;
+  /* allowFree: commit typed text even when it matches no option (pick-or-type combobox).
+     Default off preserves the select-only behaviour client/carton-color rely on. */
+  var allowFree=props.allowFree||false;
 
   var sQ=useState(value?value:''); var q=sQ[0]; var setQ=sQ[1];
   var sOpen=useState(false); var open=sOpen[0]; var setOpen=sOpen[1];
@@ -713,7 +716,8 @@ function Typeahead(props){
         setQ(e.target.value);
         setOpen(true);
         setActiveIdx(-1);
-        if(!e.target.value) onChange('');
+        if(!e.target.value){onChange('');}
+        else if(allowFree){onChange(e.target.value);}
       },
       onFocus:function(){if(q.length>=minChars) setOpen(true);},
       onBlur:function(){setTimeout(function(){setOpen(false);},180);},
@@ -768,6 +772,27 @@ function InspectionForm(props){
   var config=props.config||INITIAL_CONFIG;
   var allBatches=props.batches||[];
   var isEdit=!!batch;
+
+  /* ── Land Cloud plot picker (citrus prototype) ── pull ACTIVE plot codes per farm
+     from farm_blocks (shared farms table = same farm_id Vision writes). Plot fields
+     then offer the chosen farm's registered plots, but stay free-type (allowFree) for
+     farms/plots not yet in Land Cloud. One tiny RPC call per form open. */
+  var sPlotsByFarm=useState({}); var plotsByFarm=sPlotsByFarm[0]; var setPlotsByFarm=sPlotsByFarm[1];
+  React.useEffect(function(){
+    if(cropId!=='citrus') return;
+    var cancelled=false;
+    supabase.rpc('get_farm_plots',{p_product_id:'citrus'}).then(function(r){
+      if(cancelled||r.error||!r.data) return;
+      var m={}; r.data.forEach(function(row){ (m[row.farm_id]=m[row.farm_id]||[]).push(row.plot_code); });
+      setPlotsByFarm(m);
+    });
+    return function(){cancelled=true;};
+  },[cropId]);
+  function plotsForFarm(farmName){
+    var idMap=config.farmsIdMap||{};
+    var fid=farmName&&idMap[farmName];
+    return (fid&&plotsByFarm[fid])||[];
+  }
 
   /* Warn before browser navigation while form is open */
   React.useEffect(function(){
@@ -2564,7 +2589,9 @@ function InspectionForm(props){
             /* Plot (grapes + citrus + mango) */
             (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&ce('div',{className:'form-field'},
               ce('label',{className:'form-label'},'Plot'),
-              ce('input',{className:'form-input',value:plot,placeholder:'Plot no.',onChange:function(e){setPlot(e.target.value);}})
+              (cropId==='citrus'
+                ?ce(Typeahead,{value:plot,onChange:setPlot,options:plotsForFarm(farm),placeholder:plotsForFarm(farm).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
+                :ce('input',{className:'form-input',value:plot,placeholder:'Plot no.',onChange:function(e){setPlot(e.target.value);}}))
             )
           ),
           /* Farm 2 + Plot 2 — + button toggle */
@@ -2591,7 +2618,9 @@ function InspectionForm(props){
                 ),
                 ce('div',{className:'form-field'},
                   ce('label',{className:'form-label'},'Plot 2'),
-                  ce('input',{className:'form-input',value:plot2,placeholder:'Plot no.',onChange:function(e){setPlot2(e.target.value);}})
+                  (cropId==='citrus'
+                    ?ce(Typeahead,{value:plot2,onChange:setPlot2,options:plotsForFarm(farm2),placeholder:plotsForFarm(farm2).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
+                    :ce('input',{className:'form-input',value:plot2,placeholder:'Plot no.',onChange:function(e){setPlot2(e.target.value);}}))
                 )
               )
           ),
@@ -2619,7 +2648,9 @@ function InspectionForm(props){
                 ),
                 ce('div',{className:'form-field'},
                   ce('label',{className:'form-label'},'Plot 3'),
-                  ce('input',{className:'form-input',value:plot3,placeholder:'Plot no.',onChange:function(e){setPlot3(e.target.value);}})
+                  (cropId==='citrus'
+                    ?ce(Typeahead,{value:plot3,onChange:setPlot3,options:plotsForFarm(farm3),placeholder:plotsForFarm(farm3).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
+                    :ce('input',{className:'form-input',value:plot3,placeholder:'Plot no.',onChange:function(e){setPlot3(e.target.value);}}))
                 )
               )
           ),
@@ -2647,7 +2678,9 @@ function InspectionForm(props){
                 ),
                 ce('div',{className:'form-field'},
                   ce('label',{className:'form-label'},'Plot 4'),
-                  ce('input',{className:'form-input',value:plot4,placeholder:'Plot no.',onChange:function(e){setPlot4(e.target.value);}})
+                  (cropId==='citrus'
+                    ?ce(Typeahead,{value:plot4,onChange:setPlot4,options:plotsForFarm(farm4),placeholder:plotsForFarm(farm4).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
+                    :ce('input',{className:'form-input',value:plot4,placeholder:'Plot no.',onChange:function(e){setPlot4(e.target.value);}}))
                 )
               )
           ),
@@ -2677,7 +2710,12 @@ function InspectionForm(props){
                 ),
                 ce('div',{className:'form-field'},
                   ce('label',{className:'form-label'},'Plot '+(5+aidx)),
-                  ce('input',{className:'form-input',value:af.plot||'',placeholder:'Plot no.',
+                  cropId==='citrus'
+                  ?ce(Typeahead,{value:af.plot||'',options:(af.farmId&&plotsByFarm[af.farmId])||[],placeholder:((af.farmId&&plotsByFarm[af.farmId])||[]).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true,
+                    onChange:function(i){return function(v){
+                      setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{plot:v}):x;});});
+                    };}(aidx)})
+                  :ce('input',{className:'form-input',value:af.plot||'',placeholder:'Plot no.',
                     onChange:function(i){return function(e){
                       setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{plot:e.target.value}):x;});});
                     };}(aidx)
