@@ -1130,7 +1130,7 @@ function InspectionForm(props){
   })();
   function emptyDefects(){var d={};defSections.forEach(function(sec){sec.items.forEach(function(i){d[i.key]='0';});});return d;}
   function nowTime(){var n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
-  function newRow(palletNo){return {id:Date.now()+Math.random(),palletNo:palletNo,time:nowTime(),opDate:new Date().toISOString().slice(0,10),sampleSize:'',size:'',cartonWt:'',brix:'',brixV2:'',defects:emptyDefects(),pass:null,notes:'',extraFields:{so2:'',jiffy_pad:'',punnet_type:'',package_type:'',grape_size:'',temp_log:'',worker_id:'',pkg_mtl_wt:''},sampleVariety:'',showExtraFields:false};}
+  function newRow(palletNo){return {id:Date.now()+Math.random(),palletNo:palletNo,time:nowTime(),opDate:new Date().toISOString().slice(0,10),sampleSize:'',size:'',cartonWt:'',brix:'',brixV2:'',defects:emptyDefects(),pass:null,notes:'',extraFields:{so2:'',jiffy_pad:'',punnet_type:'',package_type:'',grape_size:'',temp_log:'',worker_id:'',pkg_mtl_wt:'',packDate:new Date().toISOString().slice(0,10)},sampleVariety:'',showExtraFields:false};}
   function newPallet(num,lbl,cont){return {palletId:Date.now()+Math.random(),palletNo:num,palletLabel:lbl||'',palletContainer:cont||'',palletTraceCodes:[],actualTraceCode:'',showActualTrace:false,rows:[newRow(num)]};}
 
   /* pallets: [{palletId, palletNo, rows:[{id,palletNo,time,size,cartonWt,brix,defects,notes}]}] */
@@ -3698,11 +3698,13 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               var showFarmCol=(cropId==='citrus'||cropId==='mango'||cropId==='pomegranate');
               /* Citrus wax moved from header to a per-sample column */
               var showWaxCol=(cropId==='citrus');
-              var gridTpl=(showExpandCol?'26px ':'')+(showFarmCol?'104px 66px ':'')+'90px 100px 70px 60px 60px 60px '+(isMangoTbl?'60px ':'')+(showWaxCol?'70px ':'')+secCols+' 1fr 54px '+(showExpandCol?'':'22px ')+'22px';
-              var hdrLabels=(showExpandCol?['']:[]).concat(showFarmCol?['Farm','Plot']:[]).concat(['Time','Op. Date','Sample #','Size','Wt (kg)','Brix']).concat(isMangoTbl?['Firm']:[]).concat(showWaxCol?['Wax']:[]).concat(defSections.map(function(s){return (s.section||s.name||'Defect').split(' ')[0];})).concat(showExpandCol?['Notes','P/F','']:['Notes','P/F','▼','']);
-              return ce('div',{style:{minWidth:showFarmCol?1140:900}},
+              /* Citrus: a per-sample Packing Date (auto = today) alongside the adjustable Op. Date, to track storage days before packing */
+              var showPackDate=(cropId==='citrus');
+              var gridTpl=(showExpandCol?'26px ':'')+(showFarmCol?'104px 66px ':'')+'90px 100px '+(showPackDate?'100px ':'')+'70px 60px 60px 60px '+(isMangoTbl?'60px ':'')+(showWaxCol?'70px ':'')+secCols+' 1fr 54px '+(showExpandCol?'':'22px ')+'22px';
+              var hdrLabels=(showExpandCol?['']:[]).concat(showFarmCol?['Farm','Plot']:[]).concat(['Time','Op. Date']).concat(showPackDate?['Pack Date']:[]).concat(['Sample #','Size','Wt (kg)','Brix']).concat(isMangoTbl?['Firm']:[]).concat(showWaxCol?['Wax']:[]).concat(defSections.map(function(s){return (s.section||s.name||'Defect').split(' ')[0];})).concat(showExpandCol?['Notes','P/F','']:['Notes','P/F','▼','']);
+              return ce('div',{style:{minWidth:showPackDate?1240:(showFarmCol?1140:900)}},
                 ce('div',{style:{display:'grid',gridTemplateColumns:gridTpl,gap:4,padding:'5px 14px',background:'var(--bg2)',borderBottom:'1px solid var(--border2)'}},
-                  hdrLabels.map(function(h,i){return ce('div',{key:i,style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.04em',textAlign:i>=((showExpandCol?1:0)+(showFarmCol?2:0)+6+(isMangoTbl?1:0)+(showWaxCol?1:0))?'center':'left'}},h);})
+                  hdrLabels.map(function(h,i){return ce('div',{key:i,style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.04em',textAlign:i>=((showExpandCol?1:0)+(showFarmCol?2:0)+6+(showPackDate?1:0)+(isMangoTbl?1:0)+(showWaxCol?1:0))?'center':'left'}},h);})
                 ),
                 pRows.map(function(row,ri){
                   var rowCrit=defSections.some(function(sec){return sec.items.some(function(d){return d.sev==='Critical'&&(parseFloat(row.defects[d.key])||0)>0;});});
@@ -3751,6 +3753,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       })(),
                       ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',minWidth:84,background:'var(--card)'},type:'time',value:row.time,onChange:function(i,id){return function(e){updateRowField(i,id,'time',e.target.value);};}(pIdx,row.id)}),
                       ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',background:'var(--card)'},type:'date',value:row.opDate||'',onChange:function(i,id){return function(e){updateRowField(i,id,'opDate',e.target.value);};}(pIdx,row.id)}),
+                      showPackDate&&ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',background:'var(--card)'},type:'date',value:(row.extraFields||{}).packDate||'',onChange:function(i,id){return function(e){updateRowExtra(i,id,'packDate',e.target.value);};}(pIdx,row.id)}),
                       ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',textAlign:'right',background:'var(--card)'},type:'number',min:'0',step:'1',value:row.sampleSize||'',placeholder:'#',onChange:function(i,id){return function(e){updateRowField(i,id,'sampleSize',e.target.value);};}(pIdx,row.id)}),
                       cropId==='citrus'
                         ?ce('select',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',background:'var(--card)'},value:row.size||'',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)},[ce('option',{key:'_none',value:''},'—')].concat(CITRUS_SIZES.map(function(s){return ce('option',{key:s,value:s},s);})))
@@ -3850,7 +3853,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                   showFarmCol&&ce('div',null),
                   showFarmCol&&ce('div',null),
                   ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)'}},'P'+pallet.palletNo+' avg'),
-                  ce('div',null),ce('div',null),ce('div',null),
+                  ce('div',null),showPackDate&&ce('div',null),ce('div',null),ce('div',null),
                   ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,textAlign:'right',color:'var(--text2)'}},(pAvgField('cartonWt')||'—')),
                   ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,textAlign:'right',color:'var(--text2)'}},(pAvgField('brix')||'—')),
                   showWaxCol&&ce('div',null),
@@ -4192,6 +4195,14 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                     ce('div',null,
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Time'),
                       ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',background:'var(--card)',minHeight:40},type:'time',value:row.time,onChange:function(i,id){return function(e){updateRowField(i,id,'time',e.target.value);};}(pIdx,row.id)})
+                    ),
+                    cropId==='citrus'&&ce('div',null,
+                      ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Op. Date'),
+                      ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',background:'var(--card)',minHeight:40},type:'date',value:row.opDate||'',onChange:function(i,id){return function(e){updateRowField(i,id,'opDate',e.target.value);};}(pIdx,row.id)})
+                    ),
+                    cropId==='citrus'&&ce('div',null,
+                      ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Pack Date'),
+                      ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',background:'var(--card)',minHeight:40},type:'date',value:(row.extraFields||{}).packDate||'',onChange:function(i,id){return function(e){updateRowExtra(i,id,'packDate',e.target.value);};}(pIdx,row.id)})
                     ),
                     ce('div',null,
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Size'),
