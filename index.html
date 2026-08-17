@@ -663,7 +663,7 @@ function Typeahead(props){
   var onChange=props.onChange||function(){};
   var options=props.options||[]; /* array of strings or {name,hint} objects */
   var placeholder=props.placeholder||'Type to search...';
-  var minChars=props.minChars||2;
+  var minChars=(props.minChars==null?2:props.minChars); /* honor minChars:0 (0||2 bug) */
   var disabled=props.disabled||false;
   /* allowFree: commit typed text even when it matches no option (pick-or-type combobox).
      Default off preserves the select-only behaviour client/carton-color rely on. */
