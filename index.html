@@ -16486,6 +16486,7 @@ function App(){
     header.trace_codes=newBatch.traceCodes?newBatch.traceCodes.filter(function(tc){var code=typeof tc==='string'?tc.trim():(tc&&tc.code&&tc.code.trim())||'';return !!code;}).map(function(tc){return typeof tc==='string'?{code:tc.trim(),variety:null}:tc;}):[];
     if(newBatch.cartonColor) header.carton_color=newBatch.cartonColor;
     if(newBatch.cartonCompany) header.carton_company=newBatch.cartonCompany;
+    if(newBatch.cartonCompany2) header.carton_company2=newBatch.cartonCompany2;
     if(newBatch.ggn) header.ggn=newBatch.ggn;
     if(newBatch.phCode) header.ph_code=newBatch.phCode;
     if(newBatch.brix) header.avg_brix=newBatch.brix;
