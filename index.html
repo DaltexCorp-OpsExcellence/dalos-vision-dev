@@ -1302,12 +1302,16 @@ function InspectionForm(props){
               });
               var isGrapes=(props.cropId||cropId||'').toLowerCase()==='grapes';
               var isMangoLd=(props.cropId||cropId||'').toLowerCase()==='mango';
+              /* Citrus & pomegranate also use the per-pallet container + trace model —
+                 they must restore those on edit-load, else edit-save clears them.
+                 (palletLabel stays gated: citrus/pom use system pallet numbers via palletNo.) */
+              var isTraceModelLd=(isGrapes||isMangoLd||(props.cropId||cropId||'').toLowerCase()==='citrus'||(props.cropId||cropId||'').toLowerCase()==='pomegranate');
               return {
                 palletId:pal.id,
                 palletNo:pal.pallet_number,
                 palletLabel:(isGrapes||isMangoLd)?(pal.pallet_number||''):'',
-                palletContainer:(isGrapes||isMangoLd)?(pal.container_number||''):'',
-                palletTraceCodes:(isGrapes||isMangoLd)?(pal.trace_codes||[]):[],
+                palletContainer:isTraceModelLd?(pal.container_number||''):'',
+                palletTraceCodes:isTraceModelLd?(pal.trace_codes||[]):[],
                 palletCartonCompany:pal.carton_company||'',
                 actualTraceCode:pal.actual_trace_code||'',
                 showActualTrace:false,
