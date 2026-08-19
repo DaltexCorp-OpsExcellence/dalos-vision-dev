@@ -7704,7 +7704,7 @@ function HomeView(props){
           ce('span',{className:'dh-season-lbl',style:{opacity:.6,marginRight:5}},'Season'),
           ce('select',{value:currentViewSeason,onChange:function(e){var name=e.target.value;var _f=seasons.find(function(s){return s.name===name;});if(_f){try{localStorage.setItem('dalos_view_season',_f.id);}catch(_e){}window.location.reload();return;}setViewSeason(name);var found=seasons.find(function(s){return s.name===name;});if(found)setConfig(function(prev){return Object.assign({},prev,{activeSeasonId:found.id});});},
             style:{background:'transparent',border:'none',outline:'none',color:'#bcd6c4',fontWeight:600,fontFamily:'var(--font-body)',fontSize:12,cursor:'pointer'}},
-            seasons.map(function(s){return ce('option',{key:s.id,value:s.name,style:{color:'#000'}},s.name);})
+            seasons.map(function(s){return ce('option',{key:s.id,value:s.name,style:{color:'#000'}},s.name+(s.active?' ✓':''));})
           )
         ),
         ce('div',{style:{position:'relative'}},
