@@ -17814,7 +17814,7 @@ function App(){
                 if(found) setConfig(function(prev){return Object.assign({},prev,{activeSeasonId:found.id});});
               }},
               (config.seasons||[{id:'2025/26',name:'2025/26',active:true}]).map(function(s){
-                var isActive=s.name===(config.activeSeason||'2025/26');
+                var isActive=!!s.active; /* \u2713 marks the DB-active season, not the viewed one */
                 return ce('option',{key:s.id,value:s.name},s.name+(isActive?' \u2713':''));
               })
             )
