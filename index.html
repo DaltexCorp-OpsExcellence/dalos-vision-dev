@@ -16295,7 +16295,7 @@ function App(){
                  makeQuery() must return a fresh filter+order query WITHOUT .range(); a stable
                  .order() keeps page boundaries consistent. Order is preserved because
                  Promise.all resolves in request order. */
-              var PAGE=1000, WAVE=5, acc=[];
+              var PAGE=1000, WAVE=10, acc=[];
               function runWave(start){
                 var reqs=[];
                 for(var k=0;k<WAVE;k++){ (function(off){ reqs.push(makeQuery().range(off,off+PAGE-1)); })(start+k*PAGE); }
@@ -16318,42 +16318,16 @@ function App(){
                   .order('inspection_id',{ascending:true}).order('pallet_number',{ascending:true});
               });
             }
-            /* Fetch pallets + related tables in parallel using IN-clause lookups (avoids N+1 joins in the view query) */
-            return Promise.all([
-              fetchAllPallets(noIds?[]:inspectionIds),
-              noIds?Promise.resolve({data:[]}):fetchAllPaged(function(){return supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('item_index',{ascending:true});}),
-              noIds?Promise.resolve({data:[]}):fetchAllPaged(function(){return supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('round',{ascending:false});}),
-              /* Sticker checks are NOT bulk-loaded — they feed ONLY the edit form (the list
-                 table and detail panel never show them). Bulk-fetching them meant an 8-page
-                 (~7.8k row) walk on every list load. The edit form now fetches just this one
-                 inspection's rows lazily on open (see the sticker-checks useEffect in
-                 InspectionForm). refreshBatchesById still repopulates them after a save. */
-              Promise.resolve({data:[]})
-            ]).then(function(results){
-              var pr=results[0],cr=results[1],er=results[2],sr=results[3];
-              var palletsByInspection={};
-              if(pr&&!pr.error&&pr.data){
-                pr.data.forEach(function(p){
-                  if(!palletsByInspection[p.inspection_id]) palletsByInspection[p.inspection_id]=[];
-                  palletsByInspection[p.inspection_id].push({palletNo:p.pallet_number,palletLabel:p.pallet_number,palletContainer:p.container_number||''});
-                });
-              } else if(pr&&pr.error){console.warn('[DalOS] Pallet index load warning:',pr.error.message);}
-              var clearanceByInspection={};
-              if(cr&&!cr.error&&cr.data){cr.data.forEach(function(c){if(!clearanceByInspection[c.inspection_id])clearanceByInspection[c.inspection_id]=[];clearanceByInspection[c.inspection_id].push(c);});}
-              var escalationsByInspection={};
-              if(er&&!er.error&&er.data){er.data.forEach(function(e){if(!escalationsByInspection[e.inspection_id])escalationsByInspection[e.inspection_id]=[];escalationsByInspection[e.inspection_id].push(e);});}
-              var stickersByInspection={};
-              if(sr&&!sr.error&&sr.data){sr.data.forEach(function(s){if(!stickersByInspection[s.inspection_id])stickersByInspection[s.inspection_id]=[];stickersByInspection[s.inspection_id].push(s);});}
-              return {ir:ir,palletsByInspection:palletsByInspection,clearanceByInspection:clearanceByInspection,escalationsByInspection:escalationsByInspection,stickersByInspection:stickersByInspection};
-            });
-          })
-          .then(function(combined){
-            if(!combined) return;
-            var ir=combined.ir;
-            var palletsByInspection=combined.palletsByInspection||{};
-            var clearanceByInspection=combined.clearanceByInspection||{};
-            var escalationsByInspection=combined.escalationsByInspection||{};
-            var stickersByInspection=combined.stickersByInspection||{};
+            /* Row → batch mapper. Reused for the instant FIRST PAINT (no aux) and again
+               after the background pallet/clearance/escalation index resolves. aux fields
+               feed ONLY pallet-number search + clearance/escalation detail — none of the
+               visible list columns or hero KPIs need them, so first paint passes {}. */
+            function paintBatches(aux){
+              aux=aux||{};
+              var palletsByInspection=aux.palletsByInspection||{};
+              var clearanceByInspection=aux.clearanceByInspection||{};
+              var escalationsByInspection=aux.escalationsByInspection||{};
+              var stickersByInspection=aux.stickersByInspection||{};
             var dbBatches=(ir.data||[]).map(function(r){
               /* Resolve display names from newCfg using reverse ID maps */
               var varietyName=varietiesIdToName[r.variety_id]||r.variety_id||'';
@@ -16447,11 +16421,34 @@ function App(){
                 pallets:palletsByInspection[r.id]||[],samples:[]
               };
             });
-            console.log('[DalOS] Loaded',dbBatches.length,'inspections from DB');
-            if(dbBatches.length>0){
-              setBatchesRaw(dbBatches);
-            }
+            if(dbBatches.length>0){ setBatchesRaw(dbBatches); }
+            } /* end paintBatches */
+
+            /* FIRST PAINT — list + hero KPIs render immediately from the inspections query.
+               Pallets/clearances/escalations are not shown in the list or KPIs, so we do NOT
+               block the render on them; they load in the background and re-paint for search. */
+            paintBatches({});
             setInspLoading(false);
+            console.log('[DalOS] first paint',(ir.data||[]).length,'inspections; loading pallet/clearance index in background');
+
+            if(!noIds){
+              Promise.all([
+                fetchAllPallets(inspectionIds),
+                fetchAllPaged(function(){return supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('item_index',{ascending:true});}),
+                fetchAllPaged(function(){return supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('round',{ascending:false});})
+              ]).then(function(results){
+                var pr=results[0],cr=results[1],er=results[2];
+                var palletsByInspection={};
+                if(pr&&!pr.error&&pr.data){pr.data.forEach(function(p){if(!palletsByInspection[p.inspection_id])palletsByInspection[p.inspection_id]=[];palletsByInspection[p.inspection_id].push({palletNo:p.pallet_number,palletLabel:p.pallet_number,palletContainer:p.container_number||''});});}
+                else if(pr&&pr.error){console.warn('[DalOS] Pallet index load warning:',pr.error.message);}
+                var clearanceByInspection={};
+                if(cr&&!cr.error&&cr.data){cr.data.forEach(function(c){if(!clearanceByInspection[c.inspection_id])clearanceByInspection[c.inspection_id]=[];clearanceByInspection[c.inspection_id].push(c);});}
+                var escalationsByInspection={};
+                if(er&&!er.error&&er.data){er.data.forEach(function(e){if(!escalationsByInspection[e.inspection_id])escalationsByInspection[e.inspection_id]=[];escalationsByInspection[e.inspection_id].push(e);});}
+                paintBatches({palletsByInspection:palletsByInspection,clearanceByInspection:clearanceByInspection,escalationsByInspection:escalationsByInspection,stickersByInspection:{}});
+                console.log('[DalOS] pallet/clearance/escalation index merged — search + detail ready');
+              }).catch(function(e){console.warn('[DalOS] background index load failed:',(e&&e.message)||e);});
+            }
           })
           .catch(function(e){console.error('[DalOS] Load inspections failed:',e);setInspLoading(false);});
 
