@@ -16289,17 +16289,26 @@ function App(){
                makeQuery() returns a FRESH query WITH .select()/.in()/.order() but WITHOUT .range().
                A stable .order() is required so rows don't shift between pages. */
             function fetchAllPaged(makeQuery){
-              var acc=[];
-              function page(from){
-                return makeQuery().range(from,from+999).then(function(r){
-                  if(r.error) return {data:acc,error:r.error};
-                  var batch=r.data||[];
-                  acc=acc.concat(batch);
-                  if(batch.length<1000) return {data:acc};
-                  return page(from+1000);
+              /* Parallel paginated IN-fetch. Fires a WAVE of pages concurrently instead of
+                 walking them one-at-a-time — the season pallet index (~9 pages / ~9k rows)
+                 was 9 serial round-trips that blocked the list + hero KPIs from rendering.
+                 makeQuery() must return a fresh filter+order query WITHOUT .range(); a stable
+                 .order() keeps page boundaries consistent. Order is preserved because
+                 Promise.all resolves in request order. */
+              var PAGE=1000, WAVE=5, acc=[];
+              function runWave(start){
+                var reqs=[];
+                for(var k=0;k<WAVE;k++){ (function(off){ reqs.push(makeQuery().range(off,off+PAGE-1)); })(start+k*PAGE); }
+                return Promise.all(reqs).then(function(rs){
+                  var err=null;
+                  rs.forEach(function(r){ if(r&&r.error){err=err||r.error;} else if(r&&r.data){ acc=acc.concat(r.data); } });
+                  if(err) return {data:acc,error:err};
+                  var last=rs[rs.length-1];
+                  if(last&&last.data&&last.data.length===PAGE) return runWave(start+WAVE*PAGE); /* last page full → more may remain */
+                  return {data:acc};
                 });
               }
-              return page(0);
+              return runWave(0);
             }
             function fetchAllPallets(ids){
               if(!ids||!ids.length) return Promise.resolve({data:[]});
