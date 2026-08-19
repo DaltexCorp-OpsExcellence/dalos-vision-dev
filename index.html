@@ -17824,7 +17824,7 @@ function App(){
               }},
               (config.seasons||[{id:'2025/26',name:'2025/26',active:true}]).map(function(s){
                 var isActive=!!s.active; /* "Active" tag marks the DB-active season, not the viewed one */
-                return ce('option',{key:s.id,value:s.name},s.name+(isActive?' \u2014 Active':''));
+                return ce('option',{key:s.id,value:s.name},s.name+(isActive?' — Active':''));
               })
             )
           ),
