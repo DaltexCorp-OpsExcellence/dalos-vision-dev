@@ -822,6 +822,10 @@ function InspectionForm(props){
     return (fid&&plotsByFarm[fid])||[];
   }
 
+  /* Guard: saving into a season that isn't the current active one prompts a confirm. */
+  var sSeasonConfirm=useState(null); var seasonConfirm=sSeasonConfirm[0]; var setSeasonConfirm=sSeasonConfirm[1];
+  var seasonConfirmedRef=React.useRef(false);
+
   /* Warn before browser navigation while form is open */
   React.useEffect(function(){
     var handler=function(e){e.preventDefault();e.returnValue='';return '';};
@@ -1455,6 +1459,16 @@ function InspectionForm(props){
       } catch(e){ /* DOM access shouldn't block validation */ }
       return;
     }
+    /* Season guard — saving into a season that isn't the current active one prompts once.
+       (Saves follow the VIEWED season; this catches an accidental wrong-season save.) */
+    var _vSeasonId=config.activeSeasonId,_aSeasonId=config.trueActiveSeasonId;
+    if(_vSeasonId&&_aSeasonId&&_vSeasonId!==_aSeasonId&&!seasonConfirmedRef.current){
+      var _vName=((config.seasons||[]).find(function(s){return s.id===_vSeasonId;})||{}).name||'';
+      var _aName=((config.seasons||[]).find(function(s){return s.id===_aSeasonId;})||{}).name||'';
+      setSeasonConfirm({viewed:_vName,active:_aName});
+      return;
+    }
+    seasonConfirmedRef.current=false;
     var defSectionsForSave=(function(){var ds=config.defectSections;if(!ds)return [];if(!Array.isArray(ds))return ds[cropId]||[];return ds;})();
     var defectAvgs={};
     defSectionsForSave.forEach(function(sec){sec.items.forEach(function(d){defectAvgs[d.key]=avgDefect(d.key);});});
@@ -2059,7 +2073,7 @@ function InspectionForm(props){
     var inheritedRow={
       packhouse_id:packhouse.id,
       product_id:productId,
-      season_id:config.trueActiveSeasonId||config.activeSeasonId||null,
+      season_id:config.activeSeasonId||config.trueActiveSeasonId||null,
       date:date,
       container_number:containerVal,
       variety_id:lookupId(config.varietiesIdMap,variety),
@@ -2271,6 +2285,18 @@ function InspectionForm(props){
           ce('div',{style:{width:7,height:7,borderRadius:'50%',background:packhouse.color,flexShrink:0}}),
           ce('span',{style:{fontSize:11,fontWeight:600,color:packhouse.color}},packhouse.name)
         ),
+        /* Season chip — where this inspection will be SAVED (the season currently open).
+           Green when it's the active/current season, amber when it's a different one. */
+        (function(){
+          var vid=config.activeSeasonId,aid=config.trueActiveSeasonId;
+          var sname=((config.seasons||[]).find(function(s){return s.id===vid;})||{}).name||'';
+          if(!sname) return null;
+          var onActive=vid===aid;
+          return ce('div',{className:'topbar-badge',title:onActive?'Saving into the current season':'Saving into '+sname+' — not the current season',style:{display:'flex',alignItems:'center',gap:5,background:onActive?'var(--green-bg)':'var(--amber-bg)',border:'1px solid '+(onActive?'var(--green-border)':'var(--amber-border)'),borderRadius:6,padding:'3px 10px',flexShrink:0}},
+            ce('span',{style:{fontSize:11,fontWeight:600,color:onActive?'var(--green)':'#8a5a10',fontFamily:'var(--font-mono)'}},'Season '+sname),
+            !onActive&&ce('span',{style:{fontSize:10,color:'var(--amber)',whiteSpace:'nowrap'}},'· not current')
+          );
+        })(),
         cropId==='grapes'
         ?ce('div',{className:'topbar-badge',style:{background:isEdit?'#f5eeff':'#fff8e1',border:'1px solid '+(isEdit?'#d8b8f0':'#e8c97a'),borderRadius:6,padding:'3px 10px',fontSize:11,fontWeight:500,color:isEdit?'#6b3fa0':'#8a6a1a',flexShrink:0,fontFamily:'var(--font-mono)'}},isEdit?grpSessionId:('Draft · GR-'+new Date().getFullYear()+'-???'))
         :lot&&ce('div',{className:'topbar-badge',style:{background:'var(--bg2)',borderRadius:6,padding:'3px 10px',fontSize:11,fontWeight:500,color:'var(--text2)',flexShrink:0}},'LOT '+lot),
@@ -2338,6 +2364,27 @@ function InspectionForm(props){
       ce('button',{onClick:function(){setValidErrs([]);},style:{background:'transparent',border:'none',color:'var(--red)',cursor:'pointer',fontSize:18,lineHeight:1,padding:'0 4px',flexShrink:0,opacity:.7},title:'Dismiss'},'\u00d7')
     ),
     /* Save status — fixed banner below topbar so user always sees saving/saved/error feedback */
+    seasonConfirm&&ce('div',{style:{position:'fixed',inset:0,zIndex:60,background:'rgba(26,26,23,.42)',display:'flex',alignItems:'center',justifyContent:'center',padding:16},onClick:function(){setSeasonConfirm(null);}},
+      ce('div',{onClick:function(e){e.stopPropagation();},style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',width:'100%',maxWidth:420,padding:'20px 22px',boxShadow:'0 12px 40px rgba(26,26,23,.28)'}},
+        ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12}},
+          ce('span',{style:{fontSize:20,lineHeight:1}},'🗓️'),
+          ce('div',{style:{fontFamily:'var(--font-display)',fontSize:19,color:'var(--text)'}},'Save into '+seasonConfirm.viewed+'?')
+        ),
+        ce('div',{style:{fontSize:13,color:'var(--text2)',lineHeight:1.55,marginBottom:16}},
+          'You are viewing ',
+          ce('b',{style:{color:'var(--text)'}},seasonConfirm.viewed),
+          ', which is not the current active season (',
+          ce('b',null,seasonConfirm.active),
+          '). This inspection will be filed under ',
+          ce('b',{style:{color:'var(--text)'}},seasonConfirm.viewed),
+          ' and its ID will carry that season’s year.'
+        ),
+        ce('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+          ce('button',{onClick:function(){setSeasonConfirm(null);},style:{background:'var(--card)',border:'1px solid var(--border2)',color:'var(--text2)',borderRadius:'var(--r)',padding:'7px 14px',fontSize:13,fontWeight:500,cursor:'pointer'}},'Cancel'),
+          ce('button',{onClick:function(){seasonConfirmedRef.current=true;setSeasonConfirm(null);handleSave();},style:{background:'var(--accent)',border:'1px solid var(--accent)',color:'#fff',borderRadius:'var(--r)',padding:'7px 14px',fontSize:13,fontWeight:500,cursor:'pointer'}},'Save to '+seasonConfirm.viewed)
+        )
+      )
+    ),
     (saveStatus==='saving'||saveStatus==='saved'||saveStatus==='error')&&ce('div',{style:{position:'sticky',top:50,zIndex:21,margin:'8px 24px 0',padding:'9px 14px',borderRadius:6,display:'flex',alignItems:'center',gap:10,fontSize:12,fontWeight:600,
       background:saveStatus==='saving'?'#fff8e1':saveStatus==='saved'?'var(--green-bg)':'var(--red-bg)',
       border:'1px solid '+(saveStatus==='saving'?'#e8c97a':saveStatus==='saved'?'var(--green-border)':'var(--red-border)'),
@@ -16152,8 +16199,17 @@ function App(){
 
         /* Active season */
         var activeSeason=seasons.find(function(s){return s.active;})||seasons[0];
-        /* View/display season persists across the sidebar-switch reload; saves ALWAYS use trueActiveSeasonId (DB-active) */
-        var _viewSeasonId=null; try{_viewSeasonId=localStorage.getItem('dalos_view_season');}catch(_e){}
+        /* View/display season persists across the sidebar-switch reload. Saves now write
+           to the VIEWED season (see save dispatch). To keep that safe across a season
+           rollover, if the DB-active season CHANGED since this browser last saw it, snap
+           the view back to the new active — so a stale localStorage view can't keep
+           writing to the old season. Manual switches within the same active period persist. */
+        var _viewSeasonId=null,_lastActive=null;
+        try{_viewSeasonId=localStorage.getItem('dalos_view_season');_lastActive=localStorage.getItem('dalos_last_active_season');}catch(_e){}
+        if(activeSeason&&_lastActive!==activeSeason.id){
+          _viewSeasonId=activeSeason.id;
+          try{localStorage.setItem('dalos_view_season',activeSeason.id);localStorage.setItem('dalos_last_active_season',activeSeason.id);}catch(_e){}
+        }
         var displaySeason=(_viewSeasonId&&seasons.find(function(s){return s.id===_viewSeasonId;}))||activeSeason;
 
         var newCfg=Object.assign({},INITIAL_CONFIG,{
@@ -16707,7 +16763,11 @@ function App(){
     var isEditMode=batches.some(function(b){return b.id===newBatch.id;});
     supabase.auth.getUser().then(function(userRes){
       var userId=userRes.data&&userRes.data.user?userRes.data.user.id:null;
-      var seasonId=config.trueActiveSeasonId||config.activeSeasonId||null;
+      /* Save into the season the user currently has OPEN (activeSeasonId = the
+         viewed/selected season), not the global DB-active one. Lets citrus (2026/27)
+         and mango/pom (2025/26) run concurrently — each inspector works in their
+         open season. Falls back to the true-active season if no view is set. */
+      var seasonId=config.activeSeasonId||config.trueActiveSeasonId||null;
       /* ── ATOMIC MANGO NEW-SAVE (shaky-network safe) ──────────────────────
          For a brand-new mango inspection, send the ENTIRE inspection in ONE
          transactional RPC (save_mango_inspection_full). The server writes header
