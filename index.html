@@ -816,10 +816,23 @@ function InspectionForm(props){
     });
     return function(){cancelled=true;};
   },[cropId]);
+  /* Farm plot alias — some farms are the same physical location registered under a
+     different name in Land Cloud. Selecting the "mask" farm surfaces the aliased
+     farm's plots too (combined). Non-destructive: purely a client-side plot-lookup
+     merge; Land Cloud farm_blocks and the farms table are untouched. */
+  var PLOT_ALIAS_BY_NAME={ 'Hana':['Badr'] }; /* pick Hana -> show Hana + Badr plots */
+  function plotsForFarmId(fid){
+    if(!fid) return [];
+    var idMap=config.farmsIdMap||{};
+    var out=(plotsByFarm[fid]||[]).slice();
+    var nm=Object.keys(idMap).filter(function(n){return idMap[n]===fid;})[0];
+    var extras=(nm&&PLOT_ALIAS_BY_NAME[nm])||[];
+    extras.forEach(function(en){var eid=idMap[en];((eid&&plotsByFarm[eid])||[]).forEach(function(p){if(out.indexOf(p)===-1)out.push(p);});});
+    return out;
+  }
   function plotsForFarm(farmName){
     var idMap=config.farmsIdMap||{};
-    var fid=farmName&&idMap[farmName];
-    return (fid&&plotsByFarm[fid])||[];
+    return plotsForFarmId(farmName&&idMap[farmName]);
   }
 
   /* Guard: saving into a season that isn't the current active one prompts a confirm. */
@@ -2790,7 +2803,7 @@ function InspectionForm(props){
                 ce('div',{className:'form-field'},
                   ce('label',{className:'form-label'},'Plot '+(5+aidx)),
                   cropId==='citrus'
-                  ?ce(Typeahead,{value:af.plot||'',options:(af.farmId&&plotsByFarm[af.farmId])||[],placeholder:((af.farmId&&plotsByFarm[af.farmId])||[]).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true,
+                  ?ce(Typeahead,{value:af.plot||'',options:plotsForFarmId(af.farmId),placeholder:plotsForFarmId(af.farmId).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true,
                     onChange:function(i){return function(v){
                       setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{plot:v}):x;});});
                     };}(aidx)})
