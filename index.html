@@ -1105,7 +1105,11 @@ function InspectionForm(props){
       .then(function(res){
         setStickerUploading(false);
         if(res.error){ console.error('[DalOS] Sticker upload error:',res.error.message); return; }
-        var url = supabase.storage.from('sticker-images').getPublicUrl(name).data.publicUrl;
+        /* Cache-bust: the storage path is deterministic ({id}.ext) and upsert overwrites it,
+           so re-uploads return an identical URL — the DB value wouldn't change and the
+           browser/CDN would keep serving the cached OLD image. A per-upload version token
+           gives a distinct URL each time so the new sticker persists AND displays fresh. */
+        var url = supabase.storage.from('sticker-images').getPublicUrl(name).data.publicUrl + '?v=' + Date.now();
         callback(url);
       });
   }
