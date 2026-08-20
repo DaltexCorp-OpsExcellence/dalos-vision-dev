@@ -4477,7 +4477,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
       /* TRACE & CLEARANCE */
       ce('div',{className:'card',style:{marginBottom:12}},
         ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#5a7ab0'}}),(cropId==='grapes'||cropId==='mango'||cropId==='citrus'||cropId==='pomegranate')?'Line clearance':'Traceability & line clearance'),
-        cropId!=='grapes'&&cropId!=='mango'&&cropId!=='citrus'&&ce('div',{className:'form-field',style:{marginBottom:12}},
+        cropId!=='grapes'&&cropId!=='mango'&&cropId!=='citrus'&&cropId!=='pomegranate'&&ce('div',{className:'form-field',style:{marginBottom:12}},
           ce('label',{className:'form-label'},'Trace codes'),
           traceCodes.map(function(tc,ti){
             return ce('div',{key:ti,style:{display:'flex',gap:6,marginBottom:6,alignItems:'center'}},
