@@ -828,6 +828,7 @@ function InspectionForm(props){
     var nm=Object.keys(idMap).filter(function(n){return idMap[n]===fid;})[0];
     var extras=(nm&&PLOT_ALIAS_BY_NAME[nm])||[];
     extras.forEach(function(en){var eid=idMap[en];((eid&&plotsByFarm[eid])||[]).forEach(function(p){if(out.indexOf(p)===-1)out.push(p);});});
+    out.sort(function(a,b){return String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'});});
     return out;
   }
   function plotsForFarm(farmName){
