@@ -8961,7 +8961,7 @@ function AdminCenter(props){
       ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',padding:'12px 14px',borderBottom:'1px solid var(--border)'}},
         ce('div',{style:{position:'relative',flex:'1 1 240px',maxWidth:380}},
           ce('svg',{viewBox:'0 0 16 16',width:15,height:15,fill:'none',stroke:'var(--text3)',strokeWidth:2,strokeLinecap:'round',style:{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}},ce('circle',{cx:6.8,cy:6.8,r:4.5}),ce('path',{d:'M10.2 10.2 L14 14'})),
-          ce('input',{className:'form-input',type:'search',value:usrSearch,onChange:function(e){setUsrSearch(e.target.value);},placeholder:'Search by name, email or role…',style:{fontSize:13,padding:'8px 32px 8px 34px',borderRadius:20}}),
+          ce('input',{className:'form-input',type:'text',value:usrSearch,onChange:function(e){setUsrSearch(e.target.value);},placeholder:'Search by name, email or role…',style:{fontSize:13,padding:'8px 32px 8px 34px',borderRadius:20}}),
           usrSearch?ce('button',{onClick:function(){setUsrSearch('');},title:'Clear search',style:{position:'absolute',right:7,top:'50%',transform:'translateY(-50%)',width:20,height:20,borderRadius:'50%',border:'none',background:'var(--bg2)',color:'var(--text3)',cursor:'pointer',fontSize:13,lineHeight:1,padding:0,display:'flex',alignItems:'center',justifyContent:'center'}},'×'):null
         ),
         ce('span',{style:{fontSize:11,color:'var(--text3)',fontWeight:500,whiteSpace:'nowrap',letterSpacing:'.02em'}}, usrSearch.trim()?(users.filter(matchUsr).length+' of '+users.length+' shown'):(users.length+' users'))
@@ -9047,11 +9047,11 @@ function AdminCenter(props){
       )), /* end scroll+overflow wrapper */
     canGiveAccess&&tab==='aaccess'&&ce(AnalyticsAccessPanel,null),
     canGiveAccess&&tab==='matrix'&&ce('div',{className:'scroll-card'},
-      ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
+      ce('div',{style:{overflow:'auto',WebkitOverflowScrolling:'touch',maxHeight:'70vh'}},
       ce('table',{style:{fontSize:12,minWidth:700}},
         ce('thead',null,ce('tr',null,
-          ce('th',{style:{minWidth:160,position:'sticky',left:0,zIndex:3,background:'var(--card)',boxShadow:'2px 0 5px -3px rgba(0,0,0,.18)'}},'Permission'),
-          roleKeys.map(function(rk){return ce('th',{key:rk,style:{textAlign:'center',color:ROLES[rk].badge,fontSize:11}},ROLES[rk].label);})
+          ce('th',{style:{minWidth:160,position:'sticky',left:0,top:0,zIndex:5,background:'var(--card)',boxShadow:'2px 0 5px -3px rgba(0,0,0,.18),0 2px 4px -3px rgba(0,0,0,.18)'}},'Permission'),
+          roleKeys.map(function(rk){return ce('th',{key:rk,style:{textAlign:'center',color:ROLES[rk].badge,fontSize:11,position:'sticky',top:0,zIndex:4,background:'var(--card)',boxShadow:'0 2px 4px -3px rgba(0,0,0,.18)'}},ROLES[rk].label);})
         )),
         ce('tbody',null,
           (function(){
