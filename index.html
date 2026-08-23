@@ -16619,6 +16619,10 @@ function App(){
         };
       });
       var pr={pallet_number:palletNumber,samples:samples};
+      /* Send the immutable pallet uuid for EXISTING pallets so the citrus/pomegranate
+         edit RPCs match by id (stable numbering, never delete) instead of by the
+         drifting pallet_number. New pallets have a numeric temp palletId -> omit. */
+      if(p.palletId&&typeof p.palletId==='string') pr.pallet_id=p.palletId;
       if(p.palletContainer) pr.container_number=p.palletContainer;
       if(p.palletTraceCodes&&p.palletTraceCodes.length) pr.trace_codes=p.palletTraceCodes;
       if(p.actualTraceCode) pr.actual_trace_code=p.actualTraceCode;
