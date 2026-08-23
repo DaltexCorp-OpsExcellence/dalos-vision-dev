@@ -8570,6 +8570,7 @@ function AdminCenter(props){
   var sResetTarget=useState(null); var resetTarget=sResetTarget[0]; var setResetTarget=sResetTarget[1];
   var sResetPw=useState(''); var resetPw=sResetPw[0]; var setResetPw=sResetPw[1];
   var sUsrSearch=useState(''); var usrSearch=sUsrSearch[0]; var setUsrSearch=sUsrSearch[1]; /* Admin Users table search (name/email/role) */
+  function matchUsr(u){var q=usrSearch.trim().toLowerCase();if(!q)return true;var rl=((ROLES[u.role]||{}).label||u.role||'');return (u.name||'').toLowerCase().indexOf(q)>=0||(u.email||'').toLowerCase().indexOf(q)>=0||rl.toLowerCase().indexOf(q)>=0;}
   /* CRM region access (region_members) — mirrors packhouse access */
   var sRegionsList=useState([]); var regionsList=sRegionsList[0]; var setRegionsList=sRegionsList[1];
   var sRegionMembers=useState({}); var regionMembers=sRegionMembers[0]; var setRegionMembers=sRegionMembers[1];
@@ -8957,14 +8958,19 @@ function AdminCenter(props){
       ce('div',{className:'tab'+(tab==='config'?' active':''),onClick:function(){setTab('config');},style:{color:tab==='config'?'var(--accent)':'var(--text3)'}},'System config \u2699\ufe0f')
     ),
     canGiveAccess&&tab==='users'&&ce('div',{className:'scroll-card'},
-      ce('div',{style:{padding:'10px 12px',borderBottom:'1px solid var(--border)'}},
-        ce('input',{className:'form-input',type:'search',style:{maxWidth:340,fontSize:13},placeholder:'Search users — name, email or role…',value:usrSearch,onChange:function(e){setUsrSearch(e.target.value);}})
+      ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',padding:'12px 14px',borderBottom:'1px solid var(--border)'}},
+        ce('div',{style:{position:'relative',flex:'1 1 240px',maxWidth:380}},
+          ce('svg',{viewBox:'0 0 16 16',width:15,height:15,fill:'none',stroke:'var(--text3)',strokeWidth:2,strokeLinecap:'round',style:{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}},ce('circle',{cx:6.8,cy:6.8,r:4.5}),ce('path',{d:'M10.2 10.2 L14 14'})),
+          ce('input',{className:'form-input',type:'search',value:usrSearch,onChange:function(e){setUsrSearch(e.target.value);},placeholder:'Search by name, email or role…',style:{fontSize:13,padding:'8px 32px 8px 34px',borderRadius:20}}),
+          usrSearch?ce('button',{onClick:function(){setUsrSearch('');},title:'Clear search',style:{position:'absolute',right:7,top:'50%',transform:'translateY(-50%)',width:20,height:20,borderRadius:'50%',border:'none',background:'var(--bg2)',color:'var(--text3)',cursor:'pointer',fontSize:13,lineHeight:1,padding:0,display:'flex',alignItems:'center',justifyContent:'center'}},'×'):null
+        ),
+        ce('span',{style:{fontSize:11,color:'var(--text3)',fontWeight:500,whiteSpace:'nowrap',letterSpacing:'.02em'}}, usrSearch.trim()?(users.filter(matchUsr).length+' of '+users.length+' shown'):(users.length+' users'))
       ),
       ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
       ce('table',{style:{minWidth:700}},
         ce('thead',null,ce('tr',null,ce('th',null,'Name'),ce('th',null,'Email'),ce('th',null,'Role'),ce('th',null,'Packhouse access'),ce('th',null,'Region access'),ce('th',null,'Last login'),ce('th',null,'Status'),ce('th',null,'Actions'))),
         ce('tbody',null,
-          users.filter(function(u){var q=usrSearch.trim().toLowerCase();if(!q)return true;var rl=((ROLES[u.role]||{}).label||u.role||'');return (u.name||'').toLowerCase().indexOf(q)>=0||(u.email||'').toLowerCase().indexOf(q)>=0||rl.toLowerCase().indexOf(q)>=0;}).map(function(u){
+          users.filter(matchUsr).map(function(u){
             var r=ROLES[u.role]||{label:u.role,badge:'#888'};
             var isEdit=editId===u.id;
             var userPHs=u.packhouses||[u.packhouse||'All'];
