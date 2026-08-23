@@ -9050,13 +9050,13 @@ function AdminCenter(props){
       ce('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
       ce('table',{style:{fontSize:12,minWidth:700}},
         ce('thead',null,ce('tr',null,
-          ce('th',{style:{minWidth:160}},'Permission'),
+          ce('th',{style:{minWidth:160,position:'sticky',left:0,zIndex:3,background:'var(--card)',boxShadow:'2px 0 5px -3px rgba(0,0,0,.18)'}},'Permission'),
           roleKeys.map(function(rk){return ce('th',{key:rk,style:{textAlign:'center',color:ROLES[rk].badge,fontSize:11}},ROLES[rk].label);})
         )),
         ce('tbody',null,
           Object.keys(PERM_LABELS).map(function(pk){
             return ce('tr',{key:pk},
-              ce('td',{style:{fontWeight:500,color:'var(--text2)'}},PERM_LABELS[pk]),
+              ce('td',{style:{fontWeight:500,color:'var(--text2)',position:'sticky',left:0,zIndex:1,background:'var(--card)',boxShadow:'2px 0 5px -3px rgba(0,0,0,.18)'}},PERM_LABELS[pk]),
               roleKeys.map(function(rk){
                 var has=ROLES[rk].perms[pk];
                 return ce('td',{key:rk,style:{textAlign:'center',padding:'7px'}},
