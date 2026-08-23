@@ -1497,6 +1497,9 @@ function InspectionForm(props){
       notes:allRows.map(function(r){return r.notes;}).filter(Boolean).join('; '),
       hasClientReport:0,clientTotal:null,clientDecision:'',claimedValue:0,gap:null,
       clearance:clearance,
+      /* Explicit, user-confirmed pallet deletions (citrus/pomegranate atomic edit).
+         The edit RPC deletes ONLY these ids — never by absence from the payload. */
+      deletedPalletIds:deletedPalletIds||[],
       /* Audit timing — for draft_started_at + completion_minutes (only used on new inserts) */
       formOpenedAt:formOpenedAtRef.current,
       /* DB-ready structure: pallets with their sample rows */
@@ -3205,9 +3208,12 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               },'Move to session…'),
               pallets.length>1&&ce('button',{className:'btn btn-sm',style:{background:'var(--red-bg)',color:'var(--red)',border:'1px solid var(--red-border)',fontSize:11},onClick:function(i){return function(e){e.stopPropagation();
               var removedPallet=pallets[i];
-              if(removedPallet&&removedPallet.palletId&&isEdit){
-                var idStr=String(removedPallet.palletId);
-                if(idStr.includes('-')){setDeletedPalletIds(function(prev){return prev.includes(idStr)?prev:prev.concat(idStr);});}
+              var idStr=removedPallet&&removedPallet.palletId?String(removedPallet.palletId):'';
+              var isSaved=isEdit&&idStr.includes('-');
+              if(isSaved){
+                var pdisp=removedPallet.palletLabel||removedPallet.palletNo||('#'+(i+1));
+                if(!window.confirm('Permanently delete pallet '+pdisp+' and all its samples?\nThis cannot be undone.')) return;
+                setDeletedPalletIds(function(prev){return prev.includes(idStr)?prev:prev.concat(idStr);});
               }
               setPallets(function(prev){var next=prev.filter(function(_,j){return j!==i;});return next;});
               if(activePalletIdx>=pallets.length-1)setActivePalletIdx(Math.max(0,pallets.length-2));};}(pIdx)},'× Remove pallet')
@@ -16642,7 +16648,7 @@ function App(){
     var clearance=Object.keys(newBatch.clearance||{}).map(function(k,idx){
       return {item_index:idx,item_label:clearanceLabels[k]||k,status:newBatch.clearance[k]||'Compliant'};
     });
-    return {inspection:header,pallets:pallets,sticker_checks:stickerChecks,clearance:clearance};
+    return {inspection:header,pallets:pallets,sticker_checks:stickerChecks,clearance:clearance,deleted_pallet_ids:(newBatch.deletedPalletIds||[])};
   }
   /* Citrus payload = the generic mango builder + citrus-only pallet numbering.
      The multi-farm header fields now live in buildMangoSavePayload (shared with mango);
