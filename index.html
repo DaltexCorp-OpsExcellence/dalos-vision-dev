@@ -507,20 +507,14 @@ input,select,textarea{font-size:16px!important}
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
-<!-- CRM retired from Vision → standalone DalOS Commercial app (Workspace card). See CRM_ENABLED_IN_VISION flag below. -->
 
 <script type="text/javascript">
 var useState = React.useState;
 var ce = React.createElement;
-/* ── CRM retired from Vision ──────────────────────────────────────────────────
-   The full CRM now lives in the standalone DalOS Commercial app (reached from the
-   Workspace card): repo dalos-commercial, its own index.html + crm.js. Vision keeps
-   the ROLES map (incl. the 'marketing' role) + Admin “Users & access” as the ROLE-
-   ASSIGNMENT control surface only — the Commercial app reads users.role and enforces.
-   This flag disables every CRM entry point in Vision (tile, view, sidebar nav, #capture
-   deep-link). To restore: set true AND re-add <script src="crm.js"> (backup lives in
-   ~/Desktop/dalos/backups/crm-vision-embedded-*.js). */
-var CRM_ENABLED_IN_VISION = false;
+/* CRM fully removed from Vision (2026-08-20) — it lives in the standalone DalOS Commercial
+   app (Workspace card): repo dalos-commercial. Vision keeps only the ROLES map (incl. the
+   'marketing' role) + Admin "Users & access" for role ASSIGNMENT; the Commercial app reads
+   users.role and enforces via RLS. Embedded-CRM backup: ~/Desktop/dalos/backups/crm-vision-embedded-*.js */
 var Frag = React.Fragment;
 /* Settings > Sub-clients: parent list = distinct parents of existing sub-clients (incl. inactive clients) + active clients */
 function cfgSubClientParents(config){var seen={};var l=[];(config.subClients||[]).forEach(function(s){var n=(config.clientsIdToName||{})[s.clientId];if(n&&!seen[n]){seen[n]=1;l.push(n);}});(config.clients||[]).forEach(function(n){if(!seen[n]){seen[n]=1;l.push(n);}});return l.sort(function(a,b){return a.localeCompare(b);});}
@@ -7607,24 +7601,6 @@ function HomeView(props){
   var sMenu=useState(false); var menuOpen=sMenu[0]; var setMenuOpen=sMenu[1];
   var sTrans=useState(null); var trans=sTrans[0]; var setTrans=sTrans[1];
   function goto(t){ if(trans) return; setTrans(t); setTimeout(function(){ setView(t.view); }, 460); }
-  /* CRM home stats — region-scoped by crm_voyages RLS (admins all, members their region); fetched async so the heavy view never blocks Home. Only runs for CRM-access users. */
-  var sCrm=useState(null); var crmStats=sCrm[0]; var setCrmStats=sCrm[1];
-  React.useEffect(function(){
-    if(!CRM_ENABLED_IN_VISION||!perms.viewCRM) return;
-    var season=config.trueActiveSeasonId||config.activeSeasonId||CRM_FALLBACK_SEASON;
-    var live=true;
-    function load(attempt){
-      /* crm_home_stats RPC: counts from cheap sources (grouped shipments + crm_claims), region-gated — avoids crm_voyages' LATERAL joins that made count=exact time out */
-      supabase.rpc('crm_home_stats',{p_season:season}).then(function(res){
-        if(!live) return;
-        if(res&&res.error){ if(attempt<3) setTimeout(function(){ if(live) load(attempt+1); },1500); return; }
-        var row=(res&&res.data&&res.data[0])||{};
-        setCrmStats({ total:Number(row.in_scope)||0, open:Number(row.open_claims)||0 });
-      }).catch(function(){ if(live&&attempt<3) setTimeout(function(){ if(live) load(attempt+1); },1500); });
-    }
-    load(0);
-    return function(){ live=false; };
-  },[perms.viewCRM, config.activeSeasonId, config.trueActiveSeasonId]);
   var userInitials=(currentUser.name||currentUser.full_name||'').split(' ').map(function(n){return n[0];}).slice(0,2).join('');
   var roleLabel=(currentUser.role||'').charAt(0).toUpperCase()+(currentUser.role||'').slice(1);
 
@@ -7664,23 +7640,6 @@ function HomeView(props){
   if(perms.viewShipments) tiles.push({key:'shipments',view:'shipments',  eyebrow:'Logistics',  label:'Shipments',        icon:'\uD83D\uDEA2', hint:'Records & tracking', glow:'#d98a1f', eyebrowColor:'#e8c489'});
   if(perms.viewAnalytics) tiles.push({key:'analytics',view:'analytics',  eyebrow:'Insights',   label:'Inspections Analytics',     icon:'\uD83D\uDCCA', hint:'Season trends', glow:'#3d9e6b', eyebrowColor:'#8fe0ad'});
   if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Escalation Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
-  if(CRM_ENABLED_IN_VISION&&(perms.viewCRM||perms.viewLeads)) tiles.push({key:'crm',       view:'crm',        eyebrow:'Commercial', label:'CRM', glow:'#c07ce8', eyebrowColor:'#d7b6f0',
-      icon:ce('span',{dangerouslySetInnerHTML:{__html:'<svg viewBox="0 0 16 16" fill="currentColor" style="width:1em;height:1em;display:block"><path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002a.274.274 0 0 1-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>'}}),
-      hint:(crmStats?(crmStats.total.toLocaleString()+' in scope \u00b7 '+crmStats.open+' open claim'+(crmStats.open===1?'':'s')):'Claims & regions'),
-      pulse:!!(crmStats&&crmStats.open>0)});
-
-  /* Commercial role leads with CRM as the hero tile (takes the Export Inspection slot: big, tall, top-left); Export becomes a standard tile. */
-  if(currentUser.role==='commercial'&&perms.viewCRM){
-    var _crm=null,_fg=null,_rest=[];
-    tiles.forEach(function(t){ if(t.key==='crm')_crm=t; else if(t.key==='fg')_fg=t; else _rest.push(t); });
-    if(_crm){
-      _crm.primary=true; _crm.extraClass='dh-primary-crm';
-      _crm.big=crmStats?crmStats.total.toLocaleString():'—'; _crm.bigLabel='in scope'; _crm.bigPending=!crmStats;
-      _crm.hint=crmStats?(crmStats.open+' open claim'+(crmStats.open===1?'':'s')):'Claims & regions';
-      if(_fg) _fg.primary=false;
-      tiles=[_crm].concat(_fg?[_fg]:[]).concat(_rest);
-    }
-  }
 
   function tileEl(t){
     return ce('div',{key:t.key,className:'dh-tile'+(t.primary?' dh-primary':'')+(t.extraClass?' '+t.extraClass:''),onClick:function(){goto(t);},
@@ -14411,7 +14370,7 @@ function ShipmentsMgmt(props){
   var sCqcEnriching=useState(false); var cqcEnriching=sCqcEnriching[0]; var setCqcEnriching=sCqcEnriching[1];
   var sInspPopup=useState(null); var inspPopup=sInspPopup[0]; var setInspPopup=sInspPopup[1];
   var sShipCqc=React.useState(null);
-  /* Live-config ref — see CRMView: mount-only effect must not freeze pre-load config,
+  /* Live-config ref — a mount-only effect must not freeze pre-load config,
      or a deep-linked CQC report renders raw UUIDs / 0.0%. */
   var shipCfgRef=React.useRef(config); shipCfgRef.current=config;
   React.useEffect(function(){
@@ -15749,44 +15708,6 @@ var IPATHS={
   crm:'M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002a.274.274 0 0 1-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'
 };
 
-/* CRM MODULE — extracted to crm.js (window.CRM island + injectCrmCss). Loaded via <script src="crm.js"> in <head>; CRMView below mounts it. */
-
-/* ── CRM view: mounts the island, wires live data, tracks season ── */
-var CRM_FALLBACK_SEASON='19482d39-6074-4c60-b772-ced5df1ffdcb';
-function CRMView(props){
-  var ref=React.useRef(null);
-  var cfg=props.config||{};
-  var seasonId=cfg.trueActiveSeasonId||cfg.activeSeasonId||CRM_FALLBACK_SEASON;
-  var cu=props.currentUser||{};
-  var isAdmin=cu.role==='admin'||cu.role==='power_user';
-  /* Admin-only role preview (dev/review aid): set localStorage.crmPreviewRole='marketing'|'commercial'|... then
-     reload to see that role's CRM/leads gates while keeping full admin data scope. No effect for non-admins;
-     purely client-side (real enforcement is RLS, pass 2). Clear with: delete localStorage.crmPreviewRole */
-  var effPerms=props.perms||{};
-  if(isAdmin){ try{ var _pv=localStorage.getItem('crmPreviewRole')||''; if(_pv&&ROLES[_pv]){ effPerms=ROLES[_pv].perms; } }catch(e){} }
-  var sPopup=React.useState(null);
-  var sCqcPopup=React.useState(null);
-  /* Live-config ref: the openCqc/openInsp globals are wired in a mount-only effect,
-     so a closure over `cfg` would freeze the pre-load INITIAL_CONFIG on a deep-link
-     (empty reference maps -> raw UUIDs; missing cqcDefectSections -> 0.0%/—). Reading
-     cfgRef.current at click time hands loadCqcPreview the fully-loaded config. */
-  var cfgRef=React.useRef(cfg); cfgRef.current=cfg;
-  React.useEffect(function(){
-    injectCrmCss();
-    if(ref.current&&window.CRM){
-      window.CRM.init({root:ref.current,supabase:supabase,seasonId:seasonId,isAdmin:isAdmin,currentUser:cu,config:cfg,perms:effPerms,onOpenCqc:props.onOpenCqc,onHeader:props.onHeader,onTab:props.onTab});
-      window.openInspPreviewGlobal=function(id){loadInspPreview(id,sPopup[1],cfgRef.current);};
-      window.openCqcPreviewGlobal=function(id){loadCqcPreview(id,sCqcPopup[1],cfgRef.current);};
-    }
-    return function(){ if(window.CRM) window.CRM.teardown(); window.openInspPreviewGlobal=function(){}; window.openCqcPreviewGlobal=function(){}; sPopup[1](null); sCqcPopup[1](null); };
-  },[]);
-  React.useEffect(function(){ if(window.CRM) window.CRM.setSeason(seasonId); },[seasonId]);
-  return ce(React.Fragment,null,
-    ce('div',{className:'crmv',ref:ref}),
-    sPopup[0]&&ce(InspPreviewModal,{popup:sPopup[0],onClose:function(){sPopup[1](null);}}),
-    sCqcPopup[0]&&ce(CqcPreviewModal,{popup:sCqcPopup[0],config:cfg,onClose:function(){sCqcPopup[1](null);}})
-  );
-}
 
 
 /* ── Runaway re-send guards — MODULE scope, deliberately outside App ──────────
@@ -15846,21 +15767,12 @@ function App(){
   var sph=useState(null); var phId=sph[0]; var setPhId=sph[1];
   var sv=useState(function(){
     var h=(window.location.hash||'').slice(1);
-    /* Deep link: #capture or #capture=<campaign-token> boots straight into Show Mode.
-       We stash the intent (survives the in-place login) and route to the CRM view. */
-    var m=h.match(/^capture(?:=(.*))?$/i);
-    if(m){ try{ var it={token:(m[1]?decodeURIComponent(m[1]):''),done:false}; window.__capIntent=it; sessionStorage.setItem('dalos_cap_intent',JSON.stringify(it)); }catch(e){ window.__capIntent={token:'',done:false}; } return 'crm'; }
     return h||'home';
   }); var view=sv[0]; var setView=sv[1];
   React.useEffect(function(){window.location.hash=view;},[view]);
   var sNavHist=useState(null); var navHistory=sNavHist[0]; var setNavHistory=sNavHist[1];
   var sNavTarget=useState(null); var navTarget=sNavTarget[0]; var setNavTarget=sNavTarget[1];
   var sCqcLink=useState(null); var cqcLink=sCqcLink[0]; var setCqcLink=sCqcLink[1];
-  var sCrmHdr=useState(''); var crmHdr=sCrmHdr[0]; var setCrmHdr=sCrmHdr[1]; /* CRM island lifts its tab bar into the shell topbar via onHeader */
-  var sCrmTab=useState('dashboard'); var crmTab=sCrmTab[0]; var setCrmTab=sCrmTab[1]; /* current CRM tab, mirrored from the island so the sidebar Leads dropdown can highlight */
-  var sCrmLeadKey=useState(''); var crmLeadKey=sCrmLeadKey[0]; var setCrmLeadKey=sCrmLeadKey[1]; /* active leads VIEW key (ws/enr/rej/pip/cap/board/campaigns) for precise sidebar-button highlight */
-  var sLeadsNav=useState(false); var leadsNavOpen=sLeadsNav[0]; var setLeadsNavOpen=sLeadsNav[1]; /* sidebar "Leads Managements" sub-group expand state */
-  var sCrmNav=useState(false); var crmNavOpen=sCrmNav[0]; var setCrmNavOpen=sCrmNav[1]; /* sidebar CRM group expand (Tracking & Claims / Leads Managements) */
   React.useEffect(function(){if(view!=='clientqc'&&cqcLink)setCqcLink(null);},[view]);
   var sShipReturn=useState(null); var shipReturn=sShipReturn[0]; var setShipReturn=sShipReturn[1];
   React.useEffect(function(){if(view!=='shipments'&&view!=='clientqc'&&shipReturn)setShipReturn(null);},[view]);
@@ -17730,54 +17642,6 @@ function App(){
   /* Always read the latest user data from users state so admin edits reflect immediately */
   var liveCurrentUser=currentUser?(function(){var found=users.find(function(u){return u.id===currentUser.id;});return found?Object.assign({},found,{packhouses:currentUser.packhouses}):currentUser;}()):null;
 
-  /* #capture deep link → once signed in and the CRM island is mounted, open Show Mode straight away.
-     Intent was stashed by the view initializer (also mirrored to sessionStorage to survive login). */
-  React.useEffect(function(){
-    if(!CRM_ENABLED_IN_VISION) return;   /* CRM (incl. #capture Show Mode) now lives in the Commercial app */
-    if(!liveCurrentUser) return;
-    var it=window.__capIntent;
-    if(!it){ try{ var s=sessionStorage.getItem('dalos_cap_intent'); if(s){ it=JSON.parse(s); window.__capIntent=it; } }catch(e){} }
-    if(!it||it.done) return;
-    /* Mount the CRM island straight away — post-login routing may have sent us to home,
-       and CRMView (and thus window.CRM) only exists while view==='crm'. */
-    setView('crm'); setCrmNavOpen(true); setLeadsNavOpen(true); setCrmTab('leads'); setCrmLeadKey('cap');
-    /* window.CRM is a module global that exists as soon as crm.js loads — long before the
-       island is MOUNTED. Calling leadNav too early is a silent no-op, and the island then
-       renders its default (dashboard) tab. So re-assert leadNav every tick until Show Mode is
-       actually on screen (#cap_head appears), rather than trusting that the method exists. */
-    var tries=0;
-    var iv=setInterval(function(){
-      tries++;
-      try{ if(window.CRM&&window.CRM.leadNav) window.CRM.leadNav('leads','cap'); }catch(e){}
-      setCrmTab('leads'); setCrmLeadKey('cap');
-      if(document.getElementById('cap_head')){
-        it.done=true; try{sessionStorage.removeItem('dalos_cap_intent');}catch(e){}
-        clearInterval(iv);
-        /* survive a late default-tab render from the island's own init */
-        setTimeout(function(){ try{ if(!document.getElementById('cap_head')) window.CRM.leadNav('leads','cap'); }catch(e){} },250);
-        /* Restore #capture in the address bar (the app rewrote it to #crm on boot). Without a
-           web-manifest start_url, an iOS home-screen icon relaunches whatever URL was saved —
-           so the saved/relaunched URL must be #capture[=token], not #crm, or it lands on home.
-           view stays 'crm', so the hash=view effect won't clobber this again. */
-        try{ var _h='capture'+(it.token?'='+encodeURIComponent(it.token):''); history.replaceState(null,'','#'+_h); }catch(e){}
-        /* Name the home-screen icon after the event: token → that campaign; else the newest active campaign
-           (matches the picker's default). Sets both <title> and apple-mobile-web-app-title (what iOS uses). */
-        var setCapName=function(nm){ document.title=nm+' — DalOS Capture'; var at=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(at) at.setAttribute('content',nm); };
-        try{
-          if(it.token){
-            supabase.from('crm_campaigns').select('id,name').eq('public_token',it.token).maybeSingle().then(function(res){
-              if(res&&res.data){ if(window.CRM.capSetCampaign) setTimeout(function(){ try{window.CRM.capSetCampaign(res.data.id);}catch(e){} },600); setCapName(res.data.name); }
-            });
-          } else {
-            supabase.from('crm_campaigns').select('name').eq('active',true).order('created_at',{ascending:false}).limit(1).maybeSingle().then(function(res){
-              if(res&&res.data&&res.data.name) setCapName(res.data.name);
-            });
-          }
-        }catch(e){}
-      } else if(tries>120){ clearInterval(iv); }
-    },120);
-    return function(){ clearInterval(iv); };
-  },[liveCurrentUser]);
 
   /* Show loading spinner while checking auth session */
   if(!authChecked) return ce(DalosBackdrop,{key:'dalos-backdrop'});
@@ -17787,9 +17651,6 @@ function App(){
     /* Load config from DB now that we have an authenticated session */
     loadConfigFromDB();
     if(u.packhouses&&u.packhouses.length===1&&u.packhouses[0]!=='All') setPhId(u.packhouses[0]);
-    /* #capture deep link: go to CRM (the capture effect opens Show Mode) instead of the perms default */
-    var capIt=window.__capIntent; if(!capIt){ try{ capIt=JSON.parse(sessionStorage.getItem('dalos_cap_intent')||'null'); }catch(e){} }
-    if(capIt&&!capIt.done){ setView('crm'); return; }
     var r=ROLES[u.role]||ROLES.inspector;
     var p=r.perms;
     if(p.viewEscalation&&!p.viewFG) setView('escalation');
@@ -17806,7 +17667,6 @@ function App(){
   if(perms.viewFG)           availViews.push({id:'fg',         label:'Export Inspection', sub:'FG / Export'});
   if(perms.viewClientQC)     availViews.push({id:'clientqc',   label:'Client QC',         sub:'Reports & matching'});
   if(perms.viewShipments)    availViews.push({id:'shipments',  label:'Shipments',         sub:'Records & tracking'});
-  if(CRM_ENABLED_IN_VISION&&(perms.viewCRM||perms.viewLeads)) availViews.push({id:'crm',        label:'CRM',               sub:'Claims & regions'});
   if(perms.viewAnalytics)    availViews.push({id:'analytics',  label:'Inspections Analytics',      sub:'Dashboard'});
   if(perms.viewEscalation)   availViews.push({id:'escalation', label:'Escalation Review',      sub:'Escalation queue'});
   if(perms.viewAdmin)        availViews.push({id:'admin',      label:'Admin',             sub:'Users & access'});
@@ -17868,52 +17728,6 @@ function App(){
               ce('div',{style:{fontSize:10,opacity:.5,marginTop:1}},v.sub)
             )
           );
-          /* CRM is a parent group with two children: "Tracking & Claims" (the original CRM
-             commercial module — shipments/claims/etc.) and "Leads Managements" (the leads portal,
-             with Funnel & Campaign beneath it). Each child sets an explicit CRM tab, so there is
-             always a clear way back to the commercial side from Leads. */
-          if(CRM_ENABLED_IN_VISION&&v.id==='crm'&&perms.viewCRM){
-            var isLeadsTab=(['leads','inbox','funnel','campaigns'].indexOf(crmTab)>=0);
-            var crmActive=(view==='crm');
-            var commActive=(crmActive&&!isLeadsTab);
-            var leadsActive=(crmActive&&isLeadsTab);
-            var showCrm=(crmNavOpen||crmActive);
-            var showLeads=(leadsNavOpen||leadsActive);
-            function goTab(t){ setView('crm'); if(window.CRM)window.CRM.openTab(t); setCrmTab(t); setCrmLeadKey(''); setMobOpen(false); }
-            /* a leads VIEW button: switches the CRM tab AND its in-view sub in one hop, and highlights by view key */
-            function goView(dest,sub,key){ setView('crm'); if(window.CRM)window.CRM.leadNav(dest,sub); setCrmTab(dest); setCrmLeadKey(key); setMobOpen(false); }
-            /* 16x16 fill icons (Bootstrap-Icons style) matching the sidebar nav-icon glyphs */
-            var LM_ICONS={
-              ws:'M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zm-5 3v-3H6v3h4zm-5 0v-3H1v2a1 1 0 0 0 1 1h3zm-4-4h4V8H1v3zm0-4h4V4H1v3zm5-3v3h4V4H6zm4 4H6v3h4V8z',
-              enr:'M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3.854 2.146a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708L2 3.293l1.146-1.147a.5.5 0 0 1 .708 0zm0 4a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708L2 7.293l1.146-1.147a.5.5 0 0 1 .708 0zm0 4a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 0 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0z',
-              rej:'M14.5 1.5a.5.5 0 0 1 .5.5v4.8a2.5 2.5 0 0 1-2.5 2.5H2.707l3.347 3.346a.5.5 0 0 1-.708.708l-4.2-4.2a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 8.5H12.5A1.5 1.5 0 0 0 14 7V2a.5.5 0 0 1 .5-.5z',
-              inbox:'M4.98 4a.5.5 0 0 0-.39.188L1.54 8H6a.5.5 0 0 1 .5.5 1.5 1.5 0 1 0 3 0A.5.5 0 0 1 10 8h4.46l-3.05-3.812A.5.5 0 0 0 11.02 4H4.98zm-1.17-.437A1.5 1.5 0 0 1 4.98 3h6.04a1.5 1.5 0 0 1 1.17.563l3.7 4.625a.5.5 0 0 1 .11.312V12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V8.5a.5.5 0 0 1 .11-.312l3.7-4.625z',
-              pip:'M6.5 1A1.5 1.5 0 0 0 5 2.5V3H1.5A1.5 1.5 0 0 0 0 4.5v1.384l7.614 2.03a1.5 1.5 0 0 0 .772 0L16 5.884V4.5A1.5 1.5 0 0 0 14.5 3H11v-.5A1.5 1.5 0 0 0 9.5 1h-3zm0 1h3a.5.5 0 0 1 .5.5V3H6v-.5a.5.5 0 0 1 .5-.5zM0 12.5A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5V6.85L8.129 8.947a.5.5 0 0 1-.258 0L0 6.85v5.65z',
-              cap:'M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z',
-              board:'M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z',
-              campaigns:'M13 2.5a1.5 1.5 0 0 1 3 0v11a1.5 1.5 0 0 1-3 0v-.214c-2.162-1.24-4.49-1.843-6.912-2.083l.405 2.712A1 1 0 0 1 5.51 15.1h-.548a1 1 0 0 1-.916-.599l-1.85-3.49a68.14 68.14 0 0 0-.202-.003A2.014 2.014 0 0 1 0 9V7a2.02 2.02 0 0 1 1.992-2.013 74.663 74.663 0 0 0 2.483-.075c3.043-.154 6.148-.849 8.525-2.199V2.5z'
-            };
-            var LM_BTNS=[['leads','ws','ws','Workspace'],['leads','enr','enr','Enrichment queue'],['leads','rej','rej','Returned by sales'],['inbox','inbox','inbox','Lead inbox'],['inbox','pip','pip','My pipeline'],['leads','cap','cap','Show mode'],['funnel','board','board','Funnel'],['campaigns','','campaigns','Campaign']];
-            return ce(React.Fragment,{key:'crm-grp'},
-              ce('div',{className:'nav-item nav-parent'+(crmActive?' active':''),onClick:function(){setCrmNavOpen(true);goTab('dashboard');}},
-                ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:IPATHS[v.id]||IPATHS.fg})),
-                ce('div',{style:{flex:1}},'CRM'),
-                ce('span',{className:'nav-caret'+(showCrm?' open':''),onClick:function(e){e.stopPropagation();setCrmNavOpen(!crmNavOpen);}},'›')
-              ),
-              showCrm?ce('div',{className:'nav-sub'},
-                ce('div',{key:'tc',className:'nav-item nav-subitem'+(commActive?' active':''),onClick:function(){goTab('dashboard');}},'Tracking & Claims'),
-                ce('div',{key:'lm',className:'nav-item nav-subitem nav-parent'+(leadsActive?' active':''),onClick:function(){setLeadsNavOpen(true);goView('leads','ws','ws');}},
-                  ce('span',{style:{flex:1,whiteSpace:'nowrap'}},'Leads Managements'),
-                  ce('span',{className:'nav-caret'+(showLeads?' open':''),onClick:function(e){e.stopPropagation();setLeadsNavOpen(!leadsNavOpen);}},'›')
-                ),
-                showLeads?ce('div',{className:'nav-sub'},LM_BTNS.map(function(b){
-                  return ce('div',{key:b[2],className:'nav-item nav-subitem'+(leadsActive&&crmLeadKey===b[2]?' active':''),onClick:function(){goView(b[0],b[1],b[2]);}},
-                    ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:LM_ICONS[b[2]]})),
-                    ce('span',{style:{flex:1,whiteSpace:'nowrap'}},b[3]));
-                })):null
-              ):null
-            );
-          }
           return navEl;
         }),
         ce('div',{className:'sidebar-sec',style:{marginTop:6}},'Alerts'),
@@ -18038,7 +17852,6 @@ function App(){
             !phLoading&&cropInfo.name&&ce('span',{style:{fontSize:11,color:'var(--text2)',fontWeight:500}},cropInfo.name)
           )
         ),
-        (view==='crm'&&crmHdr)?ce('div',{className:'crmv',style:{background:'transparent',display:'flex',flex:1,minWidth:0,alignSelf:'stretch',alignItems:'stretch',padding:0},dangerouslySetInnerHTML:{__html:crmHdr}}):null,
         ce('div',{className:'topbar-right'})
       ),
       ce('div',{className:'page'},
@@ -18049,7 +17862,6 @@ function App(){
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
         view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
-        CRM_ENABLED_IN_VISION&&view==='crm'&&(perms.viewCRM||perms.viewLeads)&&ce(CRMView,{config:config,currentUser:liveCurrentUser,perms:perms,onHeader:setCrmHdr,onTab:function(t,k){setCrmTab(t);setCrmLeadKey(k||'');},onOpenCqc:function(repId,prodId){setCqcLink({rep:repId,prod:prodId,ship:null,origin:'crm'});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
