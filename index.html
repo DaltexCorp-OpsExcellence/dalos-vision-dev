@@ -9054,19 +9054,34 @@ function AdminCenter(props){
           roleKeys.map(function(rk){return ce('th',{key:rk,style:{textAlign:'center',color:ROLES[rk].badge,fontSize:11}},ROLES[rk].label);})
         )),
         ce('tbody',null,
-          Object.keys(PERM_LABELS).map(function(pk){
-            return ce('tr',{key:pk},
-              ce('td',{style:{fontWeight:500,color:'var(--text2)',position:'sticky',left:0,zIndex:1,background:'var(--card)',boxShadow:'2px 0 5px -3px rgba(0,0,0,.18)'}},PERM_LABELS[pk]),
-              roleKeys.map(function(rk){
-                var has=ROLES[rk].perms[pk];
-                return ce('td',{key:rk,style:{textAlign:'center',padding:'7px'}},
-                  has?ce('div',{style:{width:18,height:18,borderRadius:'50%',background:'var(--green-bg)',border:'1px solid var(--green-border)',margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'center'}},
-                      ce('svg',{width:10,height:10,viewBox:'0 0 10 10'},ce('path',{d:'M1.5 5l2.5 2.5 4.5-4.5',stroke:'var(--green)',strokeWidth:1.5,fill:'none',strokeLinecap:'round',strokeLinejoin:'round'})))
-                    :ce('div',{style:{width:18,height:18,borderRadius:'50%',background:'var(--bg2)',border:'1px solid var(--border)',margin:'0 auto'}})
-                );
-              })
-            );
-          })
+          (function(){
+            var STICKY={fontWeight:500,color:'var(--text2)',position:'sticky',left:0,zIndex:1,background:'var(--card)',boxShadow:'2px 0 5px -3px rgba(0,0,0,.18)'};
+            function tick(rk,has){return ce('td',{key:rk,style:{textAlign:'center',padding:'7px'}},
+              has?ce('div',{style:{width:18,height:18,borderRadius:'50%',background:'var(--green-bg)',border:'1px solid var(--green-border)',margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'center'}},
+                  ce('svg',{width:10,height:10,viewBox:'0 0 10 10'},ce('path',{d:'M1.5 5l2.5 2.5 4.5-4.5',stroke:'var(--green)',strokeWidth:1.5,fill:'none',strokeLinecap:'round',strokeLinejoin:'round'})))
+                :ce('div',{style:{width:18,height:18,borderRadius:'50%',background:'var(--bg2)',border:'1px solid var(--border)',margin:'0 auto'}}));}
+            function row(key,label,hasFn){return ce('tr',{key:key},ce('td',{style:STICKY},label),roleKeys.map(function(rk){return tick(rk,hasFn(rk));}));}
+            function divider(key,text){return ce('tr',{key:key},ce('td',{colSpan:roleKeys.length+1,style:{position:'sticky',left:0,zIndex:1,background:'var(--bg3)',color:'var(--text3)',fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',padding:'6px 10px',borderBottom:'1px solid var(--border2)'}},text));}
+            var CRM_SET={viewCRM:1,editCRM:1,viewLeads:1,editLeadStatus:1,manageLeads:1};
+            var visionKeys=Object.keys(PERM_LABELS).filter(function(k){return !CRM_SET[k];});
+            var crmKeys=Object.keys(PERM_LABELS).filter(function(k){return CRM_SET[k];});
+            /* Land Cloud rows are DISPLAY-ONLY (Land Cloud is a separate app gated by the DB
+               helpers farm_can_read/write/approve, not by Vision ROLES.perms). Keep in sync
+               with those functions manually if the RLS role-sets change. */
+            var LC_ROWS=[
+              {label:'Land Cloud — view (structure & blocks)',roles:{admin:1,power_user:1,agronomy_admin:1,agronomy_viewer:1,commercial:1}},
+              {label:'Land Cloud — edit (blocks, geometry, seasons)',roles:{admin:1,power_user:1,agronomy_admin:1}},
+              {label:'Land Cloud — approve changes',roles:{admin:1,power_user:1}}
+            ];
+            var out=[];
+            out.push(divider('sec-vision','Vision · Operations & QC'));
+            visionKeys.forEach(function(pk){out.push(row(pk,PERM_LABELS[pk],function(rk){return ROLES[rk].perms[pk];}));});
+            out.push(divider('sec-crm','Commercial · CRM & Leads'));
+            crmKeys.forEach(function(pk){out.push(row(pk,PERM_LABELS[pk],function(rk){return ROLES[rk].perms[pk];}));});
+            out.push(divider('sec-lc','Land Cloud · Agronomy — app-enforced'));
+            LC_ROWS.forEach(function(r,i){out.push(row('lc'+i,r.label,function(rk){return !!r.roles[rk];}));});
+            return out;
+          })()
         )
       )
       ) /* end scroll+overflow wrapper */
