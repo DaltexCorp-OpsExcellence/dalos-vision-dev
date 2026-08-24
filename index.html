@@ -1321,7 +1321,24 @@ function InspectionForm(props){
                 rows:rows.length?rows:[newRow(pal.pallet_number)]
               };
             });
-            if(newPallets.length>0){setPallets(newPallets);setActivePalletIdx(0);}
+            if(newPallets.length>0){setPallets(newPallets);setActivePalletIdx(0);
+              /* Repair header/pallet trace-code desync: merge any trace code assigned to a
+                 pallet but missing from the session (header) list, so the Trace Codes card
+                 shows EVERY code actually in use (not just the header subset) and the next
+                 save re-syncs the header. Prevents "codes on pallets the card doesn't show"
+                 and "added codes not reflecting after reload". No-op for crops with no
+                 pallet trace codes. */
+              setTraceCodes(function(prev){
+                var out=(prev||[]).slice(); var seen={};
+                out.forEach(function(tc){var c=(typeof tc==='string'?tc:(tc&&tc.code)||'').trim();if(c)seen[c]=1;});
+                newPallets.forEach(function(p){(p.palletTraceCodes||[]).forEach(function(c){
+                  var code=(typeof c==='string'?c:(c&&c.code)||'').trim();
+                  if(code&&!seen[code]){seen[code]=1;out.push({code:code,variety:null});}
+                });});
+                var real=out.filter(function(tc){return (typeof tc==='string'?tc:(tc&&tc.code)||'').trim();});
+                return real.length?real:out;
+              });
+            }
             console.log('[DalOS] Loaded',newPallets.length,'pallets for edit');
           });
       })
