@@ -7685,7 +7685,7 @@ function HomeView(props){
       ce('div',{className:'dh-tb-l'},
         
         ce('div',{className:'dh-logo'},ce('span',{style:{color:'#fff'}},'Dal'),ce('span',{style:{color:'#6fc191'}},'OS'),ce('span',{style:{color:'#5d8a6d',fontFamily:'var(--font-body)',fontSize:14,fontWeight:500,marginLeft:4}},'Vision')),
-        ce('div',{className:'dh-ver'},DALOS_BUILD.split(' ')[0]),ce('a',{className:'dh-pill',href:(location.pathname.indexOf('/dalos-vision-dev/')===0?'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/':'https://daltexcorp-opsexcellence.github.io/dalos-workspace/workspace.html'),title:'Back to DalOS Workspace',style:{textDecoration:'none',height:28,padding:'0 11px',fontSize:11,marginLeft:4}},ce('span',{style:{display:'inline-flex',alignItems:'center',marginRight:1},dangerouslySetInnerHTML:{__html:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>'}}),'Workspace')
+        ce('div',{className:'dh-ver'},DALOS_BUILD.split(' ')[0]),ce('a',{className:'dh-pill',href:(location.pathname.indexOf('/dalos-vision-dev/')===0?'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/':'https://daloshq.com/workspace/workspace.html'),title:'Back to DalOS Workspace',style:{textDecoration:'none',height:28,padding:'0 11px',fontSize:11,marginLeft:4}},ce('span',{style:{display:'inline-flex',alignItems:'center',marginRight:1},dangerouslySetInnerHTML:{__html:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>'}}),'Workspace')
       ),
       ce('div',{className:'dh-tb-r'},
         ce('div',{className:'dh-pill dh-season-pill'},
@@ -17780,7 +17780,7 @@ function App(){
             }),
         ce('div',{className:'sidebar-bottom'},
           ce('div',{style:{padding:'2px 8px 8px'}},
-            ce('button',{className:'side-ws',onClick:function(){ window.location.href = (location.pathname.indexOf('/dalos-vision-dev/')===0 ? 'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/' : 'https://daltexcorp-opsexcellence.github.io/dalos-workspace/workspace.html'); }},
+            ce('button',{className:'side-ws',onClick:function(){ window.location.href = (location.pathname.indexOf('/dalos-vision-dev/')===0 ? 'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/' : 'https://daloshq.com/workspace/workspace.html'); }},
               ce('svg',{viewBox:'0 0 16 16',fill:'currentColor','aria-hidden':'true'},
                 [[1.4,1.4],[6.3,1.4],[11.2,1.4],[1.4,6.3],[6.3,6.3],[11.2,6.3],[1.4,11.2],[6.3,11.2],[11.2,11.2]].map(function(p,i){ return ce('rect',{key:i,x:p[0],y:p[1],width:3.4,height:3.4,rx:0.8}); })),
               'Workspace')
@@ -17946,8 +17946,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(ce(App,null));
   function build(){
     if(!document.body || document.getElementById('dalos-switcher')) return;
     var isDev = location.pathname.indexOf('/dalos-vision-dev/')===0;
-    var WS = isDev ? 'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/' : 'https://daltexcorp-opsexcellence.github.io/dalos-workspace/workspace.html';
-    var ANALYTICS = isDev ? 'https://daltexcorp-opsexcellence.github.io/dalos-analytics-dev/' : 'https://daltexcorp-opsexcellence.github.io/dalos-analytics/';
+    var WS = isDev ? 'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/' : 'https://daloshq.com/workspace/workspace.html';
+    var ANALYTICS = isDev ? 'https://daltexcorp-opsexcellence.github.io/dalos-analytics-dev/' : 'https://daloshq.com/analytics/';
     var APPS = '<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M17 4v6M14 7h6"/></svg>';
     var APPS_S = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M17 4v6M14 7h6"/></svg>';
     var CHART = '<svg viewBox="0 0 48 48" width="20" height="20"><g fill="currentColor"><rect x="8" y="27" width="7" height="13" rx="2"/><rect x="20" y="21" width="7" height="19" rx="2"/><rect x="32" y="14" width="7" height="26" rx="2"/></g><path d="M9 19 L20 14 L31 9 L40 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M34 5 L40 5 L40 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
