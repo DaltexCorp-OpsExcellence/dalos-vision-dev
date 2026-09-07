@@ -15812,7 +15812,7 @@ function App(){
     if(!currentUser||!view) return;
     var now=Date.now(); if(_pvLastRef.current[view]&&now-_pvLastRef.current[view]<15000) return;
     _pvLastRef.current[view]=now;
-    try{ supabase.rpc('log_page_view',{p_app:'vision',p_page:view}).then(function(){},function(){}); }catch(e){}
+    try{ supabase.rpc('log_page_view',{p_app:'vision',p_page:view,p_env:(/-dev(\/|$)/.test(location.pathname)?'staging':'prod')}).then(function(){},function(){}); }catch(e){}
   },[view,currentUser]);
   var sNavHist=useState(null); var navHistory=sNavHist[0]; var setNavHistory=sNavHist[1];
   var sNavTarget=useState(null); var navTarget=sNavTarget[0]; var setNavTarget=sNavTarget[1];
