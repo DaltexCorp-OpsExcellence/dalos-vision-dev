@@ -15805,6 +15805,15 @@ function App(){
     return h||'home';
   }); var view=sv[0]; var setView=sv[1];
   React.useEffect(function(){window.location.hash=view;},[view]);
+  /* page-view capture (platform usage report) — log each Vision view change for a
+     signed-in user; 15s de-dupe; fire-and-forget (.then() required, lazy builder). */
+  var _pvLastRef=React.useRef({});
+  React.useEffect(function(){
+    if(!currentUser||!view) return;
+    var now=Date.now(); if(_pvLastRef.current[view]&&now-_pvLastRef.current[view]<15000) return;
+    _pvLastRef.current[view]=now;
+    try{ supabase.rpc('log_page_view',{p_app:'vision',p_page:view}).then(function(){},function(){}); }catch(e){}
+  },[view,currentUser]);
   var sNavHist=useState(null); var navHistory=sNavHist[0]; var setNavHistory=sNavHist[1];
   var sNavTarget=useState(null); var navTarget=sNavTarget[0]; var setNavTarget=sNavTarget[1];
   var sCqcLink=useState(null); var cqcLink=sCqcLink[0]; var setCqcLink=sCqcLink[1];
