@@ -11810,10 +11810,10 @@ function ClientQCMgmt(props){
             fi('Client class',fClientCls,setClientCls,null)
           ),
           /* ── Rich provenance slots (grapes + mango + pom) ── */
-          richHeader&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,marginBottom:10,border:'1px solid var(--border)',borderRadius:10,overflow:'hidden'}},
+          richHeader&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,marginBottom:10,border:'1px solid var(--border)',borderRadius:10,overflow:'visible'}},
 
             /* ══ LEFT: PACKHOUSES ══ */
-            ce('div',{style:{background:'#f2f7f3',borderRight:'2px solid #b8d8bc',padding:'14px'}},
+            ce('div',{style:{background:'#f2f7f3',borderRight:'2px solid #b8d8bc',padding:'14px',borderRadius:'10px 0 0 10px'}},
               ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
                 ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
                   ce('div',{style:{width:4,height:16,background:'var(--accent)',borderRadius:2,flexShrink:0}}),
@@ -11869,7 +11869,7 @@ function ClientQCMgmt(props){
             ),
 
             /* ══ RIGHT: VARIETY + FARM/PLOT ══ */
-            ce('div',{style:{background:'var(--bg)',padding:'14px'}},
+            ce('div',{style:{background:'var(--bg)',padding:'14px',borderRadius:'0 10px 10px 0'}},
               /* ─ Varieties ─ */
               ce('div',{style:{marginBottom:10}},
                 ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
