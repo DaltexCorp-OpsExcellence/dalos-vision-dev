@@ -11392,7 +11392,7 @@ function ClientQCMgmt(props){
       farm_2:fFarm2||null,
       plot_2:fPlot2||null,
       client_class:fClientCls||null,
-      cqc_extra_fields:(selCqcProd==='grapes'&&(fFarmsExtra.length||fPHExtra.length||fTraceCodes.length||fVarsExtra.length||fInspectionIds.length>1))?{
+      cqc_extra_fields:(['grapes','mango','pomegranate'].indexOf(selCqcProd)>=0&&(fFarmsExtra.length||fPHExtra.length||fTraceCodes.length||fVarsExtra.length||fInspectionIds.length>1))?{
         extra_farms:fFarmsExtra.filter(function(f){return f.farm;}).map(function(f){return {farm:f.farm,plot:f.plot||''};}),
 
         extra_ph:fPHExtra.filter(function(p){return p.actual||p.cover;}),
