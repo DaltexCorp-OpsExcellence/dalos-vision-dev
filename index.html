@@ -11144,18 +11144,20 @@ function ClientQCMgmt(props){
         var vObj=allVars.find(function(v){return v.id===vid;});
         return (vObj&&vObj.categoryId&&(config.categoriesIdToName||{})[vObj.categoryId])||'';
       }
-      setVar(v0.var);setVarType(v0.type||'single');setVar2(v0.var2||'');
+      /* Mango/Pom are single-variety only — never carry a mixed prefill for them */
+      var pfMixOk=(selCqcProd==='grapes');
+      setVar(v0.var);setVarType(pfMixOk?(v0.type||'single'):'single');setVar2(pfMixOk?(v0.var2||''):'');
       /* Category 1 */
       var cat1=getCatName(v0.id);
       if(cat1) setFCat(cat1);
       /* Category 2 (only when mixed) */
-      if(v0.type==='mixed'&&v0.id2){
+      if(pfMixOk&&v0.type==='mixed'&&v0.id2){
         var cat2=getCatName(v0.id2);
         if(cat2) setFCat2(cat2);
       }
       if(varList.length>1){
         setVarsExtra(varList.slice(1).map(function(ve){
-          return {type:ve.type||'single',cat:getCatName(ve.id),var:ve.var,cat2:getCatName(ve.id2),var2:ve.var2||''};
+          return {type:pfMixOk?(ve.type||'single'):'single',cat:getCatName(ve.id),var:ve.var,cat2:pfMixOk?getCatName(ve.id2):'',var2:pfMixOk?(ve.var2||''):''};
         }));
       }
     }
@@ -11546,6 +11548,11 @@ function ClientQCMgmt(props){
       );
     };
 
+    /* Products that get the grapes-style rich provenance header (container-match + packhouse/farm/plot + repeatable slots).
+       Mango & Pom reach grapes parity here; they stay lot+container (Lot # kept) and single-variety (no mixed toggle). Citrus stays flat. */
+    var richHeader=['grapes','mango','pomegranate'].indexOf(selCqcProd)>=0;
+    var allowMixedVariety=(selCqcProd==='grapes');
+
     return ce('div',{style:{background:'var(--bg)',minHeight:'100vh'}},
       /* classify step must render here too — the form is an early return */
       renderCqcClassifyModal(),
@@ -11692,9 +11699,9 @@ function ClientQCMgmt(props){
               ce('div',{style:{display:'flex',gap:6}},
                 ce('input',{className:'form-input',value:fContainer,
                   onChange:function(e){setContainer(e.target.value.toUpperCase());setInspLookupDone(false);setInspLookupResults([]);setInspectionIds([]);},
-                  onBlur:function(e){if(selCqcProd==='grapes') lookupInspectionsByContainer(e.target.value);},
+                  onBlur:function(e){if(richHeader) lookupInspectionsByContainer(e.target.value);},
                   placeholder:'e.g. MNBU 3564353',style:{fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600,flex:1}}),
-                selCqcProd==='grapes'&&ce('button',{className:'btn btn-secondary btn-sm',type:'button',
+                richHeader&&ce('button',{className:'btn btn-secondary btn-sm',type:'button',
                   style:{flexShrink:0,whiteSpace:'nowrap',alignSelf:'flex-end',marginBottom:0},
                   onClick:function(){lookupInspectionsByContainer(fContainer);}},
                   inspLookupLoading?'\u23f3 ...':'Find Inspections'
@@ -11705,11 +11712,11 @@ function ClientQCMgmt(props){
             selCqcProd!=='grapes'&&fi('Lot #',fLot,setLot)
           ),
           /* ── Inspection lookup results ── */
-          selCqcProd==='grapes'&&inspLookupLoading&&ce('div',{style:{fontSize:12,color:'var(--text3)',padding:'8px 0'}},'\u23f3 Searching inspections...'),
-          selCqcProd==='grapes'&&inspLookupDone&&inspLookupResults.length===0&&ce('div',{style:{background:'var(--amber-bg)',border:'1px solid var(--amber-border)',borderRadius:6,padding:'8px 12px',fontSize:12,color:'var(--amber)'}},
+          richHeader&&inspLookupLoading&&ce('div',{style:{fontSize:12,color:'var(--text3)',padding:'8px 0'}},'\u23f3 Searching inspections...'),
+          richHeader&&inspLookupDone&&inspLookupResults.length===0&&ce('div',{style:{background:'var(--amber-bg)',border:'1px solid var(--amber-border)',borderRadius:6,padding:'8px 12px',fontSize:12,color:'var(--amber)'}},
             '\u26a0\ufe0f No inspections found for this container \u2014 fields will need to be filled manually.'
           ),
-          selCqcProd==='grapes'&&inspLookupResults.length>0&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:8,padding:'10px 14px',marginBottom:4}},
+          richHeader&&inspLookupResults.length>0&&ce('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-border)',borderRadius:8,padding:'10px 14px',marginBottom:4}},
             ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
               ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--green)',textTransform:'uppercase',letterSpacing:'.06em'}},
                 inspLookupResults.length+' inspection'+(inspLookupResults.length>1?'s':'')+' found \u2014 select to pre-fill'
@@ -11759,8 +11766,8 @@ function ClientQCMgmt(props){
                 ce('span',{style:{fontSize:11,color:'var(--text3)',marginLeft:4}},'(locked)')
               )
             ),
-            selCqcProd!=='grapes'&&fi('Category',fCat,function(v){setFCat(v);setVar('');},((config.categories||{})[selCqcProd]||[]).map(function(c){return c.name;}),true),
-            selCqcProd!=='grapes'&&fi('Variety',fVar,function(selectedName){
+            !richHeader&&fi('Category',fCat,function(v){setFCat(v);setVar('');},((config.categories||{})[selCqcProd]||[]).map(function(c){return c.name;}),true),
+            !richHeader&&fi('Variety',fVar,function(selectedName){
               setVar(selectedName);
               var allVars=(config.varietiesFull||{})[selCqcProd]||[];
               var found=allVars.find(function(v){return v.name===selectedName;});
@@ -11777,8 +11784,8 @@ function ClientQCMgmt(props){
             fi('Daltex class',fDaltexCls,setDaltexCls,(config.classes||[])),
             fi('Client class',fClientCls,setClientCls,null)
           ),
-          /* ── Grapes: variety slots ── */
-          selCqcProd==='grapes'&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,marginBottom:10,border:'1px solid var(--border)',borderRadius:10,overflow:'hidden'}},
+          /* ── Rich provenance slots (grapes + mango + pom) ── */
+          richHeader&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,marginBottom:10,border:'1px solid var(--border)',borderRadius:10,overflow:'hidden'}},
 
             /* ══ LEFT: PACKHOUSES ══ */
             ce('div',{style:{background:'#f2f7f3',borderRight:'2px solid #b8d8bc',padding:'14px'}},
@@ -11851,7 +11858,7 @@ function ClientQCMgmt(props){
                 ce('div',{style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',marginBottom:6}},
                   ce('div',{style:{background:'var(--bg2)',padding:'7px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}},
                     ce('span',{style:{fontSize:10,fontWeight:500,color:'var(--text3)'}},'Slot 1 — primary'),
-                    ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
+                    allowMixedVariety&&ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
                       ['single','mixed'].map(function(t){
                         return ce('button',{key:t,type:'button',
                           style:{padding:'2px 10px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
@@ -11922,7 +11929,7 @@ function ClientQCMgmt(props){
                     ce('div',{style:{background:'var(--bg2)',padding:'7px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}},
                       ce('span',{style:{fontSize:10,fontWeight:500,color:'var(--text3)'}},'Slot '+(i+2)),
                       ce('div',{style:{display:'flex',alignItems:'center',gap:8}},
-                        ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
+                        allowMixedVariety&&ce('div',{style:{display:'flex',border:'1px solid var(--border2)',borderRadius:6,overflow:'hidden'}},
                           ['single','mixed'].map(function(t){
                             return ce('button',{key:t,type:'button',
                               style:{padding:'2px 10px',fontSize:11,fontWeight:500,border:'none',cursor:'pointer',
@@ -12998,7 +13005,19 @@ function ClientQCMgmt(props){
         )
       ),
       perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setStartRow(null);setShowNew(true);}},'+ New client report')
-    ),intakeRows.length?ce(IntakePanel,{rows:intakeRows,open:intakeOpen,setOpen:setIntakeOpen,onStart:function(row,selFiles){var gp=(config.products||[]).find(function(p){return /grape/i.test(p.name||'');});if(gp)setSelCqcProd(gp.id);else if((config.products||[])[0])setSelCqcProd((config.products||[])[0].id);setStartRow(row);setUploadedFiles([]);setIntakeTotal((selFiles||[]).length);setIntakeCopying((selFiles||[]).length);setContainer(row.container_number||'');setShowNew(true);(selFiles||[]).forEach(function(a){attachIntakeFile(a);});},onComplete:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});},onMarkDone:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){});},onUndoDone:function(row,prev){supabase.from('cqc_intake').update({status:(prev||'new')}).eq('id',row.id).then(function(){});}}):null,
+    ),intakeRows.length?ce(IntakePanel,{rows:intakeRows,open:intakeOpen,setOpen:setIntakeOpen,onStart:function(row,selFiles){
+      /* Open the report for the crop this email actually belongs to — inferred from the container via shipments (covers all crops).
+         Intake rows carry no product; the old code always forced grapes. Auto-attach of the emailed docs is unchanged. */
+      var startWith=function(pid){setSelCqcProd(pid);setStartRow(row);setUploadedFiles([]);setIntakeTotal((selFiles||[]).length);setIntakeCopying((selFiles||[]).length);setContainer(row.container_number||'');setShowNew(true);(selFiles||[]).forEach(function(a){attachIntakeFile(a);});};
+      var isKnownProd=function(pid){return !!pid&&(config.products||[]).some(function(p){return p.id===pid;});};
+      var cont=(row.container_number||'').trim();
+      if(!cont){setShowNew(false);setSelCqcProd(null);return;}
+      supabase.from('shipments').select('product_id').ilike('container_number',cont).not('product_id','is',null).limit(1).then(function(sr){
+        var pid=(sr&&sr.data&&sr.data[0]&&sr.data[0].product_id)||null;
+        if(isKnownProd(pid)){startWith(pid);}
+        else{/* crop couldn't be detected — drop to the product picker so the user chooses the right crop */setShowNew(false);setSelCqcProd(null);}
+      });
+    },onComplete:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});},onMarkDone:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){});},onUndoDone:function(row,prev){supabase.from('cqc_intake').update({status:(prev||'new')}).eq('id',row.id).then(function(){});}}):null,
     /* ── Stats bar ── */
     (function(){
       var rWithMaj=prodReports.filter(function(r){return r.sectionAvgs&&r.sectionAvgs.Major!=null;});
