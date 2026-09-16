@@ -13035,12 +13035,20 @@ function ClientQCMgmt(props){
          Intake rows carry no product; the old code always forced grapes. Auto-attach of the emailed docs is unchanged. */
       var startWith=function(pid){setSelCqcProd(pid);setStartRow(row);setUploadedFiles([]);setIntakeTotal((selFiles||[]).length);setIntakeCopying((selFiles||[]).length);setContainer(row.container_number||'');setShowNew(true);(selFiles||[]).forEach(function(a){attachIntakeFile(a);});};
       var isKnownProd=function(pid){return !!pid&&(config.products||[]).some(function(p){return p.id===pid;});};
+      var curProd=selCqcProd; /* product the user is currently viewing (null on the product landing) */
+      var fallback=function(){
+        /* Crop couldn't be inferred from the container (e.g. the container lives only in the subject, not the container_number col).
+           If a product view is already open, keep it — the user picked the crop by opening from that product's page.
+           Only drop to the product picker when starting from the landing with no product selected. */
+        if(isKnownProd(curProd)){startWith(curProd);}
+        else{setShowNew(false);setSelCqcProd(null);}
+      };
       var cont=(row.container_number||'').trim();
-      if(!cont){setShowNew(false);setSelCqcProd(null);return;}
+      if(!cont){fallback();return;}
       supabase.from('shipments').select('product_id').ilike('container_number',cont).not('product_id','is',null).limit(1).then(function(sr){
         var pid=(sr&&sr.data&&sr.data[0]&&sr.data[0].product_id)||null;
         if(isKnownProd(pid)){startWith(pid);}
-        else{/* crop couldn't be detected — drop to the product picker so the user chooses the right crop */setShowNew(false);setSelCqcProd(null);}
+        else{fallback();}
       });
     },onComplete:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){if(typeof loadCqcIntake==='function')loadCqcIntake();});},onMarkDone:function(row){supabase.from('cqc_intake').update({status:'completed'}).eq('id',row.id).then(function(){});},onUndoDone:function(row,prev){supabase.from('cqc_intake').update({status:(prev||'new')}).eq('id',row.id).then(function(){});}}):null,
     /* ── Stats bar ── */
