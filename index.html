@@ -10136,6 +10136,31 @@ function ClientQCMgmt(props){
   React.useEffect(function(){
     if(initialProd) setSelCqcProd(initialProd);
   },[initialProd]);
+  /* ── Real plot list per farm (same source as inspections) ── pull ACTIVE plot codes
+     per farm from farm_blocks via get_farm_plots for the selected crop, so the CQC plot
+     fields offer the farm's registered plots (still free-type for anything unlisted). */
+  var sCqcPlotsByFarm=useState({}); var cqcPlotsByFarm=sCqcPlotsByFarm[0]; var setCqcPlotsByFarm=sCqcPlotsByFarm[1];
+  React.useEffect(function(){
+    if(!selCqcProd){setCqcPlotsByFarm({});return;}
+    var cancelled=false;
+    supabase.rpc('get_farm_plots',{p_product_id:selCqcProd}).then(function(r){
+      if(cancelled||r.error||!r.data)return;
+      var m={};r.data.forEach(function(row){(m[row.farm_id]=m[row.farm_id]||[]).push(row.plot_code);});
+      setCqcPlotsByFarm(m);
+    });
+    return function(){cancelled=true;};
+  },[selCqcProd]);
+  /* Farm plot alias — same physical location under two Land Cloud names. Picking the "mask"
+     farm (Hana) surfaces the aliased farm's (Badr) plots too. Non-destructive client merge. */
+  var CQC_PLOT_ALIAS_BY_NAME={ 'Hana':['Badr'] };
+  function cqcPlotsForFarm(farmName){
+    var idMap=config.farmsIdMap||{};var fid=farmName&&idMap[farmName];if(!fid)return [];
+    var out=(cqcPlotsByFarm[fid]||[]).slice();
+    var extras=CQC_PLOT_ALIAS_BY_NAME[farmName]||[];
+    extras.forEach(function(en){var eid=idMap[en];((eid&&cqcPlotsByFarm[eid])||[]).forEach(function(p){if(out.indexOf(p)===-1)out.push(p);});});
+    out.sort(function(a,b){return String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'});});
+    return out;
+  }
   React.useEffect(function(){
     if(initialSelRep) setSelRep(initialSelRep);
   },[initialSelRep]);
@@ -12011,7 +12036,7 @@ function ClientQCMgmt(props){
                         ce('option',{value:''},'— Select —'),
                         (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
                       ),
-                      ce('input',{className:'form-input',value:fPlot1,onChange:function(e){setPlot1(e.target.value);},placeholder:'Plot',style:{width:54}})
+                      ce('div',{style:{width:100}},ce(Typeahead,{value:fPlot1,onChange:setPlot1,options:cqcPlotsForFarm(fFarm1),placeholder:'Plot',minChars:0,allowFree:true}))
                     )
                   ),
                   ce('div',{className:'form-field',style:{marginBottom:0}},
@@ -12021,7 +12046,7 @@ function ClientQCMgmt(props){
                         ce('option',{value:''},'— Select —'),
                         (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
                       ),
-                      ce('input',{className:'form-input',value:fPlot2,onChange:function(e){setPlot2(e.target.value);},placeholder:'Plot',style:{width:54}})
+                      ce('div',{style:{width:100}},ce(Typeahead,{value:fPlot2,onChange:setPlot2,options:cqcPlotsForFarm(fFarm2),placeholder:'Plot',minChars:0,allowFree:true}))
                     )
                   )
                 ),
@@ -12035,7 +12060,7 @@ function ClientQCMgmt(props){
                           ce('option',{value:''},'— Select —'),
                           (config.farms||[]).map(function(f){return ce('option',{key:f,value:f},f);})
                         ),
-                        ce('input',{className:'form-input',value:fe.plot||'',onChange:function(idx){return function(e){updateFarmExtra(idx,'plot',e.target.value);};}(i),placeholder:'Plot',style:{width:54}})
+                        ce('div',{style:{width:100}},ce(Typeahead,{value:fe.plot||'',onChange:function(idx){return function(v){updateFarmExtra(idx,'plot',v);};}(i),options:cqcPlotsForFarm(fe.farm),placeholder:'Plot',minChars:0,allowFree:true}))
                       )
                     ),
                     ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,paddingBottom:6},onClick:function(idx){return function(){removeFarmExtra(idx);};}(i)},'\u00d7')
