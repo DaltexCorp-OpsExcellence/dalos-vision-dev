@@ -252,7 +252,9 @@ returns jsonb language sql security definer set search_path = public as $$
     'header', (select to_jsonb(h) from (
         select container_number, carta, loading_date, shipping_status, vessel, shipping_line,
                booking_no, invoice_no, raw_data->>'PO Number' as po_number, etd, eta, arrival_date,
-               departure_port, receiving_country, receiving_port, client, subclient, agent, shipper,
+               departure_port,
+               coalesce(receiving_country, nullif(raw_data->>'Region','')) as receiving_country,
+               receiving_port, client, subclient, agent, shipper,
                pack_house, raw_data->>'Pack House (Departure)' as pack_house_departure,
                raw_data->>'Source Type' as source_type, farm_source as raw_source, product_id
         from shipments_v2
