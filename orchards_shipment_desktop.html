@@ -304,12 +304,9 @@ table.tbl{border-collapse:collapse;width:100%;min-width:1080px}
           <div class="field"><label class="form-label">Shipper</label><input class="form-input" id="h-shipper" list="dl-shipper"></div>
         </div>
 
-        <div class="sectitle"><span class="bar"></span> Handling &amp; source</div>
+        <div class="sectitle"><span class="bar"></span> Handling</div>
         <div class="grid g4">
           <div class="field"><label class="form-label">Pack House (Departure)</label><select class="form-select" id="h-packdep"></select></div>
-          <div class="field"><label class="form-label">Pack House (Packing)</label><select class="form-select" id="h-packpack"></select></div>
-          <div class="field"><label class="form-label">Source Type</label><input class="form-input" id="h-source" list="dl-source"></div>
-          <div class="field"><label class="form-label">Raw Source</label><input class="form-input" id="h-rawsource" list="dl-rawsource"></div>
         </div>
         <datalist id="dl-line"></datalist><datalist id="dl-depport"></datalist><datalist id="dl-country"></datalist>
         <datalist id="dl-port"></datalist><datalist id="dl-agent"></datalist><datalist id="dl-shipper"></datalist>
@@ -374,7 +371,7 @@ function opts(list,cur){
 }
 function fillSelect(id,list,cur){var e=el(id);if(e)e.innerHTML=opts(list,cur)}
 function fillDatalist(id,list){var e=el(id);if(e)e.innerHTML=uniq(list||[]).map(function(o){return '<option value="'+esc(o)+'">'}).join('')}
-function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pallet_count:'',carton_count:'',net_weight:'',gross_weight:'',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',pascol_net:'',weight_variance:'',traceability_code:''}}
+function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pack_house:'',source_type:'',raw_source:'',pallet_count:'',carton_count:'',net_weight:'',gross_weight:'',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',pascol_net:'',weight_variance:'',traceability_code:''}}
 
 /* ---- reference data ---- */
 function loadRefs(){
@@ -424,7 +421,6 @@ function fillHeaderSelects(cur){
   fillSelect('h-client',REF.clients,cur.client||'');
   fillSubclients(cur.subclient||'');
   fillSelect('h-packdep',REF.packByProd[PRODUCT]||[],cur.pack_house_departure||'');
-  fillSelect('h-packpack',REF.packByProd[PRODUCT]||[],cur.pack_house||'');
 }
 function fillSubclients(cur){
   var cid=REF.clientIdByName[val('h-client')];
@@ -434,7 +430,6 @@ function fillSubclients(cur){
 function pickProduct(p){
   if(p===PRODUCT)return;PRODUCT=p;renderProdPick();
   fillSelect('h-packdep',REF.packByProd[PRODUCT]||[],val('h-packdep'));
-  fillSelect('h-packpack',REF.packByProd[PRODUCT]||[],val('h-packpack'));
   syncLinesFromDom();renderTable();flashSave();
 }
 
@@ -470,6 +465,7 @@ function mainRow(d,i){
   '</tr>';
 }
 function dField(lab,v,key){return '<div class="field"><label class="form-label">'+lab+'</label><input class="form-input mono" data-k="'+key+'" value="'+esc(v)+'"></div>'}
+function dSelect(lab,list,v,key){return '<div class="field"><label class="form-label">'+lab+'</label><select class="form-input" data-k="'+key+'">'+opts(list,v)+'</select></div>'}
 function detailRow(d,i){
   var span=isCitrus()?18:17;
   var pascol=isCitrus()?(
@@ -477,7 +473,9 @@ function detailRow(d,i){
     '<div class="dgrid">'+dField('Pascol Weight (t)',d.pascol_weight,'pascol_weight')+dField('Pascol Actual %',d.pascol_pct,'pascol_pct')+dField('Packing Weight (t)',d.packing_weight,'packing_weight')+dField('Pascol Net Weight (t)',d.pascol_net,'pascol_net')+dField('Weight Variance (t)',d.weight_variance,'weight_variance')+'</div>'
   ):'';
   return '<tr class="detail'+(openRows[i]?' open':'')+'" data-di="'+i+'"><td colspan="'+span+'"><div class="detail-inner">'+
-    '<div class="dgroup"><span>Carton unit weights</span></div>'+
+    '<div class="dgroup"><span>Handling · this line</span></div>'+
+    '<div class="dgrid">'+dSelect('Pack House (Packing)',REF.packByProd[PRODUCT]||[],d.pack_house,'pack_house')+dField('Source Type',d.source_type,'source_type')+dField('Raw Source',d.raw_source,'raw_source')+'</div>'+
+    '<div class="dgroup" style="margin-top:14px"><span>Carton unit weights</span></div>'+
     '<div class="dgrid">'+dField('Carton Net Weight (kg)',d.carton_net_weight,'carton_net_weight')+dField('Carton Gross Weight (kg)',d.carton_gross_weight,'carton_gross_weight')+'</div>'+
     pascol+
     '<div class="dnote"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4M12 8h.01"/></svg> Container %, shipping month &amp; week are generated on save. Traceability code is entered per line.</div>'+
@@ -539,8 +537,8 @@ function readHeader(){
     shipping_status:val('h-status'),vessel:val('h-vessel'),shipping_line:val('h-line'),booking_no:val('h-booking'),
     invoice_no:val('h-invoice'),po_number:val('h-po'),etd:val('h-etd'),eta:val('h-eta'),arrival_date:val('h-arrival'),
     departure_port:val('h-depport'),receiving_country:val('h-country'),receiving_port:val('h-port'),client:val('h-client'),
-    subclient:val('h-subclient'),agent:val('h-agent'),shipper:val('h-shipper'),pack_house:val('h-packpack'),
-    pack_house_departure:val('h-packdep'),source_type:val('h-source'),raw_source:val('h-rawsource')};
+    subclient:val('h-subclient'),agent:val('h-agent'),shipper:val('h-shipper'),
+    pack_house_departure:val('h-packdep')};
 }
 
 /* ---- submit (create or edit) ---- */
@@ -580,8 +578,8 @@ function loadForEdit(container,loaded,product){
     setv('h-vessel',h.vessel);setv('h-line',h.shipping_line);setv('h-booking',h.booking_no);setv('h-invoice',h.invoice_no);
     setv('h-po',h.po_number);setv('h-etd',h.etd);setv('h-eta',h.eta);setv('h-arrival',h.arrival_date);
     setv('h-depport',h.departure_port);setv('h-country',h.receiving_country);setv('h-port',h.receiving_port);
-    setv('h-agent',h.agent);setv('h-shipper',h.shipper);setv('h-source',h.source_type);setv('h-rawsource',h.raw_source);
-    fillHeaderSelects({status:h.shipping_status,client:h.client,subclient:h.subclient,pack_house:h.pack_house,pack_house_departure:h.pack_house_departure});
+    setv('h-agent',h.agent);setv('h-shipper',h.shipper);
+    fillHeaderSelects({status:h.shipping_status,client:h.client,subclient:h.subclient,pack_house_departure:h.pack_house_departure});
     deriveDate();
     LINES=lines.map(function(l){var d=newLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=String(l[k])});d.id=l.id||null;return d});
     if(!LINES.length)LINES=[newLine()];

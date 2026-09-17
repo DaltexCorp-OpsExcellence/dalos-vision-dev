@@ -272,12 +272,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-si
             <div class="f"><label>Agent</label><input id="h-agent" list="dl-agent"></div>
             <div class="f"><label>Shipper</label><input id="h-shipper" list="dl-shipper"></div>
           </div>
-          <div class="sgroup"><span class="bar"></span> Handling &amp; source</div>
+          <div class="sgroup"><span class="bar"></span> Handling</div>
           <div class="fgrid">
             <div class="f"><label>Pack House (Departure)</label><select id="h-packdep"></select></div>
-            <div class="f"><label>Pack House (Packing)</label><select id="h-packpack"></select></div>
-            <div class="f"><label>Source Type</label><input id="h-source" list="dl-source"></div>
-            <div class="f"><label>Raw Source</label><input id="h-rawsource" list="dl-rawsource"></div>
           </div>
           <datalist id="dl-line"></datalist><datalist id="dl-depport"></datalist><datalist id="dl-country"></datalist>
           <datalist id="dl-port"></datalist><datalist id="dl-agent"></datalist><datalist id="dl-shipper"></datalist>
@@ -310,6 +307,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-si
             <div class="f"><label>Brand</label><input id="i-br" placeholder="e.g. Daltex"></div>
             <div class="f"><label>Count / Size</label><input class="mono" id="i-cnt" placeholder="optional"></div>
             <div class="f full"><label>Traceability code</label><input class="mono" id="i-trace" placeholder="per-line trace code"></div>
+          </div>
+          <div class="sgroup"><span class="bar"></span> Handling · this line</div>
+          <div class="fgrid">
+            <div class="f"><label>Pack House (Packing)</label><select id="i-pack"></select></div>
+            <div class="f"><label>Source Type</label><input id="i-source" list="dl-source"></div>
+            <div class="f full"><label>Raw Source</label><input id="i-rawsource" list="dl-rawsource"></div>
           </div>
           <div class="sgroup"><span class="bar"></span> Quantities</div>
           <div class="fgrid">
@@ -383,7 +386,7 @@ function toast(msg){var t=el('dtoast');t.textContent=msg;t.classList.add('show')
 function opts(list,cur){var arr=uniq((list||[]).slice());if(cur&&arr.indexOf(cur)<0)arr.unshift(cur);
   return '<option value=""></option>'+arr.map(function(o){return '<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>'}).join('');}
 function fillSelect(id,list,cur){var e=el(id);if(e)e.innerHTML=opts(list,cur)}
-function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pallet_count:'0',carton_count:'0',net_weight:'0',gross_weight:'0',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',pascol_net:'',weight_variance:'',traceability_code:''}}
+function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pack_house:'',source_type:'',raw_source:'',pallet_count:'0',carton_count:'0',net_weight:'0',gross_weight:'0',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',pascol_net:'',weight_variance:'',traceability_code:''}}
 
 /* ---- reference data ---- */
 function loadRefs(){
@@ -473,7 +476,6 @@ function fillHeaderSelects(){
   fillSelect('h-client',REF.clients,HDR.client||'');
   fillSubclients(HDR.subclient||'');
   fillSelect('h-packdep',REF.packByProd[PRODUCT]||[],HDR.pack_house_departure||'');
-  fillSelect('h-packpack',REF.packByProd[PRODUCT]||[],HDR.pack_house||'');
 }
 function fillSubclients(cur){var cid=REF.clientIdByName[val('h-client')];var list=(cid&&REF.subByClientId[cid])?REF.subByClientId[cid]:[];fillSelect('h-subclient',list,typeof cur==='string'?cur:'');}
 function openHeaderSheet(){
@@ -483,7 +485,7 @@ function openHeaderSheet(){
   setv('h-vessel',HDR.vessel);setv('h-line',HDR.shipping_line);setv('h-booking',HDR.booking_no);setv('h-invoice',HDR.invoice_no);
   setv('h-po',HDR.po_number);setv('h-etd',HDR.etd);setv('h-eta',HDR.eta);setv('h-arrival',HDR.arrival_date);
   setv('h-depport',HDR.departure_port);setv('h-country',HDR.receiving_country);setv('h-port',HDR.receiving_port);
-  setv('h-agent',HDR.agent);setv('h-shipper',HDR.shipper);setv('h-source',HDR.source_type);setv('h-rawsource',HDR.raw_source);
+  setv('h-agent',HDR.agent);setv('h-shipper',HDR.shipper);
   deriveDate();
   el('scrim').classList.add('show');el('sheet-header').classList.add('show');
 }
@@ -492,8 +494,8 @@ function saveHeader(){
     shipping_status:val('h-status'),vessel:val('h-vessel'),shipping_line:val('h-line'),booking_no:val('h-booking'),
     invoice_no:val('h-invoice'),po_number:val('h-po'),etd:val('h-etd'),eta:val('h-eta'),arrival_date:val('h-arrival'),
     departure_port:val('h-depport'),receiving_country:val('h-country'),receiving_port:val('h-port'),client:val('h-client'),
-    subclient:val('h-subclient'),agent:val('h-agent'),shipper:val('h-shipper'),pack_house:val('h-packpack'),
-    pack_house_departure:val('h-packdep'),source_type:val('h-source'),raw_source:val('h-rawsource')};
+    subclient:val('h-subclient'),agent:val('h-agent'),shipper:val('h-shipper'),
+    pack_house_departure:val('h-packdep')};
   closeSheets();renderHeaderSummary();
 }
 function renderHeaderSummary(){
@@ -504,7 +506,7 @@ function renderHeaderSummary(){
   el('hs-booking').textContent=HDR.booking_no||'—';
   el('hs-eta').textContent=(HDR.etd||'—')+' → '+(HDR.eta||'—');
   el('hs-inv').textContent=[HDR.invoice_no,HDR.po_number].filter(Boolean).join(' · ')||'—';
-  el('hs-pack').textContent=[HDR.pack_house,HDR.source_type].filter(Boolean).join(' · ')||'—';
+  el('hs-pack').textContent=(HDR.pack_house_departure||'—')+' (departure)';
   var mm=monthWeek(HDR.loading_date);el('hs-month').textContent=mm.month||'—';el('hs-week').textContent=mm.week?('Wk '+mm.week):'—';
   el('abar-title').textContent=(MODE==='edit'?'Edit shipment':'New shipment');
   el('abar-sub').textContent=HDR.container_number||prodName(PRODUCT);
@@ -553,8 +555,10 @@ function setSheet(d){
   el('i-cat').innerHTML=opts(catsFor(PRODUCT),d.category);
   el('i-v').innerHTML=opts(varsFor(PRODUCT,d.category),d.variety);
   el('i-ct').innerHTML=opts(REF.cartonTypes,d.carton_type);
+  el('i-pack').innerHTML=opts(REF.packByProd[PRODUCT]||[],d.pack_house);
   var g=function(id,v){el(id).value=(v==null?'':v)};
   g('i-lot',d.lot);g('i-cal',d.caliber);g('i-dc',d.daltex_class);g('i-cc',d.client_class);g('i-pk',d.packaging_type);g('i-br',d.brand);g('i-cnt',d.count_size);g('i-trace',d.traceability_code);
+  g('i-source',d.source_type);g('i-rawsource',d.raw_source);
   g('i-pal',d.pallet_count);g('i-ctn',d.carton_count);g('i-cnw',d.carton_net_weight);g('i-cgw',d.carton_gross_weight);g('i-net',d.net_weight);g('i-grs',d.gross_weight);
   g('i-pas',d.pascol_weight);g('i-paspct',d.pascol_pct);g('i-packw',d.packing_weight);g('i-pasnet',d.pascol_net);g('i-var',d.weight_variance);
 }
@@ -568,6 +572,7 @@ function saveLine(){
   var d=newLine();d.id=keepId;
   d.category=val('i-cat');d.variety=val('i-v');d.lot=val('i-lot');d.caliber=val('i-cal');d.daltex_class=val('i-dc');d.client_class=val('i-cc');
   d.carton_type=val('i-ct');d.packaging_type=val('i-pk');d.brand=val('i-br');d.count_size=val('i-cnt');d.traceability_code=val('i-trace');
+  d.pack_house=val('i-pack');d.source_type=val('i-source');d.raw_source=val('i-rawsource');
   d.pallet_count=val('i-pal');d.carton_count=val('i-ctn');d.carton_net_weight=val('i-cnw');d.carton_gross_weight=val('i-cgw');d.net_weight=val('i-net');d.gross_weight=val('i-grs');
   d.pascol_weight=val('i-pas');d.pascol_pct=val('i-paspct');d.packing_weight=val('i-packw');d.pascol_net=val('i-pasnet');d.weight_variance=val('i-var');
   if(editIdx>=0)LINES[editIdx]=d;else LINES.push(d);
@@ -595,7 +600,7 @@ function loadForEdit(container,loaded,product){
       shipping_status:h.shipping_status||'Delivered',vessel:h.vessel,shipping_line:h.shipping_line,booking_no:h.booking_no,
       invoice_no:h.invoice_no,po_number:h.po_number,etd:h.etd,eta:h.eta,arrival_date:h.arrival_date,departure_port:h.departure_port,
       receiving_country:h.receiving_country,receiving_port:h.receiving_port,client:h.client,subclient:h.subclient,agent:h.agent,
-      shipper:h.shipper,pack_house:h.pack_house,pack_house_departure:h.pack_house_departure,source_type:h.source_type,raw_source:h.raw_source};
+      shipper:h.shipper,pack_house_departure:h.pack_house_departure};
     LINES=lines.map(function(l){var d=newLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=String(l[k])});d.id=l.id||null;return d});
     renderProdStrip();renderHeaderSummary();render();
   }).catch(function(){toast('Load failed')});
