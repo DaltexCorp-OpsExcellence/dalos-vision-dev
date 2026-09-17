@@ -1,0 +1,526 @@
+<meta charset="utf-8"/>
+<title>DalOS Orchards Shipment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
+<style>
+:root{
+  --bg:#f0ede6;--bg2:#e8e4da;--bg3:#ddd8cc;
+  --sidebar:#1e2d22;--sidebar2:#263529;
+  --sidebar-text:#c8d4c0;--sidebar-muted:#6a8068;
+  --accent:#2b5c3f;--accent2:#4a8c62;
+  --amber:#b87820;--amber-bg:#fdf3e0;--amber-border:#e8c87a;
+  --red:#b03030;--red-bg:#faeaea;--red-border:#e8a0a0;
+  --green:#1e6b3a;--green-bg:#e8f5ec;--green-border:#8ecba4;
+  --blue:#2a50c0;--blue-bg:#e8eeff;--blue-border:#a0b4e8;
+  --text:#1a1a17;--text2:#4a4840;--text3:#7a7668;
+  --border:#d0cbbe;--border2:#bcb8ae;--card:#ffffff;
+  --font-display:'DM Serif Display',serif;
+  --font-body:'Instrument Sans',sans-serif;
+  --font-mono:'DM Mono',monospace;
+  --r:8px;--r2:12px;--sidebar-w:218px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.logo{padding:16px 16px 14px;border-bottom:1px solid rgba(255,255,255,.07)}
+.logo .name{font-family:var(--font-display);font-size:19px;color:#fff;line-height:1}
+.logo .crop{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--sidebar-muted)}
+.crop .dots{display:inline-flex;gap:3px}
+.crop .dots i{width:6px;height:6px;border-radius:50%}
+.nav{padding:12px 8px;flex:1;overflow-y:auto}
+.nav .sec{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--sidebar-muted);padding:12px 10px 6px}
+.nav a{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);color:var(--sidebar-text);text-decoration:none;font-size:13px;margin-bottom:1px}
+.nav a svg{width:15px;height:15px;opacity:.6;flex-shrink:0}
+.nav a:hover{background:var(--sidebar2)}
+.nav a.active{background:var(--accent);color:#fff;font-weight:500}
+.nav a.active svg{opacity:1}
+.side-foot{padding:12px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:9px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--accent2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.side-foot .who{font-size:12px;line-height:1.2}
+.side-foot .who small{color:var(--sidebar-muted);font-size:10px}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;height:50px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 16px}
+.crumb{font-size:12px;color:var(--text3)}
+.crumb b{font-family:var(--font-display);font-size:17px;color:var(--text);font-weight:400;display:block;line-height:1.1;margin-top:1px}
+.topbar .spacer{flex:1}
+.savechip{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.savechip .d{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.btn{border-radius:var(--r);font-size:13px;font-weight:500;padding:7px 14px;border:1px solid transparent;cursor:pointer;font-family:var(--font-body);white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{background:var(--card);border-color:var(--border2);color:var(--text2)}.btn-ghost:hover{background:var(--bg2)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.page{padding:16px;max-width:1200px;width:100%;margin:0 auto;flex:1}
+.ctx{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.back{font-size:12px;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.pill{border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;border:1px solid}
+.pill-blue{background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)}
+.pill-neutral{background:var(--bg2);border-color:var(--border2);color:var(--text2)}
+.example-note{font-size:11px;color:var(--text3);font-style:italic}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px 16px;margin-bottom:14px}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.card-head h2{font-family:var(--font-display);font-size:18px;font-weight:400;margin:0}
+.card-head .hint{font-size:11px;color:var(--text3)}
+.sectitle{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);margin:16px 0 10px}
+.sectitle:first-child{margin-top:0}
+.sectitle .bar{width:20px;height:2px;background:var(--accent);border-radius:2px}
+/* header product selector */
+.prodpick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;margin-bottom:4px}
+.prodpick .plab{font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--text3)}
+.prodpick .chips{display:flex;gap:7px;flex-wrap:wrap}
+.pchip{border:1px solid var(--border2);background:var(--card);border-radius:20px;padding:5px 13px;font-size:13px;font-weight:500;color:var(--text2);display:flex;align-items:center;gap:7px;cursor:pointer}
+.pchip .pd{width:9px;height:9px;border-radius:50%}
+.pchip.on{border-color:var(--accent);background:var(--green-bg);color:var(--accent);font-weight:600}
+.prodpick .note{font-size:11px;color:var(--text3);margin-left:auto}
+.grid{display:grid;gap:10px 12px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.form-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--text3)}
+.form-input,.form-select{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;font-size:14px;font-family:var(--font-body);color:var(--text)}
+.form-input.mono{font-family:var(--font-mono);font-size:13px}
+.form-input:focus,.form-select:focus{outline:none;border-color:var(--accent)}
+.derived{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg2);border:1px dashed var(--border2);border-radius:var(--r);padding:8px 12px;margin-top:2px}
+.derived .lab{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:12px;font-family:var(--font-mono);color:var(--text2)}
+.chip b{color:var(--text);font-weight:500}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);margin-top:4px}
+table.lines{border-collapse:collapse;width:100%;min-width:1180px}
+.lines th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);font-weight:600;text-align:left;padding:8px 8px;border-bottom:2px solid var(--border2);background:var(--bg2);white-space:nowrap}
+.lines td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.lines tr.lrow:last-of-type td{border-bottom:none}
+.lines .idx{color:var(--text3);font-family:var(--font-mono);font-size:12px;width:24px;text-align:center}
+.cellsel,.cellin{width:100%;border:1px solid transparent;background:transparent;border-radius:5px;padding:5px 6px;font-size:13px;font-family:var(--font-body);color:var(--text);min-width:92px}
+.cellin.mono{font-family:var(--font-mono);font-size:12px;min-width:74px}
+.cellin.num{text-align:right;min-width:58px;font-family:var(--font-mono);font-size:12px}
+.cellin.cal{min-width:56px;font-family:var(--font-mono);font-size:12px}
+.cellsel:hover,.cellin:hover{background:var(--bg2)}
+.cellsel:focus,.cellin:focus{outline:none;border-color:var(--accent);background:var(--card)}
+.exp{border:1px solid var(--border2);background:var(--card);border-radius:6px;width:24px;height:24px;cursor:pointer;color:var(--text3);display:inline-flex;align-items:center;justify-content:center}
+.exp:hover{background:var(--bg2)}
+.exp svg{transition:transform .15s}
+.exp.open svg{transform:rotate(180deg)}
+.rm{border:none;background:none;color:var(--text3);cursor:pointer;font-size:15px;padding:4px}
+.rm:hover{color:var(--red)}
+.detail td{background:var(--bg2);padding:0;border-bottom:1px solid var(--border)}
+.detail-inner{padding:12px 16px;display:none}
+.detail.open .detail-inner{display:block}
+.dgroup{font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--text3);margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.dgroup .cbadge{background:var(--amber-bg);border:1px solid var(--amber-border);color:#8a5810;border-radius:20px;padding:1px 8px;font-size:9px;letter-spacing:.04em}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px;max-width:900px}
+.dgrid .field .form-input{padding:7px 9px;font-size:13px}
+.dnote{font-size:11px;color:var(--text3);margin-top:12px;padding-top:10px;border-top:1px dotted var(--border2);display:flex;align-items:center;gap:8px}
+.dnote code{font-family:var(--font-mono);background:var(--card);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:10.5px;color:var(--text2)}
+.lines tfoot td{padding:9px 8px;background:var(--bg2);font-family:var(--font-mono);font-size:14px;font-weight:500;color:var(--text);border-top:2px solid var(--border2)}
+.addline{margin-top:10px}
+.alert{display:flex;gap:10px;align-items:flex-start;background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--r);padding:10px 12px;font-size:12px;color:#1c5a32;margin-bottom:14px}
+.alert svg{flex-shrink:0;margin-top:1px}
+.alert code{font-family:var(--font-mono);background:rgba(30,107,58,.12);padding:1px 5px;border-radius:4px;font-size:11px}
+.submitbar{position:sticky;bottom:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 -2px 12px rgba(0,0,0,.04)}
+.totals{display:flex;gap:18px;flex-wrap:wrap}
+.tot{display:flex;flex-direction:column}
+.tot .k{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)}
+.tot .v{font-family:var(--font-display);font-size:22px;line-height:1.1}
+.tot .v small{font-size:11px;font-family:var(--font-body);color:var(--text3)}
+.submitbar .sp{flex:1}
+@media(max-width:1024px){:root{--sidebar-w:190px}.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:767px){.sidebar{display:none}.g4{grid-template-columns:1fr 1fr}.page{padding:12px}}
+@media(max-width:520px){.g4{grid-template-columns:1fr}}
+</style>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="name">DalOS</div>
+      <div class="crop"><span class="dots"><i style="background:#6a10b0"></i><i style="background:#b87820"></i><i style="background:#d19a1e"></i><i style="background:#b03030"></i></span> Orchards</div>
+    </div>
+    <nav class="nav">
+      <div class="sec">Operations</div>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Dashboard</a>
+      <a href="#" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Shipments</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> QC Inspections</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> Client QC</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg> Lots</a>
+      <div class="sec">Reference</div>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> Clients</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg> Lists &amp; Codes</a>
+    </nav>
+    <div class="side-foot"><div class="avatar">TG</div><div class="who">Tarek Ghanem<br><small>Ops · Orchards</small></div></div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="crumb">Shipments <b id="crumb-title">New Shipment</b></div>
+      <div class="spacer"></div>
+      <span class="savechip"><span class="d"></span> <span id="saved">Draft saved 11:02</span></span>
+      <button class="btn btn-ghost btn-sm">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="flashSave()">Save draft</button>
+    </div>
+
+    <div class="page">
+      <div class="ctx">
+        <a href="#" class="back">&larr; All shipments</a>
+        <span class="pill pill-blue">Delivered</span>
+        <span class="pill pill-neutral" id="ctx-ref">New</span>
+        <span class="example-note">One form = one container = one product. Lines are the varieties of that product.</span>
+      </div>
+
+      <div class="alert">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div>Writes one <code>shipments</code> record set for this container and matches to its QC inspection. Segment / JD.E / batch codes are generated on submit — not typed.</div>
+      </div>
+
+      <!-- HEADER -->
+      <div class="card">
+        <div class="card-head"><h2>Shipment</h2><span class="hint">One container — entered once</span></div>
+
+        <div class="sectitle"><span class="bar"></span> Product</div>
+        <div class="prodpick">
+          <span class="plab">Container product</span>
+          <div class="chips" id="prodpick"></div>
+          <span class="note">Decided once — every line below is this product.</span>
+        </div>
+
+        <div class="sectitle"><span class="bar"></span> Logistics</div>
+        <div class="grid g4">
+          <div class="field"><label class="form-label">Loading Date</label><input class="form-input mono" type="date" id="h-ldate" onchange="deriveDate()"></div>
+          <div class="field"><label class="form-label">Shipping Status</label><select class="form-select" id="h-status"></select></div>
+          <div class="field"><label class="form-label">Carta</label><input class="form-input mono" id="h-carta"></div>
+          <div class="field"><label class="form-label">Container No.</label><input class="form-input mono" id="h-container" placeholder="e.g. MNBU 3751992"></div>
+          <div class="field"><label class="form-label">Vessel</label><input class="form-input" id="h-vessel"></div>
+          <div class="field"><label class="form-label">Shipping Line</label><input class="form-input" id="h-line" list="dl-line"></div>
+          <div class="field"><label class="form-label">Booking No.</label><input class="form-input mono" id="h-booking"></div>
+          <div class="field"><label class="form-label">Invoice No.</label><input class="form-input mono" id="h-invoice"></div>
+          <div class="field"><label class="form-label">PO Number</label><input class="form-input mono" id="h-po"></div>
+          <div class="field"><label class="form-label">ETD</label><input class="form-input mono" type="date" id="h-etd"></div>
+          <div class="field"><label class="form-label">ETA</label><input class="form-input mono" type="date" id="h-eta"></div>
+          <div class="field"><label class="form-label">Actual Arrival</label><input class="form-input mono" type="date" id="h-arrival"></div>
+          <div class="field"><label class="form-label">Departure Port</label><input class="form-input" id="h-depport" list="dl-depport"></div>
+        </div>
+        <div class="derived"><span class="lab">Auto</span><span class="chip">Month <b id="d-month">—</b></span><span class="chip">Week <b id="d-week">—</b></span></div>
+
+        <div class="sectitle"><span class="bar"></span> Destination &amp; commercial</div>
+        <div class="grid g4">
+          <div class="field"><label class="form-label">Receiving Country</label><input class="form-input" id="h-country" list="dl-country"></div>
+          <div class="field"><label class="form-label">Receiving Port</label><input class="form-input" id="h-port" list="dl-port"></div>
+          <div class="field"><label class="form-label">Client</label><select class="form-select" id="h-client" onchange="fillSubclients()"></select></div>
+          <div class="field"><label class="form-label">Subclient</label><select class="form-select" id="h-subclient"></select></div>
+          <div class="field"><label class="form-label">Agent</label><input class="form-input" id="h-agent" list="dl-agent"></div>
+          <div class="field"><label class="form-label">Shipper</label><input class="form-input" id="h-shipper" list="dl-shipper"></div>
+        </div>
+
+        <div class="sectitle"><span class="bar"></span> Handling &amp; source</div>
+        <div class="grid g4">
+          <div class="field"><label class="form-label">Pack House (Departure)</label><select class="form-select" id="h-packdep"></select></div>
+          <div class="field"><label class="form-label">Pack House (Packing)</label><select class="form-select" id="h-packpack"></select></div>
+          <div class="field"><label class="form-label">Source Type</label><input class="form-input" id="h-source" list="dl-source"></div>
+          <div class="field"><label class="form-label">Raw Source</label><input class="form-input" id="h-rawsource" list="dl-rawsource"></div>
+        </div>
+        <datalist id="dl-line"></datalist><datalist id="dl-depport"></datalist><datalist id="dl-country"></datalist>
+        <datalist id="dl-port"></datalist><datalist id="dl-agent"></datalist><datalist id="dl-shipper"></datalist>
+        <datalist id="dl-source"></datalist><datalist id="dl-rawsource"></datalist>
+      </div>
+
+      <!-- PRODUCT LINES -->
+      <div class="card">
+        <div class="card-head"><h2 id="lines-title">Citrus Lines</h2><span class="hint">One row per variety in this container — expand ⌄ for carton weights &amp; weighbridge</span></div>
+        <div class="table-wrap">
+          <table class="lines" id="lines">
+            <thead id="lhead"></thead>
+            <tbody id="lbody"></tbody>
+            <tfoot id="lfoot"></tfoot>
+          </table>
+        </div>
+        <button class="btn btn-ghost btn-sm addline" onclick="addLine()">+ Add line</button>
+      </div>
+
+      <div class="submitbar">
+        <div class="totals">
+          <div class="tot"><span class="k">Lines</span><span class="v" id="s-lines">2</span></div>
+          <div class="tot"><span class="k">Pallets</span><span class="v" id="s-pal">4</span></div>
+          <div class="tot"><span class="k">Cartons</span><span class="v" id="s-ctn">140</span></div>
+          <div class="tot"><span class="k">Net weight</span><span class="v" id="s-net">2.10 <small>t</small></span></div>
+        </div>
+        <div class="sp"></div>
+        <button class="btn btn-ghost" onclick="flashSave()">Save draft</button>
+        <button class="btn btn-primary" onclick="submitShip()">Submit shipment</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== DalOS Orchards Shipment — create/edit into shipments_v2 (staging) ===== */
+var DALOS_SUPABASE_URL='https://sfyjvgjwvtwkrnqrvqyc.supabase.co';
+var DALOS_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmeWp2Z2p3dnR3a3JucXJ2cXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzIxNjYsImV4cCI6MjA5MDQ0ODE2Nn0.FjA75XZsp0Kx5Xam_rrnYoAHX4JHKey6vEFCH_zlMuQ';
+var sb=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(DALOS_SUPABASE_URL,DALOS_ANON_KEY):null;
+
+var STATUS_OPTS=['Delivered','Shipped','Returned'];
+var PRODUCT_COLORS={citrus:'#b87820',grapes:'#6a10b0',mango:'#d19a1e',pomegranate:'#b03030'};
+var REF={products:[],clients:[],clientIdByName:{},subByClientId:{},catByProd:{},varByProd:{},packByProd:{},cartonTypes:[]};
+var PRODUCT='citrus';
+var LINES=[];
+var openRows={};
+var MODE='create';
+var EDIT={container:null,loaded:null,product:null,deletedIds:[]};
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+function el(id){return document.getElementById(id)}
+function val(id){var e=el(id);return e?String(e.value||'').trim():''}
+function pcolor(p){return PRODUCT_COLORS[p]||'#2b5c3f'}
+function isCitrus(){return PRODUCT==='citrus'}
+function uniq(a){return a.filter(function(v,i){return v!=null&&v!==''&&a.indexOf(v)===i})}
+
+/* option list that always includes the current value (so edit never drops legacy data) */
+function opts(list,cur){
+  var arr=uniq((list||[]).slice()); if(cur&&arr.indexOf(cur)<0)arr.unshift(cur);
+  return '<option value=""></option>'+arr.map(function(o){return '<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>'}).join('');
+}
+function fillSelect(id,list,cur){var e=el(id);if(e)e.innerHTML=opts(list,cur)}
+function fillDatalist(id,list){var e=el(id);if(e)e.innerHTML=uniq(list||[]).map(function(o){return '<option value="'+esc(o)+'">'}).join('')}
+function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pallet_count:'',carton_count:'',net_weight:'',gross_weight:'',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',pascol_net:'',weight_variance:'',traceability_code:''}}
+
+/* ---- reference data ---- */
+function loadRefs(){
+  if(!sb)return Promise.reject(new Error('supabase client unavailable'));
+  return Promise.all([
+    sb.from('products').select('id,name,active').eq('active',true),
+    sb.from('clients').select('id,name,active').eq('active',true).order('name'),
+    sb.from('sub_clients').select('id,client_id,name,active').eq('active',true).order('name'),
+    sb.from('categories').select('id,product_id,name,active').eq('active',true).order('name'),
+    sb.from('varieties').select('id,product_id,name,category_id,active').eq('active',true).order('name'),
+    sb.from('packhouses').select('id,name,product_ids,active').eq('active',true),
+    sb.from('carton_types').select('id,name,active').eq('active',true).order('name')
+  ]).then(function(r){
+    r.forEach(function(x){if(x.error)throw x.error});
+    var PRODS=['citrus','grapes','mango','pomegranate'];
+    REF.products=(r[0].data||[]).filter(function(p){return PRODS.indexOf(p.id)>=0});
+    REF.clients=(r[1].data||[]).map(function(c){return c.name});
+    (r[1].data||[]).forEach(function(c){REF.clientIdByName[c.name]=c.id});
+    (r[2].data||[]).forEach(function(s){(REF.subByClientId[s.client_id]=REF.subByClientId[s.client_id]||[]).push(s.name)});
+    (r[3].data||[]).forEach(function(c){(REF.catByProd[c.product_id]=REF.catByProd[c.product_id]||[]).push({id:c.id,name:c.name})});
+    (r[4].data||[]).forEach(function(v){(REF.varByProd[v.product_id]=REF.varByProd[v.product_id]||[]).push({name:v.name,category_id:v.category_id})});
+    (r[5].data||[]).forEach(function(p){(p.product_ids||[]).forEach(function(pid){(REF.packByProd[pid]=REF.packByProd[pid]||[]).push(p.name)})});
+    REF.cartonTypes=(r[6].data||[]).map(function(c){return c.name});
+  });
+}
+function catsFor(p){return (REF.catByProd[p]||[]).map(function(c){return c.name})}
+function catIdByName(p,name){var f=(REF.catByProd[p]||[]).find(function(c){return c.name===name});return f?f.id:null}
+function varsFor(p,catName){
+  var all=REF.varByProd[p]||[];var names;
+  if(catName){var cid=catIdByName(p,catName);names=all.filter(function(v){return v.category_id===cid}).map(function(v){return v.name});
+    if(!names.length)names=all.map(function(v){return v.name});
+  } else names=all.map(function(v){return v.name});
+  return uniq(names);
+}
+
+/* ---- product picker + header selects ---- */
+function renderProdPick(){
+  el('prodpick').innerHTML=REF.products.map(function(p){
+    return '<div class="pchip'+(p.id===PRODUCT?' on':'')+'" onclick="pickProduct(\''+p.id+'\')"><span class="pd" style="background:'+pcolor(p.id)+'"></span>'+esc(p.name)+'</div>';
+  }).join('');
+  var pr=REF.products.find(function(p){return p.id===PRODUCT});
+  el('lines-title').textContent=(pr?pr.name:'Product')+' Lines';
+}
+function fillHeaderSelects(cur){
+  cur=cur||{};
+  fillSelect('h-status',STATUS_OPTS,cur.status||'Delivered');
+  fillSelect('h-client',REF.clients,cur.client||'');
+  fillSubclients(cur.subclient||'');
+  fillSelect('h-packdep',REF.packByProd[PRODUCT]||[],cur.pack_house_departure||'');
+  fillSelect('h-packpack',REF.packByProd[PRODUCT]||[],cur.pack_house||'');
+}
+function fillSubclients(cur){
+  var cid=REF.clientIdByName[val('h-client')];
+  var list=(cid&&REF.subByClientId[cid])?REF.subByClientId[cid]:[];
+  fillSelect('h-subclient',list,(typeof cur==='string'?cur:''));
+}
+function pickProduct(p){
+  if(p===PRODUCT)return;PRODUCT=p;renderProdPick();
+  fillSelect('h-packdep',REF.packByProd[PRODUCT]||[],val('h-packdep'));
+  fillSelect('h-packpack',REF.packByProd[PRODUCT]||[],val('h-packpack'));
+  syncLinesFromDom();renderTable();flashSave();
+}
+
+/* ---- lines table ---- */
+function selCell(list,v,dataKey){return '<select class="cellsel" data-k="'+dataKey+'">'+opts(list,v)+'</select>'}
+function inCell(v,dataKey,cls){return '<input class="cellin '+(cls||'')+'" data-k="'+dataKey+'" value="'+esc(v)+'">'}
+function headHTML(){
+  var calTh=isCitrus()?'<th>Caliber</th>':'';
+  return '<tr><th></th><th>#</th><th>Category</th><th>Variety</th><th>Lot #</th><th>Daltex Class</th><th>Client Class</th><th>Carton Type</th><th>Brand</th><th>Packing</th>'+calTh+
+    '<th>Pallets</th><th>Cartons</th><th>Net Wt (t)</th><th>Gross Wt (t)</th><th>Count</th><th>Trace code</th><th></th></tr>';
+}
+function mainRow(d,i){
+  var calTd=isCitrus()?'<td>'+inCell(d.caliber,'caliber','cal')+'</td>':'';
+  return '<tr class="lrow" data-i="'+i+'">'+
+    '<td><button class="exp'+(openRows[i]?' open':'')+'" onclick="toggle('+i+')" title="Weights"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button></td>'+
+    '<td class="idx">'+(i+1)+'</td>'+
+    '<td><select class="cellsel" data-k="category" onchange="onCat('+i+',this.value)">'+opts(catsFor(PRODUCT),d.category)+'</select></td>'+
+    '<td>'+selCell(varsFor(PRODUCT,d.category),d.variety,'variety')+'</td>'+
+    '<td>'+inCell(d.lot,'lot','mono')+'</td>'+
+    '<td>'+inCell(d.daltex_class,'daltex_class')+'</td>'+
+    '<td>'+inCell(d.client_class,'client_class')+'</td>'+
+    '<td>'+selCell(REF.cartonTypes,d.carton_type,'carton_type')+'</td>'+
+    '<td>'+inCell(d.brand,'brand')+'</td>'+
+    '<td>'+inCell(d.packaging_type,'packaging_type')+'</td>'+
+    calTd+
+    '<td>'+inCell(d.pallet_count,'pallet_count','num')+'</td>'+
+    '<td>'+inCell(d.carton_count,'carton_count','num')+'</td>'+
+    '<td>'+inCell(d.net_weight,'net_weight','num')+'</td>'+
+    '<td>'+inCell(d.gross_weight,'gross_weight','num')+'</td>'+
+    '<td>'+inCell(d.count_size,'count_size','mono')+'</td>'+
+    '<td>'+inCell(d.traceability_code,'traceability_code','mono')+'</td>'+
+    '<td><button class="rm" onclick="rmLine('+i+')" title="Remove">&times;</button></td>'+
+  '</tr>';
+}
+function dField(lab,v,key){return '<div class="field"><label class="form-label">'+lab+'</label><input class="form-input mono" data-k="'+key+'" value="'+esc(v)+'"></div>'}
+function detailRow(d,i){
+  var span=isCitrus()?18:17;
+  var pascol=isCitrus()?(
+    '<div class="dgroup" style="margin-top:14px"><span>Weighbridge reconciliation</span><span class="cbadge">Citrus</span></div>'+
+    '<div class="dgrid">'+dField('Pascol Weight (t)',d.pascol_weight,'pascol_weight')+dField('Pascol Actual %',d.pascol_pct,'pascol_pct')+dField('Packing Weight (t)',d.packing_weight,'packing_weight')+dField('Pascol Net Weight (t)',d.pascol_net,'pascol_net')+dField('Weight Variance (t)',d.weight_variance,'weight_variance')+'</div>'
+  ):'';
+  return '<tr class="detail'+(openRows[i]?' open':'')+'" data-di="'+i+'"><td colspan="'+span+'"><div class="detail-inner">'+
+    '<div class="dgroup"><span>Carton unit weights</span></div>'+
+    '<div class="dgrid">'+dField('Carton Net Weight (kg)',d.carton_net_weight,'carton_net_weight')+dField('Carton Gross Weight (kg)',d.carton_gross_weight,'carton_gross_weight')+'</div>'+
+    pascol+
+    '<div class="dnote"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4M12 8h.01"/></svg> Container %, shipping month &amp; week are generated on save. Traceability code is entered per line.</div>'+
+  '</div></td></tr>';
+}
+function footHTML(){
+  var span=isCitrus()?11:10;
+  return '<tr><td colspan="'+span+'" style="text-align:right;color:var(--text3);font-family:var(--font-body);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em">Totals</td>'+
+    '<td class="num" id="t-pal">—</td><td class="num" id="t-ctn">—</td><td class="num" id="t-net">—</td><td class="num" id="t-grs">—</td><td colspan="3"></td></tr>';
+}
+function renderTable(){
+  el('lhead').innerHTML=headHTML();
+  el('lbody').innerHTML=LINES.map(function(d,i){return mainRow(d,i)+detailRow(d,i)}).join('');
+  el('lfoot').innerHTML=footHTML();
+  recompute();
+}
+function readLineDom(i){
+  var main=document.querySelector('#lbody tr.lrow[data-i="'+i+'"]');
+  if(!main)return null;
+  var det=document.querySelector('#lbody tr.detail[data-di="'+i+'"]');
+  var d=Object.assign({},LINES[i]||newLine());
+  [main,det].forEach(function(scope){if(!scope)return;scope.querySelectorAll('[data-k]').forEach(function(f){d[f.getAttribute('data-k')]=f.value})});
+  return d;
+}
+function syncLinesFromDom(){LINES=LINES.map(function(d,i){return readLineDom(i)||d})}
+function toggle(i){LINES[i]=readLineDom(i)||LINES[i];openRows[i]=!openRows[i];renderTable()}
+function onCat(i,v){LINES[i]=readLineDom(i)||LINES[i];LINES[i].category=v;LINES[i].variety='';renderTable();flashSave()}
+function recompute(){
+  var pal=0,ctn=0,net=0,grs=0;
+  document.querySelectorAll('#lbody tr.lrow').forEach(function(r){
+    var g=function(k){var f=r.querySelector('[data-k="'+k+'"]');return f?(+f.value||0):0};
+    pal+=g('pallet_count');ctn+=g('carton_count');net+=g('net_weight');grs+=g('gross_weight');
+  });
+  var set=function(id,v){var e=el(id);if(e)e.textContent=v};
+  set('t-pal',pal);set('t-ctn',ctn.toLocaleString());set('t-net',net.toFixed(2));set('t-grs',grs.toFixed(2));
+  var n=document.querySelectorAll('#lbody tr.lrow').length;
+  set('s-lines',n);set('s-pal',pal);set('s-ctn',ctn.toLocaleString());
+  var sn=el('s-net');if(sn)sn.innerHTML=net.toFixed(2)+' <small>t</small>';
+}
+function addLine(){syncLinesFromDom();LINES.push(newLine());renderTable();flashSave()}
+function rmLine(i){syncLinesFromDom();var d=LINES[i];if(d&&d.id)EDIT.deletedIds.push(d.id);LINES.splice(i,1);
+  var no={};Object.keys(openRows).forEach(function(k){k=+k;if(k<i)no[k]=openRows[k];else if(k>i)no[k-1]=openRows[k]});openRows=no;renderTable();flashSave()}
+document.addEventListener('input',function(e){if(e.target.closest&&e.target.closest('#lbody'))recompute()});
+
+/* ---- derived date ---- */
+function deriveDate(){
+  var v=val('h-ldate');if(!v){el('d-month').textContent='—';el('d-week').textContent='—';return}
+  var dt=new Date(v+'T00:00');
+  var m=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  el('d-month').textContent=m[dt.getMonth()];
+  var t=new Date(dt);t.setHours(0,0,0,0);t.setDate(t.getDate()+3-((t.getDay()+6)%7));var w1=new Date(t.getFullYear(),0,4);
+  el('d-week').textContent=1+Math.round(((t-w1)/86400000-3+((w1.getDay()+6)%7))/7);
+}
+function flashSave(){var h=new Date();var e=el('saved');if(e)e.textContent="Draft "+String(h.getHours()).padStart(2,'0')+":"+String(h.getMinutes()).padStart(2,'0')}
+
+/* ---- read header ---- */
+function readHeader(){
+  return {product_id:PRODUCT,container_number:val('h-container'),carta:val('h-carta'),loading_date:val('h-ldate'),
+    shipping_status:val('h-status'),vessel:val('h-vessel'),shipping_line:val('h-line'),booking_no:val('h-booking'),
+    invoice_no:val('h-invoice'),po_number:val('h-po'),etd:val('h-etd'),eta:val('h-eta'),arrival_date:val('h-arrival'),
+    departure_port:val('h-depport'),receiving_country:val('h-country'),receiving_port:val('h-port'),client:val('h-client'),
+    subclient:val('h-subclient'),agent:val('h-agent'),shipper:val('h-shipper'),pack_house:val('h-packpack'),
+    pack_house_departure:val('h-packdep'),source_type:val('h-source'),raw_source:val('h-rawsource')};
+}
+
+/* ---- submit (create or edit) ---- */
+function submitShip(){
+  if(!sb){alert('Not connected. Sign in to DalOS and reload.');return}
+  syncLinesFromDom();
+  var hdr=readHeader();
+  if(!hdr.container_number){alert('Container No. is required.');el('h-container').focus();return}
+  if(!hdr.loading_date){alert('Loading Date is required.');el('h-ldate').focus();return}
+  if(!LINES.length){alert('Add at least one variety line.');return}
+  var btns=document.querySelectorAll('.submitbar .btn');btns.forEach(function(b){b.disabled=true});
+  var finish=function(res){
+    btns.forEach(function(b){b.disabled=false});
+    if(res.error){alert('Save failed: '+(res.error.message||res.error));return}
+    if(res.data&&res.data.ok===false){alert('Save failed.');return}
+    toast(MODE==='edit'?'Shipment updated':'Shipment saved');
+    var c=hdr.container_number,l=hdr.loading_date,p=PRODUCT;
+    MODE='edit';EDIT={container:c,loaded:l,product:p,deletedIds:[]};
+    loadForEdit(c,l,p);
+  };
+  var q=(MODE==='edit')
+    ? sb.rpc('edit_shipment_v2_full',{p_header:hdr,p_lines:LINES,p_deleted_ids:EDIT.deletedIds})
+    : sb.rpc('save_shipment_v2_full',{p_header:hdr,p_lines:LINES});
+  q.then(finish).catch(function(e){finish({error:e})});
+}
+
+/* ---- edit-load ---- */
+function loadForEdit(container,loaded,product){
+  if(!sb)return Promise.resolve();
+  return sb.rpc('get_shipment_v2_container',{p_container:container,p_loaded:loaded,p_product:product||'citrus'}).then(function(res){
+    if(res.error){toast('Load failed: '+(res.error.message||res.error));return}
+    var data=res.data||{};var h=data.header||{};var lines=data.lines||[];
+    if(!data.header){toast('Container not found');return}
+    PRODUCT=h.product_id||product||'citrus';renderProdPick();
+    var setv=function(id,v){var e=el(id);if(e)e.value=(v==null?'':v)};
+    setv('h-container',h.container_number);setv('h-carta',h.carta);setv('h-ldate',h.loading_date);
+    setv('h-vessel',h.vessel);setv('h-line',h.shipping_line);setv('h-booking',h.booking_no);setv('h-invoice',h.invoice_no);
+    setv('h-po',h.po_number);setv('h-etd',h.etd);setv('h-eta',h.eta);setv('h-arrival',h.arrival_date);
+    setv('h-depport',h.departure_port);setv('h-country',h.receiving_country);setv('h-port',h.receiving_port);
+    setv('h-agent',h.agent);setv('h-shipper',h.shipper);setv('h-source',h.source_type);setv('h-rawsource',h.raw_source);
+    fillHeaderSelects({status:h.shipping_status,client:h.client,subclient:h.subclient,pack_house:h.pack_house,pack_house_departure:h.pack_house_departure});
+    deriveDate();
+    LINES=lines.map(function(l){var d=newLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=String(l[k])});d.id=l.id||null;return d});
+    if(!LINES.length)LINES=[newLine()];
+    openRows={};renderTable();
+    var ct=el('crumb-title');if(ct)ct.textContent='Edit Shipment';
+    var cr=el('ctx-ref');if(cr)cr.textContent=container;
+  }).catch(function(e){toast('Load failed')});
+}
+
+/* ---- toast ---- */
+function toast(msg){
+  var t=el('dtoast');
+  if(!t){t=document.createElement('div');t.id='dtoast';t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a17;color:#f0ede6;font-size:13px;padding:9px 16px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:60;opacity:0;transition:opacity .25s';document.body.appendChild(t)}
+  t.textContent=msg;t.style.opacity='1';setTimeout(function(){t.style.opacity='0'},2200);
+}
+
+/* ---- boot ---- */
+function boot(){
+  loadRefs().then(function(){
+    renderProdPick();
+    var q=new URLSearchParams(location.search);
+    if(q.get('edit')==='1'&&q.get('container')&&q.get('loaded')){
+      MODE='edit';EDIT={container:q.get('container'),loaded:q.get('loaded'),product:q.get('product')||'citrus',deletedIds:[]};
+      fillHeaderSelects({});
+      loadForEdit(EDIT.container,EDIT.loaded,EDIT.product);
+    } else {
+      MODE='create';fillHeaderSelects({status:'Delivered'});
+      LINES=[newLine()];renderTable();
+    }
+  }).catch(function(e){
+    fillHeaderSelects({status:'Delivered'});LINES=[newLine()];renderTable();
+    toast('Reference data failed to load — sign in to DalOS and reload');
+  });
+}
+boot();
+</script>
