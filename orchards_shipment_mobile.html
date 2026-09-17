@@ -1,0 +1,637 @@
+<meta charset="utf-8"/>
+<title>Orchards Shipment · Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
+<style>
+:root{
+  --bg:#f0ede6;--bg2:#e8e4da;--bg3:#ddd8cc;
+  --sidebar:#1e2d22;--sidebar-muted:#6a8068;
+  --accent:#2b5c3f;--accent2:#4a8c62;
+  --amber:#b87820;--amber-bg:#fdf3e0;--amber-border:#e8c87a;
+  --red:#b03030;--red-bg:#faeaea;--red-border:#e8a0a0;
+  --green:#1e6b3a;--green-bg:#e8f5ec;--green-border:#8ecba4;
+  --blue:#2a50c0;--blue-bg:#e8eeff;--blue-border:#a0b4e8;
+  --text:#1a1a17;--text2:#4a4840;--text3:#7a7668;
+  --border:#d0cbbe;--border2:#bcb8ae;--card:#ffffff;
+  --font-display:'DM Serif Display',serif;
+  --font-body:'Instrument Sans',sans-serif;
+  --font-mono:'DM Mono',monospace;
+  --r:8px;--r2:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.stage{max-width:1060px;margin:0 auto;padding:28px 20px 60px;display:grid;grid-template-columns:390px 1fr;gap:44px;align-items:start}
+.stage-intro{padding-top:18px}
+.stage-intro .ey{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--amber);font-weight:600;display:flex;align-items:center;gap:7px}
+.stage-intro .ey .dots{display:inline-flex;gap:3px}
+.stage-intro .ey .dots i{width:6px;height:6px;border-radius:50%}
+.stage-intro h1{font-family:var(--font-display);font-weight:400;font-size:30px;line-height:1.12;margin:12px 0 10px;text-wrap:balance}
+.stage-intro p{color:var(--text2);font-size:14px;max-width:42ch;margin:0 0 22px}
+.callouts{display:flex;flex-direction:column;gap:14px;max-width:44ch}
+.callout{display:flex;gap:12px;align-items:flex-start}
+.callout .n{flex-shrink:0;width:26px;height:26px;border-radius:7px;background:var(--accent);color:#fff;font-family:var(--font-mono);font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.callout h3{margin:0 0 2px;font-size:14px;font-weight:600}
+.callout p{margin:0;font-size:13px;color:var(--text3);max-width:none}
+.device{width:390px;background:#111;border-radius:44px;padding:12px;box-shadow:0 22px 60px rgba(30,45,34,.28);position:sticky;top:24px}
+.notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:130px;height:26px;background:#111;border-radius:0 0 16px 16px;z-index:30}
+.screen{position:relative;height:812px;background:var(--bg);border-radius:33px;overflow:hidden;display:flex;flex-direction:column}
+.abar{flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--border);padding:28px 14px 10px;display:flex;align-items:center;gap:10px}
+.abar .bk{width:32px;height:32px;border:1px solid var(--border2);border-radius:9px;background:var(--card);display:flex;align-items:center;justify-content:center;color:var(--text2);flex-shrink:0;cursor:pointer}
+.abar .bk.hide{display:none}
+.abar .ttl{flex:1;min-width:0}
+.abar .ttl b{font-family:var(--font-display);font-size:17px;font-weight:400;display:block;line-height:1.1}
+.abar .ttl small{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.abar .status{border:1px solid var(--blue-border);background:var(--blue-bg);color:var(--blue);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;white-space:nowrap}
+.abar .status.hide{display:none}
+.screen-view{flex:1;min-height:0;display:none;flex-direction:column}
+.screen-view.active{display:flex}
+/* list screen */
+.lsearch{flex-shrink:0;padding:10px 12px 6px}
+.lsearch input{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:22px;padding:11px 14px;font-size:14px;font-family:var(--font-body);color:var(--text)}
+.lsearch input:focus{outline:none;border-color:var(--accent)}
+.llist{flex:1;overflow-y:auto;padding:4px 12px 96px}
+.ccard{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:11px 13px;margin-bottom:9px;cursor:pointer}
+.ccard .ct{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ccard .ref{font-family:var(--font-mono);font-size:13px;color:var(--text)}
+.ccard .who{font-size:13px;color:var(--text2);margin-top:3px}
+.ccard .who b{color:var(--text);font-weight:600}
+.ccard .meta{margin-top:7px;font-family:var(--font-mono);font-size:11px;color:var(--text3);display:flex;flex-wrap:wrap;gap:3px 12px}
+.ccard .meta b{color:var(--text2);font-weight:500}
+.pill{border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;border:1px solid;white-space:nowrap}
+.pill-green{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.pill-blue{background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)}
+.pill-amber{background:var(--amber-bg);border-color:var(--amber-border);color:#8a5810}
+.lnote{padding:6px 14px;font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.lempty{padding:40px 16px;text-align:center;color:var(--text3);font-size:13px}
+.newfab{position:absolute;right:16px;bottom:72px;z-index:16;background:var(--accent);color:#fff;border:none;border-radius:26px;height:48px;padding:0 18px;font-size:15px;font-weight:600;font-family:var(--font-body);box-shadow:0 8px 22px rgba(30,45,34,.28);cursor:pointer;display:flex;align-items:center;gap:8px}
+.newfab:active{background:var(--accent2)}
+.body{flex:1;overflow-y:auto;padding:12px 12px 122px}
+.pstrip{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:12px}
+.pstrip .lab{font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--text3);display:block;margin-bottom:8px}
+.prow{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+.pchip{flex:0 0 auto;border:1px solid var(--border2);background:var(--card);border-radius:20px;padding:7px 13px;font-size:13px;font-weight:500;color:var(--text2);display:flex;align-items:center;gap:7px;cursor:pointer}
+.pchip .pd{width:9px;height:9px;border-radius:50%}
+.pchip.on{border-color:var(--accent);background:var(--green-bg);color:var(--accent);font-weight:600}
+.hsum{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;margin-bottom:14px}
+.hsum-top{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.hsum-top .who{flex:1;min-width:0}
+.hsum-top .who b{font-family:var(--font-display);font-size:16px;font-weight:400;display:block;line-height:1.15}
+.hsum-top .who small{font-size:12px;color:var(--text3)}
+.hsum-top .cv{font-family:var(--font-mono);font-size:12px;color:var(--text2);background:var(--bg2);padding:2px 7px;border-radius:5px}
+.chev{color:var(--text3);transition:transform .18s}
+.hsum.open .chev{transform:rotate(180deg)}
+.hsum-detail{display:none;border-top:1px solid var(--border);padding:12px 14px;background:var(--bg2)}
+.hsum.open .hsum-detail{display:block}
+.hrow{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:13px;border-bottom:1px dotted var(--border)}
+.hrow:last-of-type{border-bottom:none}
+.hrow .k{color:var(--text3)}
+.hrow .v{font-family:var(--font-mono);color:var(--text2);text-align:right}
+.derch{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.derch .c{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2px 8px;font-size:11px;font-family:var(--font-mono);color:var(--text2)}
+.edit{margin-top:8px;font-size:12px;color:var(--accent);background:none;border:none;padding:0;cursor:pointer}
+.shead{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 9px}
+.shead .t{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);display:flex;align-items:center;gap:7px}
+.shead .t .bar{width:18px;height:2px;border-radius:2px}
+.shead .cnt{font-family:var(--font-mono);font-size:11px;color:var(--text3)}
+.lcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:12px 13px;margin-bottom:10px;border-left:3px solid var(--border)}
+.lc-top{display:flex;align-items:flex-start;gap:10px}
+.lc-top .nm{flex:1;min-width:0}
+.lc-cat{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600}
+.lc-top .nm b{font-family:var(--font-display);font-size:17px;font-weight:400;line-height:1.1;display:block;margin-top:2px}
+.lc-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{font-size:11px;border-radius:6px;padding:2px 8px;background:var(--bg2);border:1px solid var(--border);color:var(--text2)}
+.tag.cal{background:var(--amber-bg);border-color:var(--amber-border);color:#8a5810;font-family:var(--font-mono)}
+.lc-big{text-align:right;flex-shrink:0}
+.lc-big .num{font-family:var(--font-display);font-size:24px;line-height:1}
+.lc-big .lab{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)}
+.lc-meta{margin-top:10px;font-family:var(--font-mono);font-size:11.5px;color:var(--text3);display:flex;flex-wrap:wrap;gap:4px 10px}
+.lc-meta b{color:var(--text2);font-weight:500}
+.lc-act{display:flex;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid var(--border)}
+.lc-act button{flex:1;border:1px solid var(--border2);background:var(--card);border-radius:var(--r);padding:8px;font-size:12.5px;font-weight:500;color:var(--text2);font-family:var(--font-body);display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;min-height:40px}
+.lc-act button:hover{background:var(--bg2)}
+.lc-act .dup{color:var(--accent);border-color:#bcd4c2}
+.lc-act .rm{color:var(--red);border-color:var(--red-border);flex:0 0 44px}
+.footzone{position:absolute;left:0;right:0;bottom:56px;padding:10px 12px;background:linear-gradient(to top,var(--bg) 72%,rgba(240,237,230,0));pointer-events:none}
+.footcard{pointer-events:auto;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;box-shadow:0 6px 18px rgba(30,45,34,.10)}
+.foot-tot{display:flex;justify-content:space-between;margin-bottom:9px}
+.foot-tot .t{display:flex;flex-direction:column}
+.foot-tot .t .k{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)}
+.foot-tot .t .v{font-family:var(--font-mono);font-size:15px;font-weight:500}
+.foot-btns{display:flex;gap:8px}
+.addbtn{flex:1;background:var(--card);color:var(--accent);border:1px solid #bcd4c2;border-radius:var(--r);padding:12px;font-size:14px;font-weight:600;font-family:var(--font-body);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.addbtn:active{background:var(--green-bg)}
+.subbtn{flex:1;background:var(--accent);color:#fff;border:none;border-radius:var(--r);padding:12px;font-size:14px;font-weight:600;font-family:var(--font-body);cursor:pointer}
+.subbtn:active{background:var(--accent2)}
+.subbtn:disabled{opacity:.5}
+.bnav{position:absolute;left:0;right:0;bottom:0;height:56px;background:var(--sidebar);display:flex;z-index:15}
+.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--sidebar-muted);text-decoration:none;font-size:10px;cursor:pointer}
+.bnav a svg{width:19px;height:19px}
+.bnav a.active{color:#fff}
+.scrim{position:absolute;inset:0;background:rgba(20,28,22,.45);opacity:0;pointer-events:none;transition:opacity .25s;z-index:40}
+.scrim.show{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:20px 20px 0 0;z-index:45;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:95%;display:flex;flex-direction:column}
+.sheet.show{transform:translateY(0)}
+.handle{width:36px;height:4px;border-radius:3px;background:var(--border2);margin:9px auto 2px}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;padding:6px 16px 10px}
+.sheet-h .st{display:flex;flex-direction:column}
+.sheet-h b{font-family:var(--font-display);font-size:19px;font-weight:400}
+.sheet-h .sp{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;margin-top:1px}
+.sheet-h .sp .pd{width:7px;height:7px;border-radius:50%}
+.copylast{border:1px solid #bcd4c2;background:var(--green-bg);color:#1c5a32;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;font-family:var(--font-body);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.sheet-b{overflow-y:auto;padding:4px 16px 12px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px 12px}
+.f{display:flex;flex-direction:column;gap:5px}
+.f.full{grid-column:1 / -1}
+.f label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--text3)}
+.f input,.f select{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:11px;font-size:15px;font-family:var(--font-body);color:var(--text);min-height:44px}
+.f input.mono{font-family:var(--font-mono);font-size:14px}
+.f input:focus,.f select:focus{outline:none;border-color:var(--accent)}
+.sgroup{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:15px 0 3px;display:flex;align-items:center;gap:7px}
+.sgroup .bar{width:16px;height:2px;background:var(--accent);border-radius:2px}
+.sgroup .cbadge{background:var(--amber-bg);border:1px solid var(--amber-border);color:#8a5810;border-radius:20px;padding:1px 8px;font-size:9px;letter-spacing:.04em}
+.citrus-only{display:none}
+.citrus-only.show{display:grid}
+.citrus-only-g{display:none}
+.citrus-only-g.show{display:flex}
+.dnote{font-size:11px;color:var(--text3);margin:14px 0 2px;display:flex;align-items:flex-start;gap:8px;line-height:1.4}
+.dnote code{font-family:var(--font-mono);background:var(--card);border:1px solid var(--border);padding:1px 4px;border-radius:4px;font-size:10px;color:var(--text2)}
+.sheet-f{flex-shrink:0;border-top:1px solid var(--border);padding:11px 16px;display:flex;gap:10px;background:var(--bg)}
+.sheet-f button{flex:1;border-radius:var(--r);padding:13px;font-size:15px;font-weight:600;font-family:var(--font-body);cursor:pointer;min-height:48px}
+.sheet-f .cancel{background:var(--card);border:1px solid var(--border2);color:var(--text2)}
+.sheet-f .save{background:var(--accent);border:1px solid var(--accent);color:#fff}
+.dtoast{position:absolute;left:50%;bottom:80px;transform:translateX(-50%);background:#1a1a17;color:#f0ede6;font-size:12.5px;padding:9px 15px;border-radius:8px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+.dtoast.show{opacity:1}
+@media(max-width:820px){
+  .stage{grid-template-columns:1fr;gap:24px;padding:0}
+  .stage-intro{display:none}
+  .device{width:100%;background:transparent;border-radius:0;padding:0;box-shadow:none;position:static}
+  .notch{display:none}
+  .screen{height:100vh;height:100dvh;border-radius:0}
+  .abar{padding-top:16px}
+}
+</style>
+
+<div class="stage">
+  <div class="device">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="abar">
+        <div class="bk hide" id="backbtn" onclick="showList()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="ttl"><b id="abar-title">Shipments</b><small id="abar-sub">Citrus · live</small></div>
+        <span class="status hide" id="abar-status">DELIVERED</span>
+      </div>
+
+      <!-- ===== LIST SCREEN ===== -->
+      <div class="screen-view active" id="screen-list">
+        <div class="lsearch"><input id="lq" placeholder="Search container, client, vessel, port…" oninput="onSearch()" autocomplete="off"></div>
+        <div class="lnote" id="lnote"></div>
+        <div class="llist" id="clist"></div>
+        <button class="newfab" onclick="openCreate()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> New</button>
+      </div>
+
+      <!-- ===== FORM SCREEN ===== -->
+      <div class="screen-view" id="screen-form">
+        <div class="body">
+          <div class="pstrip">
+            <span class="lab">Container product</span>
+            <div class="prow" id="prow"></div>
+          </div>
+          <div class="hsum open" id="hsum">
+            <div class="hsum-top" onclick="document.getElementById('hsum').classList.toggle('open')">
+              <div class="who"><b id="hs-who">New shipment</b><small id="hs-sub">tap Edit header to fill</small></div>
+              <span class="cv" id="hs-ref">—</span>
+              <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            </div>
+            <div class="hsum-detail">
+              <div class="hrow"><span class="k">Carta · Line</span><span class="v" id="hs-carta">—</span></div>
+              <div class="hrow"><span class="k">Booking</span><span class="v" id="hs-booking">—</span></div>
+              <div class="hrow"><span class="k">ETD → ETA</span><span class="v" id="hs-eta">—</span></div>
+              <div class="hrow"><span class="k">Invoice · PO</span><span class="v" id="hs-inv">—</span></div>
+              <div class="hrow"><span class="k">Pack house · Source</span><span class="v" id="hs-pack">—</span></div>
+              <div class="derch"><span class="c" id="hs-month">—</span><span class="c" id="hs-week">—</span></div>
+              <button class="edit" onclick="openHeaderSheet()">Edit shipment header →</button>
+            </div>
+          </div>
+          <div class="shead"><span class="t"><span class="bar" id="shead-bar"></span> <span id="shead-t">Citrus Lines</span></span><span class="cnt" id="cnt">0 lines</span></div>
+          <div id="cards"></div>
+        </div>
+        <div class="footzone">
+          <div class="footcard">
+            <div class="foot-tot">
+              <div class="t"><span class="k">Pallets</span><span class="v" id="f-pal">0</span></div>
+              <div class="t"><span class="k">Cartons</span><span class="v" id="f-ctn">0</span></div>
+              <div class="t"><span class="k">Net t</span><span class="v" id="f-net">0.00</span></div>
+            </div>
+            <div class="foot-btns">
+              <button class="addbtn" onclick="openLineSheet()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> Add line</button>
+              <button class="subbtn" id="subbtn" onclick="submitShip()">Submit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="bnav">
+        <a onclick="showList()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Home</a>
+        <a class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Ship</a>
+        <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>QC</a>
+        <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Lots</a>
+      </nav>
+
+      <div class="scrim" id="scrim" onclick="closeSheets()"></div>
+
+      <!-- HEADER SHEET -->
+      <div class="sheet" id="sheet-header">
+        <div class="handle"></div>
+        <div class="sheet-h"><div class="st"><b>Shipment header</b><span class="sp">one container</span></div></div>
+        <div class="sheet-b">
+          <div class="sgroup"><span class="bar"></span> Logistics</div>
+          <div class="fgrid">
+            <div class="f"><label>Container No.</label><input class="mono" id="h-container" placeholder="e.g. MNBU 3751992"></div>
+            <div class="f"><label>Carta</label><input class="mono" id="h-carta"></div>
+            <div class="f"><label>Loading Date</label><input type="date" id="h-ldate" onchange="deriveDate()"></div>
+            <div class="f"><label>Shipping Status</label><select id="h-status"></select></div>
+            <div class="f"><label>Vessel</label><input id="h-vessel"></div>
+            <div class="f"><label>Shipping Line</label><input id="h-line" list="dl-line"></div>
+            <div class="f"><label>Booking No.</label><input class="mono" id="h-booking"></div>
+            <div class="f"><label>Invoice No.</label><input class="mono" id="h-invoice"></div>
+            <div class="f"><label>PO Number</label><input class="mono" id="h-po"></div>
+            <div class="f"><label>Departure Port</label><input id="h-depport" list="dl-depport"></div>
+            <div class="f"><label>ETD</label><input type="date" id="h-etd"></div>
+            <div class="f"><label>ETA</label><input type="date" id="h-eta"></div>
+            <div class="f full"><label>Actual Arrival</label><input type="date" id="h-arrival"></div>
+          </div>
+          <div class="sgroup"><span class="bar"></span> Destination &amp; commercial</div>
+          <div class="fgrid">
+            <div class="f"><label>Receiving Country</label><input id="h-country" list="dl-country"></div>
+            <div class="f"><label>Receiving Port</label><input id="h-port" list="dl-port"></div>
+            <div class="f"><label>Client</label><select id="h-client" onchange="fillSubclients()"></select></div>
+            <div class="f"><label>Subclient</label><select id="h-subclient"></select></div>
+            <div class="f"><label>Agent</label><input id="h-agent" list="dl-agent"></div>
+            <div class="f"><label>Shipper</label><input id="h-shipper" list="dl-shipper"></div>
+          </div>
+          <div class="sgroup"><span class="bar"></span> Handling &amp; source</div>
+          <div class="fgrid">
+            <div class="f"><label>Pack House (Departure)</label><select id="h-packdep"></select></div>
+            <div class="f"><label>Pack House (Packing)</label><select id="h-packpack"></select></div>
+            <div class="f"><label>Source Type</label><input id="h-source" list="dl-source"></div>
+            <div class="f"><label>Raw Source</label><input id="h-rawsource" list="dl-rawsource"></div>
+          </div>
+          <datalist id="dl-line"></datalist><datalist id="dl-depport"></datalist><datalist id="dl-country"></datalist>
+          <datalist id="dl-port"></datalist><datalist id="dl-agent"></datalist><datalist id="dl-shipper"></datalist>
+          <datalist id="dl-source"></datalist><datalist id="dl-rawsource"></datalist>
+        </div>
+        <div class="sheet-f">
+          <button class="cancel" onclick="closeSheets()">Cancel</button>
+          <button class="save" onclick="saveHeader()">Done</button>
+        </div>
+      </div>
+
+      <!-- LINE SHEET -->
+      <div class="sheet" id="sheet-line">
+        <div class="handle"></div>
+        <div class="sheet-h">
+          <div class="st"><b id="sheet-title">Add line</b><span class="sp"><span class="pd" id="sheet-pd"></span> <span id="sheet-prod">Citrus</span></span></div>
+          <button class="copylast" onclick="copyLast()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy last</button>
+        </div>
+        <div class="sheet-b">
+          <div class="sgroup"><span class="bar"></span> Variety</div>
+          <div class="fgrid">
+            <div class="f"><label>Category</label><select id="i-cat" onchange="onCatChange()"></select></div>
+            <div class="f"><label>Variety</label><select id="i-v"></select></div>
+            <div class="f"><label>Lot #</label><input class="mono" id="i-lot" placeholder="e.g. 811"></div>
+            <div class="f citrus-only-g" id="cal-field"><label>Caliber</label><input class="mono" id="i-cal" placeholder="e.g. C04 N064"></div>
+            <div class="f"><label>Daltex Class</label><input id="i-dc" placeholder="e.g. 1"></div>
+            <div class="f"><label>Client Class</label><input id="i-cc" placeholder="e.g. Fancy"></div>
+            <div class="f"><label>Carton Type</label><select id="i-ct"></select></div>
+            <div class="f"><label>Packing</label><input id="i-pk" placeholder="e.g. Teles 15kg"></div>
+            <div class="f"><label>Brand</label><input id="i-br" placeholder="e.g. Daltex"></div>
+            <div class="f"><label>Count / Size</label><input class="mono" id="i-cnt" placeholder="optional"></div>
+            <div class="f full"><label>Traceability code</label><input class="mono" id="i-trace" placeholder="per-line trace code"></div>
+          </div>
+          <div class="sgroup"><span class="bar"></span> Quantities</div>
+          <div class="fgrid">
+            <div class="f"><label>Pallets</label><input class="mono" id="i-pal" value="0"></div>
+            <div class="f"><label>Cartons</label><input class="mono" id="i-ctn" value="0"></div>
+            <div class="f"><label>Carton Net (kg)</label><input class="mono" id="i-cnw" placeholder="0.015"></div>
+            <div class="f"><label>Carton Gross (kg)</label><input class="mono" id="i-cgw" placeholder="0.016"></div>
+            <div class="f"><label>Net weight (t)</label><input class="mono" id="i-net" value="0"></div>
+            <div class="f"><label>Gross weight (t)</label><input class="mono" id="i-grs" value="0"></div>
+          </div>
+          <div class="sgroup" id="pascol-head"><span class="bar"></span> Weighbridge <span class="cbadge">Citrus</span></div>
+          <div class="fgrid citrus-only" id="pascol-group">
+            <div class="f"><label>Pascol Weight (t)</label><input class="mono" id="i-pas"></div>
+            <div class="f"><label>Pascol Actual %</label><input class="mono" id="i-paspct"></div>
+            <div class="f"><label>Packing Weight (t)</label><input class="mono" id="i-packw"></div>
+            <div class="f"><label>Pascol Net (t)</label><input class="mono" id="i-pasnet"></div>
+            <div class="f full"><label>Weight Variance (t)</label><input class="mono" id="i-var"></div>
+          </div>
+          <div class="dnote"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4M12 8h.01"/></svg><span>Container %, shipping month &amp; week are generated on save. Traceability is entered per line above.</span></div>
+        </div>
+        <div class="sheet-f">
+          <button class="cancel" onclick="closeSheets()">Cancel</button>
+          <button class="save" onclick="saveLine()">Save line</button>
+        </div>
+      </div>
+
+      <div class="dtoast" id="dtoast"></div>
+    </div>
+  </div>
+
+  <div class="stage-intro">
+    <div class="ey"><span class="dots"><i style="background:#6a10b0"></i><i style="background:#b87820"></i><i style="background:#d19a1e"></i><i style="background:#b03030"></i></span> DalOS Vision · Orchards</div>
+    <h1>Shipments, on the phone.</h1>
+    <p>The list is live from <code>shipments_v2</code>. Tap a container to edit it, or <b>New</b> to add one. One container = one product; each line is a variety of it.</p>
+    <div class="callouts">
+      <div class="callout"><div class="n">1</div><div><h3>Live list</h3><p>Search across container, client, vessel and port. Tap to open the entry form.</p></div></div>
+      <div class="callout"><div class="n">2</div><div><h3>Header sheet</h3><p>Edit shipment header opens a sheet with all logistics + commercial fields.</p></div></div>
+      <div class="callout"><div class="n">3</div><div><h3>Lines as varieties</h3><p>Category → Variety filter to the product; Citrus adds Caliber + the Pascol weighbridge.</p></div></div>
+      <div class="callout"><div class="n">4</div><div><h3>Saves to shipments_v2</h3><p>Submit writes the container + lines via the same RPCs as the desktop form.</p></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== DalOS Orchards Shipment (mobile) — create/edit into shipments_v2 ===== */
+var DALOS_SUPABASE_URL='https://sfyjvgjwvtwkrnqrvqyc.supabase.co';
+var DALOS_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmeWp2Z2p3dnR3a3JucXJ2cXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzIxNjYsImV4cCI6MjA5MDQ0ODE2Nn0.FjA75XZsp0Kx5Xam_rrnYoAHX4JHKey6vEFCH_zlMuQ';
+var sb=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(DALOS_SUPABASE_URL,DALOS_ANON_KEY):null;
+
+var PRODUCT_COLORS={citrus:'#b87820',grapes:'#6a10b0',mango:'#d19a1e',pomegranate:'#b03030'};
+var STATUS_OPTS=['Delivered','Shipped','Returned'];
+var REF={products:[],clients:[],clientIdByName:{},subByClientId:{},catByProd:{},varByProd:{},packByProd:{},cartonTypes:[]};
+var PRODUCT='citrus';
+var HDR={};                 // header state (RPC-shaped keys)
+var LINES=[];
+var editIdx=-1;
+var MODE='create';
+var EDIT={container:null,loaded:null,product:null,deletedIds:[]};
+var DATA=[];                // list data
+
+function el(id){return document.getElementById(id)}
+function val(id){var e=el(id);return e?String(e.value||'').trim():''}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+function uniq(a){return (a||[]).filter(function(v,i){return v!=null&&v!==''&&a.indexOf(v)===i})}
+function pcolor(p){return PRODUCT_COLORS[p]||'#2b5c3f'}
+function isCitrus(){return PRODUCT==='citrus'}
+function num(v){var n=Number(v);return isNaN(n)?0:n}
+function prodName(p){var f=REF.products.find(function(x){return x.id===p});return f?f.name:(p||'Product')}
+function toast(msg){var t=el('dtoast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200)}
+
+function opts(list,cur){var arr=uniq((list||[]).slice());if(cur&&arr.indexOf(cur)<0)arr.unshift(cur);
+  return '<option value=""></option>'+arr.map(function(o){return '<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>'}).join('');}
+function fillSelect(id,list,cur){var e=el(id);if(e)e.innerHTML=opts(list,cur)}
+function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pallet_count:'0',carton_count:'0',net_weight:'0',gross_weight:'0',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',pascol_net:'',weight_variance:'',traceability_code:''}}
+
+/* ---- reference data ---- */
+function loadRefs(){
+  if(!sb)return Promise.reject(new Error('supabase unavailable'));
+  return Promise.all([
+    sb.from('products').select('id,name,active').eq('active',true),
+    sb.from('clients').select('id,name,active').eq('active',true).order('name'),
+    sb.from('sub_clients').select('id,client_id,name,active').eq('active',true).order('name'),
+    sb.from('categories').select('id,product_id,name,active').eq('active',true).order('name'),
+    sb.from('varieties').select('id,product_id,name,category_id,active').eq('active',true).order('name'),
+    sb.from('packhouses').select('id,name,product_ids,active').eq('active',true),
+    sb.from('carton_types').select('id,name,active').eq('active',true).order('name')
+  ]).then(function(r){
+    r.forEach(function(x){if(x.error)throw x.error});
+    var P=['citrus','grapes','mango','pomegranate'];
+    REF.products=(r[0].data||[]).filter(function(p){return P.indexOf(p.id)>=0});
+    REF.clients=(r[1].data||[]).map(function(c){return c.name});
+    (r[1].data||[]).forEach(function(c){REF.clientIdByName[c.name]=c.id});
+    (r[2].data||[]).forEach(function(s){(REF.subByClientId[s.client_id]=REF.subByClientId[s.client_id]||[]).push(s.name)});
+    (r[3].data||[]).forEach(function(c){(REF.catByProd[c.product_id]=REF.catByProd[c.product_id]||[]).push({id:c.id,name:c.name})});
+    (r[4].data||[]).forEach(function(v){(REF.varByProd[v.product_id]=REF.varByProd[v.product_id]||[]).push({name:v.name,category_id:v.category_id})});
+    (r[5].data||[]).forEach(function(p){(p.product_ids||[]).forEach(function(pid){(REF.packByProd[pid]=REF.packByProd[pid]||[]).push(p.name)})});
+    REF.cartonTypes=(r[6].data||[]).map(function(c){return c.name});
+  });
+}
+function catsFor(p){return (REF.catByProd[p]||[]).map(function(c){return c.name})}
+function catIdByName(p,name){var f=(REF.catByProd[p]||[]).find(function(c){return c.name===name});return f?f.id:null}
+function varsFor(p,catName){var all=REF.varByProd[p]||[];var names;
+  if(catName){var cid=catIdByName(p,catName);names=all.filter(function(v){return v.category_id===cid}).map(function(v){return v.name});if(!names.length)names=all.map(function(v){return v.name});}
+  else names=all.map(function(v){return v.name});
+  return uniq(names);}
+
+/* ===== LIST ===== */
+function ccard(c,i){
+  var st=c.hdr.status||'';var pc=/Deliver/i.test(st)?'pill-green':(/Return/i.test(st)?'pill-amber':'pill-blue');
+  var pal=0,ctn=0,net=0;c.lines.forEach(function(l){pal+=num(l.pal);ctn+=num(l.ctn);net+=num(l.net)});
+  return '<div class="ccard" onclick="openContainer('+i+')">'+
+    '<div class="ct"><span class="ref">'+esc(c.ref)+'</span><span class="pill '+pc+'">'+esc(st||'—')+'</span></div>'+
+    '<div class="who"><b>'+esc(c.hdr.client||'—')+'</b> · '+esc(c.hdr.region||'—')+'</div>'+
+    '<div class="meta"><span>Loaded <b>'+esc(c.hdr.loaded||'—')+'</b></span><span>Pallets <b>'+pal+'</b></span><span>Cartons <b>'+ctn.toLocaleString()+'</b></span><span>Net <b>'+(Math.round(net*100)/100).toFixed(2)+'t</b></span></div>'+
+  '</div>';
+}
+var LQ='';
+function filteredList(){
+  if(!LQ)return DATA;
+  return DATA.filter(function(c){
+    var s=[c.ref,c.hdr.client,c.hdr.subclient,c.hdr.vessel,c.hdr.line,c.hdr.region,c.hdr.port,c.hdr.booking,c.hdr.invoice,c.hdr.carta].join(' ').toLowerCase();
+    return s.indexOf(LQ)>=0;
+  });
+}
+function renderClist(){
+  var rows=filteredList();var box=el('clist');
+  if(!rows.length){box.innerHTML='<div class="lempty">'+(DATA.length?'No containers match.':'Nothing to show.')+'</div>';el('lnote').textContent='';return;}
+  box.innerHTML=rows.map(function(c){return ccard(c,DATA.indexOf(c))}).join('');
+  el('lnote').textContent=(rows.length===DATA.length?('All '+DATA.length.toLocaleString()+' citrus containers'):(rows.length.toLocaleString()+' of '+DATA.length.toLocaleString()))+' · live from shipments_v2';
+}
+function onSearch(){LQ=val('lq').toLowerCase();renderClist();}
+function listError(msg){el('clist').innerHTML='<div class="lempty"><b>'+esc(msg)+'</b><br>Sign in to DalOS and reload.</div>';el('lnote').textContent='';}
+function loadList(){
+  if(!sb){listError('Not connected');return;}
+  sb.functions.invoke('citrus-shipments',{method:'GET'}).then(function(res){
+    if(res.error){listError('Could not load — '+((res.error&&res.error.message)||'failed'));return;}
+    var d=res.data||{};DATA=Array.isArray(d)?d:(d.containers||[]);renderClist();
+  }).catch(function(){listError('Could not load shipments')});
+}
+
+/* ===== screen routing ===== */
+function showList(){el('screen-form').classList.remove('active');el('screen-list').classList.add('active');
+  el('backbtn').classList.add('hide');el('abar-status').classList.add('hide');
+  el('abar-title').textContent='Shipments';el('abar-sub').textContent='Citrus · live';window.scrollTo(0,0);}
+function showForm(){el('screen-list').classList.remove('active');el('screen-form').classList.add('active');
+  el('backbtn').classList.remove('hide');window.scrollTo(0,0);}
+
+/* ===== product strip ===== */
+function renderProdStrip(){
+  el('prow').innerHTML=REF.products.map(function(p){
+    return '<div class="pchip'+(p.id===PRODUCT?' on':'')+'" onclick="pickProduct(\''+p.id+'\')"><span class="pd" style="background:'+pcolor(p.id)+'"></span>'+esc(p.name)+'</div>';
+  }).join('');
+  el('shead-t').textContent=prodName(PRODUCT)+' Lines';
+  el('shead-bar').style.background=pcolor(PRODUCT);
+}
+function pickProduct(p){if(p===PRODUCT)return;PRODUCT=p;renderProdStrip();render();}
+
+/* ===== header ===== */
+function fillHeaderSelects(){
+  fillSelect('h-status',STATUS_OPTS,HDR.shipping_status||'Delivered');
+  fillSelect('h-client',REF.clients,HDR.client||'');
+  fillSubclients(HDR.subclient||'');
+  fillSelect('h-packdep',REF.packByProd[PRODUCT]||[],HDR.pack_house_departure||'');
+  fillSelect('h-packpack',REF.packByProd[PRODUCT]||[],HDR.pack_house||'');
+}
+function fillSubclients(cur){var cid=REF.clientIdByName[val('h-client')];var list=(cid&&REF.subByClientId[cid])?REF.subByClientId[cid]:[];fillSelect('h-subclient',list,typeof cur==='string'?cur:'');}
+function openHeaderSheet(){
+  fillHeaderSelects();
+  var setv=function(id,v){var e=el(id);if(e)e.value=(v==null?'':v)};
+  setv('h-container',HDR.container_number);setv('h-carta',HDR.carta);setv('h-ldate',HDR.loading_date);
+  setv('h-vessel',HDR.vessel);setv('h-line',HDR.shipping_line);setv('h-booking',HDR.booking_no);setv('h-invoice',HDR.invoice_no);
+  setv('h-po',HDR.po_number);setv('h-etd',HDR.etd);setv('h-eta',HDR.eta);setv('h-arrival',HDR.arrival_date);
+  setv('h-depport',HDR.departure_port);setv('h-country',HDR.receiving_country);setv('h-port',HDR.receiving_port);
+  setv('h-agent',HDR.agent);setv('h-shipper',HDR.shipper);setv('h-source',HDR.source_type);setv('h-rawsource',HDR.raw_source);
+  deriveDate();
+  el('scrim').classList.add('show');el('sheet-header').classList.add('show');
+}
+function saveHeader(){
+  HDR={product_id:PRODUCT,container_number:val('h-container'),carta:val('h-carta'),loading_date:val('h-ldate'),
+    shipping_status:val('h-status'),vessel:val('h-vessel'),shipping_line:val('h-line'),booking_no:val('h-booking'),
+    invoice_no:val('h-invoice'),po_number:val('h-po'),etd:val('h-etd'),eta:val('h-eta'),arrival_date:val('h-arrival'),
+    departure_port:val('h-depport'),receiving_country:val('h-country'),receiving_port:val('h-port'),client:val('h-client'),
+    subclient:val('h-subclient'),agent:val('h-agent'),shipper:val('h-shipper'),pack_house:val('h-packpack'),
+    pack_house_departure:val('h-packdep'),source_type:val('h-source'),raw_source:val('h-rawsource')};
+  closeSheets();renderHeaderSummary();
+}
+function renderHeaderSummary(){
+  el('hs-who').textContent=(HDR.client||'New shipment')+(HDR.receiving_country?' · '+HDR.receiving_country:'');
+  el('hs-sub').textContent=[HDR.loading_date,HDR.receiving_port,HDR.vessel].filter(Boolean).join(' · ')||'tap Edit header to fill';
+  el('hs-ref').textContent=HDR.container_number||'—';
+  el('hs-carta').textContent=[HDR.carta,HDR.shipping_line].filter(Boolean).join(' · ')||'—';
+  el('hs-booking').textContent=HDR.booking_no||'—';
+  el('hs-eta').textContent=(HDR.etd||'—')+' → '+(HDR.eta||'—');
+  el('hs-inv').textContent=[HDR.invoice_no,HDR.po_number].filter(Boolean).join(' · ')||'—';
+  el('hs-pack').textContent=[HDR.pack_house,HDR.source_type].filter(Boolean).join(' · ')||'—';
+  var mm=monthWeek(HDR.loading_date);el('hs-month').textContent=mm.month||'—';el('hs-week').textContent=mm.week?('Wk '+mm.week):'—';
+  el('abar-title').textContent=(MODE==='edit'?'Edit shipment':'New shipment');
+  el('abar-sub').textContent=HDR.container_number||prodName(PRODUCT);
+  var stp=el('abar-status');stp.classList.remove('hide');stp.textContent=(HDR.shipping_status||'Delivered').toUpperCase();
+}
+function monthWeek(iso){if(!iso||!/^\d{4}-\d{2}-\d{2}$/.test(iso))return {};var d=new Date(iso+'T00:00');
+  var m=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var t=new Date(d);t.setHours(0,0,0,0);t.setDate(t.getDate()+3-((t.getDay()+6)%7));var w1=new Date(t.getFullYear(),0,4);
+  return {month:m[d.getMonth()],week:1+Math.round(((t-w1)/86400000-3+((w1.getDay()+6)%7))/7)};}
+function deriveDate(){/* header sheet has no live derived display; summary computes on save */}
+
+/* ===== lines ===== */
+function render(){
+  el('cards').innerHTML=LINES.map(cardHTML).join('');
+  el('cnt').textContent=LINES.length+' line'+(LINES.length!==1?'s':'');
+  el('shead-t').textContent=prodName(PRODUCT)+' Lines';el('shead-bar').style.background=pcolor(PRODUCT);
+  var pal=0,ctn=0,net=0;LINES.forEach(function(x){pal+=num(x.pallet_count);ctn+=num(x.carton_count);net+=num(x.net_weight)});
+  el('f-pal').textContent=pal;el('f-ctn').textContent=ctn.toLocaleString();el('f-net').textContent=net.toFixed(2);
+}
+function cardHTML(d,i){
+  var caltag=isCitrus()&&d.caliber?'<span class="tag cal">cal '+esc(d.caliber)+'</span>':'';
+  return '<div class="lcard" style="border-left-color:'+pcolor(PRODUCT)+'">'+
+    '<div class="lc-top"><div class="nm">'+
+      '<div class="lc-cat">'+esc(d.category||'—')+'</div><b>'+esc(d.variety||'—')+'</b>'+
+      '<div class="lc-tags"><span class="tag">'+esc(d.carton_type||'—')+'</span><span class="tag">'+esc(d.daltex_class||'—')+'</span>'+caltag+'</div>'+
+    '</div><div class="lc-big"><div class="num">'+num(d.pallet_count)+'</div><div class="lab">pallets</div></div></div>'+
+    '<div class="lc-meta"><span>Lot <b>'+esc(d.lot||'—')+'</b></span><span>Cartons <b>'+num(d.carton_count).toLocaleString()+'</b></span><span>Net <b>'+num(d.net_weight).toFixed(2)+'t</b></span><span>Trace <b>'+esc(d.traceability_code||'—')+'</b></span></div>'+
+    '<div class="lc-act">'+
+      '<button class="dup" onclick="dupLine('+i+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicate</button>'+
+      '<button onclick="editLine('+i+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> Edit</button>'+
+      '<button class="rm" onclick="rmLine('+i+')">✕</button>'+
+    '</div></div>';
+}
+function dupLine(i){LINES.splice(i+1,0,Object.assign({},LINES[i],{id:null}));render()}
+function rmLine(i){var d=LINES[i];if(d&&d.id)EDIT.deletedIds.push(d.id);LINES.splice(i,1);render()}
+function applyProductFields(){
+  var c=isCitrus();
+  el('cal-field').classList.toggle('show',c);
+  el('pascol-group').classList.toggle('show',c);
+  el('pascol-head').style.display=c?'flex':'none';
+  el('sheet-prod').textContent=prodName(PRODUCT);el('sheet-pd').style.background=pcolor(PRODUCT);
+}
+function onCatChange(){el('i-v').innerHTML=opts(varsFor(PRODUCT,val('i-cat')),'')}
+function setSheet(d){
+  applyProductFields();
+  el('i-cat').innerHTML=opts(catsFor(PRODUCT),d.category);
+  el('i-v').innerHTML=opts(varsFor(PRODUCT,d.category),d.variety);
+  el('i-ct').innerHTML=opts(REF.cartonTypes,d.carton_type);
+  var g=function(id,v){el(id).value=(v==null?'':v)};
+  g('i-lot',d.lot);g('i-cal',d.caliber);g('i-dc',d.daltex_class);g('i-cc',d.client_class);g('i-pk',d.packaging_type);g('i-br',d.brand);g('i-cnt',d.count_size);g('i-trace',d.traceability_code);
+  g('i-pal',d.pallet_count);g('i-ctn',d.carton_count);g('i-cnw',d.carton_net_weight);g('i-cgw',d.carton_gross_weight);g('i-net',d.net_weight);g('i-grs',d.gross_weight);
+  g('i-pas',d.pascol_weight);g('i-paspct',d.pascol_pct);g('i-packw',d.packing_weight);g('i-pasnet',d.pascol_net);g('i-var',d.weight_variance);
+}
+function openLineSheet(){editIdx=-1;el('sheet-title').textContent='Add line';setSheet(newLine());showLineSheet()}
+function editLine(i){editIdx=i;el('sheet-title').textContent='Edit line';setSheet(LINES[i]);showLineSheet()}
+function copyLast(){if(LINES.length)setSheet(Object.assign({},LINES[LINES.length-1],{id:null}))}
+function showLineSheet(){el('scrim').classList.add('show');el('sheet-line').classList.add('show')}
+function closeSheets(){el('scrim').classList.remove('show');el('sheet-line').classList.remove('show');el('sheet-header').classList.remove('show')}
+function saveLine(){
+  var keepId=(editIdx>=0&&LINES[editIdx])?LINES[editIdx].id:null;
+  var d=newLine();d.id=keepId;
+  d.category=val('i-cat');d.variety=val('i-v');d.lot=val('i-lot');d.caliber=val('i-cal');d.daltex_class=val('i-dc');d.client_class=val('i-cc');
+  d.carton_type=val('i-ct');d.packaging_type=val('i-pk');d.brand=val('i-br');d.count_size=val('i-cnt');d.traceability_code=val('i-trace');
+  d.pallet_count=val('i-pal');d.carton_count=val('i-ctn');d.carton_net_weight=val('i-cnw');d.carton_gross_weight=val('i-cgw');d.net_weight=val('i-net');d.gross_weight=val('i-grs');
+  d.pascol_weight=val('i-pas');d.pascol_pct=val('i-paspct');d.packing_weight=val('i-packw');d.pascol_net=val('i-pasnet');d.weight_variance=val('i-var');
+  if(editIdx>=0)LINES[editIdx]=d;else LINES.push(d);
+  closeSheets();render();
+}
+
+/* ===== create / edit / submit ===== */
+function openCreate(){
+  MODE='create';EDIT={container:null,loaded:null,product:null,deletedIds:[]};PRODUCT='citrus';
+  HDR={product_id:'citrus',shipping_status:'Delivered'};LINES=[];editIdx=-1;
+  renderProdStrip();renderHeaderSummary();render();showForm();
+}
+function openContainer(i){
+  var c=DATA[i];if(!c)return;MODE='edit';EDIT={container:c.ref,loaded:c.hdr.loaded,product:'citrus',deletedIds:[]};
+  showForm();loadForEdit(c.ref,c.hdr.loaded,'citrus');
+}
+function loadForEdit(container,loaded,product){
+  if(!sb)return;
+  sb.rpc('get_shipment_v2_container',{p_container:container,p_loaded:loaded,p_product:product||'citrus'}).then(function(res){
+    if(res.error){toast('Load failed');return;}
+    var data=res.data||{};var h=data.header||{};var lines=data.lines||[];
+    if(!data.header){toast('Container not found');return;}
+    PRODUCT=h.product_id||product||'citrus';
+    HDR={product_id:PRODUCT,container_number:h.container_number,carta:h.carta,loading_date:h.loading_date,
+      shipping_status:h.shipping_status||'Delivered',vessel:h.vessel,shipping_line:h.shipping_line,booking_no:h.booking_no,
+      invoice_no:h.invoice_no,po_number:h.po_number,etd:h.etd,eta:h.eta,arrival_date:h.arrival_date,departure_port:h.departure_port,
+      receiving_country:h.receiving_country,receiving_port:h.receiving_port,client:h.client,subclient:h.subclient,agent:h.agent,
+      shipper:h.shipper,pack_house:h.pack_house,pack_house_departure:h.pack_house_departure,source_type:h.source_type,raw_source:h.raw_source};
+    LINES=lines.map(function(l){var d=newLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=String(l[k])});d.id=l.id||null;return d});
+    renderProdStrip();renderHeaderSummary();render();
+  }).catch(function(){toast('Load failed')});
+}
+function submitShip(){
+  if(!sb){toast('Not connected');return;}
+  var hdr=Object.assign({product_id:PRODUCT},HDR);hdr.product_id=PRODUCT;
+  if(!hdr.container_number){toast('Container No. required — Edit header');openHeaderSheet();return;}
+  if(!hdr.loading_date){toast('Loading Date required — Edit header');openHeaderSheet();return;}
+  if(!LINES.length){toast('Add at least one line');return;}
+  el('subbtn').disabled=true;
+  var finish=function(res){
+    el('subbtn').disabled=false;
+    if(res.error){toast('Save failed: '+(res.error.message||res.error));return;}
+    if(res.data&&res.data.ok===false){toast('Save failed');return;}
+    toast(MODE==='edit'?'Shipment updated':'Shipment saved');
+    MODE='edit';EDIT={container:hdr.container_number,loaded:hdr.loading_date,product:PRODUCT,deletedIds:[]};
+    loadForEdit(hdr.container_number,hdr.loading_date,PRODUCT);loadList();
+  };
+  var q=(MODE==='edit')
+    ? sb.rpc('edit_shipment_v2_full',{p_header:hdr,p_lines:LINES,p_deleted_ids:EDIT.deletedIds})
+    : sb.rpc('save_shipment_v2_full',{p_header:hdr,p_lines:LINES});
+  q.then(finish).catch(function(e){finish({error:e})});
+}
+
+/* ===== boot ===== */
+function boot(){
+  loadRefs().then(function(){
+    renderProdStrip();loadList();
+    var q=new URLSearchParams(location.search);
+    if(q.get('edit')==='1'&&q.get('container')&&q.get('loaded')){
+      MODE='edit';EDIT={container:q.get('container'),loaded:q.get('loaded'),product:q.get('product')||'citrus',deletedIds:[]};
+      showForm();loadForEdit(EDIT.container,EDIT.loaded,EDIT.product);
+    } else if(q.get('new')==='1'){openCreate();}
+    else {showList();}
+  }).catch(function(){listError('Reference data failed to load');});
+}
+boot();
+</script>
