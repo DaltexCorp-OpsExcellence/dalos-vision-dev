@@ -10145,7 +10145,7 @@ function ClientQCMgmt(props){
     var cancelled=false;
     supabase.rpc('get_farm_plots',{p_product_id:selCqcProd}).then(function(r){
       if(cancelled||r.error||!r.data)return;
-      var m={};r.data.forEach(function(row){(m[row.farm_id]=m[row.farm_id]||[]).push(row.plot_code);});
+      var m={};r.data.forEach(function(row){(m[row.farm_id]=m[row.farm_id]||[]).push({p:row.plot_code,v:row.variety_id});});
       setCqcPlotsByFarm(m);
     });
     return function(){cancelled=true;};
@@ -10153,11 +10153,29 @@ function ClientQCMgmt(props){
   /* Farm plot alias — same physical location under two Land Cloud names. Picking the "mask"
      farm (Hana) surfaces the aliased farm's (Badr) plots too. Non-destructive client merge. */
   var CQC_PLOT_ALIAS_BY_NAME={ 'Hana':['Badr'] };
+  /* Mango/Pom: narrow the plot list to the report's variety(ies) — plots are stored per
+     farm_block with a variety_id (FK to the same varieties table the dropdown uses). Returns
+     null (= no variety filter) for other crops, or when no variety is picked yet (so the plot
+     field isn't empty before a variety is chosen). Grapes/Citrus keep the farm-only list. */
+  function cqcReportVarietyIds(){
+    if(selCqcProd!=='mango'&&selCqcProd!=='pomegranate') return null;
+    var vMap=config.varietiesIdMap||{};var ids=[];
+    function add(nm){var id=nm&&vMap[nm];if(id&&ids.indexOf(id)<0)ids.push(id);}
+    add(fVar);(fVarsExtra||[]).forEach(function(ve){add(ve.var);});
+    return ids.length?ids:null;
+  }
   function cqcPlotsForFarm(farmName){
     var idMap=config.farmsIdMap||{};var fid=farmName&&idMap[farmName];if(!fid)return [];
-    var out=(cqcPlotsByFarm[fid]||[]).slice();
+    var vids=cqcReportVarietyIds();
+    var rows=(cqcPlotsByFarm[fid]||[]).slice();
     var extras=CQC_PLOT_ALIAS_BY_NAME[farmName]||[];
-    extras.forEach(function(en){var eid=idMap[en];((eid&&cqcPlotsByFarm[eid])||[]).forEach(function(p){if(out.indexOf(p)===-1)out.push(p);});});
+    extras.forEach(function(en){var eid=idMap[en];((eid&&cqcPlotsByFarm[eid])||[]).forEach(function(r){rows.push(r);});});
+    var out=[];
+    rows.forEach(function(r){
+      /* filter by variety when applicable; rows with a null variety_id are always kept */
+      if(vids&&r.v&&vids.indexOf(r.v)<0) return;
+      if(out.indexOf(r.p)===-1) out.push(r.p);
+    });
     out.sort(function(a,b){return String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'});});
     return out;
   }
