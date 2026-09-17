@@ -12265,7 +12265,7 @@ function ClientQCMgmt(props){
             var farmOpts0=[];if(fFarm1)farmOpts0.push(1);if(fFarm2)farmOpts0.push(1);fFarmsExtra.forEach(function(fe){if(fe.farm)farmOpts0.push(1);});
             var phOpts0=[];if(fPH)phOpts0.push(1);fPHExtra.forEach(function(pe){if(pe.actual)phOpts0.push(1);});
             var traceOpts0=[fTrace].concat(fTraceCodes.map(function(t){return t.code;})).filter(Boolean);
-            var mW={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Firmness':78,'Brix':60,'Brix?':50,'Size mm':60,'Size?':50,'Carton?':60,'Score':72,'Notes':150,'Dispute':80};
+            var mW={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Firmness':120,'Brix':60,'Brix?':50,'Size mm':60,'Size?':50,'Carton?':60,'Score':72,'Notes':150,'Dispute':80};
             var hasMixed=cqcSamples.some(function(s){return s.sampleVariety&&s.sampleVariety.indexOf(' / ')>=0;})||(fVarType==='mixed'&&fVar2)||fVarsExtra.some(function(ve){return ve.type==='mixed'&&ve.var2;});
             var hdrs0=[];
             if(varOpts0.length>0) hdrs0.push('Variety');
@@ -12356,7 +12356,7 @@ function ClientQCMgmt(props){
                       if(traceOpts2.length>0) hdrs.push('Trace');
                       if(selCqcProd==='mango') hdrs.push('Firmness');
                       hdrs.push('Brix','Brix?','Size mm','Size?','Carton?','Score','Notes','Dispute');
-                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Firmness':78,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
+                      var metaWidths={'Variety':100,'Farm':100,'Plot':60,'Farm 2':100,'Plot 2':45,'PH':90,'Trace':200,'Firmness':120,'Brix':60,'Carton?':60,'Score':72,'Brix?':50,'Size mm':60,'Size?':50,'Notes':150,'Dispute':80};
                       return hdrs.map(function(h){var isDisp=h==='Dispute';return ce('th',{key:h,style:{padding:'4px 6px',background:isDisp?'#faeeda':'#f0f5f9',border:'1px solid var(--border)',borderBottom:isDisp?'2px solid #BA7517':'',fontSize:10,color:isDisp?'#633806':'#3a5a7a',whiteSpace:'nowrap',textAlign:'left',fontWeight:600,minWidth:metaWidths[h]||60}},h==='Firmness'?'Firmness (kg/cm²)':h);});
                     })(),
                     ce('th',{style:{background:'var(--bg2)',border:'1px solid var(--border)',width:24}})
