@@ -258,7 +258,7 @@ table.tbl{border-collapse:collapse;width:100%;min-width:1080px}
       <!-- ===== LIST VIEW ===== -->
       <div class="view active" id="view-list">
         <div class="hrow">
-          <div><h1>Citrus shipments</h1><span class="sub">Live from shipments_v2 · click a container to edit</span></div>
+          <div><h1 id="page-h1">Citrus shipments</h1><span class="sub">Live from shipments_v2 · click a container to edit</span></div>
           <button class="btn btn-primary" onclick="openCreate()">+ New shipment</button>
         </div>
         <div class="banner" id="list-banner">
@@ -702,7 +702,8 @@ var LIST_PRODUCTS=[['citrus','Citrus'],['grapes','Grapes'],['mango','Mango'],['p
 var LISTPROD='citrus';
 function prodLabel(p){var f=LIST_PRODUCTS.find(function(x){return x[0]===p});return f?f[1]:p;}
 function renderProdTabs(){var e=el('prodtabs');if(!e)return;
-  e.innerHTML=LIST_PRODUCTS.map(function(p){return '<button type="button" class="ptab'+(p[0]===LISTPROD?' on':'')+'" onclick="switchListProduct(\''+p[0]+'\')">'+esc(p[1])+'</button>';}).join('');}
+  e.innerHTML=LIST_PRODUCTS.map(function(p){return '<button type="button" class="ptab'+(p[0]===LISTPROD?' on':'')+'" onclick="switchListProduct(\''+p[0]+'\')">'+esc(p[1])+'</button>';}).join('');
+  var h=el('page-h1');if(h)h.textContent=prodLabel(LISTPROD)+' shipments';}
 function switchListProduct(p){if(p===LISTPROD)return;LISTPROD=p;renderProdTabs();
   ST.q='';ST.f={cls:[],region:[],client:[],status:[],qc:[]};ST.limit=RENDER_STEP;
   var qi=el('q');if(qi)qi.value='';var sw=el('searchwrap');if(sw)sw.classList.remove('has');
@@ -834,7 +835,7 @@ function renderList(){
   var rows=sortRows(filtered());
   renderKPIs(rows);
   var tb=el('listbody');var sm=el('showmore');if(sm)sm.innerHTML='';
-  if(!rows.length){tb.innerHTML='<tr><td colspan="'+NCOL+'"><div class="empty">No citrus containers match <b>'+esc(ST.q||'these filters')+'</b>.<br><button class="reset show" style="margin-top:12px" onclick="resetAll()">Reset filters</button></div></td></tr>';}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="'+NCOL+'"><div class="empty">No '+esc(prodLabel(LISTPROD).toLowerCase())+' containers match <b>'+esc(ST.q||'these filters')+'</b>.<br><button class="reset show" style="margin-top:12px" onclick="resetAll()">Reset filters</button></div></td></tr>';}
   else {
     /* window the render so keystrokes don't rebuild thousands of rows each time */
     var shown=rows.length>ST.limit?rows.slice(0,ST.limit):rows;
@@ -842,8 +843,8 @@ function renderList(){
     if(sm&&rows.length>ST.limit){var more=rows.length-ST.limit;sm.innerHTML='<button class="reset show" onclick="showMore()">Show '+more.toLocaleString()+' more</button>';}
   }
   var note=(rows.length===DATA.length)
-    ? 'Showing all '+DATA.length.toLocaleString()+' citrus containers · live from shipments_v2'
-    : 'Showing '+rows.length.toLocaleString()+' of '+DATA.length.toLocaleString()+' citrus containers'+(anyFilter()?' (filtered)':'')+' · live from shipments_v2';
+    ? 'Showing all '+DATA.length.toLocaleString()+' '+prodLabel(LISTPROD).toLowerCase()+' containers · live from shipments_v2'
+    : 'Showing '+rows.length.toLocaleString()+' of '+DATA.length.toLocaleString()+' '+prodLabel(LISTPROD).toLowerCase()+' containers'+(anyFilter()?' (filtered)':'')+' · live from shipments_v2';
   el('countnote').textContent=note;
   el('resetbtn').classList.toggle('show',anyFilter());
 }

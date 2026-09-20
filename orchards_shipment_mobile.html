@@ -517,7 +517,7 @@ function skeletonList(){
   box.innerHTML=h;el('lnote').textContent='Loading '+prodLabel(LISTPROD).toLowerCase()+' containers…';
 }
 function listError(msg,isAuth){
-  if(isAuth){el('clist').innerHTML='<div class="lempty"><b>Your session expired</b><br>Reload and sign in to DalOS to load shipments.</div>';}
+  if(isAuth){el('clist').innerHTML='<div class="lempty"><b>Your session expired</b><br>Reload and sign in to DalOS to load shipments.</div>';var s=el('abar-sub');if(s)s.textContent='Sign in required';}
   else{el('clist').innerHTML='<div class="lempty"><b>'+esc(msg)+'</b><br>Sign in to DalOS and reload.</div>';}
   el('lnote').textContent='';
 }
@@ -525,8 +525,11 @@ function loadList(){
   if(!sb){listError('Not connected');return;}
   sb.functions.invoke('citrus-shipments?product='+encodeURIComponent(LISTPROD),{method:'GET'}).then(function(res){
     if(res.error){
-      var m=(res.error&&res.error.message)||'';var st=(res.error&&(res.error.status||res.error.statusCode))||0;
-      if(st===401||st===403||/\b(401|403)\b|jwt|expired|unauthor/i.test(m)){listError('',true);return;}
+      var m=(res.error&&res.error.message)||'';
+      var st=(res.error&&(res.error.status||res.error.statusCode||(res.error.context&&res.error.context.status)))||0;
+      // functions.invoke wraps a 401 as "Edge Function returned a non-2xx status code" with the
+      // status on .context — treat non-2xx from this signed-in-only fn as an auth failure.
+      if(st===401||st===403||/\b(401|403)\b|jwt|expired|unauthor|non-2xx/i.test(m)){listError('',true);return;}
       listError('Could not load — '+(m||'failed'));return;
     }
     var d=res.data||{};DATA=Array.isArray(d)?d:(d.containers||[]);renderClist();
@@ -539,7 +542,7 @@ function showList(force){
   setDirty(false);hideFormOverlay();
   el('screen-form').classList.remove('active');el('screen-list').classList.add('active');
   el('backbtn').classList.add('hide');el('abar-status').classList.add('hide');
-  el('abar-title').textContent='Shipments';el('abar-sub').textContent='Citrus · live';window.scrollTo(0,0);}
+  el('abar-title').textContent='Shipments';el('abar-sub').textContent=prodLabel(LISTPROD)+' · live';window.scrollTo(0,0);}
 function showForm(){el('screen-list').classList.remove('active');el('screen-form').classList.add('active');
   el('backbtn').classList.remove('hide');window.scrollTo(0,0);}
 
