@@ -159,6 +159,10 @@ table.tbl{border-collapse:collapse;width:100%;min-width:1080px}
 .kpi .v small{font-size:11px;font-family:var(--font-body);color:var(--text3)}
 @media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}.kpi .v{font-size:22px}}
 @media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.prodtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.ptab{border:1px solid var(--border);background:var(--card);color:var(--text2);border-radius:20px;padding:6px 15px;font-size:13px;cursor:pointer;font-family:var(--font-body)}
+.ptab:hover{background:var(--bg2)}
+.ptab.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .search{position:relative;flex:1;min-width:260px}
 .search .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
@@ -261,6 +265,7 @@ table.tbl{border-collapse:collapse;width:100%;min-width:1080px}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4M12 8h.01"/></svg>
           <div>Live from the DalOS <code>shipments_v2</code> table where <code>product_id = 'citrus'</code>, via the <code>citrus-shipments</code> function (signed-in users only). Click a container to open it in the entry form, or <b>+ New shipment</b> to add one.</div>
         </div>
+        <div class="prodtabs" id="prodtabs"></div>
         <div class="kpis" id="kpis"></div>
         <div class="toolbar">
           <div class="search" id="searchwrap">
@@ -692,6 +697,16 @@ function fmtEta(s){s=String(s||'');var m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
 function packShort(p){return String(p).replace(/\s*\d+\s*kg.*$/i,'').replace(/Crt|Carton/i,'').trim()||p}
 
 var DATA=[];
+/* which product's containers the list shows (all 4 live in shipments_v2) */
+var LIST_PRODUCTS=[['citrus','Citrus'],['grapes','Grapes'],['mango','Mango'],['pomegranate','Pomegranate']];
+var LISTPROD='citrus';
+function prodLabel(p){var f=LIST_PRODUCTS.find(function(x){return x[0]===p});return f?f[1]:p;}
+function renderProdTabs(){var e=el('prodtabs');if(!e)return;
+  e.innerHTML=LIST_PRODUCTS.map(function(p){return '<button type="button" class="ptab'+(p[0]===LISTPROD?' on':'')+'" onclick="switchListProduct(\''+p[0]+'\')">'+esc(p[1])+'</button>';}).join('');}
+function switchListProduct(p){if(p===LISTPROD)return;LISTPROD=p;renderProdTabs();
+  ST.q='';ST.f={cls:[],region:[],client:[],status:[],qc:[]};ST.limit=RENDER_STEP;
+  var qi=el('q');if(qi)qi.value='';var sw=el('searchwrap');if(sw)sw.classList.remove('has');
+  paintListSkeleton();loadList();}
 function deriveAll(){DATA.forEach(function(c){
   c._pal=sum(c.lines,'pal');c._ctn=sum(c.lines,'ctn');c._net=sum(c.lines,'net');c._grs=sum(c.lines,'grs');
   c._cat=(c.lines[0]||{}).cat;
@@ -844,10 +859,10 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'&&document.activeElement.id==='q'){clearQ();el('q').blur();}
 });
 /* live/error banner above the list */
-var LIST_BANNER_OK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4M12 8h.01"/></svg><div>Live from the DalOS <code>shipments_v2</code> table where <code>product_id = \'citrus\'</code>, via the <code>citrus-shipments</code> function (signed-in users only). Click a container to open it in the entry form, or <b>+ New shipment</b> to add one.</div>';
+function bannerOkHtml(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4M12 8h.01"/></svg><div>Live from the DalOS <code>shipments_v2</code> table where <code>product_id = \''+esc(LISTPROD)+'\'</code>, via the <code>citrus-shipments</code> function (signed-in users only). Click a container to open it in the entry form, or <b>+ New shipment</b> to add one.</div>';}
 function setBanner(state,msg){
   var b=el('list-banner');if(!b)return;
-  if(state==='ok'){b.style.display='flex';b.classList.remove('err');b.style.background='';b.style.borderColor='';b.style.color='';b.innerHTML=LIST_BANNER_OK;return;}
+  if(state==='ok'){b.style.display='flex';b.classList.remove('err');b.style.background='';b.style.borderColor='';b.style.color='';b.innerHTML=bannerOkHtml();return;}
   b.style.display='flex';b.classList.toggle('err',state==='error');
   b.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4M12 8h.01"/></svg><div>'+esc(msg)+'</div>';
   if(state==='error')b.style.background='var(--red-bg)',b.style.borderColor='var(--red-border)',b.style.color='var(--red)';
@@ -855,7 +870,7 @@ function setBanner(state,msg){
 }
 /* immediate loading skeleton: ghost KPI cards + shimmer rows */
 function paintListSkeleton(){
-  setBanner('loading','Loading citrus containers…');
+  setBanner('loading','Loading '+prodLabel(LISTPROD).toLowerCase()+' containers…');
   var k=el('kpis');if(k)k.innerHTML=[0,0,0,0,0,0].map(function(){return '<div class="kpi sk sk-kpi"></div>';}).join('');
   var tb=el('listbody');if(!tb)return;
   var cols=NCOL||13,rows='';
@@ -879,7 +894,7 @@ function loadFailed(err){
 }
 function loadList(){
   if(!sb){loadFailed({status:401});return Promise.resolve();}
-  return sb.functions.invoke('citrus-shipments',{method:'GET'}).then(function(res){
+  return sb.functions.invoke('citrus-shipments?product='+encodeURIComponent(LISTPROD),{method:'GET'}).then(function(res){
     if(res.error){loadFailed(res.error);return;}
     var d=res.data||{};DATA=Array.isArray(d)?d:(d.containers||[]);
     setBanner('ok');
@@ -896,9 +911,9 @@ function setTopbar(view){
 function showList(){el('view-form').classList.remove('active');el('view-list').classList.add('active');var ct=el('crumb-title');if(ct)ct.textContent='Shipments';setTopbar('list');window.scrollTo(0,0);}
 function showForm(){el('view-list').classList.remove('active');el('view-form').classList.add('active');setTopbar('form');window.scrollTo(0,0);}
 function openContainer(i){var c=DATA[i];if(!c)return;
-  MODE='edit';EDIT={container:c.ref,loaded:c.hdr.loaded,product:'citrus',deletedIds:[]};
+  MODE='edit';EDIT={container:c.ref,loaded:c.hdr.loaded,product:LISTPROD,deletedIds:[]};
   showForm();var ct=el('crumb-title');if(ct)ct.textContent='Edit Shipment';var cr=el('ctx-ref');if(cr)cr.textContent=c.ref;
-  loadForEdit(c.ref,c.hdr.loaded,'citrus');
+  loadForEdit(c.ref,c.hdr.loaded,LISTPROD);
 }
 function openCreate(){
   MODE='create';EDIT={container:null,loaded:null,product:null,deletedIds:[]};PRODUCT='citrus';renderProdPick();
@@ -934,7 +949,7 @@ document.addEventListener('input',function(e){
   if(el('view-form').classList.contains('active')&&e.target.closest&&e.target.closest('#view-form'))markDirty();
 });
 function boot(){
-  initStagingBadge();setTopbar('list');
+  initStagingBadge();setTopbar('list');renderProdTabs();
   paintListSkeleton();
   loadList();                       /* list fetch doesn't depend on refs — run in parallel */
   loadRefs().then(function(){
