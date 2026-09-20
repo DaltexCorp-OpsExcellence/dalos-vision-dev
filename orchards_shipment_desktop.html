@@ -382,7 +382,7 @@ var sb=(window.supabase&&window.supabase.createClient)?window.supabase.createCli
 
 var STATUS_OPTS=['Delivered','Shipped','Returned'];
 var PRODUCT_COLORS={citrus:'#b87820',grapes:'#6a10b0',mango:'#d19a1e',pomegranate:'#b03030'};
-var REF={products:[],clients:[],clientIdByName:{},subByClientId:{},catByProd:{},varByProd:{},packByProd:{},cartonTypes:[]};
+var REF={products:[],clients:[],clientIdByName:{},subByClientId:{},catByProd:{},varByProd:{},packByProd:{},cartonTypes:[],ref:{}};
 var PRODUCT='citrus';
 var LINES=[];
 var openRows={};
@@ -433,8 +433,18 @@ function loadRefs(){
     (r[4].data||[]).forEach(function(v){(REF.varByProd[v.product_id]=REF.varByProd[v.product_id]||[]).push({name:v.name,category_id:v.category_id})});
     (r[5].data||[]).forEach(function(p){(p.product_ids||[]).forEach(function(pid){(REF.packByProd[pid]=REF.packByProd[pid]||[]).push(p.name)})});
     REF.cartonTypes=(r[6].data||[]).map(function(c){return c.name});
+  }).then(function(){
+    // datalist suggestions for shipping line/agent/ports/country/shipper + per-line source/raw
+    // (shipments_v2 is client-unreadable -> served via SECURITY DEFINER RPC). Non-fatal on error.
+    return sb.rpc('get_shipment_v2_ref_options').then(function(rr){
+      if(rr&&!rr.error&&rr.data){REF.ref=rr.data;fillAllDatalists();}
+    }).catch(function(){});
   });
 }
+function fillAllDatalists(){var o=REF.ref||{};
+  fillDatalist('dl-line',o.lines);fillDatalist('dl-depport',o.dep_ports);fillDatalist('dl-country',o.countries);
+  fillDatalist('dl-port',o.rec_ports);fillDatalist('dl-agent',o.agents);fillDatalist('dl-shipper',o.shippers);
+  fillDatalist('dl-source',o.source_types);fillDatalist('dl-rawsource',o.raw_sources);}
 function catsFor(p){return (REF.catByProd[p]||[]).map(function(c){return c.name})}
 function catIdByName(p,name){var f=(REF.catByProd[p]||[]).find(function(c){return c.name===name});return f?f.id:null}
 function varsFor(p,catName){
@@ -502,14 +512,14 @@ function mainRow(d,i){
     '<td><button class="rm" onclick="rmLine('+i+')" title="Remove">&times;</button></td>'+
   '</tr>';
 }
-function dField(lab,v,key){return '<div class="field"><label class="form-label">'+lab+'</label><input class="form-input mono" data-k="'+key+'" value="'+esc(v)+'"></div>'}
+function dField(lab,v,key,listId){return '<div class="field"><label class="form-label">'+lab+'</label><input class="form-input mono" data-k="'+key+'"'+(listId?' list="'+listId+'"':'')+' value="'+esc(v)+'"></div>'}
 function dSelect(lab,list,v,key){return '<div class="field"><label class="form-label">'+lab+'</label><select class="form-select" data-k="'+key+'">'+opts(list,v)+'</select></div>'}
 /* always-visible "Handling · this line" secondary row (Pack House Packing / Source Type / Raw Source) */
 function subRow(d,i){
   var span=isCitrus()?18:17;
   return '<tr class="linesub" data-si="'+i+'"><td colspan="'+span+'"><div class="lsin">'+
     '<div class="dgroup"><span>Handling · this line</span></div>'+
-    '<div class="dgrid">'+dSelect('Pack House (Packing)',REF.packByProd[PRODUCT]||[],d.pack_house,'pack_house')+dField('Source Type',d.source_type,'source_type')+dField('Raw Source',d.raw_source,'raw_source')+'</div>'+
+    '<div class="dgrid">'+dSelect('Pack House (Packing)',REF.packByProd[PRODUCT]||[],d.pack_house,'pack_house')+dField('Source Type',d.source_type,'source_type','dl-source')+dField('Raw Source',d.raw_source,'raw_source','dl-rawsource')+'</div>'+
   '</div></td></tr>';
 }
 function detailRow(d,i){

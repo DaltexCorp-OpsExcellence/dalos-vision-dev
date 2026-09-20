@@ -400,7 +400,7 @@ var sb=(window.supabase&&window.supabase.createClient)?window.supabase.createCli
 
 var PRODUCT_COLORS={citrus:'#b87820',grapes:'#6a10b0',mango:'#d19a1e',pomegranate:'#b03030'};
 var STATUS_OPTS=['Delivered','Shipped','Returned'];
-var REF={products:[],clients:[],clientIdByName:{},subByClientId:{},catByProd:{},varByProd:{},packByProd:{},cartonTypes:[]};
+var REF={products:[],clients:[],clientIdByName:{},subByClientId:{},catByProd:{},varByProd:{},packByProd:{},cartonTypes:[],ref:{}};
 var PRODUCT='citrus';
 var HDR={};                 // header state (RPC-shaped keys)
 var LINES=[];
@@ -455,8 +455,18 @@ function loadRefs(){
     (r[4].data||[]).forEach(function(v){(REF.varByProd[v.product_id]=REF.varByProd[v.product_id]||[]).push({name:v.name,category_id:v.category_id})});
     (r[5].data||[]).forEach(function(p){(p.product_ids||[]).forEach(function(pid){(REF.packByProd[pid]=REF.packByProd[pid]||[]).push(p.name)})});
     REF.cartonTypes=(r[6].data||[]).map(function(c){return c.name});
+  }).then(function(){
+    // datalist suggestions from shipments_v2 (client-unreadable -> SECURITY DEFINER RPC). Non-fatal.
+    return sb.rpc('get_shipment_v2_ref_options').then(function(rr){
+      if(rr&&!rr.error&&rr.data){REF.ref=rr.data;fillAllDatalists();}
+    }).catch(function(){});
   });
 }
+function fillDatalist(id,list){var e=el(id);if(e)e.innerHTML=uniq(list||[]).map(function(o){return '<option value="'+esc(o)+'">'}).join('')}
+function fillAllDatalists(){var o=REF.ref||{};
+  fillDatalist('dl-line',o.lines);fillDatalist('dl-depport',o.dep_ports);fillDatalist('dl-country',o.countries);
+  fillDatalist('dl-port',o.rec_ports);fillDatalist('dl-agent',o.agents);fillDatalist('dl-shipper',o.shippers);
+  fillDatalist('dl-source',o.source_types);fillDatalist('dl-rawsource',o.raw_sources);}
 function catsFor(p){return (REF.catByProd[p]||[]).map(function(c){return c.name})}
 function catIdByName(p,name){var f=(REF.catByProd[p]||[]).find(function(c){return c.name===name});return f?f.id:null}
 function varsFor(p,catName){var all=REF.varByProd[p]||[];var names;
