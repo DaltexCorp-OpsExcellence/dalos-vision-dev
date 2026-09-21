@@ -75,21 +75,33 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-si
 .form-input,.form-select{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;font-size:14px;font-family:var(--font-body);color:var(--text)}
 .form-input.mono{font-family:var(--font-mono);font-size:13px}
 .form-input:focus,.form-select:focus{outline:none;border-color:var(--accent)}
-/* ===== potato line cards ===== */
-.line{border:1px solid var(--border);border-radius:var(--r2);margin-bottom:11px;overflow:hidden;background:var(--card)}
-.line .lh{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--bg2);cursor:pointer}
-.line .lh .idx{font-family:var(--font-mono);font-size:11px;color:var(--text3);flex:none}
-.line .lh .lv{font-weight:600;font-size:14px;color:var(--text)}
-.line .lh .meta{font-family:var(--font-mono);font-size:11px;color:var(--text2);margin-left:auto;display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
-.line .lh .caret{transition:transform .15s;color:var(--text3);flex:none}
-.line.open .lh .caret{transform:rotate(90deg)}
-.lbody{padding:13px;border-top:1px dashed var(--border);display:none}
-.line.open .lbody{display:block}
-.grp{font-family:var(--font-body);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);font-weight:600;margin:2px 0 9px;display:flex;align-items:center;gap:8px}
-.grp::after{content:"";flex:1;height:1px;background:var(--border)}
-.grp:not(:first-child){margin-top:16px}
-.lgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 12px}
-.linebtns{display:flex;gap:8px;margin-top:12px}
+/* ===== potato line table (inline-table + expandable detail, matches Orchards entry form) ===== */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r2);margin-top:4px}
+table.lines{border-collapse:collapse;width:100%;min-width:1040px}
+.lines th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);font-weight:600;text-align:left;padding:8px 8px;border-bottom:2px solid var(--border2);background:var(--bg2);white-space:nowrap}
+.lines td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.lines tr.lrow:last-of-type td{border-bottom:none}
+.lines .idx{color:var(--text3);font-family:var(--font-mono);font-size:12px;width:24px;text-align:center}
+.cellsel,.cellin{width:100%;border:1px solid transparent;background:transparent;border-radius:5px;padding:5px 6px;font-size:13px;font-family:var(--font-body);color:var(--text);min-width:92px}
+.cellin.mono{font-family:var(--font-mono);font-size:12px;min-width:74px}
+.cellin.num{text-align:right;min-width:58px;font-family:var(--font-mono);font-size:12px}
+.cellsel:hover,.cellin:hover{background:var(--bg2)}
+.cellsel:focus,.cellin:focus{outline:none;border-color:var(--accent);background:var(--card)}
+.exp{border:1px solid var(--border2);background:var(--card);border-radius:6px;width:24px;height:24px;cursor:pointer;color:var(--text3);display:inline-flex;align-items:center;justify-content:center}
+.exp:hover{background:var(--bg2)}
+.exp svg{transition:transform .15s}
+.exp.open svg{transform:rotate(180deg)}
+.rm{border:none;background:none;color:var(--text3);cursor:pointer;font-size:15px;padding:4px}
+.rm:hover{color:var(--red)}
+.detail td{background:var(--bg2);padding:0;border-bottom:1px solid var(--border)}
+.detail-inner{padding:12px 16px;display:none}
+.detail.open .detail-inner{display:block}
+.dgroup{font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--text3);margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.dgroup .ar{font-family:var(--font-body);text-transform:none;letter-spacing:0;color:var(--text3);font-weight:400}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px;max-width:900px}
+.dgrid .field .form-input,.dgrid .field .form-select{padding:7px 9px;font-size:13px}
+.dnote{font-size:11px;color:var(--text3);margin-top:12px;padding-top:10px;border-top:1px dotted var(--border2);display:flex;align-items:center;gap:8px}
+.dnote code{font-family:var(--font-mono);background:var(--card);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:10.5px;color:var(--text2)}
 .addline{margin-top:10px}
 .alert{display:flex;gap:10px;align-items:flex-start;background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--r);padding:10px 12px;font-size:12px;color:#1c5a32;margin-bottom:14px}
 .alert svg{flex-shrink:0;margin-top:1px}
@@ -287,8 +299,13 @@ table.tbl{border-collapse:collapse;width:100%;min-width:980px}
 
       <!-- PRODUCT LINES -->
       <div class="card">
-        <div class="card-head"><h2 id="lines-title">Potato Lines <span class="req">*</span></h2><span class="hint" id="lines-hint">At least one variety line required — expand a line for full detail</span></div>
-        <div id="lines"></div>
+        <div class="card-head"><h2 id="lines-title">Potato Lines <span class="req">*</span></h2><span class="hint" id="lines-hint">At least one variety line required — expand ⌄ for lot, sizing, packaging &amp; handling</span></div>
+        <div class="table-wrap">
+          <table class="lines" id="lines">
+            <thead id="lhead"></thead>
+            <tbody id="lbody"></tbody>
+          </table>
+        </div>
         <div class="addline" style="display:flex;gap:8px">
           <button class="btn btn-ghost btn-sm" onclick="addLine()">+ Add line</button>
           <button class="btn btn-ghost btn-sm" onclick="dupLastLine()">⧉ Duplicate last line</button>
@@ -376,63 +393,67 @@ function fSel(lab,ar,list,v,key,req){
   return '<div class="field"><label class="form-label">'+lab+' <span class="ar">· '+ar+'</span>'+(req?' <span class="req">*</span>':'')+'</label>'+
     '<select class="form-select" data-k="'+key+'">'+opts(list,v)+'</select></div>';
 }
-function grp(en,ar){return '<div class="grp"><span>'+en+' · '+ar+'</span></div>'}
-function lineHTML(d,i){
-  return '<div class="line'+(openRows[i]?' open':'')+'" data-i="'+i+'">'+
-    '<div class="lh" onclick="toggleLine('+i+')">'+
-      '<span class="idx">Line '+(i+1)+'</span>'+
-      '<span class="lv">'+esc(d.variety||'—')+'</span>'+
-      '<span class="meta">'+
-        '<span>'+(d.pivot?'Pivot '+esc(d.pivot):'')+'</span>'+
-        '<span>'+esc(d.packaging||'')+'</span>'+
-        '<span>'+esc(d.grade||'')+'</span>'+
-        '<span>'+esc(d.standard_weight||'0')+' t</span>'+
-      '</span>'+
-      '<span class="caret">&#9656;</span>'+
+/* inline main-row cells */
+function selCell(list,v,key){return '<select class="cellsel" data-k="'+key+'">'+opts(list,v)+'</select>'}
+function inCell(v,key,cls,dl){return '<input class="cellin '+(cls||'')+'" data-k="'+key+'"'+(dl?' list="'+dl+'"':'')+' value="'+esc(v)+'">'}
+function headHTML(){
+  return '<tr><th></th><th>#</th><th>Variety</th><th>Pivot</th><th>Farm</th><th>Grade</th><th>Packaging</th>'+
+    '<th>Pallets</th><th>Jumbo #</th><th>Sack #</th><th>Std Wt (t)</th><th>Pascol Wt (t)</th><th></th></tr>';
+}
+/* main row — compact, scannable; class "line" is the recompute() hook */
+function mainRow(d,i){
+  return '<tr class="line lrow" data-i="'+i+'">'+
+    '<td><button class="exp'+(openRows[i]?' open':'')+'" onclick="toggleLine('+i+')" title="Line detail"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button></td>'+
+    '<td class="idx">'+(i+1)+'</td>'+
+    '<td>'+selCell(VARIETIES,d.variety,'variety')+'</td>'+
+    '<td>'+inCell(d.pivot,'pivot','',/*dl*/'dl-pivot')+'</td>'+
+    '<td>'+inCell(d.farm,'farm','','dl-farm')+'</td>'+
+    '<td>'+selCell(GRADES,d.grade,'grade')+'</td>'+
+    '<td>'+selCell(PACKS,d.packaging,'packaging')+'</td>'+
+    '<td>'+inCell(d.pallets,'pallets','num')+'</td>'+
+    '<td>'+inCell(d.jumbo_count,'jumbo_count','num')+'</td>'+
+    '<td>'+inCell(d.sack_count,'sack_count','num')+'</td>'+
+    '<td>'+inCell(d.standard_weight,'standard_weight','num')+'</td>'+
+    '<td>'+inCell(d.pascol_weight,'pascol_weight','num')+'</td>'+
+    '<td><button class="rm" onclick="rmLine('+i+')" title="Remove">&times;</button></td>'+
+  '</tr>';
+}
+function dgroup(en,ar){return '<div class="dgroup"><span>'+en+'</span><span class="ar">· '+ar+'</span></div>'}
+/* expandable detail row — the rest of the 21 line fields, grouped */
+function detailRow(d,i){
+  return '<tr class="detail'+(openRows[i]?' open':'')+'" data-di="'+i+'"><td colspan="13"><div class="detail-inner">'+
+    dgroup('Origin','المصدر')+'<div class="dgrid">'+
+      fInp('Lot No','رقم اللوط',d.lot,'lot')+
     '</div>'+
-    '<div class="lbody">'+
-      grp('Origin','المصدر')+'<div class="lgrid">'+
-        fSel('Variety','الصنف',VARIETIES,d.variety,'variety',true)+
-        fInp('Pivot','بيفوت',d.pivot,'pivot','dl-pivot')+
-        fInp('Farm','المزرعه',d.farm,'farm','dl-farm')+
-        fInp('Lot No','رقم اللوط',d.lot,'lot')+
-      '</div>'+
-      grp('Sizing &amp; grade','الحجم والتصنيف')+'<div class="lgrid">'+
-        fInp('Size 1','الحجم1',d.size1,'size1')+
-        fSel('Size 2','الحجم2',[''].concat(SIZE2),d.size2,'size2')+
-        fSel('Crop Type','محصول',CROPTYPES,d.crop_type,'crop_type')+
-        fSel('Grade','تصنيف',GRADES,d.grade,'grade')+
-      '</div>'+
-      grp('Packaging','التعبئه')+'<div class="lgrid">'+
-        fSel('Packaging','العبوة',PACKS,d.packaging,'packaging')+
-        fInp('Package Weight','وزن العبوه',d.package_weight,'package_weight',null,'decimal')+
-        fInp('Pack Size','عبوه1',d.pack_size,'pack_size',null,'decimal')+
-        fInp('Pallets','البالته',d.pallets,'pallets',null,'numeric')+
-        fSel('Brand','براند',BRANDS,d.brand,'brand')+
-        fSel('Jumbo Colour','لون الجامب',[''].concat(COLOURS),d.jumbo_colour,'jumbo_colour')+
-        fInp('Jumbo Count','العدد جامب',d.jumbo_count,'jumbo_count',null,'numeric')+
-        fSel('Sack Colour','لون الشيكاره',[''].concat(COLOURS),d.sack_colour,'sack_colour')+
-        fInp('Sack Count','العدد شيكاره',d.sack_count,'sack_count',null,'numeric')+
-      '</div>'+
-      grp('Weights &amp; handling','الأوزان والتشغيل')+'<div class="lgrid">'+
-        fInp('Standard Weight','وزن معياري',d.standard_weight,'standard_weight',null,'decimal')+
-        fInp('Pascol Weight','وزن بسكول',d.pascol_weight,'pascol_weight',null,'decimal')+
-        fSel('Operation Type','نوع تشغيل',OPS,d.op_type,'op_type')+
-        fSel('Condition','الحاله',CONDITIONS,d.condition,'condition')+
-      '</div>'+
-      '<div class="linebtns"><button class="btn btn-ghost btn-sm" onclick="rmLine('+i+')">✕ Remove line</button></div>'+
+    '<div style="margin-top:14px"></div>'+dgroup('Sizing &amp; grade','الحجم والتصنيف')+'<div class="dgrid">'+
+      fInp('Size 1','الحجم1',d.size1,'size1')+
+      fSel('Size 2','الحجم2',[''].concat(SIZE2),d.size2,'size2')+
+      fSel('Crop Type','محصول',CROPTYPES,d.crop_type,'crop_type')+
     '</div>'+
-  '</div>';
+    '<div style="margin-top:14px"></div>'+dgroup('Packaging','التعبئه')+'<div class="dgrid">'+
+      fInp('Package Weight','وزن العبوه',d.package_weight,'package_weight',null,'decimal')+
+      fInp('Pack Size','عبوه1',d.pack_size,'pack_size',null,'decimal')+
+      fSel('Brand','براند',BRANDS,d.brand,'brand')+
+      fSel('Jumbo Colour','لون الجامب',[''].concat(COLOURS),d.jumbo_colour,'jumbo_colour')+
+      fSel('Sack Colour','لون الشيكاره',[''].concat(COLOURS),d.sack_colour,'sack_colour')+
+    '</div>'+
+    '<div style="margin-top:14px"></div>'+dgroup('Handling','التشغيل')+'<div class="dgrid">'+
+      fSel('Operation Type','نوع تشغيل',OPS,d.op_type,'op_type')+
+      fSel('Condition','الحاله',CONDITIONS,d.condition,'condition')+
+    '</div>'+
+    '<div class="dnote"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 16v-4M12 8h.01"/></svg> Month, week, standard weight &amp; container % are generated on save.</div>'+
+  '</div></td></tr>';
 }
 function readLineDom(i){
-  var card=document.querySelector('#lines .line[data-i="'+i+'"]');
-  if(!card)return null;
+  var main=document.querySelector('#lbody tr.lrow[data-i="'+i+'"]');
+  if(!main)return null;
+  var det=document.querySelector('#lbody tr.detail[data-di="'+i+'"]');
   var d=Object.assign({},LINES[i]||newLine());
-  card.querySelectorAll('[data-k]').forEach(function(f){d[f.getAttribute('data-k')]=f.value});
+  [main,det].forEach(function(scope){if(!scope)return;scope.querySelectorAll('[data-k]').forEach(function(f){d[f.getAttribute('data-k')]=f.value})});
   return d;
 }
 function syncLinesFromDom(){LINES=LINES.map(function(d,i){return readLineDom(i)||d})}
-function renderLines(){el('lines').innerHTML=LINES.map(lineHTML).join('');recompute();}
+function renderLines(){el('lhead').innerHTML=headHTML();el('lbody').innerHTML=LINES.map(function(d,i){return mainRow(d,i)+detailRow(d,i)}).join('');recompute();}
 function toggleLine(i){LINES[i]=readLineDom(i)||LINES[i];openRows[i]=!openRows[i];renderLines();}
 function addLine(){syncLinesFromDom();LINES.push(newLine());openRows[LINES.length-1]=true;renderLines();flashSave();}
 function dupLastLine(){syncLinesFromDom();var last=LINES[LINES.length-1];var c=last?Object.assign({},last):newLine();c.id=null;LINES.push(c);openRows[LINES.length-1]=true;renderLines();flashSave();}
