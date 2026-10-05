@@ -847,6 +847,9 @@ function InspectionForm(props){
   },[]);
   /* ── Dirty tracking + draft — must be first so setIsDirty is in scope ── */
   var sIsDirty=useState(false); var isDirty=sIsDirty[0]; var setIsDirty=sIsDirty[1];
+  /* User edits mark the form dirty (drives autosave + leave warning). Programmatic loads — draft restore,
+     LOT prefill, edit-load, New-LOT reset — keep using the raw setters so they don't. */
+  function markDirty(){setIsDirty(true);}
   /* Track when this form was first opened — used for draft_started_at + completion_minutes audit fields */
   var formOpenedAtRef=React.useRef(new Date());
   /* Unique tab ID — ensures parallel tabs don't overwrite each other's draft */
@@ -1085,7 +1088,7 @@ function InspectionForm(props){
   }
   var sSC=useState(batch&&batch.stickerChecks?batch.stickerChecks:{product:false,variety:false,cls:false,phName:false,phCode:false,farmCode:false,packDate:false,netWt:false,trace:false,ggn:false,lot:false,importer:false,origin:false});
   var stickerChecks=sSC[0]; var setStickerChecks=sSC[1];
-  function toggleCheck(k){var n=Object.assign({},stickerChecks);n[k]=!n[k];setStickerChecks(n);}
+  function toggleCheck(k){markDirty();var n=Object.assign({},stickerChecks);n[k]=!n[k];setStickerChecks(n);}
   /* Lazy-load this inspection's label-sticker checklist on edit-open. Sticker checks are no
      longer bulk-loaded with the list (that was an 8-page fetch); we pull just this one
      inspection's rows here — a single uncapped .eq query, fast even on a weak connection.
@@ -1341,10 +1344,10 @@ function InspectionForm(props){
   /* Extra label stickers — each: {img:'', checks:{}} */
   var sExtraLabels=useState(batch&&batch.extraLabels?batch.extraLabels:[]);
   var extraLabels=sExtraLabels[0]; var setExtraLabels=sExtraLabels[1];
-  function addExtraLabel(){if(extraLabels.length>=1) return;setExtraLabels(function(prev){return prev.concat([{img:'',checks:{}}]);});}
-  function removeExtraLabel(idx){setExtraLabels(function(prev){return prev.filter(function(_,i){return i!==idx;});});}
-  function setExtraLabelImg(idx,v){setExtraLabels(function(prev){return prev.map(function(l,i){return i!==idx?l:Object.assign({},l,{img:v});});});}
-  function toggleExtraLabelCheck(idx,key){setExtraLabels(function(prev){return prev.map(function(l,i){if(i!==idx)return l;var c=Object.assign({},l.checks);c[key]=!c[key];return Object.assign({},l,{checks:c});});});}
+  function addExtraLabel(){if(extraLabels.length>=1) return;markDirty();setExtraLabels(function(prev){return prev.concat([{img:'',checks:{}}]);});}
+  function removeExtraLabel(idx){markDirty();setExtraLabels(function(prev){return prev.filter(function(_,i){return i!==idx;});});}
+  function setExtraLabelImg(idx,v){markDirty();setExtraLabels(function(prev){return prev.map(function(l,i){return i!==idx?l:Object.assign({},l,{img:v});});});}
+  function toggleExtraLabelCheck(idx,key){markDirty();setExtraLabels(function(prev){return prev.map(function(l,i){if(i!==idx)return l;var c=Object.assign({},l.checks);c[key]=!c[key];return Object.assign({},l,{checks:c});});});}
   var sSaving=useState(false); var isSaving=sSaving[0]; var setIsSaving=sSaving[1];
   var sSavePending=useState(false); var savePending=sSavePending[0]; var setSavePending=sSavePending[1];
   var sSaveFailed=useState(null); var saveFailed=sSaveFailed[0]; var setSaveFailed=sSaveFailed[1];
@@ -2656,7 +2659,7 @@ function InspectionForm(props){
                   ce('span',{style:{fontSize:10,color:unitConfirmed.container?'#fff':'var(--amber)',lineHeight:1}},unitConfirmed.container?'\u2713':'\u2713')
                 )
               ),
-              ce('input',{className:'form-input',value:container,onChange:function(e){var newVal=e.target.value;var oldVal=container;setContainer(newVal);if(cropId==='grapes'||cropId==='mango'||cropId==='citrus'||cropId==='pomegranate'){setPallets(function(prev){return prev.map(function(p){if(!p.palletContainer||(oldVal&&p.palletContainer.toUpperCase()===oldVal.toUpperCase())){return Object.assign({},p,{palletContainer:newVal});}return p;});});}if(preFilled)confirmUnit('container');},placeholder:'e.g. AMCU 9327595',style:preFilled&&!unitConfirmed.container?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}}),
+              ce('input',{className:'form-input',value:container,onChange:function(e){var newVal=e.target.value;var oldVal=container;markDirty()||setContainer(newVal);if(cropId==='grapes'||cropId==='mango'||cropId==='citrus'||cropId==='pomegranate'){setPallets(function(prev){return prev.map(function(p){if(!p.palletContainer||(oldVal&&p.palletContainer.toUpperCase()===oldVal.toUpperCase())){return Object.assign({},p,{palletContainer:newVal});}return p;});});}if(preFilled)confirmUnit('container');},placeholder:'e.g. AMCU 9327595',style:preFilled&&!unitConfirmed.container?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}}),
               cropId==='mango'&&container.trim()&&(function(){var norm=container.trim().replace(/\s+/g,' ').toUpperCase();var dupe=(allBatches||[]).find(function(bb){return bb&&bb.id!==(batch&&batch.id)&&((bb.container||'').trim().replace(/\s+/g,' ').toUpperCase()===norm);});return dupe?ce('div',{style:{marginTop:5,fontSize:11,color:'#b06010',background:'#fff3e0',border:'1px solid #e8c87a',borderRadius:6,padding:'4px 8px'}},'\u26a0 Container already used in session '+dupe.id+(dupe.lot?' (LOT '+dupe.lot+')':'')+' \u2014 one container = one session.'):null;})()
             ),
             ce('div',{className:'form-field'},
@@ -2666,26 +2669,26 @@ function InspectionForm(props){
                   ce('span',{style:{fontSize:10,color:unitConfirmed.farm?'#fff':'var(--amber)',lineHeight:1}},'\u2713')
                 )
               ),
-              ce('select',{className:'form-select',value:farm,onChange:function(e){setFarm(e.target.value);if(preFilled)confirmUnit('farm');},style:preFilled&&!unitConfirmed.farm?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}},
+              ce('select',{className:'form-select',value:farm,onChange:function(e){markDirty()||setFarm(e.target.value);if(preFilled)confirmUnit('farm');},style:preFilled&&!unitConfirmed.farm?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}},
                 ce('option',{value:''},'— Select farm —'),
                 farms.map(function(f){return ce('option',{key:f,value:f},f);}),
                 ce('option',{value:'__other__'},'Other (type below)')
               ),
-              farm==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm name',onChange:function(e){setFarm(e.target.value);}})
+              farm==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm name',onChange:function(e){markDirty()||setFarm(e.target.value);}})
             ),
             /* Plot (grapes + citrus + mango) */
             (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&ce('div',{className:'form-field'},
               ce('label',{className:'form-label'},'Plot'),
               (cropId==='citrus'
-                ?ce(Typeahead,{value:plot,onChange:setPlot,options:plotsForFarm(farm),placeholder:plotsForFarm(farm).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
-                :ce('input',{className:'form-input',value:plot,placeholder:'Plot no.',onChange:function(e){setPlot(e.target.value);}}))
+                ?ce(Typeahead,{value:plot,onChange:function(v){markDirty();setPlot(v);},options:plotsForFarm(farm),placeholder:plotsForFarm(farm).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
+                :ce('input',{className:'form-input',value:plot,placeholder:'Plot no.',onChange:function(e){markDirty()||setPlot(e.target.value);}}))
             )
           ),
           /* Farm 2 + Plot 2 — + button toggle */
           (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&(!farm2
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
-                  onClick:function(){setFarm2('__selecting__');}
+                  onClick:function(){markDirty()||setFarm2('__selecting__');}
                 },'+ Add Farm 2')
               )
             :ce('div',{className:'grid4',style:{marginBottom:10}},
@@ -2693,21 +2696,21 @@ function InspectionForm(props){
                   ce('label',{className:'form-label',style:{display:'flex',alignItems:'center',justifyContent:'space-between'}},
                     ce('span',null,'Farm 2'),
                     ce('button',{type:'button',style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:11,padding:0},
-                      onClick:function(){setFarm2('');setPlot2('');setFarm3('');setPlot3('');setFarm4('');setPlot4('');}
+                      onClick:function(){markDirty()||setFarm2('');markDirty()||setPlot2('');markDirty()||setFarm3('');markDirty()||setPlot3('');markDirty()||setFarm4('');markDirty()||setPlot4('');}
                     },'× Remove')
                   ),
-                  ce('select',{className:'form-select',value:farm2==='__selecting__'?'':farm2,onChange:function(e){setFarm2(e.target.value);}},
+                  ce('select',{className:'form-select',value:farm2==='__selecting__'?'':farm2,onChange:function(e){markDirty()||setFarm2(e.target.value);}},
                     ce('option',{value:''},'— Select farm 2 —'),
                     farms.map(function(f){return ce('option',{key:f,value:f},f);}),
                     ce('option',{value:'__other__'},'Other (type below)')
                   ),
-                  farm2==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm 2 name',onChange:function(e){setFarm2(e.target.value);}})
+                  farm2==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm 2 name',onChange:function(e){markDirty()||setFarm2(e.target.value);}})
                 ),
                 ce('div',{className:'form-field'},
                   ce('label',{className:'form-label'},'Plot 2'),
                   (cropId==='citrus'
-                    ?ce(Typeahead,{value:plot2,onChange:setPlot2,options:plotsForFarm(farm2),placeholder:plotsForFarm(farm2).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
-                    :ce('input',{className:'form-input',value:plot2,placeholder:'Plot no.',onChange:function(e){setPlot2(e.target.value);}}))
+                    ?ce(Typeahead,{value:plot2,onChange:function(v){markDirty();setPlot2(v);},options:plotsForFarm(farm2),placeholder:plotsForFarm(farm2).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
+                    :ce('input',{className:'form-input',value:plot2,placeholder:'Plot no.',onChange:function(e){markDirty()||setPlot2(e.target.value);}}))
                 )
               )
           ),
@@ -2715,7 +2718,7 @@ function InspectionForm(props){
           (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&farm2&&farm2!=='__selecting__'&&(!farm3
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
-                  onClick:function(){setFarm3('__selecting__');}
+                  onClick:function(){markDirty()||setFarm3('__selecting__');}
                 },'+ Add Farm 3')
               )
             :farm3&&ce('div',{className:'grid4',style:{marginBottom:10}},
@@ -2723,21 +2726,21 @@ function InspectionForm(props){
                   ce('label',{className:'form-label',style:{display:'flex',alignItems:'center',justifyContent:'space-between'}},
                     ce('span',null,'Farm 3'),
                     ce('button',{type:'button',style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:11,padding:0},
-                      onClick:function(){setFarm3('');setPlot3('');setFarm4('');setPlot4('');}
+                      onClick:function(){markDirty()||setFarm3('');markDirty()||setPlot3('');markDirty()||setFarm4('');markDirty()||setPlot4('');}
                     },'× Remove')
                   ),
-                  ce('select',{className:'form-select',value:farm3==='__selecting__'?'':farm3,onChange:function(e){setFarm3(e.target.value);}},
+                  ce('select',{className:'form-select',value:farm3==='__selecting__'?'':farm3,onChange:function(e){markDirty()||setFarm3(e.target.value);}},
                     ce('option',{value:''},'— Select farm 3 —'),
                     farms.map(function(f){return ce('option',{key:f,value:f},f);}),
                     ce('option',{value:'__other__'},'Other (type below)')
                   ),
-                  farm3==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm 3 name',onChange:function(e){setFarm3(e.target.value);}})
+                  farm3==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm 3 name',onChange:function(e){markDirty()||setFarm3(e.target.value);}})
                 ),
                 ce('div',{className:'form-field'},
                   ce('label',{className:'form-label'},'Plot 3'),
                   (cropId==='citrus'
-                    ?ce(Typeahead,{value:plot3,onChange:setPlot3,options:plotsForFarm(farm3),placeholder:plotsForFarm(farm3).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
-                    :ce('input',{className:'form-input',value:plot3,placeholder:'Plot no.',onChange:function(e){setPlot3(e.target.value);}}))
+                    ?ce(Typeahead,{value:plot3,onChange:function(v){markDirty();setPlot3(v);},options:plotsForFarm(farm3),placeholder:plotsForFarm(farm3).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
+                    :ce('input',{className:'form-input',value:plot3,placeholder:'Plot no.',onChange:function(e){markDirty()||setPlot3(e.target.value);}}))
                 )
               )
           ),
@@ -2745,7 +2748,7 @@ function InspectionForm(props){
           (cropId==='grapes'||cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&farm3&&farm3!=='__selecting__'&&(!farm4
             ?ce('div',{style:{marginBottom:10}},
                 ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
-                  onClick:function(){setFarm4('__selecting__');}
+                  onClick:function(){markDirty()||setFarm4('__selecting__');}
                 },'+ Add Farm 4')
               )
             :farm4&&ce('div',{className:'grid4',style:{marginBottom:10}},
@@ -2753,21 +2756,21 @@ function InspectionForm(props){
                   ce('label',{className:'form-label',style:{display:'flex',alignItems:'center',justifyContent:'space-between'}},
                     ce('span',null,'Farm 4'),
                     ce('button',{type:'button',style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:11,padding:0},
-                      onClick:function(){setFarm4('');setPlot4('');}
+                      onClick:function(){markDirty()||setFarm4('');markDirty()||setPlot4('');}
                     },'× Remove')
                   ),
-                  ce('select',{className:'form-select',value:farm4==='__selecting__'?'':farm4,onChange:function(e){setFarm4(e.target.value);}},
+                  ce('select',{className:'form-select',value:farm4==='__selecting__'?'':farm4,onChange:function(e){markDirty()||setFarm4(e.target.value);}},
                     ce('option',{value:''},'— Select farm 4 —'),
                     farms.map(function(f){return ce('option',{key:f,value:f},f);}),
                     ce('option',{value:'__other__'},'Other (type below)')
                   ),
-                  farm4==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm 4 name',onChange:function(e){setFarm4(e.target.value);}})
+                  farm4==='__other__'&&ce('input',{className:'form-input',style:{marginTop:4},placeholder:'Farm 4 name',onChange:function(e){markDirty()||setFarm4(e.target.value);}})
                 ),
                 ce('div',{className:'form-field'},
                   ce('label',{className:'form-label'},'Plot 4'),
                   (cropId==='citrus'
-                    ?ce(Typeahead,{value:plot4,onChange:setPlot4,options:plotsForFarm(farm4),placeholder:plotsForFarm(farm4).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
-                    :ce('input',{className:'form-input',value:plot4,placeholder:'Plot no.',onChange:function(e){setPlot4(e.target.value);}}))
+                    ?ce(Typeahead,{value:plot4,onChange:function(v){markDirty();setPlot4(v);},options:plotsForFarm(farm4),placeholder:plotsForFarm(farm4).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true})
+                    :ce('input',{className:'form-input',value:plot4,placeholder:'Plot no.',onChange:function(e){markDirty()||setPlot4(e.target.value);}}))
                 )
               )
           ),
@@ -2780,7 +2783,7 @@ function InspectionForm(props){
                     ce('span',null,'Farm '+(5+aidx)),
                     ce('button',{type:'button',style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:11,padding:0},
                       onClick:function(i){return function(){
-                        setAdditionalFarms(function(prev){return prev.filter(function(_,idx){return idx!==i;});});
+                        markDirty()||setAdditionalFarms(function(prev){return prev.filter(function(_,idx){return idx!==i;});});
                       };}(aidx)
                     },'× Remove')
                   ),
@@ -2788,7 +2791,7 @@ function InspectionForm(props){
                     onChange:function(i){return function(e){
                       var fid=e.target.value;
                       var fname=(config.farmsIdToName&&config.farmsIdToName[fid])||'';
-                      setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{farmId:fid,farmName:fname}):x;});});
+                      markDirty()||setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{farmId:fid,farmName:fname}):x;});});
                     };}(aidx)
                   },
                     ce('option',{value:''},'— Select farm —'),
@@ -2800,11 +2803,11 @@ function InspectionForm(props){
                   cropId==='citrus'
                   ?ce(Typeahead,{value:af.plot||'',options:plotsForFarmId(af.farmId),placeholder:plotsForFarmId(af.farmId).length?'Pick or type plot…':'Plot no.',minChars:0,allowFree:true,
                     onChange:function(i){return function(v){
-                      setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{plot:v}):x;});});
+                      markDirty()||setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{plot:v}):x;});});
                     };}(aidx)})
                   :ce('input',{className:'form-input',value:af.plot||'',placeholder:'Plot no.',
                     onChange:function(i){return function(e){
-                      setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{plot:e.target.value}):x;});});
+                      markDirty()||setAdditionalFarms(function(prev){return prev.map(function(x,idx){return idx===i?Object.assign({},x,{plot:e.target.value}):x;});});
                     };}(aidx)
                   })
                 )
@@ -2812,14 +2815,14 @@ function InspectionForm(props){
             }),
             ce('div',{style:{marginBottom:10}},
               ce('button',{className:'btn btn-sm',style:{background:'none',border:'1px dashed var(--border2)',color:'var(--text3)',fontSize:12},
-                onClick:function(){setAdditionalFarms(function(prev){return prev.concat([{farmId:'',farmName:'',plot:''}]);});}
+                onClick:function(){markDirty()||setAdditionalFarms(function(prev){return prev.concat([{farmId:'',farmName:'',plot:''}]);});}
               },'+ Add Farm '+(5+additionalFarms.length))
             )
           ),
           /* Spacer div to close the previous grid */
           !true&&ce('div',null),
           ce('div',{className:'grid4',style:{marginBottom:10}},
-            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Category'),ce('select',{className:'form-select',value:category,onChange:function(e){setCategory(e.target.value);setVariety('');setIsDirty(true);}},
+            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Category'),ce('select',{className:'form-select',value:category,onChange:function(e){setCategory(e.target.value);markDirty()||setVariety('');setIsDirty(true);}},
               ce('option',{value:''},'— All —'),
               ((config.categories||{})[cropId]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);}))),
             ce('div',{className:'form-field','data-field':'variety'},
@@ -2831,7 +2834,7 @@ function InspectionForm(props){
               ),
               ce('select',{className:'form-select',value:variety,onChange:function(e){
                 var selectedName=e.target.value;
-                setVariety(selectedName);
+                markDirty()||setVariety(selectedName);
                 if(preFilled) confirmUnit('variety');
                 var allVars=(config.varietiesFull||{})[cropId]||[];
                 var found=allVars.find(function(v){return v.name===selectedName;});
@@ -2863,14 +2866,14 @@ function InspectionForm(props){
                     style:{padding:'5px 16px',borderRadius:20,border:'1.5px solid '+(varietyType===t?'var(--accent)':'var(--border2)'),
                       background:varietyType===t?'var(--accent)':'transparent',color:varietyType===t?'#fff':'var(--text2)',
                       fontSize:12,fontWeight:600,cursor:'pointer'},
-                    onClick:function(){setVarietyType(t);if(t==='single'){setVariety2('');setCategory2('');}}
+                    onClick:function(){markDirty()||setVarietyType(t);if(t==='single'){markDirty()||setVariety2('');markDirty()||setCategory2('');}}
                   },t==='single'?'Single variety':'Mixed varieties');
                 })
               ),
               varietyType==='mixed'&&ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,padding:'10px',background:'var(--bg2)',borderRadius:8,border:'1px solid var(--border)'}},
                 ce('div',{className:'form-field',style:{marginBottom:0}},
                   ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2 — Category'),
-                  ce('select',{className:'form-select',value:category2,onChange:function(e){setCategory2(e.target.value);setVariety2('');}},
+                  ce('select',{className:'form-select',value:category2,onChange:function(e){markDirty()||setCategory2(e.target.value);markDirty()||setVariety2('');}},
                     ce('option',{value:''},'— All —'),
                     ((config.categories||{})[cropId]||[]).map(function(cat){return ce('option',{key:cat.id,value:cat.name},cat.name);})
                   )
@@ -2878,10 +2881,10 @@ function InspectionForm(props){
                 ce('div',{className:'form-field',style:{marginBottom:0}},
                   ce('label',{className:'form-label',style:{fontSize:10}},'Variety 2'),
                   ce('select',{className:'form-select',value:variety2,onChange:function(e){
-                    var name=e.target.value; setVariety2(name);
+                    var name=e.target.value; markDirty()||setVariety2(name);
                     var allVars=(config.varietiesFull||{})[cropId]||[];
                     var found=allVars.find(function(v){return v.name===name;});
-                    if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)setCategory2(cn);}
+                    if(found&&found.categoryId){var cn=(config.categoriesIdToName||{})[found.categoryId]||'';if(cn)markDirty()||setCategory2(cn);}
                   }},
                     ce('option',{value:''},'— Select —'),
                     (function(){
@@ -2901,33 +2904,33 @@ function InspectionForm(props){
                   ce('span',{style:{fontSize:10,color:unitConfirmed.cls?'#fff':'var(--amber)',lineHeight:1}},'\u2713')
                 )
               ),
-              ce('select',{className:'form-select',value:cls,onChange:function(e){setCls(e.target.value);if(preFilled)confirmUnit('cls');},style:preFilled&&!unitConfirmed.cls?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}},
+              ce('select',{className:'form-select',value:cls,onChange:function(e){markDirty()||setCls(e.target.value);if(preFilled)confirmUnit('cls');},style:preFilled&&!unitConfirmed.cls?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}},
                 ce('option',{value:''},'— Select class —'),
                 classes.map(function(c){return ce('option',{key:c,value:c},c);}),
                 /* Show deactivated class if editing an existing record that used it */
                 cls&&!classes.includes(cls)&&ce('option',{key:'deact',value:cls,style:{color:'var(--text3)'}},cls+' (inactive)')
               )
             )
-,ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton type'),ce('select',{className:'form-select',value:cartonType,onChange:function(e){setCartonType(e.target.value);}},
+,ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton type'),ce('select',{className:'form-select',value:cartonType,onChange:function(e){markDirty()||setCartonType(e.target.value);}},
   [ce('option',{key:'',value:''},'— Select —')].concat((config.cartonTypes||[]).map(function(c){return ce('option',{key:c,value:c},c);})).concat(cartonType&&!(config.cartonTypes||[]).includes(cartonType)?[ce('option',{key:'deact',value:cartonType,style:{color:'var(--text3)'}},cartonType+' (inactive)')]:[])
 )),
-            cropId==='citrus'&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton color'),ce(Typeahead,{value:cartonColor,onChange:setCartonColor,options:CARTON_COLORS,placeholder:'Type to search colour…',minChars:0})),
-            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton company'),ce('input',{className:'form-input',value:cartonCompany,onChange:function(e){setCartonCompany(e.target.value);},placeholder:'e.g. Smurfit Kappa...'})),
-            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton company 2'),ce('input',{className:'form-input',value:cartonCompany2,onChange:function(e){setCartonCompany2(e.target.value);},placeholder:'e.g. DS Smith...'})),
+            cropId==='citrus'&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton color'),ce(Typeahead,{value:cartonColor,onChange:function(v){markDirty();setCartonColor(v);},options:CARTON_COLORS,placeholder:'Type to search colour…',minChars:0})),
+            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton company'),ce('input',{className:'form-input',value:cartonCompany,onChange:function(e){markDirty()||setCartonCompany(e.target.value);},placeholder:'e.g. Smurfit Kappa...'})),
+            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Carton company 2'),ce('input',{className:'form-input',value:cartonCompany2,onChange:function(e){markDirty()||setCartonCompany2(e.target.value);},placeholder:'e.g. DS Smith...'})),
             ce('div',{className:'form-field','data-field':'client'},ce('label',{className:'form-label'},'Client'),
-              ce(Typeahead,{value:client,onChange:setClient,options:clients,placeholder:'Type to search client...',minChars:2})
+              ce(Typeahead,{value:client,onChange:function(v){markDirty();setClient(v);},options:clients,placeholder:'Type to search client...',minChars:2})
             ),
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Country'),
-              ce('select',{className:'form-select',value:country,onChange:function(e){setCountry(e.target.value);}},
+              ce('select',{className:'form-select',value:country,onChange:function(e){markDirty()||setCountry(e.target.value);}},
                 ce('option',{value:''},'— Select country —'),
                 countries.map(function(c){return ce('option',{key:c,value:c},c);})
               )
             )
           ),
           ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:10}},
-            cropId!=='grapes'&&cropId!=='citrus'&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Wax — التشميع'),ce('div',{className:'wax-options'},WAX_CODES.map(function(w){return ce('button',{key:w.code,className:'wax-btn'+(wax===w.code?' sel':''),onClick:function(){setWax(w.code);}},w.code);}))),
-            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Packing'),ce('select',{className:'form-select',value:packing,onChange:function(e){setPacking(e.target.value);}},ce('option',{value:''},'— Select —'),['Ok','Not Ok'].map(function(v){return ce('option',{key:v,value:v},v);}))),
-            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Labelling & coding'),ce('select',{className:'form-select',value:labelling,onChange:function(e){setLabelling(e.target.value);}},ce('option',{value:''},'— Select —'),['Ok','Not Ok'].map(function(v){return ce('option',{key:v,value:v},v);})))
+            cropId!=='grapes'&&cropId!=='citrus'&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Wax — التشميع'),ce('div',{className:'wax-options'},WAX_CODES.map(function(w){return ce('button',{key:w.code,className:'wax-btn'+(wax===w.code?' sel':''),onClick:function(){markDirty()||setWax(w.code);}},w.code);}))),
+            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Packing'),ce('select',{className:'form-select',value:packing,onChange:function(e){markDirty()||setPacking(e.target.value);}},ce('option',{value:''},'— Select —'),['Ok','Not Ok'].map(function(v){return ce('option',{key:v,value:v},v);}))),
+            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Labelling & coding'),ce('select',{className:'form-select',value:labelling,onChange:function(e){markDirty()||setLabelling(e.target.value);}},ce('option',{value:''},'— Select —'),['Ok','Not Ok'].map(function(v){return ce('option',{key:v,value:v},v);})))
           )
         )
       ),
@@ -2942,7 +2945,7 @@ function InspectionForm(props){
             ce('div',{className:'form-field',style:{marginBottom:10}},
               ce('label',{className:'form-label'},'Sticker photo or Google Drive link'),
               ce('div',{style:{display:'flex',gap:6}},
-                ce('input',{className:'form-input',value:stickerImg,onChange:function(e){setStickerImg(e.target.value);},placeholder:'Paste link...',style:{flex:1}}),
+                ce('input',{className:'form-input',value:stickerImg,onChange:function(e){markDirty()||setStickerImg(e.target.value);},placeholder:'Paste link...',style:{flex:1}}),
                 ce('label',{style:{display:'flex',alignItems:'center',gap:4,padding:'6px 10px',background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:6,cursor:'pointer',fontSize:12,color:'var(--text2)',whiteSpace:'nowrap'}},
                   stickerUploading?'Uploading…':'↑ Upload',ce('input',{type:'file',accept:'image/*',style:{display:'none'},disabled:stickerUploading,onChange:function(e){var file=e.target.files&&e.target.files[0];if(file){uploadStickerToStorage(file, batch&&batch.id, setStickerImg);}}})
                 )
@@ -2978,7 +2981,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                 );
               })
             ),
-            ce('button',{style:{marginTop:6,width:'100%',padding:'5px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:11,color:'var(--text2)',cursor:'pointer'},onClick:function(){var all=Object.assign({},stickerChecks);var anyOff=Object.values(all).some(function(v){return !v;});Object.keys(all).forEach(function(k){all[k]=anyOff;});setStickerChecks(all);}},doneChecks===totalChecks?'Uncheck all':'Mark all verified')
+            ce('button',{style:{marginTop:6,width:'100%',padding:'5px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,fontSize:11,color:'var(--text2)',cursor:'pointer'},onClick:function(){var all=Object.assign({},stickerChecks);var anyOff=Object.values(all).some(function(v){return !v;});Object.keys(all).forEach(function(k){all[k]=anyOff;});markDirty()||setStickerChecks(all);}},doneChecks===totalChecks?'Uncheck all':'Mark all verified')
           )
         )
       ),
@@ -3072,7 +3075,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
           return ce('div',{key:ti,style:rowStyle},
             isMixed&&ce('div',{style:{width:7,height:7,borderRadius:'50%',background:tcVar==='v1'?'#534AB7':tcVar==='v2'?'#BA7517':'var(--amber)',flexShrink:0}}),
             ce('input',{className:'form-input',value:tcCode,
-              onChange:function(idx){return function(e){setTraceCodes(function(prev){var n=prev.slice();n[idx]={code:e.target.value,variety:n[idx]?n[idx].variety:null};return n;});};}(ti),
+              onChange:function(idx){return function(e){markDirty()||setTraceCodes(function(prev){var n=prev.slice();n[idx]={code:e.target.value,variety:n[idx]?n[idx].variety:null};return n;});};}(ti),
               style:{fontFamily:'var(--font-mono)',fontSize:13,flex:1},
               placeholder:'e.g. 111031325042104'
             }),
@@ -3087,13 +3090,13 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                   var bg=active?(v==='v1'?'#534AB7':v==='v2'?'#BA7517':'#888'):'transparent';
                   var col=active?'#fff':'var(--text3)';
                   if(v==='both') return ce('button',{key:v,
-                    onClick:function(idx,vv){return function(e){e.stopPropagation();setTraceCodes(function(prev){var n=prev.slice();n[idx]={code:n[idx]?n[idx].code:'',variety:vv};return n;});};}(ti,v),
+                    onClick:function(idx,vv){return function(e){e.stopPropagation();markDirty()||setTraceCodes(function(prev){var n=prev.slice();n[idx]={code:n[idx]?n[idx].code:'',variety:vv};return n;});};}(ti,v),
                     style:{padding:'3px 8px',fontSize:10,fontWeight:500,cursor:'pointer',border:'none',background:active?'#888':'transparent',color:active?'#fff':'var(--text3)',transition:'all .1s',whiteSpace:'nowrap',alignSelf:'stretch',display:'flex',alignItems:'center'}
                   },'Both');
                   var vLabel=v==='v1'?v1Label:v2Label;
                   var vSub=v==='v1'?v1Sub:v2Sub;
                   return ce('button',{key:v,
-                    onClick:function(idx,vv){return function(e){e.stopPropagation();setTraceCodes(function(prev){var n=prev.slice();n[idx]={code:n[idx]?n[idx].code:'',variety:vv};return n;});};}(ti,v),
+                    onClick:function(idx,vv){return function(e){e.stopPropagation();markDirty()||setTraceCodes(function(prev){var n=prev.slice();n[idx]={code:n[idx]?n[idx].code:'',variety:vv};return n;});};}(ti,v),
                     style:{padding:'3px 10px',cursor:'pointer',border:'none',background:bg,color:col,transition:'all .1s',display:'flex',flexDirection:'column',alignItems:'center',gap:1,lineHeight:1.2}
                   },
                     ce('span',{style:{fontSize:10,fontWeight:500,whiteSpace:'nowrap'}},vLabel),
@@ -3103,13 +3106,13 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               )
             ),
             traceCodes.length>1&&ce('button',{
-              onClick:function(idx){return function(){setTraceCodes(function(prev){return prev.filter(function(_,i){return i!==idx;});});};}(ti),
+              onClick:function(idx){return function(){markDirty()||setTraceCodes(function(prev){return prev.filter(function(_,i){return i!==idx;});});};}(ti),
               style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,lineHeight:1,padding:'0 6px',flexShrink:0}
             },'\u00d7')
           );
         }),
         ce('button',{className:'btn btn-secondary btn-sm',style:{marginTop:2},
-          onClick:function(){setTraceCodes(function(prev){return prev.concat([{code:'',variety:null}]);});}
+          onClick:function(){markDirty()||setTraceCodes(function(prev){return prev.concat([{code:'',variety:null}]);});}
         },'\u002b Add trace code')
       ),
       /* SAMPLE ROWS — one card per pallet */
@@ -4496,11 +4499,11 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
           ce('label',{className:'form-label'},'Trace codes'),
           traceCodes.map(function(tc,ti){
             return ce('div',{key:ti,style:{display:'flex',gap:6,marginBottom:6,alignItems:'center'}},
-              ce('input',{className:'form-input',value:(typeof tc==='string'?tc:(tc&&tc.code)||''),onChange:function(idx){return function(e){setTraceCodes(function(prev){var n=prev.slice();var cur=n[idx];n[idx]=(cur&&typeof cur==='object')?Object.assign({},cur,{code:e.target.value}):{code:e.target.value,variety:null};return n;});};}(ti),style:{fontFamily:'var(--font-mono)',fontSize:12,flex:1},placeholder:'e.g. 111031325042104'}),
-              traceCodes.length>1&&ce('button',{onClick:function(idx){return function(){setTraceCodes(function(prev){return prev.filter(function(_,i){return i!==idx;});});};}(ti),style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:16,lineHeight:1,padding:'0 4px',flexShrink:0}},'\u00d7')
+              ce('input',{className:'form-input',value:(typeof tc==='string'?tc:(tc&&tc.code)||''),onChange:function(idx){return function(e){markDirty()||setTraceCodes(function(prev){var n=prev.slice();var cur=n[idx];n[idx]=(cur&&typeof cur==='object')?Object.assign({},cur,{code:e.target.value}):{code:e.target.value,variety:null};return n;});};}(ti),style:{fontFamily:'var(--font-mono)',fontSize:12,flex:1},placeholder:'e.g. 111031325042104'}),
+              traceCodes.length>1&&ce('button',{onClick:function(idx){return function(){markDirty()||setTraceCodes(function(prev){return prev.filter(function(_,i){return i!==idx;});});};}(ti),style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:16,lineHeight:1,padding:'0 4px',flexShrink:0}},'\u00d7')
             );
           }),
-          ce('button',{className:'btn btn-secondary btn-sm',style:{marginTop:2},onClick:function(){setTraceCodes(function(prev){return prev.concat([{code:'',variety:null}]);});}},'\u002b Add trace code')
+          ce('button',{className:'btn btn-secondary btn-sm',style:{marginTop:2},onClick:function(){markDirty()||setTraceCodes(function(prev){return prev.concat([{code:'',variety:null}]);});}},'\u002b Add trace code')
         ),
         ce('div',{className:'clearance-grid'},
           CLEARANCE_ITEMS.map(function(item,i){
