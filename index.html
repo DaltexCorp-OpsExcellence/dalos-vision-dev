@@ -8366,7 +8366,7 @@ var ROLES = {
   power_user:  {label:'Power User',           color:'#0f5a52',badge:'#159085',
                 perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true, manageLeads:true, giveAccess:false}},
   board:       {label:'Senior Board',         color:'#2a0a5a',badge:'#6a10b0',
-                perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:false,viewExport:false,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:true, escalate:false,allPackhouses:true, viewShipments:true}},
+                perms:{viewFG:true, createFG:false,editFG:true ,approveFG:false,viewClientQC:true,createClientQC:false,viewExport:false,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:true, escalate:false,allPackhouses:true, viewShipments:true}},
   qc_manager:  {label:'QC Manager',           color:'#2b5c3f',badge:'#4a8c62',
                 perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:true, allPackhouses:true, viewShipments:true}},
   ph_manager:  {label:'Packhouse Manager',    color:'#5a3a8a',badge:'#7a5ab0',
@@ -8374,13 +8374,13 @@ var ROLES = {
   qc_supervisor:{label:'QC Supervisor',       color:'#3a5a8a',badge:'#5a7ab0',
                 perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:false,viewExport:false,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:true, allPackhouses:false, viewShipments:false}},
   inspector:   {label:'Inspector',            color:'#3a6a3a',badge:'#5a9a5a',
-                perms:{viewFG:true, createFG:true, editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false, viewShipments:false}},
+                perms:{viewFG:true, createFG:true, editFG:true ,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false, viewShipments:false}},
   commercial:  {label:'Commercial / Export',  color:'#7a5010',badge:'#b87820',
-                perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true}},
+                perms:{viewFG:true, createFG:false,editFG:true ,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true}},
   marketing:   {label:'Marketing',             color:'#6a2ca0',badge:'#9a5ad0',
                 perms:{viewFG:false,createFG:false,editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false,viewShipments:false,viewCRM:true, editCRM:false,viewLeads:true, editLeadStatus:true, manageLeads:true}},
   client_qc:   {label:'Client QC Management',color:'#1a4a7a',badge:'#2a6aaa',
-                perms:{viewFG:true, createFG:false,editFG:false,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true}},
+                perms:{viewFG:true, createFG:false,editFG:true ,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true}},
   executive:   {label:'Executive',            color:'#8a1a1a',badge:'#b03030',
                 perms:{viewFG:false,createFG:false,editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true}},
   /* Land Cloud (Farm Structure) roles — no Vision permissions; access is granted in the Land Cloud app via the shared farm_can_read/write gates. Present here so admins can assign them. */
@@ -8390,6 +8390,8 @@ var ROLES = {
                 perms:{viewFG:false,createFG:false,editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false,viewShipments:false}},
 };
 var PERM_LABELS = {
+  /* editFG is DISPLAY-ONLY (matrix below): Edit is not role-gated — everyone with viewFG can edit (by design,
+     confirmed 2026-10-05; inspectors make ~93% of edits). Kept true for every viewFG role so the matrix matches reality. */
   viewFG:'View inspections',createFG:'Create inspections',editFG:'Edit inspections',
   approveFG:'Approve / reject',viewClientQC:'View client reports',createClientQC:'Submit client reports',
   viewExport:'Export data',viewAnalytics:'Analytics dashboard',viewAdmin:'User management',viewConfig:'System configuration',
