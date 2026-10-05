@@ -1414,7 +1414,7 @@ function InspectionForm(props){
        pallet_number) de-dup, silently dropping one pallet's samples. Hard-block
        the save until labels are unique. Only considers pallets that actually
        have a label (blank-label handling stays with the grapes label rule). */
-    var _palletPfx=(packhouse&&packhouse.pallet_prefix)||'';
+    var _palletPfx=(packhouse&&(packhouse.palletPrefix||packhouse.pallet_prefix))||''; /* mapped key is palletPrefix (L16219); must compose exactly like buildMangoSavePayload */
     var _seen={}, _dupLabels=[], _dupFirstIdx=-1;
     pallets.forEach(function(p,idx){
       var raw=(p.palletLabel||'').trim();
