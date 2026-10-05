@@ -4516,8 +4516,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
             return ce('div',{key:key,className:'clearance-item'},
               ce('div',{className:'clearance-label',style:{fontWeight:500,fontSize:12}},item),
               ce('div',{className:'clearance-btns toggle-wrap',style:{display:'flex',gap:8}},
-                ce('button',{className:'toggle-btn'+(val==='Compliant'?' active-comply':''),onClick:function(k){return function(){markDirty();var n=Object.assign({},clearance);n[k]='Compliant';setClearance(n);};}(key)},'Compliant'),
-                ce('button',{className:'toggle-btn'+(val==='Non-Compliant'?' active-non':''),onClick:function(k){return function(){markDirty();var n=Object.assign({},clearance);n[k]='Non-Compliant';setClearance(n);};}(key)},'Non-Compliant')
+                ce('button',{className:'toggle-btn'+(val==='Compliant'?' active-comply':''),onClick:function(k){return function(){markDirty();setClearance(function(prev){var n=Object.assign({},prev);n[k]='Compliant';return n;});};}(key)},'Compliant'),
+                ce('button',{className:'toggle-btn'+(val==='Non-Compliant'?' active-non':''),onClick:function(k){return function(){markDirty();setClearance(function(prev){var n=Object.assign({},prev);n[k]='Non-Compliant';return n;});};}(key)},'Non-Compliant')
               )
             );
           })
