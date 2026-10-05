@@ -5192,9 +5192,16 @@ function FGView(props){
     return false;
   }):phFilteredBatches;
   var seasonBatches=cropFilteredBatches.filter(function(b){return (b.season||'2025/26')===viewSeason;});
+  /* LOT search (non-grapes): LOTs are short numbers (1, 2 … 29) that also appear inside IDs
+     (2026), pallet numbers and containers, so a substring search returned the wrong LOTs and
+     could miss the right one. If the query (optionally prefixed "LOT") EXACTLY equals a LOT in
+     this season/packhouse/product, show only that LOT; otherwise fall back to the normal search. */
+  var _lotQ=(cropId!=='grapes'&&searchQ.trim())?searchQ.trim().toLowerCase().replace(/^lot\s*/,''):'';
+  var _lotHit=!!_lotQ&&seasonBatches.some(function(b){return (b.lot||'').trim().toLowerCase()===_lotQ;});
   var rows=(filter==='All'?seasonBatches:seasonBatches.filter(function(b){return b.status===filter;}))
     .filter(function(b){
       if(!searchQ.trim()) return true;
+      if(_lotHit) return (b.lot||'').trim().toLowerCase()===_lotQ;
       var q=searchQ.trim().toLowerCase();
       var cont=(getContainer(b)||'').toLowerCase();
       /* Grapes: search by container, session ID, pallet numbers, pallet containers, client, variety — NOT lot */
@@ -5208,6 +5215,13 @@ function FGView(props){
   var searchSuggestions=(searchQ.trim().length>=2)?(function(){
     var q=searchQ.trim().toLowerCase();
     var seen={};var out=[];
+    /* LOT suggestions first (non-grapes): LOTs starting with the typed value, numeric order */
+    if(_lotQ){
+      var _lots={};
+      seasonBatches.forEach(function(b){var l=(b.lot||'').trim();if(l&&l.toLowerCase().indexOf(_lotQ)===0) _lots[l]=1;});
+      Object.keys(_lots).sort(function(x,y){var nx=parseFloat(x),ny=parseFloat(y);return (isNaN(nx)||isNaN(ny))?x.localeCompare(y):nx-ny;})
+        .forEach(function(l){seen['l'+l]=1;out.push({label:'LOT '+l,value:l,type:'LOT'});});
+    }
     seasonBatches.forEach(function(b){
       var cont=getContainer(b)||'';
       var lot=b.lot||'';
