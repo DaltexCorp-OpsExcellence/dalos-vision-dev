@@ -853,6 +853,8 @@ function InspectionForm(props){
   /* A sample's saved farm/plot stays VISIBLE even when it is no longer one of the header farms/plots
      (changing a header farm used to blank the sample on screen while the DB kept the old value, inviting
      an accidental overwrite). Shown as "<name> (not in header)". */
+  /* same idea for carton companies (sample / pallet dropdowns blanked after the header company changed) */
+  function savedCartonOpt(v){if(!v||v===cartonCompany||v===cartonCompany2)return null;return ce('option',{key:'__saved_cc',value:v},v+' (not in header)');}
   function savedFarmOpt(v){if(!v)return null;var hdr=[farm,farm2,farm3,farm4].concat((additionalFarms||[]).map(function(af){return af.farmName;}));return hdr.indexOf(v)>=0?null:ce('option',{key:'__saved_farm',value:v},v+' (not in header)');}
   /* Track when this form was first opened — used for draft_started_at + completion_minutes audit fields */
   var formOpenedAtRef=React.useRef(new Date());
@@ -1685,7 +1687,10 @@ function InspectionForm(props){
           supabase.from('sample_rows').delete().in('pallet_id',toDelete)
             .then(function(){return supabase.from('pallets').delete().in('id',toDelete);})
             .then(function(r){if(r&&r.error)console.error('[DalOS] pallet delete error:',r.error.message);
-              else console.log('[DalOS] Deleted',toDelete.length,'pallet(s) from DB');});
+              else console.log('[DalOS] Deleted',toDelete.length,'pallet(s) from DB');
+              /* refresh the stored aggregates AFTER the removed pallets' rows are gone (the post-save refresh
+                 ran before this delete and kept the removed pallet's samples/critical — GR-DUMMY-0102) */
+              try{ supabase.rpc('refresh_inspection_stored_aggregates',{p_id:realId}).then(function(){},function(){}); }catch(e){}});
         }
         if(cropId==='citrus'||cropId==='pomegranate') setDeletedPalletIds([]);
         setTimeout(function(){setIsSaving(false);setSaveStatus('idle');onClose();},1800);
@@ -1772,13 +1777,17 @@ function InspectionForm(props){
     }
     function kvRow(pairs){
       addPageIfNeeded(10);
-      var colW=cw/pairs.length;
+      var colW=cw/pairs.length;var maxLines=1;
       pairs.forEach(function(p,i){
         var x=mg+i*colW;
         doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(110,110,110);doc.text(String(p[0]||''),x,y);
-        doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(30,30,30);doc.text(String(p[1]||'—'),x,y+4.5);
+        /* wrap each value inside its own column (long values overlapped the next column / ran off the page) */
+        doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(30,30,30);
+        var lines=doc.splitTextToSize(String(p[1]||'—'),colW-3).slice(0,4);
+        lines.forEach(function(ln,li){doc.text(ln,x,y+4.5+li*4);});
+        if(lines.length>maxLines)maxLines=lines.length;
       });
-      y+=10;
+      y+=10+(maxLines-1)*4;
     }
     function rowTot(row){return Object.values(row.defects||{}).reduce(function(s,v){return s+(parseFloat(v)||0);},0);}
     function palAvgDef(pal){var t=pal.rows.reduce(function(s,r){return s+rowTot(r);},0);return pal.rows.length?Math.round(t/pal.rows.length*10)/10:0;}
@@ -1845,7 +1854,7 @@ function InspectionForm(props){
         doc.text(meta,mg+30,y+5);
         y+=9;
         var tBody=[];
-        pal.rows.forEach(function(row){
+        pal.rows.forEach(function(row,ri){
           var ef=row.extraFields||{};
           var tot=Math.round(rowTot(row)*10)/10;
           var critT=0,majT=0,minT=0,undT=0;
@@ -1859,7 +1868,7 @@ function InspectionForm(props){
               else if(sn.includes('under'))undT+=v;
             });
           });
-          tBody.push([String(row.sampleNumber||''),row.time||'',(ef.netWeight||'')?ef.netWeight+'g':'',(ef.bagsCount||''),(function(){var n=parseFloat(ef.netWeight||0),b=parseFloat(ef.bagsCount||1);return b>0?(Math.round(n/b*10)/10)+'g':'';}()),(ef.lowBags||''),(ef.highBags||''),(ef.colourAccept||'—'),(ef.innerInspection||''),(row.brix||''),critT>0?critT+'%':'—',majT>0?(Math.round(majT*10)/10)+'%':'—',minT>0?(Math.round(minT*10)/10)+'%':'—',undT>0?(Math.round(undT*10)/10)+'%':'—',tot>0?tot+'%':'0%']);
+          tBody.push([String(row.sampleNumber||ri+1),row.time||'',(ef.netWeight||'')?ef.netWeight+'g':'',(ef.bagsCount||''),(function(){var n=parseFloat(ef.netWeight||0),b=parseFloat(ef.bagsCount||1);return b>0?(Math.round(n/b*10)/10)+'g':'';}()),(ef.lowBags||''),(ef.highBags||''),(ef.colourAccept||'—'),(ef.innerInspection||''),(row.brix||''),critT>0?critT+'%':'—',majT>0?(Math.round(majT*10)/10)+'%':'—',minT>0?(Math.round(minT*10)/10)+'%':'—',undT>0?(Math.round(undT*10)/10)+'%':'—',tot>0?tot+'%':'0%']);
           tBody.push([{content:'SO2: '+(ef.so2||'—')+'   Jiffy: '+(ef.jiffy_pad||'—')+'   Punnet: '+(ef.punnet_type||'—')+'   Package: '+(ef.package_type||'—')+'   Grape size: '+(ef.grape_size||'—')+'   Temp: '+(ef.temp_log?ef.temp_log+'°C':'—'),colSpan:15,styles:{fontSize:7,textColor:[140,140,140],fillColor:[248,252,248],cellPadding:{top:1.5,bottom:1.5,left:4,right:4}}}]);
         });
         doc.autoTable({startY:y,head:[['SMP#','Time','Net Wt','Bags','Avg Wt','Low','High','Clr','Inner%','Brix','Crit','Major','Minor','Under','Total%']],body:tBody,margin:{left:mg,right:mg},headStyles:{fillColor:GREEN,textColor:WHITE,fontSize:7,fontStyle:'bold',cellPadding:2},bodyStyles:{fontSize:8,cellPadding:2},theme:'grid',tableLineColor:[220,220,220],tableLineWidth:0.1,columnStyles:{14:{fontStyle:'bold'}}});
@@ -1928,9 +1937,9 @@ function InspectionForm(props){
           });
           doc.autoTable({startY:y,head:[oHead],body:oBody,margin:{left:mg,right:mg},headStyles:{fillColor:GREEN,textColor:WHITE,fontSize:7},bodyStyles:{fontSize:7},styles:{cellPadding:1.2}});
         } else {
-        var tBody=pal.rows.map(function(row){
+        var tBody=pal.rows.map(function(row,ri){
           var ef=row.extraFields||{};
-          return [String(row.sampleNumber||''),row.time||'',(row.opDate||'').slice(5)||(date?date.slice(5):''),((ef.netWeight||'')?ef.netWeight+'g':''),(ef.bagsCount||''),(function(){var n=parseFloat(ef.netWeight||0),b=parseFloat(ef.bagsCount||1);return b>0?(Math.round(n/b*10)/10)+'g':'';}()),(ef.lowBags||''),(ef.highBags||''),(ef.colourAccept||'—'),((ef.innerInspection||'')?ef.innerInspection+'%':''),(row.brix?row.brix+'°':''),(ef.so2||'—').replace('UVASYS ','UVASYS').split(' ')[0],(ef.jiffy_pad||'—'),(ef.punnet_type||'—'),(ef.package_type||'—'),(ef.grape_size||'—'),(ef.temp_log?ef.temp_log+'°':'—'),(ef.worker_id||'—'),(Math.round(rowTot(row)*10)/10)+'%'];
+          return [String(row.sampleNumber||ri+1),row.time||'',(row.opDate||'').slice(5)||(date?date.slice(5):''),((ef.netWeight||'')?ef.netWeight+'g':''),(ef.bagsCount||''),(function(){var n=parseFloat(ef.netWeight||0),b=parseFloat(ef.bagsCount||1);return b>0?(Math.round(n/b*10)/10)+'g':'';}()),(ef.lowBags||''),(ef.highBags||''),(ef.colourAccept||'—'),((ef.innerInspection||'')?ef.innerInspection+'%':''),(row.brix?row.brix+'°':''),(ef.so2||'—').replace('UVASYS ','UVASYS').split(' ')[0],(ef.jiffy_pad||'—'),(ef.punnet_type||'—'),(ef.package_type||'—'),(ef.grape_size||'—'),(ef.temp_log?ef.temp_log+'°':'—'),(ef.worker_id||'—'),(Math.round(rowTot(row)*10)/10)+'%'];
         });
         doc.autoTable({startY:y,head:[['SMP#','Time','Op.Date','Net Wt','Bags','Avg Wt','Low','High','Clr','Inner%','Brix','SO2','Jiffy','Punnet','Pkg','Sz','Temp','Wkr','Total%']],body:tBody,margin:{left:mg,right:mg},headStyles:{fillColor:GREEN,textColor:WHITE,fontSize:7,fontStyle:'bold',cellPadding:2},bodyStyles:{fontSize:7.5,cellPadding:2},theme:'grid',tableLineColor:[220,220,220],tableLineWidth:0.1,columnStyles:{18:{fontStyle:'bold'}}});
         }
@@ -1960,7 +1969,7 @@ function InspectionForm(props){
       /* Metadata */
       addPageIfNeeded(20);
       secHead('Metadata');
-      kvRow([['Decision',decision==='A'?'Accepted':'Rejected'],['Total defect avg',(Math.round(avgTotal*10)/10)+'%'],['Brix avg',(Math.round(avgField('brix')*10)/10||0)+'°'],['Completion',(batch&&batch.completionMinutes!=null)?batch.completionMinutes+' min':(formOpenedAtRef&&formOpenedAtRef.current?Math.max(0,Math.round((Date.now()-formOpenedAtRef.current.getTime())/60000))+' min (so far)':'—')],['Season',config.activeSeason||'2025/26']]);
+      kvRow([['Decision',decision==='A'?'Accepted':'Rejected'],['Total defect avg',(Math.round(avgTotal*10)/10)+'%'],['Brix avg',(Math.round(avgField('brix')*10)/10||0)+'°'],['Completion',(batch&&batch.completionMinutes!=null)?batch.completionMinutes+' min':(!isEdit&&formOpenedAtRef&&formOpenedAtRef.current?Math.max(0,Math.round((Date.now()-formOpenedAtRef.current.getTime())/60000))+' min (so far)':'—')],['Season',config.activeSeason||'2025/26']]);
     }
 
     drawFooter();
@@ -2717,7 +2726,7 @@ function InspectionForm(props){
                   ce('span',{style:{fontSize:10,color:unitConfirmed.farm?'#fff':'var(--amber)',lineHeight:1}},'\u2713')
                 )
               ),
-              ce('select',{className:'form-select',value:farm,onChange:function(e){markDirty()||setFarm(e.target.value);if(preFilled)confirmUnit('farm');},style:preFilled&&!unitConfirmed.farm?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}},
+              ce('select',{className:'form-select',value:farm,onChange:function(e){markDirty()||setFarm(e.target.value);if(e.target.value!==farm)setPlot('');/* plot belonged to the old farm */if(preFilled)confirmUnit('farm');},style:preFilled&&!unitConfirmed.farm?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{}},
                 ce('option',{value:''},'— Select farm —'),
                 farms.map(function(f){return ce('option',{key:f,value:f},f);}),
                 ce('option',{value:'__other__'},'Other (type below)')
@@ -2747,7 +2756,7 @@ function InspectionForm(props){
                       onClick:function(){markDirty()||setFarm2('');markDirty()||setPlot2('');markDirty()||setFarm3('');markDirty()||setPlot3('');markDirty()||setFarm4('');markDirty()||setPlot4('');}
                     },'× Remove')
                   ),
-                  ce('select',{className:'form-select',value:farm2==='__selecting__'?'':farm2,onChange:function(e){markDirty()||setFarm2(e.target.value);}},
+                  ce('select',{className:'form-select',value:farm2==='__selecting__'?'':farm2,onChange:function(e){markDirty()||setFarm2(e.target.value);if(e.target.value!==farm2)setPlot2('');}},
                     ce('option',{value:''},'— Select farm 2 —'),
                     farms.map(function(f){return ce('option',{key:f,value:f},f);}),
                     ce('option',{value:'__other__'},'Other (type below)')
@@ -2777,7 +2786,7 @@ function InspectionForm(props){
                       onClick:function(){markDirty()||setFarm3('');markDirty()||setPlot3('');markDirty()||setFarm4('');markDirty()||setPlot4('');}
                     },'× Remove')
                   ),
-                  ce('select',{className:'form-select',value:farm3==='__selecting__'?'':farm3,onChange:function(e){markDirty()||setFarm3(e.target.value);}},
+                  ce('select',{className:'form-select',value:farm3==='__selecting__'?'':farm3,onChange:function(e){markDirty()||setFarm3(e.target.value);if(e.target.value!==farm3)setPlot3('');}},
                     ce('option',{value:''},'— Select farm 3 —'),
                     farms.map(function(f){return ce('option',{key:f,value:f},f);}),
                     ce('option',{value:'__other__'},'Other (type below)')
@@ -2807,7 +2816,7 @@ function InspectionForm(props){
                       onClick:function(){markDirty()||setFarm4('');markDirty()||setPlot4('');}
                     },'× Remove')
                   ),
-                  ce('select',{className:'form-select',value:farm4==='__selecting__'?'':farm4,onChange:function(e){markDirty()||setFarm4(e.target.value);}},
+                  ce('select',{className:'form-select',value:farm4==='__selecting__'?'':farm4,onChange:function(e){markDirty()||setFarm4(e.target.value);if(e.target.value!==farm4)setPlot4('');}},
                     ce('option',{value:''},'— Select farm 4 —'),
                     farms.map(function(f){return ce('option',{key:f,value:f},f);}),
                     ce('option',{value:'__other__'},'Other (type below)')
@@ -3181,7 +3190,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
           /* Pallet separator — clearly marks where each pallet starts */
           pIdx>0&&ce('div',{style:{display:'flex',alignItems:'center',gap:10,margin:'20px 0 8px',userSelect:'none'}},
             ce('div',{style:{height:2,flex:1,background:'linear-gradient(90deg,var(--accent) 0%,var(--border) 100%)',borderRadius:2}}),
-            ce('div',{style:{fontSize:10,fontWeight:700,color:'var(--accent)',textTransform:'uppercase',letterSpacing:'.12em',whiteSpace:'nowrap',padding:'3px 10px',border:'1.5px solid var(--accent)',borderRadius:20,background:'var(--green-bg)'}},'Pallet '+(pallet.palletLabel||(packhouse.palletPrefix||'')+(pIdx+1))),
+            ce('div',{style:{fontSize:10,fontWeight:700,color:'var(--accent)',textTransform:'uppercase',letterSpacing:'.12em',whiteSpace:'nowrap',padding:'3px 10px',border:'1.5px solid var(--accent)',borderRadius:20,background:'var(--green-bg)'}},'Pallet '+(pallet.palletLabel||((cropId==='citrus'||cropId==='pomegranate')?String(pallet.palletNo||pIdx+1):(packhouse.palletPrefix||'')+(pallet.palletNo||pIdx+1)))),
             ce('div',{style:{height:2,flex:1,background:'linear-gradient(90deg,var(--border) 0%,transparent 100%)',borderRadius:2}})
           ),
           ce('div',{className:'card',style:{marginBottom:12,padding:0,overflow:'hidden',border:'2px solid '+(isActive?'var(--accent)':'var(--border)'),transition:'border-color .2s',animation:animatingPalletId===pallet.palletId?'dalos-pallet-slide-out 340ms cubic-bezier(0.4,0,0.6,1) forwards':undefined}},
@@ -3209,7 +3218,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               ?ce('div',{style:{display:'flex',flexDirection:'column',gap:3,flexShrink:0},onClick:function(e){e.stopPropagation();}},
                   ce('div',{style:{fontSize:9,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}},'Pallet #'),
                   ce('div',{style:{padding:'4px 10px',background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:13,fontWeight:600,color:(typeof pallet.palletId==='string')?'var(--accent)':'var(--text3)',whiteSpace:'nowrap'}},
-                    (typeof pallet.palletId==='string'&&pallet.palletNo)?String(pallet.palletNo):String(pIdx+1))
+                    String(pallet.palletNo||pIdx+1))/* new pallets show their real next number (max+1), not their position */
                 )
               :ce('div',{style:{width:28,height:28,borderRadius:7,background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#fff',flexShrink:0}},pallet.palletNo),
               ce('div',{style:{minWidth:0,overflow:'hidden'}},
@@ -3250,6 +3259,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                   onChange:function(i){return function(e){setPallets(function(prev){return prev.map(function(p,j){return j!==i?p:Object.assign({},p,{palletCartonCompany:e.target.value});});});};}(pIdx)
                 },
                   ce('option',{value:''},'— Select —'),
+                  savedCartonOpt(pallet.palletCartonCompany),
                   cartonCompany&&ce('option',{value:cartonCompany},cartonCompany),
                   cartonCompany2&&ce('option',{value:cartonCompany2},cartonCompany2)
                 )
@@ -3346,7 +3356,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               /* Collapsed: star icon only. Open: star + label */
               ce('span',{style:{fontSize:12,color:pallet.actualTraceCode?'var(--accent)':'var(--text3)',flexShrink:0}},'★'),
               pallet.showActualTrace&&ce('span',{style:{fontSize:11,fontWeight:500,color:'var(--text)',flex:1}},'Actual Traceability Code'),
-              !pallet.showActualTrace&&ce('span',{style:{flex:1}}),
+              /* collapsed: show the saved code (it reopened as a bare star with no hint a value existed) */
+              !pallet.showActualTrace&&ce('span',{style:{flex:1,fontSize:11,fontFamily:'var(--font-mono)',color:'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},pallet.actualTraceCode||''),
               ce('span',{style:{fontSize:10,color:'var(--text3)',flexShrink:0}},pallet.showActualTrace?'▲':'▼')
             ),
             pallet.showActualTrace&&ce('div',{style:{padding:'8px 12px',background:'var(--card)'}},
@@ -3598,8 +3609,9 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         };}(pIdx,row.id)
                       },
                         ce('option',{value:''},'—'),
-                        cartonCompany&&ce('option',{value:cartonCompany},cartonCompany.slice(0,8)),
-                        cartonCompany2&&ce('option',{value:cartonCompany2},cartonCompany2.slice(0,8))
+                        savedCartonOpt(ef.sampleCartonCompany),
+                        cartonCompany&&ce('option',{value:cartonCompany,title:cartonCompany},cartonCompany),
+                        cartonCompany2&&ce('option',{value:cartonCompany2,title:cartonCompany2},cartonCompany2)
                       ),
                       /* Defect section averages — clicking any toggles the per-row defect entry panel */
                       defSections.map(function(sec){
@@ -4040,7 +4052,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                   showExpandCol&&ce('div',null),
                   showFarmCol&&ce('div',null),
                   showFarmCol&&ce('div',null),
-                  ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)'}},'P'+pallet.palletNo+' avg'),
+                  ce('div',{style:{fontSize:10,fontWeight:600,color:'var(--text3)'}},(cropId==='mango'&&pallet.palletLabel?((packhouse.palletPrefix&&pallet.palletLabel.indexOf(packhouse.palletPrefix)!==0)?packhouse.palletPrefix+pallet.palletLabel:pallet.palletLabel):'P'+pallet.palletNo)+' avg'),
                   ce('div',null),showPackDate&&ce('div',null),ce('div',null),ce('div',null),
                   ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,textAlign:'right',color:'var(--text2)'}},(pAvgField('cartonWt')||'—')),
                   ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,textAlign:'right',color:'var(--text2)'}},(pAvgField('brix')||'—')),
@@ -4279,6 +4291,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           updateRowField(i,id,'extraFields',Object.assign({},ef2,{sampleCartonCompany:e.target.value}));
                         };}(pIdx,row.id)},
                         ce('option',{value:''},'— Select —'),
+                        savedCartonOpt((row.extraFields||{}).sampleCartonCompany),
                         cartonCompany&&ce('option',{value:cartonCompany},cartonCompany),
                         cartonCompany2&&ce('option',{value:cartonCompany2},cartonCompany2)
                       )
@@ -16121,6 +16134,7 @@ function App(){
                 /* Keep decision/status in sync so Edit always opens with the correct pre-selection */
                 decision:row.decision||updated[idx].decision||'',
                 status:row.status||updated[idx].status||'Pending',
+                completionMinutes:row.completion_minutes!=null?row.completion_minutes:(updated[idx].completionMinutes!=null?updated[idx].completionMinutes:null),
                 /* Re-map clearance too — the detail panel showed pre-edit answers until a full reload */
                 clearance:(function(){var cl={c0:'',c1:'',c2:'',c3:''};(row.inspection_clearance||[]).forEach(function(it){cl['c'+it.item_index]=it.status;});return cl;})()
               });
