@@ -5134,8 +5134,9 @@ function FGView(props){
       })
       .then(function(r){
         if(r&&r.error) console.error('[DalOS] pallet container save error:',r.error.message);
-        /* Sync local batches state so listing reflects immediately without refresh */
-        setBatches(function(prev){return prev.map(function(b){return b.id===batchId?Object.assign({},b,{container:cleaned}):b;});});
+        /* Sync App's batches state from the DB (setBatches lives in App, not in FGView's scope —
+           calling it here threw a swallowed ReferenceError and left the listing stale after navigation) */
+        if(props.onRefreshBatches) props.onRefreshBatches([batchId]);
       })
       .catch(function(e){console.error('[DalOS] container save failed:',e.message);});
   }
