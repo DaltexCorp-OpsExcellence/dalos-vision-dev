@@ -4363,19 +4363,22 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:14,background:'var(--card)',minHeight:40},placeholder:'Notes...',value:row.notes,onChange:function(i,id){return function(e){updateRowField(i,id,'notes',e.target.value);};}(pIdx,row.id)})
                     )
                   ),
-                /* Quick defect inputs — citrus only */
+                /* Defect section tiles — same as the desktop row: one tile per section of THIS product's
+                   defect list (DB-driven, no hard-coded keys; the old 5 fixed keys didn't exist for pomegranate).
+                   Tap a tile to open every defect of the sample (the "All defects" panel below). */
                 cropId!=='grapes'&&ce('div',{style:{padding:'8px 12px',borderBottom:'1px solid var(--border)'}},
-                  ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}},'Key defects (%)'),
-                  ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6}},
-                    (cropId==='mango'?['blemish','sun_burn','anthracnose','latex_burn','bruising']:['blemish','sunburn','mech_dmg','thrips','oil_spots']).map(function(key){
-                      var def=null;defSections.forEach(function(sec){sec.items.forEach(function(d){if(d.key===key)def=d;});});
-                      var v=parseFloat(row.defects[key])||0;
-                      var thresh=thresholds[key]!==undefined?thresholds[key]:(def?def.thresh:0);
-                      var over=thresh===0?v>0:v>thresh;
-                      var shortLabel={blemish:'Blem',sunburn:'Sun',mech_dmg:'Mech',thrips:'Thrips',oil_spots:'Oil',sun_burn:'Sun',anthracnose:'Anthr',latex_burn:'Latex',bruising:'Bruis'};
-                      return ce('div',{key:key,style:{textAlign:'center'}},
-                        ce('div',{style:{fontSize:9,color:over?'var(--red)':'var(--text3)',fontWeight:600,marginBottom:3,textTransform:'uppercase'}},shortLabel[key]||key),
-                        ce('input',{style:{width:'100%',padding:'6px 4px',border:'1.5px solid '+(over?'var(--red)':'var(--border2)'),borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',textAlign:'center',background:over?'var(--red-bg)':'var(--card)',color:over?'var(--red)':'var(--text)',minHeight:40},type:'number',step:'0.1',min:'0',value:row.defects[key],onChange:function(i,id,k){return function(e){updateRowDefect(i,id,k,e.target.value);};}(pIdx,row.id,key)})
+                  ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}},'Defects (%) — tap to enter'),
+                  ce('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(92px,1fr))',gap:6}},
+                    defSections.map(function(sec){
+                      var secTotal=sec.items.reduce(function(sum,d){return sum+(parseFloat(row.defects[d.key])||0);},0);
+                      var secOver=sec.items.some(function(d){var thresh=thresholds[d.key]!==undefined?thresholds[d.key]:d.thresh;return thresh===0?(parseFloat(row.defects[d.key])||0)>0:(parseFloat(row.defects[d.key])||0)>thresh;});
+                      var secBg=secBgFor(sec);
+                      var secText=secTextFor(sec);
+                      return ce('div',{key:sec.section,onClick:function(){setExpandedRow(isExp?null:row.id);},
+                        style:{textAlign:'center',padding:'6px 4px',borderRadius:6,cursor:'pointer',minHeight:40,outline:isExp?'2px solid var(--accent)':'none',outlineOffset:isExp?-2:0,background:secOver?'var(--red-bg)':secBg,border:'1px solid '+(secOver?'var(--red-border)':'transparent')}},
+                        ce('div',{style:{fontSize:9,color:secOver?'var(--red)':secText,fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em',marginBottom:2,lineHeight:1.2}},sec.section),
+                        ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:15,fontWeight:600,color:secOver?'var(--red)':secText}},secTotal>0?secTotal.toFixed(1):'—'),
+                        ce('div',{style:{fontSize:9,color:secOver?'var(--red)':secText,opacity:.7}},sec.items.length+' items')
                       );
                     })
                   )
