@@ -4434,6 +4434,10 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       if(!ef2m.temp_log) missingM.push('Temp °C');
                       if(!ef2m.worker_id) missingM.push('Worker ID');
                       if(!ef2m.pkg_mtl_wt) missingM.push('Pkg Material Wt');
+                      /* The list above is the GRAPES sample spec. Citrus/mango/pom don't render those
+                         inputs, so on mobile their P/F could never be set. Match desktop: P/F
+                         required-field validation is grapes-only. */
+                      if(cropId!=='grapes') missingM=[];
                       var hasIssuesM=missingM.length>0;
                       var showErrM=triedM&&hasIssuesM;
                       var tipM=showErrM?('Fill required:\n• '+missingM.join('\n• ')):undefined;
