@@ -16415,7 +16415,8 @@ function visionGlassToggle(){try{localStorage.setItem('vision_theme',visionGlass
 /* Listing scroll fixes (phase 1). Kill switch: VISION_SCROLLFIX=false. Per browser: ?scroll=old / ?scroll=new. */
 var VISION_SCROLLFIX=true;
 function visionScrollFixOn(){if(!VISION_SCROLLFIX)return false;try{var q=new URLSearchParams(location.search).get('scroll');if(q==='old'||q==='new')localStorage.setItem('vision_scroll',q);return localStorage.getItem('vision_scroll')!=='old';}catch(e){return true;}}
-function visionModalOpen(){return [].some.call(document.querySelectorAll('[style*="position: fixed"]'),function(el){return (+getComputedStyle(el).zIndex||0)>=100&&el.getClientRects().length>0;});}
+/* a Vision pop-up is open: a fixed, high, sizeable box inside the app (ignores overlays injected by browser extensions) */
+function visionModalOpen(){var app=document.querySelector('.layout');if(!app)return false;return [].some.call(app.querySelectorAll('[style*="position: fixed"]'),function(el){if((+getComputedStyle(el).zIndex||0)<100)return false;var r=el.getBoundingClientRect();return r.width>120&&r.height>80;});}
 /* Esc closes a listing's side panel (not while typing or while a pop-up is open) */
 /* Phase 3a: remember the list's scroll position across a round trip (form, or a jump to another module and Back).
    save(key) before leaving, restore(key) when the list is back; restore waits for the rows to load. */
