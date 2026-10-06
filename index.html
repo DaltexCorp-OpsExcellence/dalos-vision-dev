@@ -181,6 +181,35 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   .sfx .dp-pin .dp-hdr{flex-shrink:0}
   .sfx .dp-pin .dp-body{flex:1;max-height:none!important;overflow-y:auto}
 }
+/* ── Mobile quick fixes (staging). Scope: html.vmf (switch: visionMobileFixOn) ── */
+@media(max-width:767px){
+  /* the page itself scrolls on phones: let the inner area stop being a dead scroll box so sticky bars (form Save bar, top bar, filters) actually stick */
+  html.vmf .layout{overflow:visible;overflow-x:clip}
+  html.vmf .main{overflow:visible}
+  /* Shipments' tall filter block scrolls away instead of covering half the phone */
+  html.vmf .page [style*="position: sticky"][style*="z-index: 20"][style*="padding: 16px 16px 12px"]{position:static!important}
+  /* listing toolbar: the status filters get their own full-width row; search + New go below */
+  html.vmf .page [style*="position: sticky"][style*="justify-content: space-between"]{flex-wrap:wrap!important;row-gap:8px}
+  html.vmf .page [style*="position: sticky"][style*="justify-content: space-between"] > :first-child{flex:1 1 100%!important;min-width:0!important;width:100%}
+  html.vmf .page [style*="grid-template-columns: 1fr 0.75fr"]{grid-template-columns:minmax(0,1fr)!important}
+  /* form fields: one per row (some fields span 2–3 columns, which created narrow phantom columns) */
+  html.vmf :is(.grid4,.grid3,.grid2) > *{grid-column:1 / -1!important}
+  /* tables never trap the page: no inner height-limited scroll box */
+  html.vmf .page .table-wrap{max-height:none!important}
+  /* rows that refused to shrink (Analytics filters) */
+  html.vmf .page [style*="flex-wrap: wrap"][style*="flex-shrink: 0"]{flex-shrink:1!important;min-width:0}
+  /* tap targets */
+  html.vmf .menu-btn{width:44px;height:44px}
+  html.vmf .dp-sheet .dp-hdr .btn,html.vmf .sx-ship-panel button,html.vmf .cqc-filters > *{min-height:40px;min-width:40px}
+  html.vmf .sidebar select{min-height:36px}
+}
+@media(max-width:600px){
+  /* Vision Home top bar: keep the season and avatar on screen */
+  html.vmf .dh-tb{gap:8px}
+  html.vmf .dh-tb-l,html.vmf .dh-tb-r{min-width:0;flex-shrink:1}
+  html.vmf .dh-tb-l .dh-pill,html.vmf .dh-tb .dh-ver{display:none}
+  html.vmf .dh-tb-r select{max-width:120px}
+}
 /* phones + tablets: the Shipments container panel overlays the list instead of squeezing it */
 @media(max-width:1179px){
   .sfx [style*="padding-right: 340px"]{padding-right:0!important}
@@ -5747,7 +5776,7 @@ function FGView(props){
   useSplitList(!!sel&&!isMobile&&!showNew&&!editBatch,['Brix','Farm','Decision','Client']);
   var _formOpen=!!(showNew||editBatch);var _formWas=React.useRef(_formOpen);
   var _listTop=React.useRef(0);
-  React.useEffect(function(){if(_formOpen)return;var m=document.querySelector('.main');if(!m)return;function s(){_listTop.current=m.scrollTop;}s();m.addEventListener('scroll',s,{passive:true});return function(){m.removeEventListener('scroll',s);};},[_formOpen]);
+  React.useEffect(function(){if(_formOpen)return;var m=visionScroller();if(!m)return;var tg=m===document.scrollingElement?window:m;function s(){_listTop.current=m.scrollTop;}s();tg.addEventListener('scroll',s,{passive:true});return function(){tg.removeEventListener('scroll',s);};},[_formOpen]);
   React.useLayoutEffect(function(){if(_formOpen&&!_formWas.current&&visionScrollFixOn())visionScrollMemo['fg:list']={top:_listTop.current,at:Date.now()};
     if(!_formOpen&&_formWas.current)visionRestoreScroll('fg:list');_formWas.current=_formOpen;},[_formOpen]);
 
@@ -10981,7 +11010,7 @@ function ClientQCMgmt(props){
   var sCQCSrch=useState(''); var cqcSearch=sCQCSrch[0]; var setCqcSearch=sCQCSrch[1];
   var sCQCSrchFocus=useState(false); var cqcSearchFocus=sCQCSrchFocus[0]; var setCqcSearchFocus=sCQCSrchFocus[1];
   var sCqcFilter=useState('all'); var cqcFilter=sCqcFilter[0]; var setCqcFilter=sCqcFilter[1];
-  var sCqcView=useState('table'); var cqcView=sCqcView[0]; var setCqcView=sCqcView[1];
+  var sCqcView=useState(function(){return (visionMobileFixOn()&&window.innerWidth<768)?'cards':'table';}); var cqcView=sCqcView[0]; var setCqcView=sCqcView[1];
   /* Card-view announcement (shows once per browser; bump key to re-announce a future feature) */
   var CARDVIEW_TIP_KEY='dalos_seen_cqc_cardview_v1';
   var sCvAnnounce=useState('none'); var cvAnnounce=sCvAnnounce[0]; var setCvAnnounce=sCvAnnounce[1]; /* 'none' | 'modal' | 'popover' */
@@ -16429,21 +16458,27 @@ function visionGlassToggle(){try{localStorage.setItem('vision_theme',visionGlass
 /* Listing scroll fixes (phase 1). Kill switch: VISION_SCROLLFIX=false. Per browser: ?scroll=old / ?scroll=new. */
 var VISION_SCROLLFIX=true;
 function visionScrollFixOn(){if(!VISION_SCROLLFIX)return false;try{var q=new URLSearchParams(location.search).get('scroll');if(q==='old'||q==='new')localStorage.setItem('vision_scroll',q);return localStorage.getItem('vision_scroll')!=='old';}catch(e){return true;}}
+/* Mobile quick fixes. Kill switch: VISION_MOBILEFIX=false. Per browser: ?mobile=old / ?mobile=new. */
+var VISION_MOBILEFIX=true;
+function visionMobileFixOn(){if(!VISION_MOBILEFIX)return false;try{var q=new URLSearchParams(location.search).get('mobile');if(q==='old'||q==='new')localStorage.setItem('vision_mobile',q);return localStorage.getItem('vision_mobile')!=='old';}catch(e){return true;}}
+try{if(visionMobileFixOn())document.documentElement.classList.add('vmf');}catch(e){}
+/* the element that actually scrolls the list: .main on desktop, the page itself on phones */
+function visionScroller(){var m=document.querySelector('.main');if(m&&getComputedStyle(m).overflowY!=='visible')return m;return document.scrollingElement||document.documentElement;}
 /* a Vision pop-up is open: a fixed, high, sizeable box inside the app (ignores overlays injected by browser extensions) */
 function visionModalOpen(){var app=document.querySelector('.layout');if(!app)return false;return [].some.call(app.querySelectorAll('[style*="position: fixed"]'),function(el){if((+getComputedStyle(el).zIndex||0)<100)return false;var r=el.getBoundingClientRect();return r.width>120&&r.height>80;});}
 /* Esc closes a listing's side panel (not while typing or while a pop-up is open) */
 /* Phase 3a: remember the list's scroll position across a round trip (form, or a jump to another module and Back).
    save(key) before leaving, restore(key) when the list is back; restore waits for the rows to load. */
 var visionScrollMemo={};
-function visionSaveScroll(key){if(!visionScrollFixOn())return;var m=document.querySelector('.main');if(m)visionScrollMemo[key]={top:m.scrollTop,at:Date.now()};}
+function visionSaveScroll(key){if(!visionScrollFixOn())return;var m=visionScroller();if(m)visionScrollMemo[key]={top:m.scrollTop,at:Date.now()};}
 function visionRestoreScroll(key){if(!visionScrollFixOn())return false;var s=visionScrollMemo[key];if(!s||Date.now()-s.at>30*60*1000)return false;delete visionScrollMemo[key];
   /* the list may re-render or refresh right after we land, briefly shortening the page; keep re-applying for ~1.5s unless the user scrolls */
   var user=false,t0=Date.now();function mine(){user=true;}['wheel','touchstart','keydown','mousedown'].forEach(function(ev){window.addEventListener(ev,mine,{once:true,passive:true});});
-  (function go(){var m=document.querySelector('.main');if(user||!m)return;if(m.scrollHeight-m.clientHeight>=s.top-2&&Math.abs(m.scrollTop-s.top)>4)m.scrollTop=s.top;
+  (function go(){var m=visionScroller();if(user||!m)return;if(m.scrollHeight-m.clientHeight>=s.top-2&&Math.abs(m.scrollTop-s.top)>4)m.scrollTop=s.top;
     if(Date.now()-t0<1500||(m.scrollHeight-m.clientHeight<s.top-2&&Date.now()-t0<5000))setTimeout(go,120);})();return true;}
 /* Phase 3a (forms): a list that swaps to a form and back returns to the same spot. Call before any early return. */
 function useFormRoundTrip(formOpen,key){var was=React.useRef(formOpen),top=React.useRef(0);
-  React.useEffect(function(){if(formOpen)return;var m=document.querySelector('.main');if(!m)return;function s(){top.current=m.scrollTop;}s();m.addEventListener('scroll',s,{passive:true});return function(){m.removeEventListener('scroll',s);};},[formOpen]);
+  React.useEffect(function(){if(formOpen)return;var m=visionScroller();if(!m)return;var tg=m===document.scrollingElement?window:m;function s(){top.current=m.scrollTop;}s();tg.addEventListener('scroll',s,{passive:true});return function(){tg.removeEventListener('scroll',s);};},[formOpen]);
   React.useLayoutEffect(function(){if(formOpen&&!was.current&&visionScrollFixOn())visionScrollMemo[key]={top:top.current,at:Date.now()};
     if(!formOpen&&was.current)visionRestoreScroll(key);was.current=formOpen;},[formOpen]);}
 /* Phase 3b: with a side panel open, ↑/↓ select the row above/below (by clicking it, so each page's own logic runs). */
@@ -16827,7 +16862,7 @@ function App(){
     var h=(window.location.hash||'').slice(1);
     return h||'home';
   }); var view=sv[0]; var setView=sv[1];
-  React.useEffect(function(){if(!visionScrollFixOn())return;if(visionRestoreScroll('view:'+view))return;var m=document.querySelector('.main');if(m)m.scrollTop=0;},[view]);
+  React.useEffect(function(){if(!visionScrollFixOn())return;if(visionRestoreScroll('view:'+view))return;var m=visionScroller();if(m)m.scrollTop=0;},[view]);
   useListKeys();
   React.useEffect(function(){window.location.hash=view;},[view]);
   /* page-view capture (platform usage report) — log each Vision view change for a
