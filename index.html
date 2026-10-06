@@ -173,26 +173,19 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 /* ── Listing scroll, phase 2: the side panel is its own full-height column with its own scroll; the list makes room and keeps one line per row ── */
 :root{--sx-pw:clamp(380px, calc((100vw - 240px) / 3), 560px)}
 @media(min-width:768px){
-  .sfx .main > .page:has(.dp-pin),.sfx .main > .page:has(.cqc-detail-pane),.sfx .main > .page:has(.sx-ship-panel){padding-right:calc(var(--sx-pw) + 16px)!important}
+  .sfx .main > .page:has(.dp-pin),.sfx .main > .page:has(.sx-ship-panel){padding-right:calc(var(--sx-pw) + 16px)!important}
   .sfx .page:has(.dp-pin) [style*="position: sticky"][style*="justify-content: space-between"]{flex-wrap:wrap;row-gap:8px}
   .sfx .page:has(.dp-pin) [style*="position: sticky"][style*="justify-content: space-between"] > :first-child{min-width:max-content}
   .sfx .page:has(.dp-pin) [style*="grid-template-columns"][style*="400px"]{grid-template-columns:minmax(0,1fr)!important}
   .sfx [style*="padding-right: 340px"]{padding-right:0!important}
-  .sfx .cqc-list-pane.has-detail{flex:1 1 auto!important;width:auto!important;max-width:none!important}
-  .sfx .dp-pin,.sfx .cqc-detail-pane,.sfx .sx-ship-panel{position:fixed!important;top:50px!important;right:0!important;bottom:0!important;width:var(--sx-pw)!important;max-height:none!important;z-index:30;overscroll-behavior:contain;box-shadow:-4px 0 16px rgba(0,0,0,.08)}
+  .sfx .dp-pin,.sfx .sx-ship-panel{position:fixed!important;top:50px!important;right:0!important;bottom:0!important;width:var(--sx-pw)!important;max-height:none!important;z-index:30;overscroll-behavior:contain;box-shadow:-4px 0 16px rgba(0,0,0,.08)}
   .sfx .dp-pin{display:flex;flex-direction:column;border-radius:0;background:var(--card)}
   .sfx .dp-pin .dp-hdr{flex-shrink:0}
   .sfx .dp-pin .dp-body{flex:1;max-height:none!important;overflow-y:auto}
-  .sfx .cqc-detail-pane{overflow-y:auto;padding:10px;background:var(--bg)}
-  .vg.sfx .dp-pin,.vg.sfx .cqc-detail-pane,.vg.sfx .sx-ship-panel{top:60px!important;right:10px!important;bottom:10px!important;border-radius:16px;border:1px solid rgba(255,255,255,.8);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 12px 32px rgba(30,45,34,.16)}
+  .vg.sfx .dp-pin,.vg.sfx .sx-ship-panel{top:60px!important;right:10px!important;bottom:10px!important;border-radius:16px;border:1px solid rgba(255,255,255,.8);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 12px 32px rgba(30,45,34,.16)}
   .vg.sfx .dp-pin,.vg.sfx .sx-ship-panel{background:rgba(255,255,255,.86)!important;-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%)}
-  .vg.sfx .cqc-detail-pane{background:rgba(247,244,238,.9);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%)}
   .sfx table[data-sx]{min-width:0!important}
   .sfx table[data-sx]:not([data-sx-wrap]) td,.sfx table[data-sx]:not([data-sx-wrap]) th{white-space:nowrap}
-  .sfx .cqc-detail-pane{overflow-x:hidden}
-  .sfx .cqc-detail-pane table{display:block;max-width:100%;overflow-x:auto}
-  .sfx .cqc-dp-head{flex-wrap:wrap;row-gap:6px}
-  .sfx .cqc-detail-pane .cqc-two-col,.sfx .cqc-detail-pane .cqc-two-col-bot{grid-template-columns:1fr}
   .sfx table[data-sx] thead th{position:sticky!important;top:var(--sx-top,50px)!important;z-index:6;background:var(--bg)}
   .vg.sfx table[data-sx] thead th{background:rgba(247,244,238,.97)}
 }
@@ -11401,7 +11394,6 @@ function ClientQCMgmt(props){
   },[config.activeSeasonId,reloadTick]);
   var sSel=useState(null); var selRep=sSel[0]; var setSelRep=sSel[1];
   useEscClose(!!selRep,function(){setSelRep(null);});
-  useSplitList(!!selRep&&!cqcMob,['Top defects','Variety','Pack date'],'.cqc-list-pane');
   var sEditRep=useState(null); var editRep=sEditRep[0]; var setEditRep=sEditRep[1];
   var sMBDef=useState(null); var matchedBDefects=sMBDef[0]; var setMatchedBDefects=sMBDef[1];
   var sMCmp=useState(null); var matchedCmp=sMCmp[0]; var setMatchedCmp=sMCmp[1];
@@ -16422,7 +16414,7 @@ function visionModalOpen(){return [].some.call(document.querySelectorAll('[style
 function useSplitList(active,hide,listSel){
   var on=active&&visionScrollFixOn()&&window.innerWidth>=768;
   function qa(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
-  function panelEl(page){return page.querySelector('.dp-pin, .cqc-detail-pane, .sx-ship-panel');}
+  function panelEl(page){return page.querySelector('.dp-pin, .sx-ship-panel');}
   function clean(){var st=document.getElementById('sx-hide');if(st)st.textContent='';
     qa('[data-sx-ov]').forEach(function(e){e.style.overflow=e.getAttribute('data-sx-ov');e.style.maxHeight=e.getAttribute('data-sx-mh');e.removeAttribute('data-sx-ov');e.removeAttribute('data-sx-mh');});
     qa('table[data-sx]').forEach(function(x){x.removeAttribute('data-sx');x.removeAttribute('data-sx-wrap');});}
