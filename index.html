@@ -38,12 +38,19 @@ input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--te
 .crop-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 16px 16px;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s}
 .landing-crop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 /* Landing — glass + stepped line → packhouse → product (2026-10) */
-.landing.lg-glass{background:
+.layout.lg-layout{background:
   radial-gradient(60% 45% at 12% 8%,rgba(142,203,164,.50),transparent 70%),
   radial-gradient(50% 40% at 88% 14%,rgba(220,199,156,.50),transparent 70%),
   radial-gradient(55% 45% at 72% 92%,rgba(160,180,232,.35),transparent 70%),
   radial-gradient(45% 40% at 18% 86%,rgba(232,200,122,.30),transparent 70%),
   linear-gradient(160deg,#eef2ea,#f3eee4 55%,#ece9f1)}
+.lg-layout .main,.landing.lg-glass{background:transparent}
+@media(min-width:768px){
+  .lg-layout .sidebar{margin:10px 0 10px 10px;height:calc(100vh - 20px);border-radius:18px;background:rgba(24,38,28,.9);-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);border:1px solid rgba(255,255,255,.12);box-shadow:0 12px 32px rgba(30,45,34,.18)}
+  .lg-layout .sidebar-logo{border-bottom-color:rgba(255,255,255,.08)}
+  .lg-layout .nav-item{border-radius:10px}
+  .lg-layout .nav-item.active{background:rgba(255,255,255,.16);box-shadow:0 1px 0 rgba(255,255,255,.18) inset}
+}
 .lg-panel{background:rgba(255,255,255,.58);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border:1px solid rgba(255,255,255,.75);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 8px 24px rgba(30,45,34,.10);border-radius:18px}
 button.lg-panel{font-family:var(--font-body);color:var(--text);cursor:pointer;text-align:left;transition:background .2s,transform .2s,box-shadow .2s}
 button.lg-panel:hover{background:rgba(255,255,255,.80);transform:translateY(-1px);box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 12px 30px rgba(30,45,34,.14)}
@@ -18134,7 +18141,7 @@ function App(){
       ce('div',{style:{fontSize:11,color:'var(--text3)'}},'After signing in, return to this tab to continue.')
     )
   );
-  return ce('div',{className:'layout'},sessionExpiredOverlay,mkSidebar(),
+  return ce('div',{className:'layout lg-layout'},sessionExpiredOverlay,mkSidebar(),
       ce('div',{className:'main'},ce(Landing,{currentUser:liveCurrentUser,config:config,setConfig:setConfig,batches:batches,perms:perms,inspLoading:inspLoading,currentViewSeason:currentViewSeason,onMobOpen:function(){setMobOpen(true);},onSelectCQC:function(){setView('clientqc');},onSelect:function(pid,cid){
         var phs=currentUser.packhouses||[currentUser.packhouse||'All'];
         var finalPh=(phs.indexOf('All')<0&&phs.length===1)?phs[0]:pid;
