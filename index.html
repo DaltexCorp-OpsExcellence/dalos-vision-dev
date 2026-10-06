@@ -216,6 +216,30 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   html.vmf .dh-tb-l .dh-pill,html.vmf .dh-tb .dh-ver{display:none}
   html.vmf .dh-tb-r select{max-width:120px}
 }
+/* ── Tablets (768–1023px): icon rail, slimmer lists, sample cards, steppers ── */
+.vrail-btn{display:none}
+@media(min-width:768px) and (max-width:1023px){
+  html.vmf .vrail-btn{display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:0 auto 8px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:18px}
+  html.vmf:not(.vrail-open) .sidebar{width:72px!important;min-width:72px!important;overflow-x:hidden}
+  html.vmf:not(.vrail-open) .sidebar-logo{padding:12px 6px!important}
+  html.vmf:not(.vrail-open) .sidebar-logo > :not(.vrail-btn),html.vmf:not(.vrail-open) .sidebar-sec,html.vmf:not(.vrail-open) .sidebar-bottom > :not(:has(svg)){display:none!important}
+  html.vmf:not(.vrail-open) .nav-item{justify-content:center;padding:12px 0!important;margin:2px 8px}
+  html.vmf:not(.vrail-open) .nav-item > :not(svg){display:none!important}
+  html.vmf:not(.vrail-open) .nav-item .nav-icon{width:20px;height:20px;opacity:.85}
+  html.vmf:not(.vrail-open) .sidebar-bottom .nav-item > :not(svg),html.vmf:not(.vrail-open) .side-ws > :not(svg){display:none!important}
+  html.vmf:not(.vrail-open) .side-ws{justify-content:center;padding:10px 0}
+  /* inspections list: Container · Variety · Client · Date · Defect · Status */
+  html.vmf .vfg-tbl{min-width:0!important}
+  html.vmf .vfg-tbl tr > :nth-child(1),html.vmf .vfg-tbl tr > :nth-child(4),html.vmf .vfg-tbl tr > :nth-child(7),html.vmf .vfg-tbl tr > :nth-child(9),html.vmf .vfg-tbl tr > :nth-child(11){display:none}
+  html.vmf .vfg-tbl tr > td[colspan]{display:table-cell}
+  /* shipments: drop invoice/farms/cartons/grade/claim (by container) and carta/invoice/farm/cartons/grade/claim (all rows) */
+  html.vmf .vsh-agg tr > :nth-child(2),html.vmf .vsh-agg tr > :nth-child(4),html.vmf .vsh-tbl tr > :nth-child(10),html.vmf .vsh-tbl tr > :nth-child(13),html.vmf .vsh-tbl tr > :nth-child(14),html.vmf .vsh-rows tr > :nth-child(2),html.vmf .vsh-rows tr > :nth-child(3),html.vmf .vsh-rows tr > :nth-child(5){display:none}
+  /* form: sample readings as cards (no sideways table) */
+  html.vmf .sample-table-desktop{display:none!important}
+  html.vmf .sample-card-mobile{display:block!important}
+  html.vmf .sample-card-mobile .sample-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  html.vmf .vstep{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex-shrink:0;border-radius:12px;border:1px solid rgba(30,45,34,.16);background:var(--bg);font-size:22px;color:var(--accent);line-height:1}
+}
 /* ── Phone Client QC: stats behind a toggle, floating New report, Upgrade/Downgrade/Edit behind ⋯ More ── */
 .vcq-stats-btn,.vm-more,.vsh-fbtn{display:none}
 @media(max-width:767px){
@@ -19038,6 +19062,7 @@ function App(){
       ce('div',{className:'sidebar-overlay'+(mobOpen?' open':''),onClick:function(){setMobOpen(false);}}),
       ce('div',{className:'sidebar'+(mobOpen?' open':'')},
         ce('div',{className:'sidebar-logo'},
+          ce('button',{type:'button',className:'vrail-btn',title:'Expand or collapse the menu',onClick:function(){document.documentElement.classList.toggle('vrail-open');}},'\u2630'),
           ce('div',{className:'sidebar-logo-mark',style:{cursor:'pointer'},title:'Go to home',onClick:function(){setView('home');setMobOpen(false);}},ce('span',{style:{color:'#fff'}},'Dal'),ce('span',{style:{color:'var(--accent2)'}},'OS'),ce('span',{style:{color:'var(--sidebar-muted)',fontFamily:'var(--font-body)',fontSize:14,fontWeight:500,marginLeft:4}},'Vision')),
           ce('div',{style:{marginTop:8,background:'rgba(255,255,255,.08)',borderRadius:6,padding:'6px 10px',border:'1px solid rgba(255,255,255,.12)'}},
             ce('div',{style:{fontSize:9,color:'var(--sidebar-muted)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:3}},'Season'),
