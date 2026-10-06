@@ -187,7 +187,11 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   .vg.sfx .dp-pin,.vg.sfx .sx-ship-panel{background:rgba(255,255,255,.86)!important;-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%)}
   .vg.sfx .cqc-detail-pane{background:rgba(247,244,238,.9);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%)}
   .sfx table[data-sx]{min-width:0!important}
-  .sfx table[data-sx] td,.sfx table[data-sx] th{white-space:nowrap}
+  .sfx table[data-sx]:not([data-sx-wrap]) td,.sfx table[data-sx]:not([data-sx-wrap]) th{white-space:nowrap}
+  .sfx .cqc-detail-pane{overflow-x:hidden}
+  .sfx .cqc-detail-pane table{display:block;max-width:100%;overflow-x:auto}
+  .sfx .cqc-dp-head{flex-wrap:wrap;row-gap:6px}
+  .sfx .cqc-detail-pane .cqc-two-col,.sfx .cqc-detail-pane .cqc-two-col-bot{grid-template-columns:1fr}
   .sfx table[data-sx] thead th{position:sticky!important;top:var(--sx-top,50px)!important;z-index:6;background:var(--bg)}
   .vg.sfx table[data-sx] thead th{background:rgba(247,244,238,.97)}
 }
@@ -16420,7 +16424,7 @@ function useSplitList(active,hide,listSel){
   function panelEl(page){return page.querySelector('.dp-pin, .cqc-detail-pane, .sx-ship-panel');}
   function clean(){var st=document.getElementById('sx-hide');if(st)st.textContent='';
     qa('[data-sx-ov]').forEach(function(e){e.style.overflow=e.getAttribute('data-sx-ov');e.style.maxHeight=e.getAttribute('data-sx-mh');e.removeAttribute('data-sx-ov');e.removeAttribute('data-sx-mh');});
-    qa('table[data-sx]').forEach(function(x){x.removeAttribute('data-sx');});}
+    qa('table[data-sx]').forEach(function(x){x.removeAttribute('data-sx');x.removeAttribute('data-sx-wrap');});}
   function apply(){var page=document.querySelector('.page');if(!page)return;var pn=panelEl(page);
     var scope=(listSel&&page.querySelector(listSel))||page;
     var tb=qa('table',scope).filter(function(x){return x.querySelector('thead')&&!(pn&&pn.contains(x));})[0];if(!tb)return;
@@ -16430,10 +16434,12 @@ function useSplitList(active,hide,listSel){
     var top=0;qa('.topbar, .page [style*="position: sticky"]').forEach(function(e){if(e.closest('thead')||(pn&&pn.contains(e)))return;var cs=getComputedStyle(e);if(cs.position!=='sticky')return;top=Math.max(top,(parseFloat(cs.top)||0)+e.offsetHeight);});
     document.documentElement.style.setProperty('--sx-top',(top||50)+'px');
     var st=document.getElementById('sx-hide');if(!st){st=document.createElement('style');st.id='sx-hide';document.head.appendChild(st);}
-    st.textContent='';var ths=qa('thead th',tb),used=[],room=function(){return tb.parentElement.clientWidth;};
+    st.textContent='';tb.removeAttribute('data-sx-wrap');var ths=qa('thead th',tb),used=[],room=function(){return tb.parentElement.clientWidth;};
     for(var k=0;k<(hide||[]).length&&tb.scrollWidth>room()+1;k++){
       var idx=-1;ths.forEach(function(th,i){if(idx<0&&th.textContent.trim().indexOf(hide[k])===0)idx=i;});if(idx<0)continue;
       used.push('table[data-sx] tr:not(:has(> [colspan])) > :nth-child('+(idx+1)+'){display:none}');st.textContent=used.join('\n');}
+    /* still too wide after hiding everything allowed: let long cells wrap rather than run under the panel */
+    if(tb.scrollWidth>room()+1)tb.setAttribute('data-sx-wrap','1');
   }
   React.useEffect(function(){if(on)apply();});
   React.useEffect(function(){if(!on){clean();return;}var tm;function rs(){clearTimeout(tm);tm=setTimeout(apply,120);}window.addEventListener('resize',rs);
