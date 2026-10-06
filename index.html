@@ -216,6 +216,22 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   html.vmf .dh-tb-l .dh-pill,html.vmf .dh-tb .dh-ver{display:none}
   html.vmf .dh-tb-r select{max-width:120px}
 }
+/* ── Phone detail shell: one full-screen, solid detail for Inspections, Client QC and Shipments (html.vmf, <768px) ── */
+.vdn{display:none}
+@media(max-width:767px){
+  html.vmf .dp-overlay{background:transparent!important}
+  html.vmf .dp-sheet{position:fixed!important;inset:0!important;max-height:none!important;height:100vh;height:100dvh;border-radius:0!important;background:#fbfaf7!important;transform:none!important;padding-top:env(safe-area-inset-top,0px)}
+  html.vmf .dp-handle-wrap{display:none!important}
+  html.vmf .dp-sheet .dp-hdr,html.vmf .dp-sheet .vdh{position:sticky;top:0;z-index:3;min-height:60px;background:#fbfaf7!important;border-bottom:1px solid rgba(30,45,34,.08);padding:8px 10px 8px 14px!important;gap:8px}
+  html.vmf .dp-sheet .dp-body{overscroll-behavior:contain;touch-action:pan-y}
+  html.vmf .dp-sheet .dp-hdr .btn{min-width:44px;min-height:44px;font-size:16px}
+  html.vmf .dp-sheet-actions{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))!important}
+  html.vmf .sx-ship-panel{top:0!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh;height:100dvh;z-index:45!important;border-radius:0!important;padding-top:env(safe-area-inset-top,0px);overscroll-behavior:contain}
+  html.vmf .sx-ship-panel > :first-child{min-height:60px}
+  html.vmf .vdn{display:inline-flex;gap:4px;flex-shrink:0}
+  html.vmf .vdn button{width:44px;height:44px;border-radius:12px;border:1px solid rgba(30,45,34,.14);background:#fff;font-size:22px;line-height:1;color:var(--text2);display:inline-flex;align-items:center;justify-content:center}
+  html.vmf .vdn button:active{background:var(--bg2)}
+}
 /* phones + tablets: the Shipments container panel overlays the list instead of squeezing it */
 @media(max-width:1179px){
   .sfx [style*="padding-right: 340px"]{padding-right:0!important}
@@ -6521,6 +6537,7 @@ function FGView(props){
       ce('div',{
         className:'dp-sheet',
         onTouchStart:function(e){
+          if(visionFullDetail())return; /* full-screen detail: scrolling must never close it; ✕ closes */
           var sheet=e.currentTarget;
           var startY=e.touches[0].clientY;
           function onMove(ev){
@@ -6553,7 +6570,7 @@ function FGView(props){
             ce('div',{style:{fontWeight:600,fontSize:14}},selB.id),
             ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:2}},selB.variety+(selB.variety2&&selB.varietyType==='mixed'?' + '+selB.variety2:'')+(cropId!=='grapes'?' \u00b7 LOT '+selB.lot:''))
           ),
-          ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSel(null);}},'✕')
+          ce('span',{style:{display:'inline-flex',gap:6,alignItems:'center'}},visionDetailNav(),ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSel(null);}},'✕'))
         ),
         ce('div',{className:'dp-body',key:selB.id},
           ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px',marginBottom:10,borderRadius:8,border:'1.5px solid '+(getContainer(selB)?'var(--border)':'var(--amber-border)'),background:getContainer(selB)?'var(--bg2)':'var(--amber-bg)'}},
@@ -14392,7 +14409,7 @@ function ClientQCMgmt(props){
               ?ce('div',{style:{gridColumn:'1/-1',padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}},'No reports match the current filters.')
               :sortedFiltered.map(function(r,i){
                 var isSelected=selRep===r.id;
-                return ce('div',{key:r.id||i,
+                return ce('div',{key:r.id||i,className:'vlist-item',
                   style:{background:'var(--card)',border:'1px solid '+(isSelected?'var(--accent)':'var(--border)'),borderRadius:'var(--r2)',padding:'14px',cursor:'pointer'},
                   onClick:function(){setSelRep(isSelected?null:r.id);}
                 },
@@ -14702,12 +14719,12 @@ function ClientQCMgmt(props){
           return ce('div',{className:'dp-overlay',onClick:function(e){if(e.target===e.currentTarget)setSelRep(null);}},
             ce('div',{className:'dp-sheet'},
               ce('div',{className:'dp-handle-wrap'},ce('div',{className:'dp-handle'})),
-              ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 16px 8px',flexShrink:0}},
+              ce('div',{className:'vdh',style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 16px 8px',flexShrink:0}},
                 ce('div',null,
                   ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:14,fontWeight:500}},r.container||r.id),
                   ce('div',{style:{fontSize:11,color:'var(--text3)'}},r.client+(r.packDate?' · '+r.packDate:''))
                 ),
-                ce('div',{style:{display:'flex',gap:6,alignItems:'center'}},
+                ce('div',{style:{display:'flex',gap:6,alignItems:'center'}},visionDetailNav(),
                   r.score&&ce('span',{style:{padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:r.score==='GREEN'?'var(--green-bg)':r.score==='RED'?'#fff0f0':'var(--amber-bg)',color:r.score==='GREEN'?'var(--green)':r.score==='RED'||r.score==='NFA'?'var(--red)':'var(--amber)'}},r.score),
                   r.matched&&ce('span',{style:{background:'var(--green-bg)',color:'var(--green)',border:'1px solid var(--green-border)',borderRadius:6,padding:'2px 7px',fontSize:10,fontWeight:500}},'✓ Matched'),
                   ce('button',{style:{background:'none',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer',lineHeight:1},onClick:function(){setSelRep(null);}},'×')
@@ -15807,7 +15824,7 @@ function ShipmentsMgmt(props){
           cqcCount>0&&ce('div',{style:{fontSize:11,color:'var(--green)',marginTop:2}},'\u2713 '+cqcCount+' CQC report'+(cqcCount>1?'s':'')+' matched'),
           inspCount>0&&ce('div',{style:{fontSize:11,color:'#2563ad',marginTop:1}},'\u2713 '+inspCount+' inspection'+(inspCount>1?'s':'')+' matched')
         ),
-        ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18},onClick:function(){setSelContainer(null);setSelShip(null);}},'\u00d7')
+        ce('span',{style:{display:'inline-flex',gap:6,alignItems:'center'}},visionDetailNav(),ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:18,minWidth:44,minHeight:44},onClick:function(){setSelContainer(null);setSelShip(null);}},'\u00d7'))
       ),
       ce('div',{style:{padding:'14px 16px'}},
         /* Grade + claim moved to the CRM, which is the system of record. This page
@@ -16487,12 +16504,30 @@ function useFormRoundTrip(formOpen,key){var was=React.useRef(formOpen),top=React
   React.useEffect(function(){if(formOpen)return;var m=visionScroller();if(!m)return;var tg=m===document.scrollingElement?window:m;function s(){top.current=m.scrollTop;}s();tg.addEventListener('scroll',s,{passive:true});return function(){tg.removeEventListener('scroll',s);};},[formOpen]);
   React.useLayoutEffect(function(){if(formOpen&&!was.current&&visionScrollFixOn())visionScrollMemo[key]={top:top.current,at:Date.now()};
     if(!formOpen&&was.current)visionRestoreScroll(key);was.current=formOpen;},[formOpen]);}
+/* Phone detail shell: ‹ › and swipe step through the list in on-screen order by clicking the neighbour row/card. */
+var visionLastRow=null;
+function visionFullDetail(){return visionMobileFixOn()&&window.innerWidth<768;}
+function visionStepRows(){var page=document.querySelector('.page');if(!page)return [];var skip='.dp-overlay, .dp-pin, .cqc-detail-pane, .sx-ship-panel';
+  return Array.prototype.slice.call(page.querySelectorAll('tbody tr, .vlist-item')).filter(function(el){return el.offsetHeight>0&&!el.closest(skip)&&!el.querySelector('[colspan]');});}
+function visionStepCurrent(rows){if(visionLastRow&&document.contains(visionLastRow)&&rows.indexOf(visionLastRow)>-1)return visionLastRow;
+  var pn=document.querySelector('.dp-sheet, .page .dp-pin, .page .cqc-detail-pane, .page .sx-ship-panel');if(!pn)return null;
+  var keys=(pn.innerText||'').split('\n').slice(0,6).map(function(s){return s.trim();}).filter(function(s){return s.length>=6&&/\d/.test(s);});
+  for(var i=0;i<rows.length;i++){var tx=rows[i].textContent;if(keys.some(function(k){return tx.indexOf(k)>-1;}))return rows[i];}return null;}
+function visionStep(dir){var rows=visionStepRows();var cur=visionStepCurrent(rows);if(!cur)return false;var nx=rows[rows.indexOf(cur)+dir];if(!nx)return false;
+  var cell=nx.tagName==='TR'?(Array.prototype.slice.call(nx.children).filter(function(td){return td.offsetWidth>0&&!td.querySelector('button,a,input,select,label');})[0]||nx.children[0]):nx;
+  visionLastRow=nx;if(cell)cell.click();setTimeout(function(){var b=document.querySelector('.dp-sheet .dp-body, .sx-ship-panel');if(b)b.scrollTop=0;},40);return true;}
+function visionDetailNav(){return ce('span',{className:'vdn'},
+  ce('button',{type:'button','aria-label':'Previous',onClick:function(e){e.stopPropagation();visionStep(-1);}},'\u2039'),
+  ce('button',{type:'button','aria-label':'Next',onClick:function(e){e.stopPropagation();visionStep(1);}},'\u203A'));}
 /* Phase 3b: with a side panel open, ↑/↓ select the row above/below (by clicking it, so each page's own logic runs). */
 function visionListRows(){var page=document.querySelector('.page');if(!page)return [];var pn=page.querySelector('.dp-pin, .cqc-detail-pane, .sx-ship-panel');
   return Array.prototype.slice.call(page.querySelectorAll('tbody tr')).filter(function(tr){return tr.offsetHeight>0&&!(pn&&pn.contains(tr))&&!tr.querySelector('[colspan]');});}
 function visionPanelOpen(){return !!document.querySelector('.page .dp-pin, .page .cqc-detail-pane, .page .sx-ship-panel');}
 function useListKeys(){React.useEffect(function(){if(!visionScrollFixOn())return;var last=null;
-  function onClick(e){var tr=e.target&&e.target.closest&&e.target.closest('.page tbody tr');if(tr&&!tr.querySelector('[colspan]')&&!(tr.closest('.dp-pin, .cqc-detail-pane, .sx-ship-panel')))last=tr;}
+  function onClick(e){var tr=e.target&&e.target.closest&&e.target.closest('.page tbody tr, .page .vlist-item');if(tr&&!tr.querySelector('[colspan]')&&!(tr.closest('.dp-overlay, .dp-pin, .cqc-detail-pane, .sx-ship-panel'))){last=tr;visionLastRow=tr;}}
+  var sx=null,sy=null;function ts(e){if(!visionFullDetail())return;var t0=e.target&&e.target.closest&&e.target.closest('.dp-sheet .dp-body, .sx-ship-panel');if(!t0){sx=null;return;}sx=e.touches[0].clientX;sy=e.touches[0].clientY;}
+  function te(e){if(sx==null)return;var t1=e.changedTouches[0],dx=t1.clientX-sx,dy=t1.clientY-sy;sx=null;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.6)visionStep(dx<0?1:-1);}
+  document.addEventListener('touchstart',ts,{passive:true});document.addEventListener('touchend',te,{passive:true});
   function current(rows){if(last&&document.contains(last)&&rows.indexOf(last)>-1)return last;
     var pn=document.querySelector('.page .dp-pin, .page .cqc-detail-pane, .page .sx-ship-panel');if(!pn)return null;
     var keys=(pn.innerText||'').split('\n').slice(0,6).map(function(s){return s.trim();}).filter(function(s){return s.length>=6&&/\d/.test(s);});
@@ -16504,7 +16539,7 @@ function useListKeys(){React.useEffect(function(){if(!visionScrollFixOn())return
     var cell=Array.prototype.slice.call(nx.children).filter(function(td){return td.offsetWidth>0&&!td.querySelector('button,a,input,select,label');})[0]||nx.children[0];
     last=nx;if(cell)cell.click();setTimeout(function(){try{nx.scrollIntoView({block:'nearest'});}catch(_e){}},30);}
   document.addEventListener('click',onClick,true);document.addEventListener('keydown',onKey);
-  return function(){document.removeEventListener('click',onClick,true);document.removeEventListener('keydown',onKey);};},[]);}
+  return function(){document.removeEventListener('click',onClick,true);document.removeEventListener('keydown',onKey);document.removeEventListener('touchstart',ts);document.removeEventListener('touchend',te);};},[]);}
 /* Phase 2: while a listing's side panel is open, the list table keeps one line per row, its header sticks under the
    sticky bars, inner scroll boxes stand down (the page scrolls), and columns the panel already shows hide in the given
    order only until the list fits. listSel narrows where the list table lives. */
