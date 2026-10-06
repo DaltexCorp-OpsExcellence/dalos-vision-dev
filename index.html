@@ -3276,6 +3276,8 @@ function InspectionForm(props){
               ),
               ce('select',{className:'form-select',value:variety,onChange:function(e){
                 var selectedName=e.target.value;
+                /* potatoes: bags on the old main variety (or none yet) follow the header */
+                if(isPT){var _oldV=variety;setPallets(function(prev){return prev.map(function(p){return Object.assign({},p,{rows:p.rows.map(function(r){return (!r.sampleVariety||r.sampleVariety===_oldV)?Object.assign({},r,{sampleVariety:selectedName}):r;})});});});}
                 markDirty()||setVariety(selectedName);
                 if(preFilled) confirmUnit('variety');
                 var allVars=(config.varietiesFull||{})[cropId]||[];
@@ -3318,7 +3320,8 @@ function InspectionForm(props){
                 extraVarieties.map(function(xv,xi){
                   return ce('span',{key:xi,style:{display:'inline-flex',alignItems:'center',gap:4,border:'1px solid var(--border2)',borderRadius:6,background:'var(--card)',padding:'2px 4px 2px 6px'}},
                     ce('select',{value:xv,'aria-label':'Extra variety '+(xi+1),style:{border:0,background:'transparent',fontSize:12,color:'var(--text)'},onChange:function(e){var nv=e.target.value;var old=xv;markDirty();setExtraVarieties(function(prev){return prev.map(function(v,i){return i===xi?nv:v;});});
-                      setPallets(function(prev){return prev.map(function(p){return Object.assign({},p,{rows:p.rows.map(function(r){return r.sampleVariety===old?Object.assign({},r,{sampleVariety:nv}):r;})});});});}},
+                      /* only bags that used the OLD extra variety follow the rename (never blank / main-variety bags) */
+                      if(old)setPallets(function(prev){return prev.map(function(p){return Object.assign({},p,{rows:p.rows.map(function(r){return r.sampleVariety===old?Object.assign({},r,{sampleVariety:nv}):r;})});});});}},
                       ce('option',{value:''},'— Select —'),
                       ((config.varietiesFull||{})[cropId]||[]).filter(function(v){return v.name===xv||(v.name!==variety&&extraVarieties.indexOf(v.name)<0);}).map(function(v){return ce('option',{key:v.id,value:v.name},v.name);})),
                     ce('button',{type:'button','aria-label':'Remove '+(xv||'variety'),title:'Remove',style:{border:0,background:'none',cursor:'pointer',color:'var(--text3)',fontSize:14,lineHeight:1},onClick:function(){var gone=xv;markDirty();setExtraVarieties(function(prev){return prev.filter(function(_,i){return i!==xi;});});
