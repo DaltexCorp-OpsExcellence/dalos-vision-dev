@@ -225,6 +225,9 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   html.vmf .dp-sheet .dp-hdr,html.vmf .dp-sheet .vdh{position:sticky;top:0;z-index:3;min-height:60px;background:#fbfaf7!important;border-bottom:1px solid rgba(30,45,34,.08);padding:8px 10px 8px 14px!important;gap:8px}
   html.vmf .dp-sheet .dp-body{overscroll-behavior:contain;touch-action:pan-y}
   html.vmf .dp-sheet .dp-hdr .btn{min-width:44px;min-height:44px;font-size:16px}
+  html.vmf .dp-sheet .vdh{flex-wrap:wrap;row-gap:6px}
+  html.vmf .dp-sheet .vdh > :last-child{flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
+  html.vmf .dp-sheet .vdh > :last-child > button{min-width:44px;min-height:44px;font-size:18px}
   html.vmf .dp-sheet-actions{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))!important}
   html.vmf .sx-ship-panel{top:0!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh;height:100dvh;z-index:45!important;border-radius:0!important;padding-top:env(safe-area-inset-top,0px);overscroll-behavior:contain}
   html.vmf .sx-ship-panel > :first-child{min-height:60px}
