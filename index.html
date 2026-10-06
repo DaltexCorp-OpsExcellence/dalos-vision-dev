@@ -228,6 +228,10 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   html.vmf:not(.vrail-open) .nav-item .nav-icon{width:20px;height:20px;opacity:.85}
   html.vmf:not(.vrail-open) .sidebar-bottom .nav-item > :not(svg),html.vmf:not(.vrail-open) .side-ws > :not(svg){display:none!important}
   html.vmf:not(.vrail-open) .side-ws{justify-content:center;padding:10px 0}
+  html.vmf:not(.vrail-open) .sidebar > div:not([class]){display:none!important}
+  html.vmf .page [style*="position: sticky"][style*="top: 50px"]{flex-wrap:wrap!important;row-gap:8px}
+  html.vmf .page [style*="position: sticky"][style*="top: 50px"] > :first-child{flex:1 1 100%!important;min-width:0!important}
+  html.vmf .page [style*="position: sticky"][style*="top: 50px"] > :last-child:not(:first-child){margin-left:0!important;flex:1 1 100%!important;justify-content:flex-end}
   /* inspections list: Container · Variety · Client · Date · Defect · Status */
   html.vmf .vfg-tbl{min-width:0!important}
   html.vmf .vfg-tbl tr > :nth-child(1),html.vmf .vfg-tbl tr > :nth-child(4),html.vmf .vfg-tbl tr > :nth-child(7),html.vmf .vfg-tbl tr > :nth-child(9),html.vmf .vfg-tbl tr > :nth-child(11){display:none}
