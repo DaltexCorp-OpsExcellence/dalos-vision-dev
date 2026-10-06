@@ -225,6 +225,10 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   html.vmf .vfg-hero > :nth-child(2){display:none!important}
   html.vmf .vfg-new{position:fixed!important;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:30;height:52px;padding:0 20px!important;border-radius:26px!important;font-size:15px!important;font-weight:600;box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 8px 20px rgba(43,92,63,.38)!important}
   html.vmf .page .tab{min-height:38px;display:inline-flex;align-items:center}
+  /* the frosted filter bar would trap the floating button (backdrop-filter makes it the containing block) */
+  html.vmf .page [style*="position: sticky"][style*="top: 50px"]{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:rgba(247,244,238,.97)!important}
+  html.vmf .page .tabs{scrollbar-width:none}
+  html.vmf .page .tabs::-webkit-scrollbar{display:none}
   html.vmf .scroll-card:has(> div > .vfg-tbl){background:transparent!important;border:none!important;box-shadow:none!important;padding:0!important;overflow:visible!important}
   html.vmf .vfg-tbl{min-width:0!important;width:100%;display:block}
   html.vmf .vfg-tbl thead{display:none}
