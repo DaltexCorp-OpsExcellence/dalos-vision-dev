@@ -8651,6 +8651,214 @@ function Landing(props){
 
   );
 }
+/* Classic start page = the prod version before the Glass redesign (a8e46d0^). Shown when the Glass look is switched off. */
+function LandingClassic(props){
+  var sp=useState(null); var phId=sp[0]; var setPhId=sp[1];
+  var eg=useState(false); var showEidGame=eg[0]; var setShowEidGame=eg[1];
+  var config=props.config||INITIAL_CONFIG;
+  var setConfig=props.setConfig||function(){};
+  var onMobOpen=props.onMobOpen||function(){};
+  var currentUser=props.currentUser||{name:'',role:'inspector'};
+  var batches=props.batches||BATCHES;
+  var perms=props.perms||{};
+  var onSelectCQC=props.onSelectCQC||function(){};
+  var inspLoading=!!props.inspLoading;
+  /* DB config has loaded when the marker is set. Until then, render packhouse skeletons
+     instead of the INITIAL_CONFIG hardcoded fallback (which had wrong order, missing
+     packhouses, and missing crop tags). */
+  var configLoaded=!!(config&&config._loaded);
+  var allPackhouses=(configLoaded?(config.packhouses||[]):[]).filter(function(p){return p.active!==false;});
+  var userPHs=currentUser.packhouses||['All'];
+  var hasAllPH=userPHs.indexOf('All')>=0;
+  var packhouses=hasAllPH?allPackhouses:allPackhouses.filter(function(p){return userPHs.indexOf(p.id)>=0;});
+  var products=config.products||CROPS;
+  var ph=phId?packhouses.find(function(p){return p.id===phId;}):null;
+  var availCrops=ph?products.filter(function(c){return ph.crops.indexOf(c.id)>-1&&c.active!==false;}):[];
+
+  /* quick stats — scoped to user's packhouses + selected season */
+  var myBatches=(hasAllPH?batches:batches.filter(function(b){return userPHs.indexOf(b.packhouse)>=0;}))
+    .filter(function(b){return (b.season||'2025/26')===(props.currentViewSeason||'2025/26');});
+  var totalBatches=myBatches.length;
+  var escalated=myBatches.filter(function(b){return b.status==='Escalated';}).length;
+  var hold=myBatches.filter(function(b){return b.status==='Rejected';}).length;
+  var released=myBatches.filter(function(b){return b.status==='Accepted';}).length;
+  var greeting=(function(){var h=new Date().getHours();return h<12?'Good morning':h<18?'Good afternoon':'Good evening';})();
+  var firstName=currentUser.name?currentUser.name.split(' ')[0]:'';
+
+  return ce('div',{className:'landing',style:{paddingTop:0}},
+
+    /* ── MOBILE MENU BUTTON — only shows on mobile ── */
+    ce('div',{className:'menu-btn',style:{position:'fixed',top:10,left:12,zIndex:30},onClick:onMobOpen},
+      ce('svg',{width:18,height:18,viewBox:'0 0 16 16',fill:'#fff'},ce('path',{d:'M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z'}))
+    ),
+
+    /* ── BRANDED HERO ── */
+    ce('div',{style:{padding:'24px 24px 28px',borderBottom:'1px solid var(--border)',marginBottom:32,position:'relative',width:'100%'}},
+      (window.location.href.indexOf('dalos-vision-dev')>-1||window.location.href.indexOf('localhost')>-1)&&ce('div',{style:{
+        position:'fixed',top:14,right:16,zIndex:200,
+        display:'inline-flex',alignItems:'center',gap:7,
+        background:'linear-gradient(135deg,#ff6b35 0%,#f7c948 100%)',
+        color:'#fff',padding:'5px 16px 5px 11px',borderRadius:20,
+        boxShadow:'0 3px 14px rgba(255,107,53,0.45)',
+        fontSize:10,fontFamily:"'Courier New',monospace",fontWeight:700,
+        letterSpacing:'.2em',textTransform:'uppercase',userSelect:'none',cursor:'default'
+      }},
+        ce('span',{style:{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.9)',display:'inline-block',flexShrink:0,animation:'pulse 1.4s ease-in-out infinite'}}),
+        'Staging'
+      ),
+      ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}},
+        ce('div',{className:'eid-desktop-only',style:{flex:'0 0 120px'}},ce(EidGreeting,null)),
+        ce('div',{style:{flex:1,textAlign:'center'}},
+          ce('div',{style:{marginBottom:16}},
+            ce('span',{style:{fontFamily:'var(--font-display)',fontSize:42,color:'var(--text)'}},'Dal'),
+            ce('span',{style:{fontFamily:'var(--font-display)',fontSize:42,color:'var(--accent)'}},'OS'),
+            ce('span',{style:{fontFamily:'var(--font-body)',fontSize:28,fontWeight:500,color:'var(--text2)',marginLeft:8}},'Vision')
+          ),
+          ce('div',{style:{fontSize:12,color:'var(--text3)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:20}},'Agricultural Quality Management'),
+          firstName&&ce('div',{style:{fontSize:18,color:'var(--text2)',fontFamily:'var(--font-display)'}},'👋 '+greeting+', '+firstName),
+          ce(EidMobileStrip,{onOpen:function(){setShowEidGame(true);}})
+        ),
+        ce('div',{className:'eid-desktop-only',style:{flex:'0 0 120px',display:'flex',justifyContent:'flex-end'}},ce(EidSheepEgg,{onOpen:function(){setShowEidGame(true);}}))
+      )
+    ),
+    showEidGame&&ce(EidGameModal,{onClose:function(){setShowEidGame(false);}}),
+
+    /* ── QUICK STATS (FG only) ── */
+    ce('div',{style:{maxWidth:680,margin:'0 auto 32px',padding:'0 16px'}},
+      ce('div',{className:'landing-kpi-grid',style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}},
+        [
+          {label:'Total batches',value:totalBatches,color:'var(--text)',sub:'This season'},
+          {label:'Accepted',value:released,color:'var(--green)',sub:'Export-ready'},
+          {label:'Rejected',value:hold,color:'var(--red)',sub:'Awaiting action'},
+          {label:'Escalated',value:escalated,color:'#2a50c0',sub:'Board review'},
+        ].map(function(stat){
+          return ce('div',{key:stat.label,style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'14px 16px',textAlign:'center'}},
+            inspLoading
+              ? ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:26,fontWeight:700,color:'var(--text3)',marginBottom:2,opacity:.4,animation:'dalos-pulse 1.4s ease-in-out infinite'}},'\u2014')
+              : ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:26,fontWeight:700,color:stat.color,marginBottom:2}},stat.value),
+            ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:2}},stat.label),
+            ce('div',{style:{fontSize:10,color:'var(--text3)'}},stat.sub)
+          );
+        })
+      )
+    ),
+
+    /* ── START INSPECTION (FG only) ── */
+    ce('div',{style:{maxWidth:680,margin:'0 auto 24px',padding:'0 16px'}},
+      ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6,color:'var(--text)'}},'Start new inspection'),
+      ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:0}},'Select a packhouse then a product to begin an export inspection session.')
+    ),
+
+    /* step 1 — packhouse */
+    ce('div',{style:{width:'100%',maxWidth:680,marginBottom:32}},
+      ce('div',{style:{fontSize:11,fontWeight:600,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)',marginBottom:12,display:'flex',alignItems:'center',gap:8}},
+        ce('span',{style:{background:ph?ph.color:'var(--border2)',color:'#fff',borderRadius:'50%',width:20,height:20,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,flexShrink:0}},'1'),
+        'Select packhouse'
+      ),
+      ce('div',{className:'landing-ph-grid',style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}},
+        !configLoaded
+          ?[0,1,2].map(function(i){
+              /* Loading skeleton — same outer dimensions as a real card so layout doesn't jump */
+              return ce('div',{key:'skeleton-'+i,
+                style:{background:'var(--card)',border:'2px solid var(--border)',borderRadius:12,padding:'16px 18px',animation:'dalos-pulse 1.4s ease-in-out infinite',opacity:.55}},
+                ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:8}},
+                  ce('div',{style:{width:36,height:36,borderRadius:9,background:'var(--border2)',flexShrink:0}}),
+                  ce('div',{style:{flex:1}},
+                    ce('div',{style:{height:10,background:'var(--border2)',borderRadius:4,width:'70%',marginBottom:6}}),
+                    ce('div',{style:{height:8,background:'var(--border2)',borderRadius:4,width:'50%'}})
+                  )
+                ),
+                ce('div',{style:{display:'flex',gap:4,flexWrap:'wrap',marginTop:10}},
+                  ce('div',{style:{height:14,width:42,background:'var(--border2)',borderRadius:10}}),
+                  ce('div',{style:{height:14,width:48,background:'var(--border2)',borderRadius:10}}),
+                  ce('div',{style:{height:14,width:38,background:'var(--border2)',borderRadius:10}})
+                )
+              );
+            })
+          :packhouses.map(function(p){
+          var active=phId===p.id;
+          return ce('div',{key:p.id,
+            onClick:function(){setPhId(p.id);},
+            style:{background:active?p.color+'12':' var(--card)',border:'2px solid '+(active?p.color:'var(--border)'),borderRadius:12,padding:'16px 18px',cursor:'pointer',transition:'all .15s'}},
+            ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:8}},
+              ce('div',{style:{width:36,height:36,borderRadius:9,background:active?p.color:p.color+'22',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:active?'#fff':p.color,flexShrink:0}},p.initials),
+              ce('div',null,
+                ce('div',{style:{fontWeight:600,fontSize:14,color:active?p.color:'var(--text)'}},p.name),
+                ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},p.location)
+              )
+            ),
+            ce('div',{style:{display:'flex',gap:4,flexWrap:'wrap'}},
+              p.crops.map(function(cid){
+                var crop=products.find(function(c){return c.id===cid;});
+                return crop?ce('span',{key:cid,style:{fontSize:10,padding:'2px 7px',borderRadius:10,background:(crop.color||'#2b5c3f')+'18',color:crop.color||'#2b5c3f',fontWeight:500}},crop.name):null;
+              })
+            )
+          );
+        })
+      )
+    ),
+
+    /* step 2 — crop (only shown after packhouse selected) */
+    ph&&ce('div',{style:{width:'100%',maxWidth:680,margin:'0 auto',padding:'0 16px'}},
+      ce('div',{style:{fontSize:11,fontWeight:600,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)',marginBottom:12,display:'flex',alignItems:'center',gap:8}},
+        ce('span',{style:{background:'var(--accent)',color:'#fff',borderRadius:'50%',width:20,height:20,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,flexShrink:0}},'2'),
+        'Select product — ',ce('span',{style:{color:ph.color,textTransform:'none',letterSpacing:0,fontWeight:500}},ph.name)
+      ),
+      ce('div',{className:'landing-crop-grid',style:{gap:14}},
+        availCrops.map(function(crop){
+          var Icon=ICONS[crop.id]||ICONS.citrus;
+          var cropColor=crop.color||'#2b5c3f';
+          var cropBg=crop.bg||cropColor+'18';
+          var cropBorder=crop.border||cropColor+'40';
+          /* Live counts — scoped to the SELECTED packhouse so each card shows its own numbers
+             (was filtering globally by crop only, which made every packhouse show the same total). */
+          var cropBatches=batches.filter(function(b){
+            var matchesCrop=b.crop===crop.id||(b.crop&&b.crop===crop.name)||(b.cropId===crop.id);
+            return matchesCrop&&b.packhouse===phId&&(b.season||'2025/26')===(props.currentViewSeason||'2025/26');
+          });
+          var cropAccepted=cropBatches.filter(function(b){return b.status==='Accepted'||b.status==='Special Accept';}).length;
+          var cropRejected=cropBatches.filter(function(b){return b.status==='Rejected'||b.status==='Special Reject';}).length;
+          var accPct=cropBatches.length?Math.round(cropAccepted/cropBatches.length*100):0;
+          var rejPct=cropBatches.length?Math.round(cropRejected/cropBatches.length*100):0;
+          return ce('div',{key:crop.id,className:'crop-card',onClick:function(pid,cid){return function(){props.onSelect(pid,cid);};}(phId,crop.id)},
+            /* Icon + name side by side, icon scales with card */
+            ce('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:14}},
+              ce('div',{className:'crop-icon-wrap',style:{background:cropBg,border:'1px solid '+cropBorder,width:52,height:52,minWidth:52,borderRadius:13,flexShrink:0,margin:0}},ce(Icon,{size:32,color:cropColor})),
+              ce('div',{className:'crop-name',style:{margin:0,fontSize:crop.name.length>8?13:16,lineHeight:1.2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},crop.name)
+            ),
+            inspLoading
+              ?ce('div',null,
+                  ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--text3)',lineHeight:1,opacity:.4,animation:'dalos-pulse 1.4s ease-in-out infinite'}},'\u2014'),
+                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:10}},'loading\u2026'),
+                  ce('div',{style:{height:4,borderRadius:2,background:'var(--border2)',marginBottom:6,opacity:.5}}),
+                  ce('div',{style:{fontSize:11,color:'var(--text3)'}},'\u2014 \u2014')
+                )
+              :cropBatches.length>0
+              ?ce('div',null,
+                  ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--text)',lineHeight:1}},cropBatches.length),
+                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:10}},'batches this season'),
+                  ce('div',{style:{height:4,borderRadius:2,overflow:'hidden',background:'var(--border2)',display:'flex',marginBottom:6}},
+                    cropAccepted>0&&ce('div',{style:{height:4,background:'#639922',width:accPct+'%',transition:'width .3s'}}),
+                    cropRejected>0&&ce('div',{style:{height:4,background:'#A32D2D',width:rejPct+'%',transition:'width .3s'}})
+                  ),
+                  ce('div',{style:{display:'flex',justifyContent:'space-between',fontSize:11}},
+                    ce('span',{style:{color:'#3B6D11'}},cropAccepted+' accepted'),
+                    ce('span',{style:{color:'#A32D2D'}},cropRejected+' rejected')
+                  )
+                )
+              :ce('div',null,
+                  ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--text3)',lineHeight:1}},'0'),
+                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:10}},'no inspections yet'),
+                  ce('div',{style:{height:4,borderRadius:2,background:'var(--border2)',marginBottom:6}}),
+                  ce('div',{style:{fontSize:11,color:'var(--text3)'}},'\u2014 \u2014')
+                )
+          );
+        })
+      )
+    ),
+
+  );
+}
 
 /* ─── EXPORT DATASET (all packhouses, all crops for demo) ─── */
 var ALL_EXPORT_ROWS = [
@@ -18636,8 +18844,8 @@ function App(){
       ce('div',{style:{fontSize:11,color:'var(--text3)'}},'After signing in, return to this tab to continue.')
     )
   );
-  return ce('div',{className:'layout lg-layout'},sessionExpiredOverlay,mkSidebar(),
-      ce('div',{className:'main'},ce(Landing,{currentUser:liveCurrentUser,config:config,setConfig:setConfig,batches:batches,perms:perms,inspLoading:inspLoading,currentViewSeason:currentViewSeason,onMobOpen:function(){setMobOpen(true);},onSelectCQC:function(){setView('clientqc');},onSelect:function(pid,cid){
+  return ce('div',{className:'layout'+(visionGlassOn()?' lg-layout':'')},sessionExpiredOverlay,mkSidebar(),
+      ce('div',{className:'main'},ce(visionGlassOn()?Landing:LandingClassic,{currentUser:liveCurrentUser,config:config,setConfig:setConfig,batches:batches,perms:perms,inspLoading:inspLoading,currentViewSeason:currentViewSeason,onMobOpen:function(){setMobOpen(true);},onSelectCQC:function(){setView('clientqc');},onSelect:function(pid,cid){
         var phs=currentUser.packhouses||[currentUser.packhouse||'All'];
         var finalPh=(phs.indexOf('All')<0&&phs.length===1)?phs[0]:pid;
         setPhId(finalPh);setCropId(cid);setView('fg');
