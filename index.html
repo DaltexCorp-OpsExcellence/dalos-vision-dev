@@ -16421,7 +16421,10 @@ function visionModalOpen(){return [].some.call(document.querySelectorAll('[style
 var visionScrollMemo={};
 function visionSaveScroll(key){if(!visionScrollFixOn())return;var m=document.querySelector('.main');if(m)visionScrollMemo[key]={top:m.scrollTop,at:Date.now()};}
 function visionRestoreScroll(key){if(!visionScrollFixOn())return false;var s=visionScrollMemo[key];if(!s||Date.now()-s.at>30*60*1000)return false;delete visionScrollMemo[key];
-  var tries=0;(function go(){var m=document.querySelector('.main');if(!m)return;if(m.scrollHeight-m.clientHeight>=s.top-2||tries>30){m.scrollTop=s.top;return;}tries++;setTimeout(go,150);})();return true;}
+  /* the list may re-render or refresh right after we land, briefly shortening the page; keep re-applying for ~1.5s unless the user scrolls */
+  var user=false,t0=Date.now();function mine(){user=true;}['wheel','touchstart','keydown','mousedown'].forEach(function(ev){window.addEventListener(ev,mine,{once:true,passive:true});});
+  (function go(){var m=document.querySelector('.main');if(user||!m)return;if(m.scrollHeight-m.clientHeight>=s.top-2&&Math.abs(m.scrollTop-s.top)>4)m.scrollTop=s.top;
+    if(Date.now()-t0<1500||(m.scrollHeight-m.clientHeight<s.top-2&&Date.now()-t0<5000))setTimeout(go,120);})();return true;}
 /* Phase 3b: with a side panel open, ↑/↓ select the row above/below (by clicking it, so each page's own logic runs). */
 function visionListRows(){var page=document.querySelector('.page');if(!page)return [];var pn=page.querySelector('.dp-pin, .cqc-detail-pane, .sx-ship-panel');
   return Array.prototype.slice.call(page.querySelectorAll('tbody tr')).filter(function(tr){return tr.offsetHeight>0&&!(pn&&pn.contains(tr))&&!tr.querySelector('[colspan]');});}
