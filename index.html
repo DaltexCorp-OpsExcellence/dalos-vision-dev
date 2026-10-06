@@ -72,6 +72,7 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .lg-fade{animation:lgfade .15s ease}
 @keyframes lgfade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .lg-line{display:flex;align-items:center;gap:14px;padding:18px}
+.lg-line.idle{opacity:.65}
 .lg-orchards{--lc:#2b5c3f}.lg-pivots{--lc:#8a6a2e}
 .lg-ic{color:var(--lc);flex-shrink:0;width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.6);box-shadow:0 1px 0 #fff inset;display:flex;align-items:center;justify-content:center}
 .lg-lt{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
@@ -8139,8 +8140,9 @@ function Landing(props){
         LANDING_LINES.map(function(L){
           var phs=phsFor(L.id);
           var n=myBatches.filter(function(b){return batchLine(b)===L.id;}).length;
-          var lcrops=products.filter(function(c){return c.active!==false&&landingLineOf(c.id)===L.id;});
-          return ce('button',{key:L.id,type:'button',className:'lg-line lg-panel lg-'+L.id,onClick:function(){setLineId(L.id);setPhId(null);}},
+          /* only products some packhouse actually handles (not every active product) */
+          var lcrops=products.filter(function(c){return c.active!==false&&landingLineOf(c.id)===L.id&&phs.some(function(p){return p.crops.indexOf(c.id)>-1;});});
+          return ce('button',{key:L.id,type:'button',className:'lg-line lg-panel lg-'+L.id+(phs.length?'':' idle'),onClick:function(){setLineId(L.id);setPhId(null);}},
             ce('span',{className:'lg-ic','aria-hidden':'true'},
               L.id==='orchards'
                 ?ce('svg',{viewBox:'0 0 40 40',width:40,height:40},
@@ -8154,7 +8156,7 @@ function Landing(props){
             ),
             ce('span',{className:'lg-lt'},
               ce('span',{className:'lg-nm'},L.name,' ',ce('span',{className:'lg-ar'},L.ar)),
-              ce('span',{className:'lg-note'},lcrops.length?lcrops.map(function(c){return c.name;}).join(' · '):'No products yet')
+              ce('span',{className:'lg-note'},lcrops.length?lcrops.map(function(c){return c.name;}).join(' · '):'Not set up yet')
             ),
             ce('span',{className:'lg-ls'},
               ce('b',null,inspLoading?'—':n),ce('small',null,'inspections'),
