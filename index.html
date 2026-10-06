@@ -216,6 +216,39 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   html.vmf .dh-tb-l .dh-pill,html.vmf .dh-tb .dh-ver{display:none}
   html.vmf .dh-tb-r select{max-width:120px}
 }
+/* ── Phone Client QC: stats behind a toggle, floating New report, Upgrade/Downgrade/Edit behind ⋯ More ── */
+.vcq-stats-btn,.vm-more,.vsh-fbtn{display:none}
+@media(max-width:767px){
+  html.vmf .vcq-stats-btn,html.vmf .vsh-fbtn{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 14px;border-radius:19px;border:1px dashed var(--border2);background:transparent;font-size:13px;font-weight:500;color:var(--text2)}
+  html.vmf.vcq-stats .vcq-stats-btn,html.vmf.vsh-f .vsh-fbtn{border-style:solid;background:rgba(255,255,255,.85);color:var(--accent)}
+  html.vmf:not(.vcq-stats) .page .cqc-stat-grid:not(.dp-sheet .cqc-stat-grid){display:none!important}
+  html.vmf .vcq-new{position:fixed!important;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:30;height:52px;padding:0 20px!important;border-radius:26px!important;font-size:15px!important;font-weight:600;box-shadow:0 8px 20px rgba(43,92,63,.38)!important}
+  html.vmf .vm-more{display:inline-flex}
+  html.vmf .dp-sheet-actions:not(.vmore-open) .vm-act{display:none!important}
+  html.vmf .dp-sheet-actions.vmore-open .vm-act{flex:1 1 100%!important;min-height:48px}
+  html.vmf .dp-sheet-actions .btn{min-height:48px}
+  /* ── Phone Shipments: filters behind a button, table rows become cards ── */
+  html.vmf:not(.vsh-f) .vsh-filters > :not(.vsh-fbtn):not(input){display:none!important}
+  html.vmf:not(.vsh-f) .vsh-kpis{display:none!important}
+  html.vmf .vsh-filters{flex-wrap:wrap!important}
+  html.vmf .vsh-filters > input{flex:1 1 160px;width:auto!important;min-height:44px}
+  html.vmf .vsh-tbl{display:block;min-width:0!important}
+  html.vmf .vsh-tbl thead{display:none}
+  html.vmf .vsh-tbl tbody{display:block}
+  html.vmf .vsh-tbl tbody tr{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;grid-template-areas:"c c c s" "sc sc co co" "v v v v" "q i l l";gap:4px 10px;align-items:center;margin:8px 0 0;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.74)!important;border:1px solid rgba(255,255,255,.85);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 4px 14px rgba(30,45,34,.06)}
+  html.vmf .vsh-tbl tbody tr > td{display:block;padding:0!important;border:none!important;min-width:0;white-space:normal!important}
+  html.vmf .vsh-agg tbody tr > td:nth-child(1),html.vmf .vsh-rows tbody tr > td:nth-child(1){grid-area:c}
+  html.vmf .vsh-tbl tbody tr > td:nth-child(9){grid-area:s;justify-self:end}
+  html.vmf .vsh-agg tbody tr > td:nth-child(5),html.vmf .vsh-rows tbody tr > td:nth-child(6){grid-area:sc}
+  html.vmf .vsh-agg tbody tr > td:nth-child(6){grid-area:co;text-align:right}
+  html.vmf .vsh-agg tbody tr > td:nth-child(3),html.vmf .vsh-rows tbody tr > td:nth-child(4){grid-area:v;font-size:12px;color:var(--text3)}
+  html.vmf .vsh-tbl tbody tr > td:nth-child(11){grid-area:q}
+  html.vmf .vsh-tbl tbody tr > td:nth-child(12){grid-area:i}
+  html.vmf .vsh-tbl tbody tr > td:nth-child(7){grid-area:l;justify-self:end;font-family:var(--font-mono);font-size:12px}
+  html.vmf .vsh-tbl tbody tr > td:nth-child(8){display:none!important}
+  html.vmf .vsh-agg tbody tr > td:nth-child(2),html.vmf .vsh-agg tbody tr > td:nth-child(4),html.vmf .vsh-tbl tbody tr > td:nth-child(10),html.vmf .vsh-tbl tbody tr > td:nth-child(13),html.vmf .vsh-tbl tbody tr > td:nth-child(14),html.vmf .vsh-rows tbody tr > td:nth-child(2),html.vmf .vsh-rows tbody tr > td:nth-child(3),html.vmf .vsh-rows tbody tr > td:nth-child(5){display:none!important}
+  html.vmf .vsh-tbl tbody::after{content:"";display:block;height:24px}
+}
 /* ── Phone inspection form: bottom action bar, folding sections, jump strip, 48px fields, label toggles, defect steppers ── */
 .vf-strip,.vstep{display:none}
 @media(max-width:767px){
@@ -14052,7 +14085,8 @@ function ClientQCMgmt(props){
           ce('div',{style:{fontSize:12,color:'var(--text3)',marginTop:2}},'Log, upload and match client QC reports')
         )
       ),
-      perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm',onClick:function(){setStartRow(null);setShowNew(true);}},'+ New client report')
+      ce('button',{type:'button',className:'vcq-stats-btn',onClick:function(e){var on=document.documentElement.classList.toggle('vcq-stats');e.currentTarget.textContent=(on?'\u25B4':'\u25BE')+' Report stats';}},'\u25BE Report stats'),
+      perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary btn-sm vcq-new',onClick:function(){setStartRow(null);setShowNew(true);}},'+ New client report')
     ),intakeRows.length?ce(IntakePanel,{rows:intakeRows,open:intakeOpen,setOpen:setIntakeOpen,onStart:function(row,selFiles){
       /* Open the report for the crop this email actually belongs to — inferred from the container via shipments (covers all crops).
          Intake rows carry no product; the old code always forced grapes. Auto-attach of the emailed docs is unchanged. */
@@ -14960,9 +14994,10 @@ function ClientQCMgmt(props){
                 })()
               ),
               ce('div',{className:'dp-sheet-actions',style:{flexWrap:'wrap'}},
-                perms&&perms.createClientQC&&ce('button',{className:'btn btn-sm',style:{flex:'1 1 40%',background:'var(--green-bg)',border:'1px solid var(--green-border)',color:'var(--green)'},onClick:function(){openRevModal(r,'upgrade');setSelRep(null);}},'↑ Upgrade'),
-                perms&&perms.createClientQC&&ce('button',{className:'btn btn-sm',style:{flex:'1 1 40%',background:'var(--red-bg)',border:'1px solid var(--red-border)',color:'var(--red)'},onClick:function(){openRevModal(r,'downgrade');setSelRep(null);}},'↓ Downgrade'),
-                perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary',style:{flex:1},onClick:function(){loadReportForEdit(r);setSelRep(null);}},'✎ Edit'),
+                perms&&perms.createClientQC&&ce('button',{type:'button',className:'btn btn-secondary vm-more',style:{flex:'0 0 auto'},onClick:function(e){e.currentTarget.parentElement.classList.toggle('vmore-open');}},'\u22EF More'),
+                perms&&perms.createClientQC&&ce('button',{className:'btn btn-sm vm-act',style:{flex:'1 1 40%',background:'var(--green-bg)',border:'1px solid var(--green-border)',color:'var(--green)'},onClick:function(){openRevModal(r,'upgrade');setSelRep(null);}},'↑ Upgrade'),
+                perms&&perms.createClientQC&&ce('button',{className:'btn btn-sm vm-act',style:{flex:'1 1 40%',background:'var(--red-bg)',border:'1px solid var(--red-border)',color:'var(--red)'},onClick:function(){openRevModal(r,'downgrade');setSelRep(null);}},'↓ Downgrade'),
+                perms&&perms.createClientQC&&ce('button',{className:'btn btn-primary vm-act',style:{flex:1},onClick:function(){loadReportForEdit(r);setSelRep(null);}},'✎ Edit'),
                 ce('button',{className:'btn btn-secondary',style:{flex:1},onClick:function(){setSelRep(null);}},'Close')
               )
             )
@@ -16079,7 +16114,8 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         )
       ),
       /* Filters */
-      ce('div',{style:{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}},
+      ce('div',{className:'vsh-filters',style:{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}},
+        ce('button',{type:'button',className:'vsh-fbtn',onClick:function(e){var on=document.documentElement.classList.toggle('vsh-f');e.currentTarget.textContent=on?'\u2715 Hide filters':'\u2699 Filters';}},'\u2699 Filters'),
         ce('input',{className:'form-input',style:{width:220,fontSize:13,padding:'6px 10px'},placeholder:'Search container, client, variety...',value:search,onChange:function(e){setSearch(e.target.value);}}),
         ce('select',{className:'form-select',style:{width:140,fontSize:13,padding:'6px 10px'},value:statusFilter,onChange:function(e){setStatusFilter(e.target.value);}},
           ce('option',{value:''},'All statuses'),
@@ -16127,7 +16163,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         )
       ),
       /* KPIs — filtered counts */
-      ce('div',{style:{display:'flex',gap:10,marginBottom:4,flexWrap:'wrap'}},
+      ce('div',{className:'vsh-kpis',style:{display:'flex',gap:10,marginBottom:4,flexWrap:'wrap'}},
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},aggMode?'Containers':'Rows'),
           ce('div',{className:'kpi-value',style:{fontSize:22}},aggMode?filteredContainers.length:filteredRows.length)
@@ -16201,7 +16237,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       /* ── BY CONTAINER ── */
       ?ce('div',{className:'scroll-card'},
           ce('div',{className:'table-wrap',style:{overflowX:'auto',overflowY:'auto',maxHeight:'calc(100vh - 320px)'}},
-            ce('table',{style:{borderCollapse:'collapse',width:'100%'}},
+            ce('table',{className:'vsh-tbl vsh-agg',style:{borderCollapse:'collapse',width:'100%'}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Invoice(s)'),ce('th',null,'Varieties'),ce('th',null,'Farms'),
                 ce('th',null,'Subclient'),ce('th',null,'Country'),ce('th',null,'Loading'),
@@ -16260,7 +16296,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       /* ── ALL ROWS ── */
       :ce('div',{className:'scroll-card'},
           ce('div',{className:'table-wrap',style:{overflowX:'auto',overflowY:'auto',maxHeight:'calc(100vh - 320px)'}},
-            ce('table',{style:{borderCollapse:'collapse',width:'100%'}},
+            ce('table',{className:'vsh-tbl vsh-rows',style:{borderCollapse:'collapse',width:'100%'}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Carta'),ce('th',null,'Invoice No.'),
                 ce('th',null,'Variety'),ce('th',null,'Farm'),ce('th',null,'Subclient'),ce('th',null,'Loading'),
@@ -16588,7 +16624,7 @@ function VisionFormStrip(props){
   var s=React.useState([]),secs=s[0],setSecs=s[1];var nz=React.useState(false),onlyNz=nz[0],setNz=nz[1];
   React.useEffect(function(){if(!visionPhoneForm())return;function scan(){
       var cards=Array.prototype.slice.call(document.querySelectorAll('.page .card')).filter(function(c){var st=c.querySelector('.section-title');return st&&st.closest('.card')===c&&c.offsetHeight>0;});
-      var next=cards.map(function(c,i){c.setAttribute('data-vfi',String(i));var tx=(c.querySelector('.section-title').innerText||'').split(/\s[\u2014-]\s|\n/)[0].trim();return tx.replace(/Locked$/,'').trim();});
+      var next=cards.map(function(c,i){c.setAttribute('data-vfi',String(i));var tx=(c.querySelector('.section-title').innerText||'').split(/\s[\u2014-]\s|\n/)[0].trim();tx=tx.replace(/Locked$/,'').trim();return tx.charAt(0)+tx.slice(1).toLowerCase();});
       setSecs(function(prev){return prev.join('|')===next.join('|')?prev:next;});}
     scan();var tm=setInterval(scan,800);return function(){clearInterval(tm);};},[]);
   React.useEffect(function(){if(!visionPhoneForm())return;var hc=Array.prototype.slice.call(document.querySelectorAll('.page .card')).find(function(c){var st=c.querySelector('.section-title');return st&&/Inspection header/i.test(st.textContent);});if(hc)hc.classList.toggle('vf-closed',!!props.hdrLocked);},[props.hdrLocked]);
