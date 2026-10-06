@@ -141,7 +141,6 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .vg .btn-secondary:hover{background:rgba(255,255,255,.9)}
 .vg .form-input,.vg .form-select,.vg .currency-select,.vg .defect-input{background:rgba(255,255,255,.78);border-color:rgba(30,45,34,.14);border-radius:10px}
 .vg .form-input:focus,.vg .form-select:focus{background:#fff;box-shadow:0 0 0 3px rgba(74,140,98,.18)}
-.vg .badge{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 /* modals (inline fixed overlays): keep the panel near-opaque frosted so text stays readable */
 .vg [style*="position: fixed"] [style*="background: var(--card)"]{background:rgba(255,255,255,.9)!important;-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);border-radius:18px}
 @media(prefers-reduced-transparency:reduce){.vg{--card:#fff;--bg:#f6f3ec;--bg2:#ece8de}.vg .card,.vg .kpi,.vg .topbar,.vg .scroll-card,.vg .dp{background:rgba(255,255,255,.96);-webkit-backdrop-filter:none;backdrop-filter:none}}
@@ -161,6 +160,9 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .vg .vg-atabs{border-bottom:none!important;gap:4px!important;padding:4px;background:rgba(255,255,255,.38);border:1px solid rgba(255,255,255,.6);border-radius:14px;width:fit-content;max-width:100%;overflow-x:auto}
 .vg .vg-atab{border-bottom:none!important;margin-bottom:0!important;border-radius:10px;padding:6px 14px!important}
 .vg .vg-atab.on{background:rgba(255,255,255,.88);box-shadow:0 1px 0 #fff inset,0 3px 10px rgba(30,45,34,.08)}
+.vg .scroll-card{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.74)}
+.vg .dp-sheet,.vg .dp-sheet-actions{background:#fbfaf7}
+.vg .sx-ship-panel{background:#fbfaf7!important}
 /* ── Listing scroll fixes, phase 1 (staging). Scope: .layout.sfx (switch: visionScrollFixOn) ── */
 .vg .page [style*="position: sticky"][style*="padding: 8px 0px"]{padding-left:8px!important;padding-right:8px!important}
 .sfx .dp-body,.sfx .cqc-detail-pane,.sfx .table-wrap{overscroll-behavior:contain}
@@ -172,7 +174,7 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 @media(min-width:768px){.sfx .cqc-detail-pane{display:block}}
 /* ── Listing scroll, phase 2: the side panel is its own full-height column with its own scroll; the list makes room and keeps one line per row ── */
 :root{--sx-pw:clamp(380px, calc((100vw - 240px) / 3), 560px)}
-@media(min-width:768px){
+@media(min-width:1180px){
   .sfx .main > .page:has(.dp-pin),.sfx .main > .page:has(.sx-ship-panel){padding-right:calc(var(--sx-pw) + 16px)!important}
   .sfx .page:has(.dp-pin) [style*="position: sticky"][style*="justify-content: space-between"]{flex-wrap:wrap;row-gap:8px}
   .sfx .page:has(.dp-pin) [style*="position: sticky"][style*="justify-content: space-between"] > :first-child{min-width:max-content}
@@ -15353,7 +15355,7 @@ function ShipmentsMgmt(props){
   var sSelShip=useState(null); var selShip=sSelShip[0]; var setSelShip=sSelShip[1];
   var sSelContainer=useState(null); var selContainer=sSelContainer[0]; var setSelContainer=sSelContainer[1];
   useEscClose(!!selContainer,function(){setSelContainer(null);if(typeof setSelShip==='function')setSelShip(null);});
-  useSplitList(!!selContainer,['Varieties','Farms','Invoice','Cartons','Arrival']);
+  useSplitList(!!selContainer,['Varieties','Farms','Invoice','Cartons','Arrival','Loading','Country']);
   var sSaving=useState(false); var saving=sSaving[0]; var setSaving=sSaving[1];
   var sCqcShipFilter=useState('all'); var cqcShipFilter=sCqcShipFilter[0]; var setCqcShipFilter=sCqcShipFilter[1];
   var sInspShipFilter=useState('all'); var inspShipFilter=sInspShipFilter[0]; var setInspShipFilter=sInspShipFilter[1];
@@ -16454,7 +16456,7 @@ function useListKeys(){React.useEffect(function(){if(!visionScrollFixOn())return
    sticky bars, inner scroll boxes stand down (the page scrolls), and columns the panel already shows hide in the given
    order only until the list fits. listSel narrows where the list table lives. */
 function useSplitList(active,hide,listSel){
-  var on=active&&visionScrollFixOn()&&window.innerWidth>=768;
+  var on=active&&visionScrollFixOn()&&window.innerWidth>=1180;
   function qa(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
   function panelEl(page){return page.querySelector('.dp-pin, .sx-ship-panel');}
   function clean(){var st=document.getElementById('sx-hide');if(st)st.textContent='';
@@ -16475,6 +16477,7 @@ function useSplitList(active,hide,listSel){
       used.push('table[data-sx] tr:not(:has(> [colspan])) > :nth-child('+(idx+1)+'){display:none}');st.textContent=used.join('\n');}
     /* still too wide after hiding everything allowed: let long cells wrap rather than run under the panel */
     if(tb.scrollWidth>room()+1)tb.setAttribute('data-sx-wrap','1');
+    if(tb.scrollWidth>room()+1){var w=tb.parentElement;w.style.overflowX='auto';w.style.maxWidth='100%';}
   }
   React.useEffect(function(){if(on)apply();});
   React.useEffect(function(){if(!on){clean();return;}var tm;function rs(){clearTimeout(tm);tm=setTimeout(apply,120);}window.addEventListener('resize',rs);
