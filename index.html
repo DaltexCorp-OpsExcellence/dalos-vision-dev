@@ -11402,6 +11402,7 @@ function ClientQCMgmt(props){
   },[config.activeSeasonId,reloadTick]);
   var sSel=useState(null); var selRep=sSel[0]; var setSelRep=sSel[1];
   useEscClose(!!selRep,function(){setSelRep(null);});
+  useFormRoundTrip(!!showNew,'cqc:list');
   var sEditRep=useState(null); var editRep=sEditRep[0]; var setEditRep=sEditRep[1];
   var sMBDef=useState(null); var matchedBDefects=sMBDef[0]; var setMatchedBDefects=sMBDef[1];
   var sMCmp=useState(null); var matchedCmp=sMCmp[0]; var setMatchedCmp=sMCmp[1];
@@ -16425,6 +16426,11 @@ function visionRestoreScroll(key){if(!visionScrollFixOn())return false;var s=vis
   var user=false,t0=Date.now();function mine(){user=true;}['wheel','touchstart','keydown','mousedown'].forEach(function(ev){window.addEventListener(ev,mine,{once:true,passive:true});});
   (function go(){var m=document.querySelector('.main');if(user||!m)return;if(m.scrollHeight-m.clientHeight>=s.top-2&&Math.abs(m.scrollTop-s.top)>4)m.scrollTop=s.top;
     if(Date.now()-t0<1500||(m.scrollHeight-m.clientHeight<s.top-2&&Date.now()-t0<5000))setTimeout(go,120);})();return true;}
+/* Phase 3a (forms): a list that swaps to a form and back returns to the same spot. Call before any early return. */
+function useFormRoundTrip(formOpen,key){var was=React.useRef(formOpen),top=React.useRef(0);
+  React.useEffect(function(){if(formOpen)return;var m=document.querySelector('.main');if(!m)return;function s(){top.current=m.scrollTop;}s();m.addEventListener('scroll',s,{passive:true});return function(){m.removeEventListener('scroll',s);};},[formOpen]);
+  React.useLayoutEffect(function(){if(formOpen&&!was.current&&visionScrollFixOn())visionScrollMemo[key]={top:top.current,at:Date.now()};
+    if(!formOpen&&was.current)visionRestoreScroll(key);was.current=formOpen;},[formOpen]);}
 /* Phase 3b: with a side panel open, ↑/↓ select the row above/below (by clicking it, so each page's own logic runs). */
 function visionListRows(){var page=document.querySelector('.page');if(!page)return [];var pn=page.querySelector('.dp-pin, .cqc-detail-pane, .sx-ship-panel');
   return Array.prototype.slice.call(page.querySelectorAll('tbody tr')).filter(function(tr){return tr.offsetHeight>0&&!(pn&&pn.contains(tr))&&!tr.querySelector('[colspan]');});}
