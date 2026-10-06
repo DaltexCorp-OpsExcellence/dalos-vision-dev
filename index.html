@@ -181,6 +181,7 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   .sfx .dp-pin,.sfx .sx-ship-panel{position:fixed!important;top:50px!important;right:0!important;bottom:0!important;width:var(--sx-pw)!important;max-height:none!important;z-index:30;overscroll-behavior:contain;box-shadow:-4px 0 16px rgba(0,0,0,.08)}
   .sfx .dp-pin{display:flex;flex-direction:column;border-radius:0;background:var(--card)}
   .sfx .dp-pin .dp-hdr{flex-shrink:0}
+  .sfx .page tbody tr{scroll-margin-top:calc(var(--sx-top,60px) + 40px);scroll-margin-bottom:12px}
   .sfx .dp-pin .dp-body{flex:1;max-height:none!important;overflow-y:auto}
   .vg.sfx .dp-pin,.vg.sfx .sx-ship-panel{top:60px!important;right:10px!important;bottom:10px!important;border-radius:16px;border:1px solid rgba(255,255,255,.8);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 12px 32px rgba(30,45,34,.16)}
   .vg.sfx .dp-pin,.vg.sfx .sx-ship-panel{background:rgba(255,255,255,.86)!important;-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%)}
@@ -5730,6 +5731,11 @@ function FGView(props){
   /* hooks must run before any early return (the form below) — otherwise React drops the tree (error #300) */
   useEscClose(!!sel&&!showNew&&!editBatch,function(){setSel(null);});
   useSplitList(!!sel&&!isMobile&&!showNew&&!editBatch,['Brix','Farm','Decision','Client']);
+  var _formOpen=!!(showNew||editBatch);var _formWas=React.useRef(_formOpen);
+  var _listTop=React.useRef(0);
+  React.useEffect(function(){if(_formOpen)return;var m=document.querySelector('.main');if(!m)return;function s(){_listTop.current=m.scrollTop;}s();m.addEventListener('scroll',s,{passive:true});return function(){m.removeEventListener('scroll',s);};},[_formOpen]);
+  React.useLayoutEffect(function(){if(_formOpen&&!_formWas.current&&visionScrollFixOn())visionScrollMemo['fg:list']={top:_listTop.current,at:Date.now()};
+    if(!_formOpen&&_formWas.current)visionRestoreScroll('fg:list');_formWas.current=_formOpen;},[_formOpen]);
 
   if(showNew||editBatch){
     return ce(InspectionForm,{batch:editBatch,packhouse:packhouse,cropId:cropId,config:config,batches:batches,currentUser:currentUser,onAddBatch:onAddBatch,onRefreshBatches:props.onRefreshBatches,recoveryDraft:recoveryDraft?recoveryDraft.snapshot:null,recoveryDraftId:recoveryDraft?recoveryDraft.id:null,onInvalidateSelB:function(ids){setSelBData(function(prev){var u=Object.assign({},prev);ids.forEach(function(id){delete u[id];});return u;});},onClose:function(){setShowNew(false);setEditBatch(null);setRecoveryDraft(null);if(navBack) navBack();}});
@@ -16410,6 +16416,30 @@ var VISION_SCROLLFIX=true;
 function visionScrollFixOn(){if(!VISION_SCROLLFIX)return false;try{var q=new URLSearchParams(location.search).get('scroll');if(q==='old'||q==='new')localStorage.setItem('vision_scroll',q);return localStorage.getItem('vision_scroll')!=='old';}catch(e){return true;}}
 function visionModalOpen(){return [].some.call(document.querySelectorAll('[style*="position: fixed"]'),function(el){return (+getComputedStyle(el).zIndex||0)>=100&&el.getClientRects().length>0;});}
 /* Esc closes a listing's side panel (not while typing or while a pop-up is open) */
+/* Phase 3a: remember the list's scroll position across a round trip (form, or a jump to another module and Back).
+   save(key) before leaving, restore(key) when the list is back; restore waits for the rows to load. */
+var visionScrollMemo={};
+function visionSaveScroll(key){if(!visionScrollFixOn())return;var m=document.querySelector('.main');if(m)visionScrollMemo[key]={top:m.scrollTop,at:Date.now()};}
+function visionRestoreScroll(key){if(!visionScrollFixOn())return false;var s=visionScrollMemo[key];if(!s||Date.now()-s.at>30*60*1000)return false;delete visionScrollMemo[key];
+  var tries=0;(function go(){var m=document.querySelector('.main');if(!m)return;if(m.scrollHeight-m.clientHeight>=s.top-2||tries>30){m.scrollTop=s.top;return;}tries++;setTimeout(go,150);})();return true;}
+/* Phase 3b: with a side panel open, ↑/↓ select the row above/below (by clicking it, so each page's own logic runs). */
+function visionListRows(){var page=document.querySelector('.page');if(!page)return [];var pn=page.querySelector('.dp-pin, .cqc-detail-pane, .sx-ship-panel');
+  return Array.prototype.slice.call(page.querySelectorAll('tbody tr')).filter(function(tr){return tr.offsetHeight>0&&!(pn&&pn.contains(tr))&&!tr.querySelector('[colspan]');});}
+function visionPanelOpen(){return !!document.querySelector('.page .dp-pin, .page .cqc-detail-pane, .page .sx-ship-panel');}
+function useListKeys(){React.useEffect(function(){if(!visionScrollFixOn())return;var last=null;
+  function onClick(e){var tr=e.target&&e.target.closest&&e.target.closest('.page tbody tr');if(tr&&!tr.querySelector('[colspan]')&&!(tr.closest('.dp-pin, .cqc-detail-pane, .sx-ship-panel')))last=tr;}
+  function current(rows){if(last&&document.contains(last)&&rows.indexOf(last)>-1)return last;
+    var pn=document.querySelector('.page .dp-pin, .page .cqc-detail-pane, .page .sx-ship-panel');if(!pn)return null;
+    var keys=(pn.innerText||'').split('\n').slice(0,6).map(function(s){return s.trim();}).filter(function(s){return s.length>=6&&/\d/.test(s);});
+    for(var i=0;i<rows.length;i++){var tx=rows[i].textContent;if(keys.some(function(k){return tx.indexOf(k)>-1;}))return rows[i];}return null;}
+  function onKey(e){if((e.key!=='ArrowDown'&&e.key!=='ArrowUp')||e.altKey||e.ctrlKey||e.metaKey||e.defaultPrevented)return;
+    var tg=e.target;if(tg&&/^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName))return;if(tg&&tg.isContentEditable)return;
+    if(!visionPanelOpen()||visionModalOpen())return;var rows=visionListRows();var cur=current(rows);if(!cur)return;
+    var nx=rows[rows.indexOf(cur)+(e.key==='ArrowDown'?1:-1)];if(!nx)return;e.preventDefault();
+    var cell=Array.prototype.slice.call(nx.children).filter(function(td){return td.offsetWidth>0&&!td.querySelector('button,a,input,select,label');})[0]||nx.children[0];
+    last=nx;if(cell)cell.click();setTimeout(function(){try{nx.scrollIntoView({block:'nearest'});}catch(_e){}},30);}
+  document.addEventListener('click',onClick,true);document.addEventListener('keydown',onKey);
+  return function(){document.removeEventListener('click',onClick,true);document.removeEventListener('keydown',onKey);};},[]);}
 /* Phase 2: while a listing's side panel is open, the list table keeps one line per row, its header sticks under the
    sticky bars, inner scroll boxes stand down (the page scrolls), and columns the panel already shows hide in the given
    order only until the list fits. listSel narrows where the list table lives. */
@@ -16772,7 +16802,8 @@ function App(){
     var h=(window.location.hash||'').slice(1);
     return h||'home';
   }); var view=sv[0]; var setView=sv[1];
-  React.useEffect(function(){if(!visionScrollFixOn())return;var m=document.querySelector('.main');if(m)m.scrollTop=0;},[view]);
+  React.useEffect(function(){if(!visionScrollFixOn())return;if(visionRestoreScroll('view:'+view))return;var m=document.querySelector('.main');if(m)m.scrollTop=0;},[view]);
+  useListKeys();
   React.useEffect(function(){window.location.hash=view;},[view]);
   /* page-view capture (platform usage report) — log each Vision view change for a
      signed-in user; 15s de-dupe; fire-and-forget (.then() required, lazy builder). */
@@ -18956,11 +18987,12 @@ function App(){
           navBackLabel:cqcLink?'Back to Shipments':(navHistory?'Back to CQC report':null)}),
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
-        view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
+        view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){visionSaveScroll('view:shipments');setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
           onOpenInspection:function(batchId,selRep,selCqcProd){
+            visionSaveScroll('view:clientqc');
             var found=batches.find(function(b){return b.id===batchId;});
             setNavHistory({view:'clientqc',selRep:selRep,selCqcProd:selCqcProd});
             setNavTarget(batchId);
