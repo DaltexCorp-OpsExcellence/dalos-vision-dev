@@ -5727,6 +5727,10 @@ function FGView(props){
       .catch(function(e){console.error('[DalOS] container save failed:',e.message);});
   }
 
+  /* hooks must run before any early return (the form below) — otherwise React drops the tree (error #300) */
+  useEscClose(!!sel&&!showNew&&!editBatch,function(){setSel(null);});
+  useSplitList(!!sel&&!isMobile&&!showNew&&!editBatch,['Brix','Farm','Decision','Client']);
+
   if(showNew||editBatch){
     return ce(InspectionForm,{batch:editBatch,packhouse:packhouse,cropId:cropId,config:config,batches:batches,currentUser:currentUser,onAddBatch:onAddBatch,onRefreshBatches:props.onRefreshBatches,recoveryDraft:recoveryDraft?recoveryDraft.snapshot:null,recoveryDraftId:recoveryDraft?recoveryDraft.id:null,onInvalidateSelB:function(ids){setSelBData(function(prev){var u=Object.assign({},prev);ids.forEach(function(id){delete u[id];});return u;});},onClose:function(){setShowNew(false);setEditBatch(null);setRecoveryDraft(null);if(navBack) navBack();}});
   }
@@ -5829,8 +5833,6 @@ function FGView(props){
     return out.slice(0,8);
   })():[];
   var selB=sel?seasonBatches.find(function(b){return b.id===sel;}):null;
-  useEscClose(!!sel,function(){setSel(null);});
-  useSplitList(!!selB&&!isMobile,['Brix','Farm','Decision','Client']);
   var acceptedCount=seasonBatches.filter(function(b){return b.status==='Accepted';}).length;
   var holdCount=seasonBatches.filter(function(b){return b.status==='Rejected';}).length;
   var escCount=seasonBatches.filter(function(b){return b.status==='Escalated';}).length;
