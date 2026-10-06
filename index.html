@@ -2773,12 +2773,12 @@ function InspectionForm(props){
                 var v=parseFloat(row.defects[def.key])||0;
                 var thresh=(Number(def.thresh)>0)?Number(def.thresh):(thresholds[def.key]!==undefined?thresholds[def.key]:0);
                 var over=thresh===0?v>0:v>thresh;var isCrit=def.sev==='Critical';
-                return ce('div',{key:def.key,style:{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid var(--border)'}},
+                return ce('div',{key:def.key,className:'vf-def-row','data-zero':v>0?'0':'1',style:{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid var(--border)'}},
                   ce('div',{className:'defect-name-cell',style:{flex:1,minWidth:0}},
                     ce('div',{className:'defect-en',style:{fontSize:11,color:over?(isCrit?'var(--red)':'var(--amber)'):'var(--text2)',fontWeight:over?600:400,lineHeight:1.3}},def.en,
                       def.ar&&ce('span',{style:{fontSize:9,color:'var(--text3)',fontWeight:400,marginLeft:5,direction:'rtl',display:'inline-block'}},def.ar)),
                     isCrit&&ce('div',{style:{fontSize:9,color:'var(--red)'}},'⚠ Zero tolerance')),
-                  ce('input',{className:'defect-row-input',style:{width:58,padding:'2px 5px',border:'1px solid '+(over?'var(--red)':'var(--border2)'),borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',textAlign:'right',background:over?'var(--red-bg)':'var(--card)',color:over?'var(--red)':'var(--text)',flexShrink:0},type:'number',step:'0.1',min:'0','aria-label':def.en+' bag '+(ri+1),value:row.defects[def.key],onChange:function(e){updateRowDefect(pIdx,row.id,def.key,e.target.value);}}));
+                  ce('button',{type:'button',className:'vstep','aria-label':(false?'Increase ':'Decrease ')+def.en,onClick:function(){updateRowDefect(pIdx,row.id,def.key,visionStepVal(row.defects[def.key],-1));}},'\u2212'),ce('input',{className:'defect-row-input',style:{width:58,padding:'2px 5px',border:'1px solid '+(over?'var(--red)':'var(--border2)'),borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',textAlign:'right',background:over?'var(--red-bg)':'var(--card)',color:over?'var(--red)':'var(--text)',flexShrink:0},type:'number',step:'0.1',min:'0','aria-label':def.en+' bag '+(ri+1),value:row.defects[def.key],onChange:function(e){updateRowDefect(pIdx,row.id,def.key,e.target.value);}}),ce('button',{type:'button',className:'vstep','aria-label':(true?'Increase ':'Decrease ')+def.en,onClick:function(){updateRowDefect(pIdx,row.id,def.key,visionStepVal(row.defects[def.key],1));}},'+'));
               })));
         })));
   }
@@ -4499,7 +4499,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                               var thresh=(Number(def.thresh)>0)?Number(def.thresh):(thresholds[def.key]!==undefined?thresholds[def.key]:(def.sev==='Critical'?0:def.sev==='Major'?1:5));
                               var over=thresh===0?v>0:v>thresh;
                               var isCrit=def.sev==='Critical';
-                              return ce('div',{key:def.key,style:{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid var(--border)'}},
+                              return ce('div',{key:def.key,className:'vf-def-row','data-zero':v>0?'0':'1',style:{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid var(--border)'}},
                                 ce('div',{className:'defect-name-cell',style:{flex:1,minWidth:0}},
                                   ce('div',{className:'defect-en',style:{fontSize:11,color:over?(isCrit?'var(--red)':'var(--amber)'):'var(--text2)',fontWeight:over?600:400,wordBreak:'break-word',lineHeight:1.3}},
                                     def.en,
@@ -4507,10 +4507,12 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                                   ),
                                   isCrit&&ce('div',{style:{fontSize:9,color:'var(--red)'}},'⚠ Zero tolerance')
                                 ),
+                                ce('button',{type:'button',className:'vstep','aria-label':(false?'Increase ':'Decrease ')+def.en,onClick:function(){updateRowDefect(pIdx,row.id,def.key,visionStepVal(row.defects[def.key],-1));}},'\u2212'),
                                 ce('input',{style:{width:54,padding:'2px 5px',border:'1px solid '+(over?'var(--red)':'var(--border2)'),borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',textAlign:'right',background:over?'var(--red-bg)':'var(--card)',color:over?'var(--red)':'var(--text)',flexShrink:0},
                                   type:'number',step:'0.1',min:'0',value:row.defects[def.key]||'0',
                                   onChange:function(i,id,key){return function(e){updateRowDefect(i,id,key,e.target.value);};}(pIdx,row.id,def.key)
                                 }),
+                                ce('button',{type:'button',className:'vstep','aria-label':(true?'Increase ':'Decrease ')+def.en,onClick:function(){updateRowDefect(pIdx,row.id,def.key,visionStepVal(row.defects[def.key],1));}},'+'),
                                 ce('span',{style:{fontSize:9,color:'var(--text3)',width:22,textAlign:'right',flexShrink:0}},thresh===0?'Zero':thresh+'%')
                               );
                             })
@@ -4717,7 +4719,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                                 var thresh=(Number(def.thresh)>0)?Number(def.thresh):(thresholds[def.key]!==undefined?thresholds[def.key]:0);
                                 var over=thresh===0?v>0:v>thresh;
                                 var isCrit=def.sev==='Critical';
-                                return ce('div',{key:def.key,style:{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid var(--border)'}},
+                                return ce('div',{key:def.key,className:'vf-def-row','data-zero':v>0?'0':'1',style:{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid var(--border)'}},
                                   ce('div',{className:'defect-name-cell',style:{flex:1,minWidth:0}},
                                     ce('div',{className:'defect-en',style:{fontSize:11,color:over?(isCrit?'var(--red)':'var(--amber)'):'var(--text2)',fontWeight:over?600:400,wordBreak:'break-word',lineHeight:1.3}},
                                       def.en,
@@ -4725,7 +4727,9 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                                     ),
                                     isCrit&&ce('div',{style:{fontSize:9,color:'var(--red)'}},'⚠ Zero tolerance')
                                   ),
+                                  ce('button',{type:'button',className:'vstep','aria-label':(false?'Increase ':'Decrease ')+def.en,onClick:function(){updateRowDefect(pIdx,row.id,def.key,visionStepVal(row.defects[def.key],-1));}},'\u2212'),
                                   ce('input',{style:{width:54,padding:'2px 5px',border:'1px solid '+(over?'var(--red)':'var(--border2)'),borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',textAlign:'right',background:over?'var(--red-bg)':'var(--card)',color:over?'var(--red)':'var(--text)',flexShrink:0},type:'number',step:'0.1',min:'0',value:row.defects[def.key],onChange:function(i,id,key){return function(e){updateRowDefect(i,id,key,e.target.value);};}(pIdx,row.id,def.key)}),
+                                  ce('button',{type:'button',className:'vstep','aria-label':(true?'Increase ':'Decrease ')+def.en,onClick:function(){updateRowDefect(pIdx,row.id,def.key,visionStepVal(row.defects[def.key],1));}},'+'),
                                   ce('span',{style:{fontSize:9,color:'var(--text3)',width:22,textAlign:'right',flexShrink:0}},thresh===0?'Zero':thresh+'%')
                                 );
                               })
@@ -13826,19 +13830,21 @@ function ClientQCMgmt(props){
                                 var v=parseFloat((sample.defects||{})[def.key])||0;
                                 var isCrit=def.sev==='Critical';
                                 var over=isCrit?v>0:v>3;
-                                return ce('div',{key:def.key,style:{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid var(--border)'}},
+                                return ce('div',{key:def.key,className:'vf-def-row','data-zero':v>0?'0':'1',style:{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid var(--border)'}},
                                   ce('div',{style:{flex:1,fontSize:11,color:over?'var(--red)':'var(--text2)',fontWeight:over?600:400,lineHeight:1.3}},
                                     def.en,
                                     isCrit&&ce('span',{style:{fontSize:9,color:'var(--red)',marginLeft:4}},'★'),
                                     def.ar&&ce('div',{style:{fontSize:9,color:'var(--text3)',direction:'rtl'}},def.ar)
                                   ),
                                   ce('div',{style:{display:'flex',alignItems:'center',gap:4}},
+                                    ce('button',{type:'button',className:'vstep','aria-label':(false?'Increase ':'Decrease ')+def.en,onClick:function(){updateCqcSampleDefect(si,def.key,visionStepVal((sample.defects||{})[def.key],-1));}},'\u2212'),
                                     ce('input',{
                                       style:{width:54,padding:'2px 5px',border:'1px solid '+(over?'var(--red-border)':'var(--border2)'),borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',textAlign:'right',background:over?'var(--red-bg)':'var(--card)',color:over?'var(--red)':'var(--text)'},
                                       type:'number',step:'0.1',min:'0',
                                       value:(sample.defects||{})[def.key]||'0',
                                       onChange:function(idx,key){return function(e){updateCqcSampleDefect(idx,key,e.target.value);};}(si,def.key)
                                     }),
+                                    ce('button',{type:'button',className:'vstep','aria-label':(true?'Increase ':'Decrease ')+def.en,onClick:function(){updateCqcSampleDefect(si,def.key,visionStepVal((sample.defects||{})[def.key],1));}},'+'),
                                     ce('span',{style:{fontSize:11,color:'var(--text3)'}},'%')
                                   )
                                 );
