@@ -110,6 +110,57 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 @media (prefers-reduced-motion:reduce){.lg-fade{animation:none}button.lg-panel:hover{transform:none}}
 @media (prefers-reduced-transparency:reduce){.lg-panel,.lg-stp li>span,.lg-stp li>button{background:rgba(255,255,255,.96);-webkit-backdrop-filter:none;backdrop-filter:none}}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.lg-panel{background:rgba(255,255,255,.94)}}
+/* ── Vision Glass: carries the start-page look to every view. Scope: .layout.vg ── */
+.vg{
+  --card:rgba(255,255,255,.66);
+  --bg:rgba(255,255,255,.42);
+  --bg2:rgba(236,232,222,.55);
+  --bg3:rgba(221,216,204,.6);
+  --border:rgba(30,45,34,.10);
+  --border2:rgba(30,45,34,.16);
+}
+/* top bar: a floating frosted strip instead of a flat beige band */
+.vg .topbar{background:rgba(255,255,255,.5);-webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);border:1px solid rgba(255,255,255,.7);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 6px 18px rgba(30,45,34,.07);margin:10px 10px 0;border-radius:14px;top:10px}
+.vg .page{padding:14px 10px 16px}
+/* panels */
+.vg .card,.vg .scroll-card,.vg .dp{background:rgba(255,255,255,.6);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border:1px solid rgba(255,255,255,.75);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 8px 24px rgba(30,45,34,.08);border-radius:16px}
+.vg .kpi{background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.75);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 6px 18px rgba(30,45,34,.07);border-radius:16px}
+.vg .dp-hdr{background:rgba(255,255,255,.45);border-radius:16px 16px 0 0}
+/* tables sit on glass: no hard rules, soft hover */
+.vg th{border-bottom:1px solid rgba(30,45,34,.14)}
+.vg td{border-bottom:1px solid rgba(30,45,34,.07)}
+.vg tr.click:hover td{background:rgba(255,255,255,.7)}
+/* tabs become a segmented glass control */
+.vg .tabs{border-bottom:none;gap:4px;padding:4px;background:rgba(255,255,255,.38);border:1px solid rgba(255,255,255,.6);border-radius:14px;width:fit-content;max-width:100%}
+.vg .tab{border-bottom:none;margin-bottom:0;border-radius:10px;padding:6px 14px}
+.vg .tab.active{background:rgba(255,255,255,.88);color:var(--accent);box-shadow:0 1px 0 #fff inset,0 3px 10px rgba(30,45,34,.08)}
+/* buttons + inputs */
+.vg .btn{border-radius:10px}
+.vg .btn-primary{background:linear-gradient(180deg,#356d4b,#2b5c3f);border-color:rgba(255,255,255,.2);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 4px 12px rgba(43,92,63,.25)}
+.vg .btn-secondary{background:rgba(255,255,255,.62);border-color:rgba(255,255,255,.8);box-shadow:0 1px 0 #fff inset,0 2px 8px rgba(30,45,34,.06)}
+.vg .btn-secondary:hover{background:rgba(255,255,255,.9)}
+.vg .form-input,.vg .form-select,.vg .currency-select,.vg .defect-input{background:rgba(255,255,255,.78);border-color:rgba(30,45,34,.14);border-radius:10px}
+.vg .form-input:focus,.vg .form-select:focus{background:#fff;box-shadow:0 0 0 3px rgba(74,140,98,.18)}
+.vg .badge{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+/* modals (inline fixed overlays): keep the panel near-opaque frosted so text stays readable */
+.vg [style*="position: fixed"] [style*="background: var(--card)"]{background:rgba(255,255,255,.9)!important;-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);border-radius:18px}
+@media(prefers-reduced-transparency:reduce){.vg{--card:#fff;--bg:#f6f3ec;--bg2:#ece8de}.vg .card,.vg .kpi,.vg .topbar,.vg .scroll-card,.vg .dp{background:rgba(255,255,255,.96);-webkit-backdrop-filter:none;backdrop-filter:none}}
+/* sticky bars inside pages (filter rows etc.): denser frost so content doesn't show through */
+.vg .page [style*="position: sticky"]:not(.dp){background:rgba(247,244,238,.86)!important;-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);border-radius:14px;padding-left:8px!important;padding-right:8px!important}
+.vg .topbar{background:rgba(255,255,255,.78)}
+/* listing container bands: dark glass, echoing the floating sidebar */
+.vg tr[style*="background: rgb(30, 45, 37)"]{background:rgba(24,38,28,.84)!important}
+/* top bar hangs from the top edge (no gap for scrolled content to peek through) */
+.vg .topbar{top:0;margin:0 10px;border-top:none;border-radius:0 0 14px 14px}
+/* the side detail panel is for reading: brighter frost */
+.vg .dp{background:rgba(255,255,255,.8)}
+/* the floating sidebar still scrolls on short screens, but its bar no longer cuts through the rounded corners */
+.lg-layout .sidebar{scrollbar-width:none}
+.lg-layout .sidebar::-webkit-scrollbar{display:none}
+/* Analytics main tabs (inline-styled) become the glass pill switch */
+.vg .vg-atabs{border-bottom:none!important;gap:4px!important;padding:4px;background:rgba(255,255,255,.38);border:1px solid rgba(255,255,255,.6);border-radius:14px;width:fit-content;max-width:100%;overflow-x:auto}
+.vg .vg-atab{border-bottom:none!important;margin-bottom:0!important;border-radius:10px;padding:6px 14px!important}
+.vg .vg-atab.on{background:rgba(255,255,255,.88);box-shadow:0 1px 0 #fff inset,0 3px 10px rgba(30,45,34,.08)}
 .crop-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.09);border-color:var(--border2)}
 .crop-icon-wrap{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
 .crop-name{font-family:var(--font-display);font-size:18px;color:var(--text);margin-bottom:4px}
@@ -7329,8 +7380,8 @@ function AnalyticsView(props){
     ),
 
     /* Main tabs */
-    ce('div',{style:{display:'flex',gap:2,marginBottom:12,borderBottom:'0.5px solid var(--border)'}},
-      TABS.map(function(t){return ce('div',{key:t.id,onClick:function(){setTab(t.id);},style:{fontSize:12,padding:'6px 14px',cursor:'pointer',marginBottom:'-0.5px',borderBottom:activeTab===t.id?'2px solid #2e5d3a':'2px solid transparent',color:activeTab===t.id?'#2e5d3a':'var(--text3)',fontWeight:activeTab===t.id?600:400}},t.label);})),
+    ce('div',{className:'vg-atabs',style:{display:'flex',gap:2,marginBottom:12,borderBottom:'0.5px solid var(--border)'}},
+      TABS.map(function(t){return ce('div',{key:t.id,className:'vg-atab'+(activeTab===t.id?' on':''),onClick:function(){setTab(t.id);},style:{fontSize:12,padding:'6px 14px',cursor:'pointer',marginBottom:'-0.5px',borderBottom:activeTab===t.id?'2px solid #2e5d3a':'2px solid transparent',color:activeTab===t.id?'#2e5d3a':'var(--text3)',fontWeight:activeTab===t.id?600:400}},t.label);})),
 
     loading&&ce('div',{style:{textAlign:'center',padding:'40px 0',color:'var(--text3)',fontSize:13}},'Loading analytics\u2026'),
     !loading&&err&&ce('div',{style:{color:'var(--red)',fontSize:13,padding:'12px 0'}},'Error: '+err),
@@ -16107,6 +16158,10 @@ var DALOS_ACTIVITY_KEY='dalos_last_activity';
 var DALOS_VERSION='v9'; /* bump to clear stale localStorage */
 /* User-visible version shown under "Sign out" in the sidebar. Bump on each user-facing release. */
 var DALOS_BUILD='v1.6.0 (2026.06.04)';
+/* Glass look on every page (staging test). Kill switch: VISION_GLASS=false. Per browser: ?theme=classic / ?theme=glass, or the sidebar "Classic look" item. */
+var VISION_GLASS=true;
+function visionGlassOn(){if(!VISION_GLASS)return false;try{var q=new URLSearchParams(location.search).get('theme');if(q==='classic'||q==='glass')localStorage.setItem('vision_theme',q);return localStorage.getItem('vision_theme')!=='classic';}catch(e){return true;}}
+function visionGlassToggle(){try{localStorage.setItem('vision_theme',visionGlassOn()?'classic':'glass');}catch(e){}window.location.reload();}
 (function(){
   try{
     if(localStorage.getItem('dalos_version')!==DALOS_VERSION){
@@ -18512,6 +18567,10 @@ function App(){
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M11 2.5a.5.5 0 0 0-.5-.5H3a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h7.5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h7.5a.5.5 0 0 0 .5-.5v-1zm1.854 4.646a.5.5 0 0 0 0 .708l1.792 1.792-1.792 1.792a.5.5 0 0 0 .707.707l2.146-2.145a.5.5 0 0 0 0-.708L13.56 7.147a.5.5 0 0 0-.707.707z'})),
             ce('div',null,'Switch crop')
           ),
+          VISION_GLASS&&ce('div',{className:'nav-item',style:{fontSize:12},title:'Switch between the new Glass look and the classic look (this browser only)',onClick:visionGlassToggle},
+            ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z'})),
+            ce('div',null,visionGlassOn()?'Classic look':'Glass look')
+          ),
           ce('div',{className:'nav-item',style:{fontSize:12},onClick:signOut},
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z'})),
             ce('div',null,'Sign out')
@@ -18586,7 +18645,7 @@ function App(){
     );
   }
 
-  return ce('div',{className:'layout'},sessionExpiredOverlay,mkSidebar(),
+  return ce('div',{className:'layout'+(visionGlassOn()?' lg-layout vg':'')},sessionExpiredOverlay,mkSidebar(),
     ce('div',{className:'main'},
       cur.id&&ce('div',{className:'topbar'},
         ce('div',{className:'topbar-left'},
