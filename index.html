@@ -216,6 +216,39 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
   html.vmf .dh-tb-l .dh-pill,html.vmf .dh-tb .dh-ver{display:none}
   html.vmf .dh-tb-r select{max-width:120px}
 }
+/* ── Phone inspection form: bottom action bar, folding sections, jump strip, 48px fields, label toggles, defect steppers ── */
+.vf-strip,.vstep{display:none}
+@media(max-width:767px){
+  html.vmf .form-topbar:not(#vmf-x){-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:#fbfaf7!important;flex-wrap:wrap!important;height:auto!important;padding:8px 10px 0!important}
+  html.vmf .vf-strip{display:flex;order:5;flex:1 1 100%;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0 8px}
+  html.vmf .vf-strip::-webkit-scrollbar{display:none}
+  html.vmf .vf-strip button{flex-shrink:0;min-height:36px;padding:0 12px;border-radius:18px;border:1px solid rgba(30,45,34,.14);background:#fff;font-size:12.5px;font-weight:500;color:var(--text2);white-space:nowrap}
+  html.vmf .vf-strip .vf-nzbtn{border-style:dashed}
+  html.vmf .vf-strip .vf-nzbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  html.vmf .form-topbar .form-topbar-right{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex!important;align-items:center;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))!important;background:rgba(251,250,247,.98);border-top:1px solid rgba(30,45,34,.1);box-shadow:0 -6px 20px rgba(30,45,34,.08)}
+  html.vmf .form-topbar .form-topbar-right .form-topbar-avg{font-size:22px!important;margin-right:auto}
+  html.vmf .form-topbar .form-topbar-right .btn{min-height:48px!important;font-size:15px!important;padding:0 16px!important}
+  html.vmf .form-topbar .form-topbar-right .btn-primary{min-width:108px}
+  html.vmf .page:has(.form-topbar){padding-bottom:110px!important}
+  html.vmf .page:has(.form-topbar) .card{scroll-margin-top:130px}
+  html.vmf .page:has(.form-topbar) .card .section-title{cursor:pointer}
+  html.vmf .page:has(.form-topbar) .card .section-title::after{content:"\25BE";margin-left:auto;font-size:13px;color:var(--text3);transition:transform .15s}
+  html.vmf .card.vf-closed .section-title::after{transform:rotate(-90deg)}
+  html.vmf .card.vf-closed > :not(:has(.section-title)):not(.section-title){display:none!important}
+  html.vmf .page:has(.form-topbar) .form-input,html.vmf .page:has(.form-topbar) .form-select{min-height:48px;font-size:16px}
+  html.vmf .vf-lab-row{min-height:50px;padding:6px 12px!important;cursor:pointer}
+  html.vmf .vf-lab-row > div:last-child{font-size:14px!important;flex:1}
+  html.vmf .vf-lab-box{order:2;width:48px!important;height:28px!important;border-radius:14px!important;position:relative;background:var(--bg3)!important;border:none!important}
+  html.vmf .vf-lab-box[data-on="1"]{background:var(--green)!important}
+  html.vmf .vf-lab-box svg{display:none}
+  html.vmf .vf-lab-box::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+  html.vmf .vf-lab-box[data-on="1"]::after{left:23px}
+  html.vmf .vstep{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex-shrink:0;border-radius:12px;border:1px solid rgba(30,45,34,.16);background:var(--bg);font-size:22px;color:var(--accent);line-height:1}
+  html.vmf .vstep:active{background:var(--bg3)}
+  html.vmf .vf-def-row{min-height:56px;gap:6px!important}
+  html.vmf .vf-def-row .defect-row-input{min-height:44px!important;width:58px!important;text-align:center!important}
+  html.vf-nz .vf-def-row[data-zero="1"]{display:none!important}
+}
 /* ── Phone inspection list: the table rows become 3-line cards (same rows, same clicks) ── */
 .vfg-stats-btn{display:none}
 @media(max-width:767px){
@@ -2907,6 +2940,7 @@ function InspectionForm(props){
 
   return ce('div',{style:{background:'var(--bg)',minHeight:'100vh'}},
     ce('div',{className:'form-topbar',style:{background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'0 16px',height:50,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:20,gap:8}},
+      ce(VisionFormStrip,{hdrLocked:hdrLocked}),
       ce('div',{className:'form-topbar-left-group',style:{display:'flex',alignItems:'center',gap:8,minWidth:0,flex:1}},
         ce('button',{className:'btn btn-secondary btn-sm',onClick:safeClose,style:{flexShrink:0,padding:'6px 10px'}},'← Back'),
         ce('div',{className:'form-topbar-title',style:{fontFamily:'var(--font-display)',fontSize:16,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},isEdit?'Edit':'New inspection'),
@@ -3616,8 +3650,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                 return cropId==='grapes'?baseItems.filter(function(i){return i.key!=='lot';}):[].concat(baseItems);
               })().map(function(item){
                 var checked=stickerChecks[item.key];
-                return ce('div',{key:item.key,style:{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderBottom:'1px solid var(--border)',background:checked?'var(--green-bg)':'transparent',cursor:'pointer'},onClick:function(){toggleCheck(item.key);}},
-                  ce('div',{style:{width:16,height:16,borderRadius:3,border:'1.5px solid '+(checked?'var(--green)':'var(--border2)'),background:checked?'var(--green)':'var(--card)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+                return ce('div',{key:item.key,className:'vf-lab-row',style:{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderBottom:'1px solid var(--border)',background:checked?'var(--green-bg)':'transparent',cursor:'pointer'},onClick:function(){toggleCheck(item.key);}},
+                  ce('div',{className:'vf-lab-box','data-on':checked?'1':'0',style:{width:16,height:16,borderRadius:3,border:'1.5px solid '+(checked?'var(--green)':'var(--border2)'),background:checked?'var(--green)':'var(--card)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
                     checked&&ce('svg',{width:9,height:9,viewBox:'0 0 9 9'},ce('path',{d:'M1 4.5l2.5 2.5 4-4',stroke:'#fff',strokeWidth:1.5,fill:'none',strokeLinecap:'round',strokeLinejoin:'round'}))
                   ),
                   ce('div',{style:{fontSize:12,color:checked?'var(--green)':'var(--text2)',fontWeight:checked?600:400}},item.label)
@@ -3671,8 +3705,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
               ce('div',{style:{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden'}},
                 checkItems.map(function(item){
                   var checked=elChecks[item.key];
-                  return ce('div',{key:item.key,style:{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderBottom:'1px solid var(--border)',background:checked?'var(--green-bg)':'transparent',cursor:'pointer'},onClick:function(i,k){return function(){toggleExtraLabelCheck(i,k);};}(eli,item.key)},
-                    ce('div',{style:{width:16,height:16,borderRadius:3,border:'1.5px solid '+(checked?'var(--green)':'var(--border2)'),background:checked?'var(--green)':'var(--card)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+                  return ce('div',{key:item.key,className:'vf-lab-row',style:{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderBottom:'1px solid var(--border)',background:checked?'var(--green-bg)':'transparent',cursor:'pointer'},onClick:function(i,k){return function(){toggleExtraLabelCheck(i,k);};}(eli,item.key)},
+                    ce('div',{className:'vf-lab-box','data-on':checked?'1':'0',style:{width:16,height:16,borderRadius:3,border:'1.5px solid '+(checked?'var(--green)':'var(--border2)'),background:checked?'var(--green)':'var(--card)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
                       checked&&ce('svg',{width:9,height:9,viewBox:'0 0 9 9'},ce('path',{d:'M1 4.5l2.5 2.5 4-4',stroke:'#fff',strokeWidth:1.5,fill:'none',strokeLinecap:'round',strokeLinejoin:'round'}))
                     ),
                     ce('div',{style:{fontSize:12,color:checked?'var(--green)':'var(--text2)',fontWeight:checked?600:400}},item.label)
@@ -5073,12 +5107,14 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                             var thresh=(Number(def.thresh)>0)?Number(def.thresh):(thresholds[def.key]!==undefined?thresholds[def.key]:0);
                             var over=thresh===0?v>0:v>thresh;
                             var isCrit=def.sev==='Critical';
-                            return ce('div',{key:def.key,style:{display:'flex',alignItems:'center',gap:6,padding:'5px 0',borderBottom:'1px solid var(--border)'}},
+                            return ce('div',{key:def.key,className:'vf-def-row','data-zero':(parseFloat(row.defects[def.key])||0)>0?'0':'1',style:{display:'flex',alignItems:'center',gap:6,padding:'5px 0',borderBottom:'1px solid var(--border)'}},
                               ce('div',{className:'defect-name-cell',style:{flex:1,minWidth:0}},
                                 ce('div',{className:'defect-en',style:{fontSize:12,color:over?(isCrit?'var(--red)':'var(--amber)'):'var(--text2)',fontWeight:over?600:400,lineHeight:1.3,wordBreak:'break-word'}},def.en),
                                 isCrit&&ce('div',{style:{fontSize:9,color:'var(--red)'}},'⚠ Zero tolerance')
                               ),
+                              ce('button',{type:'button',className:'vstep','aria-label':'Decrease '+def.en,onClick:function(i,id,key,cur){return function(){updateRowDefect(i,id,key,visionStepVal(cur,-1));};}(pIdx,row.id,def.key,row.defects[def.key])},'\u2212'),
                               ce('input',{className:'defect-row-input',style:{width:60,padding:'5px 6px',border:'1.5px solid '+(over?'var(--red)':'var(--border2)'),borderRadius:5,fontSize:15,fontFamily:'var(--font-mono)',textAlign:'right',background:over?'var(--red-bg)':'var(--card)',color:over?'var(--red)':'var(--text)',flexShrink:0,minHeight:38},type:'number',step:'0.1',min:'0',value:row.defects[def.key],onChange:function(i,id,key){return function(e){updateRowDefect(i,id,key,e.target.value);};}(pIdx,row.id,def.key)}),
+                              ce('button',{type:'button',className:'vstep','aria-label':'Increase '+def.en,onClick:function(i,id,key,cur){return function(){updateRowDefect(i,id,key,visionStepVal(cur,1));};}(pIdx,row.id,def.key,row.defects[def.key])},'+'),
                               ce('span',{style:{fontSize:9,color:'var(--text3)',width:20,textAlign:'right',flexShrink:0}},thresh===0?'✕':thresh+'%')
                             );
                           })
@@ -16545,6 +16581,22 @@ function useFormRoundTrip(formOpen,key){var was=React.useRef(formOpen),top=React
   React.useEffect(function(){if(formOpen)return;var m=visionScroller();if(!m)return;var tg=m===document.scrollingElement?window:m;function s(){top.current=m.scrollTop;}s();tg.addEventListener('scroll',s,{passive:true});return function(){tg.removeEventListener('scroll',s);};},[formOpen]);
   React.useLayoutEffect(function(){if(formOpen&&!was.current&&visionScrollFixOn())visionScrollMemo[key]={top:top.current,at:Date.now()};
     if(!formOpen&&was.current)visionRestoreScroll(key);was.current=formOpen;},[formOpen]);}
+/* Phone inspection form */
+function visionStepVal(cur,dir){var v=parseFloat(cur);if(isNaN(v))v=0;v=Math.round((v+dir*0.1)*10)/10;if(v<0)v=0;return v===0?'':String(v);}
+function visionPhoneForm(){return visionMobileFixOn()&&window.innerWidth<768;}
+function VisionFormStrip(props){
+  var s=React.useState([]),secs=s[0],setSecs=s[1];var nz=React.useState(false),onlyNz=nz[0],setNz=nz[1];
+  React.useEffect(function(){if(!visionPhoneForm())return;function scan(){
+      var cards=Array.prototype.slice.call(document.querySelectorAll('.page .card')).filter(function(c){var st=c.querySelector('.section-title');return st&&st.closest('.card')===c&&c.offsetHeight>0;});
+      var next=cards.map(function(c,i){c.setAttribute('data-vfi',String(i));var tx=(c.querySelector('.section-title').innerText||'').split(/\s[\u2014-]\s|\n/)[0].trim();return tx.replace(/Locked$/,'').trim();});
+      setSecs(function(prev){return prev.join('|')===next.join('|')?prev:next;});}
+    scan();var tm=setInterval(scan,800);return function(){clearInterval(tm);};},[]);
+  React.useEffect(function(){if(!visionPhoneForm())return;var hc=Array.prototype.slice.call(document.querySelectorAll('.page .card')).find(function(c){var st=c.querySelector('.section-title');return st&&/Inspection header/i.test(st.textContent);});if(hc)hc.classList.toggle('vf-closed',!!props.hdrLocked);},[props.hdrLocked]);
+  React.useEffect(function(){document.documentElement.classList.toggle('vf-nz',onlyNz);return function(){document.documentElement.classList.remove('vf-nz');};},[onlyNz]);
+  return ce('div',{className:'vf-strip'},
+    secs.map(function(n,i){return ce('button',{key:i,type:'button',onClick:function(){var c=document.querySelector('.page .card[data-vfi="'+i+'"]');if(!c)return;c.classList.remove('vf-closed');c.scrollIntoView({block:'start',behavior:'smooth'});}},n||('Section '+(i+1)));}),
+    ce('button',{type:'button',className:'vf-nzbtn'+(onlyNz?' on':''),onClick:function(){setNz(!onlyNz);}},onlyNz?'\u2713 Only non-zero defects':'Only non-zero defects'));
+}
 /* Phone detail shell: ‹ › and swipe step through the list in on-screen order by clicking the neighbour row/card. */
 var visionLastRow=null;
 function visionFullDetail(){return visionMobileFixOn()&&window.innerWidth<768;}
@@ -16569,6 +16621,8 @@ function useListKeys(){React.useEffect(function(){if(!visionScrollFixOn())return
   var sx=null,sy=null;function ts(e){if(!visionFullDetail())return;var t0=e.target&&e.target.closest&&e.target.closest('.dp-sheet .dp-body, .sx-ship-panel');if(!t0){sx=null;return;}sx=e.touches[0].clientX;sy=e.touches[0].clientY;}
   function te(e){if(sx==null)return;var t1=e.changedTouches[0],dx=t1.clientX-sx,dy=t1.clientY-sy;sx=null;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.6)visionStep(dx<0?1:-1);}
   document.addEventListener('touchstart',ts,{passive:true});document.addEventListener('touchend',te,{passive:true});
+  function fold(e){if(!visionPhoneForm()||!document.querySelector('.form-topbar'))return;var st=e.target&&e.target.closest&&e.target.closest('.page .card .section-title');if(!st||e.target.closest('button,a,input,select,label'))return;var c=st.closest('.card');if(c&&c.querySelector('.section-title')===st)c.classList.toggle('vf-closed');}
+  document.addEventListener('click',fold);
   function current(rows){if(last&&document.contains(last)&&rows.indexOf(last)>-1)return last;
     var pn=document.querySelector('.page .dp-pin, .page .cqc-detail-pane, .page .sx-ship-panel');if(!pn)return null;
     var keys=(pn.innerText||'').split('\n').slice(0,6).map(function(s){return s.trim();}).filter(function(s){return s.length>=6&&/\d/.test(s);});
@@ -16580,7 +16634,7 @@ function useListKeys(){React.useEffect(function(){if(!visionScrollFixOn())return
     var cell=Array.prototype.slice.call(nx.children).filter(function(td){return td.offsetWidth>0&&!td.querySelector('button,a,input,select,label');})[0]||nx.children[0];
     last=nx;if(cell)cell.click();setTimeout(function(){try{nx.scrollIntoView({block:'nearest'});}catch(_e){}},30);}
   document.addEventListener('click',onClick,true);document.addEventListener('keydown',onKey);
-  return function(){document.removeEventListener('click',onClick,true);document.removeEventListener('keydown',onKey);document.removeEventListener('touchstart',ts);document.removeEventListener('touchend',te);};},[]);}
+  return function(){document.removeEventListener('click',onClick,true);document.removeEventListener('keydown',onKey);document.removeEventListener('touchstart',ts);document.removeEventListener('touchend',te);document.removeEventListener('click',fold);};},[]);}
 /* Phase 2: while a listing's side panel is open, the list table keeps one line per row, its header sticks under the
    sticky bars, inner scroll boxes stand down (the page scrolls), and columns the panel already shows hide in the given
    order only until the list fits. listSel narrows where the list table lives. */
