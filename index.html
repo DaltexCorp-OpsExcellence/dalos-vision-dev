@@ -37,6 +37,71 @@ input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--te
 .crop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,200px));gap:14px;justify-content:center}
 .crop-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 16px 16px;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s}
 .landing-crop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+/* Landing — glass + stepped line → packhouse → product (2026-10) */
+.landing.lg-glass{background:
+  radial-gradient(60% 45% at 12% 8%,rgba(142,203,164,.50),transparent 70%),
+  radial-gradient(50% 40% at 88% 14%,rgba(220,199,156,.50),transparent 70%),
+  radial-gradient(55% 45% at 72% 92%,rgba(160,180,232,.35),transparent 70%),
+  radial-gradient(45% 40% at 18% 86%,rgba(232,200,122,.30),transparent 70%),
+  linear-gradient(160deg,#eef2ea,#f3eee4 55%,#ece9f1)}
+.lg-panel{background:rgba(255,255,255,.58);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border:1px solid rgba(255,255,255,.75);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 8px 24px rgba(30,45,34,.10);border-radius:18px}
+button.lg-panel{font-family:var(--font-body);color:var(--text);cursor:pointer;text-align:left;transition:background .2s,transform .2s,box-shadow .2s}
+button.lg-panel:hover{background:rgba(255,255,255,.80);transform:translateY(-1px);box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 12px 30px rgba(30,45,34,.14)}
+button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+.lg-wrap{width:100%;max-width:720px;margin:0 auto 32px;padding:0 16px;display:flex;flex-direction:column;gap:12px}
+.lg-note{font-size:12px;color:var(--text3)}
+.lg-resume{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;background:linear-gradient(135deg,rgba(232,245,236,.78),rgba(255,255,255,.5))}
+.lg-rk{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lg-rp{font-size:14px;font-weight:600;flex:1;min-width:180px}
+.lg-rp i{font-style:normal;color:var(--text3);margin:0 5px}
+.lg-rgo{font-size:13px;font-weight:600;color:var(--accent)}
+.lg-stp{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.lg-stp li>span,.lg-stp li>button{width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:14px;font-family:var(--font-body);text-align:left;color:var(--text3);background:rgba(255,255,255,.38);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.55)}
+.lg-stp li.done>button{background:rgba(232,245,236,.72);border-color:rgba(142,203,164,.7);color:var(--text);cursor:pointer}
+.lg-stp li.cur>span{background:rgba(255,255,255,.82);color:var(--text);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 6px 16px rgba(30,45,34,.08)}
+.lg-sn{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--bg2);color:var(--text3)}
+.lg-stp li.done .lg-sn{background:var(--accent);color:#fff}
+.lg-stp li.cur .lg-sn{background:#fff;border:2px solid var(--accent2);color:var(--accent)}
+.lg-sl{display:flex;flex-direction:column;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;line-height:1.2;min-width:0}
+.lg-sl small{font-size:12px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg-chg{margin-left:auto;font-size:11px;font-weight:600;color:var(--accent);border:1px solid #8ecba4;border-radius:20px;padding:2px 9px;background:rgba(255,255,255,.75)}
+.lg-back{align-self:flex-start;font-family:var(--font-body);font-size:13px;font-weight:500;color:var(--text2);background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:4px 12px;cursor:pointer;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.lg-back:hover{color:var(--accent)}
+.lg-g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lg-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.lg-fade{animation:lgfade .15s ease}
+@keyframes lgfade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.lg-line{display:flex;align-items:center;gap:14px;padding:18px}
+.lg-orchards{--lc:#2b5c3f}.lg-pivots{--lc:#8a6a2e}
+.lg-ic{color:var(--lc);flex-shrink:0;width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.6);box-shadow:0 1px 0 #fff inset;display:flex;align-items:center;justify-content:center}
+.lg-lt{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.lg-nm{font-family:var(--font-display);font-size:22px;line-height:1.1}
+.lg-ar{font-family:var(--font-body);font-size:13px;color:var(--text3);direction:rtl;unicode-bidi:isolate}
+.lg-ls{display:grid;grid-template-columns:auto auto;gap:0 6px;align-items:baseline;text-align:right}
+.lg-ls b{font-family:var(--font-mono);font-size:15px}.lg-ls small{font-size:10px;color:var(--text3);text-align:left}
+.lg-ph{display:flex;flex-direction:column;gap:7px;padding:12px 14px}
+.lg-top{display:flex;align-items:center;gap:10px}
+.lg-ini{width:34px;height:34px;flex-shrink:0;border-radius:11px;background:color-mix(in srgb,var(--pc) 16%,rgba(255,255,255,.5));color:var(--pc);display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:12px;font-weight:600}
+.lg-phn{font-weight:600;font-size:14px;line-height:1.2;flex:1;min-width:0}
+.lg-cnt{font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--pc)}
+.lg-ph.idle{opacity:.6}.lg-ph.idle .lg-cnt{color:var(--text3)}
+.lg-chips{display:flex;flex-wrap:wrap;gap:4px}
+.lg-cp{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;color:var(--cc);background:color-mix(in srgb,var(--cc) 12%,rgba(255,255,255,.55));border:1px solid rgba(255,255,255,.7)}
+.lg-hint{font-size:11px;color:var(--text3)}
+.lg-crop{display:flex;flex-direction:column;gap:2px;padding:14px 16px}
+.lg-ctop{display:flex;align-items:center;gap:8px}
+.lg-cic{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.65);display:inline-flex;align-items:center;justify-content:center}
+.lg-cn{font-weight:600;color:var(--cc);font-size:16px}
+.lg-v{font-family:var(--font-mono);font-size:26px;font-weight:600;line-height:1.1;margin-top:6px}
+.lg-bar{display:flex;height:4px;border-radius:2px;overflow:hidden;background:rgba(0,0,0,.08);margin:6px 0 3px}
+.lg-bar i{display:block;height:100%}
+.lg-open{margin-top:8px;font-size:13px;font-weight:600;color:var(--cc)}
+.lg-empty{padding:18px;font-size:13px;color:var(--text2);text-align:center}
+@media (max-width:760px){.lg-g2,.lg-g3{grid-template-columns:minmax(0,1fr)}.lg-sl small,.lg-chg{display:none}.lg-ls{display:none}.lg-wrap{padding:0 4px}}
+@media (min-width:761px) and (max-width:1024px){.lg-g3{grid-template-columns:1fr 1fr}}
+@media (prefers-reduced-motion:reduce){.lg-fade{animation:none}button.lg-panel:hover{transform:none}}
+@media (prefers-reduced-transparency:reduce){.lg-panel,.lg-stp li>span,.lg-stp li>button{background:rgba(255,255,255,.96);-webkit-backdrop-filter:none;backdrop-filter:none}}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.lg-panel{background:rgba(255,255,255,.94)}}
 .crop-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.09);border-color:var(--border2)}
 .crop-icon-wrap{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
 .crop-name{font-family:var(--font-display);font-size:18px;color:var(--text);margin-bottom:4px}
@@ -7927,8 +7992,17 @@ var DH_CSS=[
 ].join('\n');
 
 
+/* Landing line of business: product → 'orchards' | 'pivots'. Code-only grouping (no DB column yet);
+   any product not listed is Orchards. */
+var LINE_OF_PRODUCT={potatoes:'pivots'};
+var LANDING_LINES=[
+  {id:'orchards',name:'Orchards',ar:'البساتين'},
+  {id:'pivots',name:'Pivots',ar:'البيفوت'}
+];
+function landingLineOf(cropId){return LINE_OF_PRODUCT[cropId]||'orchards';}
 function Landing(props){
   var sp=useState(null); var phId=sp[0]; var setPhId=sp[1];
+  var sl=useState(null); var lineId=sl[0]; var setLineId=sl[1];
   var eg=useState(false); var showEidGame=eg[0]; var setShowEidGame=eg[1];
   var config=props.config||INITIAL_CONFIG;
   var setConfig=props.setConfig||function(){};
@@ -7953,14 +8027,30 @@ function Landing(props){
   /* quick stats — scoped to user's packhouses + selected season */
   var myBatches=(hasAllPH?batches:batches.filter(function(b){return userPHs.indexOf(b.packhouse)>=0;}))
     .filter(function(b){return (b.season||'2025/26')===(props.currentViewSeason||'2025/26');});
-  var totalBatches=myBatches.length;
-  var escalated=myBatches.filter(function(b){return b.status==='Escalated';}).length;
-  var hold=myBatches.filter(function(b){return b.status==='Rejected';}).length;
-  var released=myBatches.filter(function(b){return b.status==='Accepted';}).length;
+  function bMatch(b,crop){return b.crop===crop.id||(b.crop&&b.crop===crop.name)||(b.cropId===crop.id);}
+  function batchLine(b){var c=products.find(function(x){return bMatch(b,x);});return c?landingLineOf(c.id):'orchards';}
+  var kpiBatches=lineId?myBatches.filter(function(b){return batchLine(b)===lineId;}):myBatches;
+  var totalBatches=kpiBatches.length;
+  var escalated=kpiBatches.filter(function(b){return b.status==='Escalated';}).length;
+  var hold=kpiBatches.filter(function(b){return b.status==='Rejected';}).length;
+  var released=kpiBatches.filter(function(b){return b.status==='Accepted';}).length;
+  /* line → packhouses → products (only active products of that line) */
+  function lineCrops(line,p){return products.filter(function(c){return p&&p.crops.indexOf(c.id)>-1&&c.active!==false&&landingLineOf(c.id)===line;});}
+  function phsFor(line){return packhouses.filter(function(p){return lineCrops(line,p).length>0;});}
+  function cropBatchesFor(pid,crop){return myBatches.filter(function(b){return b.packhouse===pid&&bMatch(b,crop);});}
+  function phCount(line,p){return lineCrops(line,p).reduce(function(n,c){return n+cropBatchesFor(p.id,c).length;},0);}
+  /* "Continue where you left off" — per browser */
+  var lastPath=(function(){try{var v=JSON.parse(localStorage.getItem('vision_last_path')||'null');if(!v||!v.ph||!v.crop)return null;
+    var lp=packhouses.find(function(p){return p.id===v.ph;});var lc=products.find(function(c){return c.id===v.crop;});
+    if(!lp||!lc||lp.crops.indexOf(lc.id)<0||lc.active===false)return null;return {ph:lp,crop:lc,line:landingLineOf(lc.id)};}catch(e){return null;}})();
+  function openListing(pid,cid){try{localStorage.setItem('vision_last_path',JSON.stringify({ph:pid,crop:cid}));}catch(e){}props.onSelect(pid,cid);}
+  var lineObj=lineId?LANDING_LINES.find(function(l){return l.id===lineId;}):null;
+  var stepPh=(lineId&&ph&&lineCrops(lineId,ph).length)?ph:null;
+  var cur=!lineObj?1:!stepPh?2:3;
   var greeting=(function(){var h=new Date().getHours();return h<12?'Good morning':h<18?'Good afternoon':'Good evening';})();
   var firstName=currentUser.name?currentUser.name.split(' ')[0]:'';
 
-  return ce('div',{className:'landing',style:{paddingTop:0}},
+  return ce('div',{className:'landing lg-glass',style:{paddingTop:0}},
 
     /* ── MOBILE MENU BUTTON — only shows on mobile ── */
     ce('div',{className:'menu-btn',style:{position:'fixed',top:10,left:12,zIndex:30},onClick:onMobOpen},
@@ -8007,130 +8097,121 @@ function Landing(props){
           {label:'Rejected',value:hold,color:'var(--red)',sub:'Awaiting action'},
           {label:'Escalated',value:escalated,color:'#2a50c0',sub:'Board review'},
         ].map(function(stat){
-          return ce('div',{key:stat.label,style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'14px 16px',textAlign:'center'}},
+          return ce('div',{key:stat.label,className:'lg-panel',style:{borderRadius:16,padding:'14px 16px',textAlign:'center'}},
             inspLoading
               ? ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:26,fontWeight:700,color:'var(--text3)',marginBottom:2,opacity:.4,animation:'dalos-pulse 1.4s ease-in-out infinite'}},'\u2014')
               : ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:26,fontWeight:700,color:stat.color,marginBottom:2}},stat.value),
             ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:2}},stat.label),
-            ce('div',{style:{fontSize:10,color:'var(--text3)'}},stat.sub)
+            ce('div',{style:{fontSize:10,color:'var(--text3)'}},stat.sub+(lineObj?' · '+lineObj.name:''))
           );
         })
       )
     ),
 
-    /* ── START INSPECTION (FG only) ── */
-    ce('div',{style:{maxWidth:680,margin:'0 auto 24px',padding:'0 16px'}},
-      ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6,color:'var(--text)'}},'Start new inspection'),
-      ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:0}},'Select a packhouse then a product to begin an export inspection session.')
-    ),
-
-    /* step 1 — packhouse */
-    ce('div',{style:{width:'100%',maxWidth:680,marginBottom:32}},
-      ce('div',{style:{fontSize:11,fontWeight:600,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)',marginBottom:12,display:'flex',alignItems:'center',gap:8}},
-        ce('span',{style:{background:ph?ph.color:'var(--border2)',color:'#fff',borderRadius:'50%',width:20,height:20,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,flexShrink:0}},'1'),
-        'Select packhouse'
+    /* ── START INSPECTION: line → packhouse → product (stepped, glass) ── */
+    ce('div',{className:'lg-wrap'},
+      cur===1&&lastPath&&ce('button',{type:'button',className:'lg-resume lg-panel',onClick:function(){openListing(lastPath.ph.id,lastPath.crop.id);}},
+        ce('span',{className:'lg-rk'},'Continue where you left off'),
+        ce('span',{className:'lg-rp'},
+          (lastPath.line==='pivots'?'Pivots':'Orchards'),ce('i',null,'›'),lastPath.ph.name,ce('i',null,'›'),
+          ce('b',{style:{color:lastPath.crop.color||'var(--accent)'}},lastPath.crop.name)
+        ),
+        ce('span',{className:'lg-rgo'},'Open listing →')
       ),
-      ce('div',{className:'landing-ph-grid',style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}},
-        !configLoaded
-          ?[0,1,2].map(function(i){
-              /* Loading skeleton — same outer dimensions as a real card so layout doesn't jump */
-              return ce('div',{key:'skeleton-'+i,
-                style:{background:'var(--card)',border:'2px solid var(--border)',borderRadius:12,padding:'16px 18px',animation:'dalos-pulse 1.4s ease-in-out infinite',opacity:.55}},
-                ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:8}},
-                  ce('div',{style:{width:36,height:36,borderRadius:9,background:'var(--border2)',flexShrink:0}}),
-                  ce('div',{style:{flex:1}},
-                    ce('div',{style:{height:10,background:'var(--border2)',borderRadius:4,width:'70%',marginBottom:6}}),
-                    ce('div',{style:{height:8,background:'var(--border2)',borderRadius:4,width:'50%'}})
-                  )
+      ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,color:'var(--text)'}},'Start new inspection'),
+      ce('ol',{className:'lg-stp','aria-label':'Progress'},
+        ['Line','Packhouse','Product'].map(function(label,i){
+          var n=i+1,state=n<cur?'done':n===cur?'cur':'todo';
+          var val=n===1&&lineObj?lineObj.name:n===2&&stepPh?stepPh.name:'';
+          var inner=[ce('span',{key:'n',className:'lg-sn'},state==='done'?'✓':n),
+            ce('span',{key:'l',className:'lg-sl'},label,state==='done'&&val?ce('small',null,val):null),
+            state==='done'?ce('span',{key:'c',className:'lg-chg'},'Change'):null];
+          return ce('li',{key:label,className:state},
+            state==='done'
+              ?ce('button',{type:'button',onClick:function(){if(n===1){setLineId(null);setPhId(null);}else setPhId(null);}},inner)
+              :ce('span',null,inner));
+        })
+      ),
+      cur>1&&ce('button',{type:'button',className:'lg-back',onClick:function(){if(cur===2){setLineId(null);setPhId(null);}else setPhId(null);}},'← Back to '+(cur===2?'line':'packhouses')),
+
+      /* step 1 — line */
+      cur===1&&ce('div',{className:'lg-g2 lg-fade'},
+        LANDING_LINES.map(function(L){
+          var phs=phsFor(L.id);
+          var n=myBatches.filter(function(b){return batchLine(b)===L.id;}).length;
+          var lcrops=products.filter(function(c){return c.active!==false&&landingLineOf(c.id)===L.id;});
+          return ce('button',{key:L.id,type:'button',className:'lg-line lg-panel lg-'+L.id,onClick:function(){setLineId(L.id);setPhId(null);}},
+            ce('span',{className:'lg-ic','aria-hidden':'true'},
+              L.id==='orchards'
+                ?ce('svg',{viewBox:'0 0 40 40',width:40,height:40},
+                    ce('circle',{cx:20,cy:15,r:10,fill:'currentColor',opacity:.18}),ce('circle',{cx:14,cy:17,r:6,fill:'currentColor',opacity:.35}),
+                    ce('circle',{cx:25,cy:13,r:6,fill:'currentColor',opacity:.35}),ce('rect',{x:18.5,y:22,width:3,height:12,rx:1.5,fill:'currentColor'}),
+                    ce('path',{d:'M8 34h24',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round'}))
+                :ce('svg',{viewBox:'0 0 40 40',width:40,height:40},
+                    ce('circle',{cx:20,cy:20,r:15,fill:'currentColor',opacity:.16}),
+                    ce('circle',{cx:20,cy:20,r:15,fill:'none',stroke:'currentColor',strokeWidth:1.5,strokeDasharray:'3 3',opacity:.6}),
+                    ce('path',{d:'M20 20L31 11',stroke:'currentColor',strokeWidth:2.5,strokeLinecap:'round'}),ce('circle',{cx:20,cy:20,r:3,fill:'currentColor'}))
+            ),
+            ce('span',{className:'lg-lt'},
+              ce('span',{className:'lg-nm'},L.name,' ',ce('span',{className:'lg-ar'},L.ar)),
+              ce('span',{className:'lg-note'},lcrops.length?lcrops.map(function(c){return c.name;}).join(' · '):'No products yet')
+            ),
+            ce('span',{className:'lg-ls'},
+              ce('b',null,inspLoading?'—':n),ce('small',null,'inspections'),
+              ce('b',null,phs.length),ce('small',null,'packhouses'))
+          );
+        })
+      ),
+
+      /* step 2 — packhouse (only packhouses with products of this line) */
+      cur===2&&(function(){
+        if(!configLoaded) return ce('div',{className:'lg-note'},'Loading packhouses…');
+        var list=phsFor(lineId).slice().sort(function(a,b){return phCount(lineId,b)-phCount(lineId,a);});
+        if(!list.length) return ce('div',{className:'lg-empty lg-panel'},'No '+lineObj.name+' packhouses are set up yet.');
+        return ce('div',null,
+          ce('div',{className:'lg-note',style:{marginBottom:8}},'Sorted by activity this season · only '+lineObj.name.toLowerCase()+' products shown'),
+          ce('div',{className:'lg-g3 lg-fade'},
+            list.map(function(p){
+              var cs=lineCrops(lineId,p),n=phCount(lineId,p);
+              return ce('button',{key:p.id,type:'button',className:'lg-ph lg-panel'+(n||inspLoading?'':' idle'),style:{'--pc':p.color||'#2b5c3f'},onClick:function(){setPhId(p.id);}},
+                ce('span',{className:'lg-top'},
+                  ce('span',{className:'lg-ini'},p.initials||p.id),
+                  ce('span',{className:'lg-phn'},p.name),
+                  ce('span',{className:'lg-cnt'},inspLoading?'—':n)
                 ),
-                ce('div',{style:{display:'flex',gap:4,flexWrap:'wrap',marginTop:10}},
-                  ce('div',{style:{height:14,width:42,background:'var(--border2)',borderRadius:10}}),
-                  ce('div',{style:{height:14,width:48,background:'var(--border2)',borderRadius:10}}),
-                  ce('div',{style:{height:14,width:38,background:'var(--border2)',borderRadius:10}})
-                )
+                ce('span',{className:'lg-chips'},cs.map(function(c){return ce('span',{key:c.id,className:'lg-cp',style:{'--cc':c.color||'#2b5c3f'}},c.name);})),
+                ce('span',{className:'lg-hint'},inspLoading?'loading…':n?(cs.length===1?'1 product':cs.length+' products'):'No inspections yet this season')
               );
             })
-          :packhouses.map(function(p){
-          var active=phId===p.id;
-          return ce('div',{key:p.id,
-            onClick:function(){setPhId(p.id);},
-            style:{background:active?p.color+'12':' var(--card)',border:'2px solid '+(active?p.color:'var(--border)'),borderRadius:12,padding:'16px 18px',cursor:'pointer',transition:'all .15s'}},
-            ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:8}},
-              ce('div',{style:{width:36,height:36,borderRadius:9,background:active?p.color:p.color+'22',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600,color:active?'#fff':p.color,flexShrink:0}},p.initials),
-              ce('div',null,
-                ce('div',{style:{fontWeight:600,fontSize:14,color:active?p.color:'var(--text)'}},p.name),
-                ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},p.location)
-              )
-            ),
-            ce('div',{style:{display:'flex',gap:4,flexWrap:'wrap'}},
-              p.crops.map(function(cid){
-                var crop=products.find(function(c){return c.id===cid;});
-                return crop?ce('span',{key:cid,style:{fontSize:10,padding:'2px 7px',borderRadius:10,background:(crop.color||'#2b5c3f')+'18',color:crop.color||'#2b5c3f',fontWeight:500}},crop.name):null;
-              })
-            )
-          );
-        })
-      )
-    ),
+          )
+        );
+      })(),
 
-    /* step 2 — crop (only shown after packhouse selected) */
-    ph&&ce('div',{style:{width:'100%',maxWidth:680,margin:'0 auto',padding:'0 16px'}},
-      ce('div',{style:{fontSize:11,fontWeight:600,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)',marginBottom:12,display:'flex',alignItems:'center',gap:8}},
-        ce('span',{style:{background:'var(--accent)',color:'#fff',borderRadius:'50%',width:20,height:20,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,flexShrink:0}},'2'),
-        'Select product — ',ce('span',{style:{color:ph.color,textTransform:'none',letterSpacing:0,fontWeight:500}},ph.name)
-      ),
-      ce('div',{className:'landing-crop-grid',style:{gap:14}},
-        availCrops.map(function(crop){
-          var Icon=ICONS[crop.id]||ICONS.citrus;
-          var cropColor=crop.color||'#2b5c3f';
-          var cropBg=crop.bg||cropColor+'18';
-          var cropBorder=crop.border||cropColor+'40';
-          /* Live counts — scoped to the SELECTED packhouse so each card shows its own numbers
-             (was filtering globally by crop only, which made every packhouse show the same total). */
-          var cropBatches=batches.filter(function(b){
-            var matchesCrop=b.crop===crop.id||(b.crop&&b.crop===crop.name)||(b.cropId===crop.id);
-            return matchesCrop&&b.packhouse===phId&&(b.season||'2025/26')===(props.currentViewSeason||'2025/26');
-          });
-          var cropAccepted=cropBatches.filter(function(b){return b.status==='Accepted'||b.status==='Special Accept';}).length;
-          var cropRejected=cropBatches.filter(function(b){return b.status==='Rejected'||b.status==='Special Reject';}).length;
-          var accPct=cropBatches.length?Math.round(cropAccepted/cropBatches.length*100):0;
-          var rejPct=cropBatches.length?Math.round(cropRejected/cropBatches.length*100):0;
-          return ce('div',{key:crop.id,className:'crop-card',onClick:function(pid,cid){return function(){props.onSelect(pid,cid);};}(phId,crop.id)},
-            /* Icon + name side by side, icon scales with card */
-            ce('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:14}},
-              ce('div',{className:'crop-icon-wrap',style:{background:cropBg,border:'1px solid '+cropBorder,width:52,height:52,minWidth:52,borderRadius:13,flexShrink:0,margin:0}},ce(Icon,{size:32,color:cropColor})),
-              ce('div',{className:'crop-name',style:{margin:0,fontSize:crop.name.length>8?13:16,lineHeight:1.2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},crop.name)
+      /* step 3 — product (always chosen, even when only one) */
+      cur===3&&ce('div',{className:'lg-g3 lg-fade'},
+        lineCrops(lineId,stepPh).map(function(crop){
+          var Icon=ICONS[crop.id];
+          var cb=cropBatchesFor(stepPh.id,crop);
+          var acc=cb.filter(function(b){return b.status==='Accepted'||b.status==='Special Accept';}).length;
+          var rej=cb.filter(function(b){return b.status==='Rejected'||b.status==='Special Reject';}).length;
+          var accPct=cb.length?Math.round(acc/cb.length*100):0,rejPct=cb.length?Math.round(rej/cb.length*100):0;
+          return ce('button',{key:crop.id,type:'button',className:'lg-crop lg-panel',style:{'--cc':crop.color||'#2b5c3f'},onClick:function(){openListing(stepPh.id,crop.id);}},
+            ce('span',{className:'lg-ctop'},
+              Icon&&ce('span',{className:'lg-cic'},ce(Icon,{size:26,color:crop.color||'#2b5c3f'})),
+              ce('span',{className:'lg-cn'},crop.name)
             ),
-            inspLoading
-              ?ce('div',null,
-                  ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--text3)',lineHeight:1,opacity:.4,animation:'dalos-pulse 1.4s ease-in-out infinite'}},'\u2014'),
-                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:10}},'loading\u2026'),
-                  ce('div',{style:{height:4,borderRadius:2,background:'var(--border2)',marginBottom:6,opacity:.5}}),
-                  ce('div',{style:{fontSize:11,color:'var(--text3)'}},'\u2014 \u2014')
-                )
-              :cropBatches.length>0
-              ?ce('div',null,
-                  ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--text)',lineHeight:1}},cropBatches.length),
-                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:10}},'batches this season'),
-                  ce('div',{style:{height:4,borderRadius:2,overflow:'hidden',background:'var(--border2)',display:'flex',marginBottom:6}},
-                    cropAccepted>0&&ce('div',{style:{height:4,background:'#639922',width:accPct+'%',transition:'width .3s'}}),
-                    cropRejected>0&&ce('div',{style:{height:4,background:'#A32D2D',width:rejPct+'%',transition:'width .3s'}})
-                  ),
-                  ce('div',{style:{display:'flex',justifyContent:'space-between',fontSize:11}},
-                    ce('span',{style:{color:'#3B6D11'}},cropAccepted+' accepted'),
-                    ce('span',{style:{color:'#A32D2D'}},cropRejected+' rejected')
-                  )
-                )
-              :ce('div',null,
-                  ce('div',{style:{fontSize:22,fontWeight:500,color:'var(--text3)',lineHeight:1}},'0'),
-                  ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:10}},'no inspections yet'),
-                  ce('div',{style:{height:4,borderRadius:2,background:'var(--border2)',marginBottom:6}}),
-                  ce('div',{style:{fontSize:11,color:'var(--text3)'}},'\u2014 \u2014')
-                )
+            ce('span',{className:'lg-v'},inspLoading?'—':cb.length),
+            ce('span',{className:'lg-note'},cb.length?'inspections this season':'no inspections yet'),
+            ce('span',{className:'lg-bar'},
+              acc>0&&ce('i',{style:{width:accPct+'%',background:'#639922'}}),
+              rej>0&&ce('i',{style:{width:rejPct+'%',background:'#A32D2D'}})
+            ),
+            ce('span',{className:'lg-note'},acc+' accepted · '+rej+' rejected'),
+            ce('span',{className:'lg-open'},'Open listing →')
           );
         })
       )
-    ),
+    )
 
   );
 }
