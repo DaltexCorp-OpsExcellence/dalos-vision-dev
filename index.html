@@ -1887,6 +1887,17 @@ function InspectionForm(props){
     if(!decision) errs.push('Decision \u2014 Accept or Reject must be selected');
     /* Line clearance must be answered explicitly — unanswered items used to be saved as 'Compliant'. */
     if(isPT&&varietyType==='mixed'&&!variety2) errs.push('Variety 2');
+    if(isPT){
+      var _F=ptHeaderFarms(),_T1=ptTraceOpts('v1'),_T2=ptTraceOpts('v2'),_bad=[],_what={};
+      allRows.forEach(function(r,ri){var ef=r.extraFields||{},hit=false;
+        function chk(v,list,lbl){if(v&&list.indexOf(v)<0){hit=true;_what[lbl]=1;}}
+        chk(ef.sampleFarm,_F,'farm');if(ef.sampleFarm&&_F.indexOf(ef.sampleFarm)>=0)chk(ef.samplePlot,ptPivotsFor(ef.sampleFarm),'pivot');
+        chk(ef.sampleTrace,_T1,'trace code');
+        if(ptIsMixed){chk(ef.sampleFarm2,_F,'farm');if(ef.sampleFarm2&&_F.indexOf(ef.sampleFarm2)>=0)chk(ef.samplePlot2,ptPivotsFor(ef.sampleFarm2),'pivot');chk(ef.sampleTrace2,_T2,'trace code');}
+        else chk(r.sampleVariety,ptVarietyOpts,'variety');
+        if(hit)_bad.push('B'+(ri+1));});
+      if(_bad.length) errs.push((_bad.length>1?'Bags ':'Bag ')+_bad.join(', ')+': '+Object.keys(_what).join(' / ')+' no longer in the header \u2014 pick again or add it back');
+    }
     if(!isPT&&CLEARANCE_ITEMS.some(function(_,i){var v=clearance['c'+i];return v!=='Compliant'&&v!=='Non-Compliant';})) errs.push('Line clearance \u2014 mark every item Compliant or Non-Compliant');
     /* ── DUPLICATE PALLET LABEL BLOCK (session-scoped, all products) ──────────
        Two pallets with the same number get merged by the (inspection_id,
@@ -1916,10 +1927,13 @@ function InspectionForm(props){
       try {
         var fieldKeyMap={'Line clearance \u2014 mark every item Compliant or Non-Compliant':'clearance','LOT No':'lot','Variety':'variety','Decision \u2014 Accept or Reject must be selected':'decision','Pallet label required for all pallets (e.g. P-4471)':'__pallet__','All trace codes must be assigned V1, V2 or Both in a mixed variety session':'traceCodes'};
         var isDupErr=errs[0].indexOf('Duplicate pallet number')===0;
-        var firstKey=isDupErr?'__dup__':(fieldKeyMap[errs[0]]||'');
+        var isStaleBag=/^Bags? B\d/.test(errs[0]);
+        var firstKey=isDupErr?'__dup__':isStaleBag?'__stale__':(fieldKeyMap[errs[0]]||'');
         if(firstKey){
           var el=null;
-          if(firstKey==='__dup__'){
+          if(firstKey==='__stale__'){
+            el=[].slice.call(document.querySelectorAll('select[aria-invalid="true"]')).filter(function(x){return x.offsetParent!==null;})[0]||null;
+          } else if(firstKey==='__dup__'){
             /* Scroll to the first colliding pallet label */
             var di=(typeof window.__dupFirstIdx==='number')?window.__dupFirstIdx:-1;
             if(di>=0) el=document.querySelector('[data-field="palletLabel-'+di+'"]');
@@ -2739,7 +2753,8 @@ function InspectionForm(props){
   /* select that never blanks a saved value that is no longer in the header list */
   function ptSelect(value,opts,onChange,style,label,fmt){
     var o=(opts||[]).slice();var stale=value&&o.indexOf(value)<0;
-    return ce('select',{style:Object.assign({},PT_CELL,style||{}),value:value||'','aria-label':label||undefined,onChange:function(e){onChange(e.target.value);}},
+    /* a value that is no longer in the header list is shown in red and blocks Save */
+    return ce('select',{style:Object.assign({},PT_CELL,style||{},stale?{borderColor:'var(--red)',background:'var(--red-bg)',color:'var(--red)'}:{}),value:value||'','aria-label':label||undefined,'aria-invalid':stale?'true':undefined,title:stale?(value+' is no longer in the header \u2014 pick again or add it back'):undefined,onChange:function(e){onChange(e.target.value);}},
       ce('option',{value:''},'—'),
       stale&&ce('option',{key:'__stale',value:value},(fmt?fmt(value):value)+' (not in header)'),
       o.map(function(x){return ce('option',{key:x,value:x},fmt?fmt(x):x);}));
@@ -2750,8 +2765,9 @@ function InspectionForm(props){
   /* lot = plain mean of the bags (sum unrounded per-defect means, as orchards) */
   function ptLotSec(name){var sec=defSections.find(function(s){return s.section===name;});if(!sec)return 0;return sec.items.reduce(function(t,d){return t+avgDefectRaw(d.key);},0);}
   var ptRots=isPT?ptLotSec('Rots'):0, ptSkin=isPT?ptLotSec('Skin'):0, ptSizeTot=isPT?ptLotSec('Size'):0;
-  var ptLotGrade=isPT?ptGrade(ptRots,ptSkin):'';
   var ptMoth=isPT&&avgDefect('pt_tuber_moth')>0;
+  /* tuber moth is zero tolerance: any reading makes the lot grade C, whatever rots/skin say */
+  var ptLotGrade=isPT?(ptMoth?'C':ptGrade(ptRots,ptSkin)):'';
   function ptVarCell(row,pIdx,mobile){
     if(ptIsMixed) return ce('div',{style:{display:'flex',flexDirection:'column',gap:2,fontSize:mobile?13:11}},
       ce('span',{style:{color:'#3b6d11',fontWeight:600}},variety),ce('span',{style:{color:'#185fa5',fontWeight:600}},variety2));
@@ -2894,7 +2910,7 @@ function InspectionForm(props){
           ce('div',{style:{fontSize:11,color:'var(--text3)',marginBottom:4}},'Grade (الشحن bands)'),
           ce('div',{style:{display:'flex',gap:4,flexWrap:'wrap'}},bands.map(function(b){var on=ptLotGrade===b[0];var col=b[0]==='A'?'var(--green)':b[0]==='B'?'var(--amber)':'var(--red)';
             return ce('span',{key:b[0],title:b[1],style:{fontSize:11,fontWeight:on?700:500,borderRadius:6,padding:'3px 8px',border:'1px solid '+(on?col:'var(--border2)'),background:on?col:'transparent',color:on?'#fff':'var(--text3)'}},b[0]);})),
-          ptMoth&&ce('div',{style:{fontSize:10,color:'var(--red)',fontWeight:600,marginTop:4}},'Tuber moth found — zero tolerance'))));
+          ptMoth&&ce('div',{style:{fontSize:10,color:'var(--red)',fontWeight:600,marginTop:4}},'C because tuber moth was found — zero tolerance'))));
   }
   /* ── POTATOES: header in four groups (Lot · Variety · Origin · Client) ─────────────────────
      Its own layout so no orchards-only gaps (class/carton/wax/packing are hidden for potatoes).
@@ -6720,7 +6736,7 @@ function FGView(props){
           /* potatoes: lot grade from the الشحن bands (rots / skin bag averages) */
           isPT&&(function(){
             var bd=selBData[selB.id]||{};if(bd.loading||bd.error) return null;
-            var d=bd.defects||{};var R=ptSectionTotal(d,'Rots',defSections),S=ptSectionTotal(d,'Skin',defSections);var g=ptGrade(R,S);var moth=(d.pt_tuber_moth||0)>0;
+            var d=bd.defects||{};var R=ptSectionTotal(d,'Rots',defSections),S=ptSectionTotal(d,'Skin',defSections);var moth=(d.pt_tuber_moth||0)>0;var g=moth?'C':ptGrade(R,S);
             var col=g==='A'?'var(--green)':g==='B'?'var(--amber)':'var(--red)';
             return ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0 8px',fontSize:12}},
               ce('span',{style:{color:'var(--text3)'}},'Rots '+R.toFixed(2)+'% \u00b7 Skin '+S.toFixed(2)+'%'),
@@ -6919,7 +6935,7 @@ function FGView(props){
           /* potatoes: lot grade from the الشحن bands (rots / skin bag averages) */
           isPT&&(function(){
             var bd=selBData[selB.id]||{};if(bd.loading||bd.error) return null;
-            var d=bd.defects||{};var R=ptSectionTotal(d,'Rots',defSections),S=ptSectionTotal(d,'Skin',defSections);var g=ptGrade(R,S);var moth=(d.pt_tuber_moth||0)>0;
+            var d=bd.defects||{};var R=ptSectionTotal(d,'Rots',defSections),S=ptSectionTotal(d,'Skin',defSections);var moth=(d.pt_tuber_moth||0)>0;var g=moth?'C':ptGrade(R,S);
             var col=g==='A'?'var(--green)':g==='B'?'var(--amber)':'var(--red)';
             return ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0 8px',fontSize:12}},
               ce('span',{style:{color:'var(--text3)'}},'Rots '+R.toFixed(2)+'% \u00b7 Skin '+S.toFixed(2)+'%'),
