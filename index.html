@@ -1510,6 +1510,10 @@ function InspectionForm(props){
   /* Potatoes: extra SINGLE varieties (whole bags of another variety in the same lot) + lot outcome */
   var sXV=useState(batch&&batch.extraVarieties?batch.extraVarieties:(_d.extraVarieties||[])); var extraVarieties=sXV[0]; var setExtraVarieties=sXV[1];
   var sOut=useState(batch?(batch.outcome||''):(_d.outcome||'')); var outcome=sOut[0]; var setOutcome=sOut[1];
+  /* potatoes: last removed bag, so the inspector can undo a mis-tap ({pIdx,idx,row}) */
+  var sPtUndo=useState(null); var ptUndo=sPtUndo[0]; var setPtUndo=sPtUndo[1];
+  var ptUndoTimerRef=React.useRef(null);
+  React.useEffect(function(){return function(){if(ptUndoTimerRef.current)clearTimeout(ptUndoTimerRef.current);};},[]);
   var sHL=useState(isEdit); var hdrLocked=sHL[0]; var setHdrLocked=sHL[1];
   /* The locked header uses pointerEvents:none, so clicks and typing are swallowed
      with no feedback — the fields still look editable. Inspectors (and I, twice
@@ -1897,6 +1901,8 @@ function InspectionForm(props){
         else chk(r.sampleVariety,ptVarietyOpts,'variety');
         if(hit)_bad.push('B'+(ri+1));});
       if(_bad.length) errs.push((_bad.length>1?'Bags ':'Bag ')+_bad.join(', ')+': '+Object.keys(_what).join(' / ')+' no longer in the header \u2014 pick again or add it back');
+      var _pf=[];allRows.forEach(function(r,ri){if(r.pass!==true&&r.pass!==false)_pf.push('B'+(ri+1));});
+      if(_pf.length) errs.push('Mark PASS or FAIL on '+(_pf.length>1?'bags ':'bag ')+_pf.join(', '));
     }
     if(!isPT&&CLEARANCE_ITEMS.some(function(_,i){var v=clearance['c'+i];return v!=='Compliant'&&v!=='Non-Compliant';})) errs.push('Line clearance \u2014 mark every item Compliant or Non-Compliant');
     /* ── DUPLICATE PALLET LABEL BLOCK (session-scoped, all products) ──────────
@@ -1927,12 +1933,12 @@ function InspectionForm(props){
       try {
         var fieldKeyMap={'Line clearance \u2014 mark every item Compliant or Non-Compliant':'clearance','LOT No':'lot','Variety':'variety','Decision \u2014 Accept or Reject must be selected':'decision','Pallet label required for all pallets (e.g. P-4471)':'__pallet__','All trace codes must be assigned V1, V2 or Both in a mixed variety session':'traceCodes'};
         var isDupErr=errs[0].indexOf('Duplicate pallet number')===0;
-        var isStaleBag=/^Bags? B\d/.test(errs[0]);
+        var isStaleBag=/^Bags? B\d/.test(errs[0])||errs[0].indexOf('Mark PASS or FAIL')===0;
         var firstKey=isDupErr?'__dup__':isStaleBag?'__stale__':(fieldKeyMap[errs[0]]||'');
         if(firstKey){
           var el=null;
           if(firstKey==='__stale__'){
-            el=[].slice.call(document.querySelectorAll('select[aria-invalid="true"]')).filter(function(x){return x.offsetParent!==null;})[0]||null;
+            el=[].slice.call(document.querySelectorAll(errs[0].indexOf('Mark PASS')===0?'[data-pf-missing="true"]':'select[aria-invalid="true"]')).filter(function(x){return x.offsetParent!==null;})[0]||null;
           } else if(firstKey==='__dup__'){
             /* Scroll to the first colliding pallet label */
             var di=(typeof window.__dupFirstIdx==='number')?window.__dupFirstIdx:-1;
@@ -2503,7 +2509,12 @@ function InspectionForm(props){
   function updateRowField(pIdx,rId,field,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;var o=Object.assign({},r);o[field]=val;return o;})});});});}
   function updateRowDefect(pIdx,rId,key,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;return Object.assign({},r,{defects:Object.assign({},r.defects,function(){var o={};o[key]=val;return o;}())});})});});});}
   function updateRowExtra(pIdx,rId,key,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;return Object.assign({},r,{extraFields:Object.assign({},r.extraFields||{},function(){var o={};o[key]=val;return o;}())});})});});});}
-  function removeRow(pIdx,rId){setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;var nr=p.rows.filter(function(r){return r.id!==rId;});return Object.assign({},p,{rows:nr.length?nr:[newRow(p.palletNo)]});});});}
+  function ptUndoRemove(){var u=ptUndo;if(!u)return;setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==u.pIdx)return p;var rows=p.rows.filter(function(r){return r.id!==u.placeholderId;});rows.splice(Math.min(u.idx,rows.length),0,u.row);return Object.assign({},p,{rows:rows});});});setPtUndo(null);if(ptUndoTimerRef.current)clearTimeout(ptUndoTimerRef.current);}
+  function removeRow(pIdx,rId){
+    if(isPT){var _p=pallets[pIdx];var _i=_p?_p.rows.findIndex(function(r){return r.id===rId;}):-1;
+      if(_i>=0){setIsDirty(true);setPtUndo({pIdx:pIdx,idx:_i,row:_p.rows[_i],label:'B'+(_i+1),placeholderId:_p.rows.length===1?'__ph__':null});
+        if(ptUndoTimerRef.current)clearTimeout(ptUndoTimerRef.current);ptUndoTimerRef.current=setTimeout(function(){setPtUndo(null);},12000);}}
+    setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;var nr=p.rows.filter(function(r){return r.id!==rId;});return Object.assign({},p,{rows:nr.length?nr:[newRow(p.palletNo)]});});});}
   /* ── Grapes pallet helpers ── */
   function updatePalletLabel(pIdx,val){setIsDirty(true);/* normalise a typed prefix in any case ('ts-8101' -> 'TS-8101') so the duplicate check and the saved number agree */var _pf=(packhouse&&packhouse.palletPrefix)||'';if(_pf&&typeof val==='string'&&val.toUpperCase().indexOf(_pf.toUpperCase())===0&&val.indexOf(_pf)!==0)val=_pf+val.slice(_pf.length);setPallets(function(prev){return prev.map(function(p,i){return i!==pIdx?p:Object.assign({},p,{palletLabel:val});});});}
   /* Keep pallet trace chips in step with the header list: renaming a header code renames it on every
@@ -2866,7 +2877,7 @@ function InspectionForm(props){
             ptTiles(row,isExp,false),
             ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:12,fontWeight:700,textAlign:'right',color:rowCrit?'var(--red)':'var(--text)'}},tot.toFixed(2)+'%'),
             ce('input',{style:Object.assign({},PT_CELL,{fontSize:11}),placeholder:'Notes…',value:row.notes||'','aria-label':'Bag notes',onChange:function(e){updateRowField(pIdx,row.id,'notes',e.target.value);}}),
-            ce('div',{style:{display:'flex',flexDirection:'column',gap:2}},
+            ce('div',{'data-pf-missing':(row.pass!==true&&row.pass!==false&&validErrs.some(function(e){return e.indexOf('Mark PASS')===0;}))?'true':undefined,style:Object.assign({display:'flex',flexDirection:'column',gap:2,borderRadius:4},(row.pass!==true&&row.pass!==false&&validErrs.some(function(e){return e.indexOf('Mark PASS')===0;}))?{outline:'2px solid var(--red)',outlineOffset:1}:{})},
               ce('button',{style:{padding:'2px 4px',fontSize:9,fontWeight:700,borderRadius:3,border:'1px solid '+(row.pass===true?'var(--green)':'var(--border2)'),background:row.pass===true?'var(--green)':'transparent',color:row.pass===true?'#fff':'var(--text3)',cursor:'pointer',lineHeight:1.2},onClick:function(){updateRowField(pIdx,row.id,'pass',true);}},'PASS'),
               ce('button',{style:{padding:'2px 4px',fontSize:9,fontWeight:700,borderRadius:3,border:'1px solid '+(row.pass===false?'var(--red)':'var(--border2)'),background:row.pass===false?'var(--red)':'transparent',color:row.pass===false?'#fff':'var(--text3)',cursor:'pointer',lineHeight:1.2},onClick:function(){updateRowField(pIdx,row.id,'pass',false);}},'FAIL')),
             ce('button',{style:{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:14,padding:0,lineHeight:1},title:'Remove bag','aria-label':'Remove bag B'+(ri+1),onClick:function(){removeRow(pIdx,row.id);}},pRows.length>1?'×':'')),
@@ -3484,6 +3495,11 @@ function InspectionForm(props){
       )
     ),
     ce('div',{className:'inspection-page',style:{padding:'18px 24px',maxWidth:1200,margin:'0 auto'}},
+      /* potatoes: undo a removed bag */
+      isPT&&ptUndo&&ce('div',{role:'status',style:{position:'fixed',left:'50%',bottom:24,transform:'translateX(-50%)',zIndex:70,display:'flex',alignItems:'center',gap:14,background:'#1e2d22',color:'#fff',borderRadius:10,padding:'10px 12px 10px 16px',boxShadow:'0 8px 28px rgba(0,0,0,.25)',fontSize:13}},
+        ce('span',null,'Bag '+ptUndo.label+' removed'),
+        ce('button',{type:'button',onClick:ptUndoRemove,style:{background:'#fff',color:'#1e2d22',border:0,borderRadius:6,padding:'8px 14px',fontWeight:700,fontSize:13,cursor:'pointer',minHeight:36}},'Undo'),
+        ce('button',{type:'button','aria-label':'Dismiss',onClick:function(){setPtUndo(null);},style:{background:'transparent',color:'#c8d4c0',border:0,fontSize:16,cursor:'pointer',padding:'4px 6px'}},'\u00d7')),
       /* Draft recovery banner */
       restoredDraft&&showDraftBanner&&ce('div',{style:{marginBottom:10,padding:'10px 14px',background:'#FFF8E1',border:'1px solid #F9A825',borderRadius:8,display:'flex',alignItems:'center',gap:10,fontSize:12,color:'#6D4C00'}},
         ce('span',{style:{fontSize:16,flexShrink:0}},'⚠️'),
