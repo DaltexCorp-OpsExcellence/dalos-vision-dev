@@ -3006,10 +3006,10 @@ function InspectionForm(props){
   React.useEffect(function(){
     if(!isPT) return;
     var F=ptHeaderFarms(),T=ptTraceOpts('v1');
-    if(F.length!==1&&T.length!==1) return;
     setPallets(function(prev){var changed=false;var next=prev.map(function(p){return Object.assign({},p,{rows:p.rows.map(function(r){
       var ef=r.extraFields||{},patch={};
-      if(F.length===1&&!ef.sampleFarm){patch.sampleFarm=F[0];var pv=ptPivotsFor(F[0]);if(pv.length===1&&!ef.samplePlot)patch.samplePlot=pv[0];}
+      if(F.length===1&&!ef.sampleFarm)patch.sampleFarm=F[0];
+      var fm=patch.sampleFarm||ef.sampleFarm;if(fm&&!ef.samplePlot){var pv=ptPivotsFor(fm);if(pv.length===1)patch.samplePlot=pv[0];}
       if(T.length===1&&!ef.sampleTrace)patch.sampleTrace=T[0];
       if(!Object.keys(patch).length)return r;changed=true;return Object.assign({},r,{extraFields:Object.assign({},ef,patch)});})});});
       return changed?next:prev;});
