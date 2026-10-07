@@ -505,6 +505,27 @@ tr.click:hover td{background:var(--bg)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
 .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+/* potato header groups (InspectionForm isPT) */
+.hdr-grp{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text2);margin:4px 0 8px;padding-top:10px;border-top:1px solid var(--border)}
+.grid4>.pt-s2{grid-column:span 2}
+.pt-pair{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:8px}
+.pt-pair .form-field{margin-bottom:0}
+.pt-rm{background:none;border:0;cursor:pointer;color:var(--text3);font-size:11px;padding:0;text-transform:none;letter-spacing:0}
+.pt-addtile-wrap{display:flex;align-items:flex-end}
+.pt-addtile{width:100%;min-height:38px;border:1.5px dashed var(--border2);border-radius:6px;background:transparent;color:var(--accent);font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer}
+.pt-addtile:hover{border-color:var(--accent);background:var(--green-bg)}
+.pt-seg{display:flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden;min-height:38px;background:var(--card)}
+.pt-seg button{flex:1;border:0;background:transparent;font-family:var(--font-body);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;padding:0 8px}
+.pt-seg button+button{border-left:1px solid var(--border2)}
+.pt-seg button.on{background:var(--accent);color:#fff}
+.pt-seg button.on.bad{background:var(--red)}
+.pt-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:38px}
+.pt-chip{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--border2);border-radius:6px;background:var(--card);padding:2px 2px 2px 6px}
+.pt-chip select{border:0;background:transparent;font-size:13px;color:var(--text);font-family:var(--font-body)}
+.pt-chip button{border:0;background:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:2px 6px}
+.pt-add{border:1px dashed var(--border2);background:transparent;border-radius:6px;color:var(--accent);font-family:var(--font-body);font-size:12px;font-weight:600;padding:6px 10px;cursor:pointer}
+.pt-seg button:focus-visible,.pt-addtile:focus-visible,.pt-add:focus-visible,.pt-chip button:focus-visible,.pt-rm:focus-visible{outline:2px solid var(--accent2);outline-offset:-2px}
+@media(max-width:767px){.grid4>.pt-s2{grid-column:1/-1}.pt-seg{min-height:44px}.pt-addtile{min-height:44px}}
 
 /* INSPECTION FORM */
 .form-field{margin-bottom:10px}
@@ -1482,7 +1503,7 @@ function InspectionForm(props){
   /* additional_farms: [{farmId:'uuid', farmName:'...', plot:'...'}, ...] */
   var sAddFarms=useState(batch?batch.additionalFarms||[]:(_d.additionalFarms||[])); var additionalFarms=sAddFarms[0]; var setAdditionalFarms=sAddFarms[1];
   var spk=useState(batch?batch.packing:(_d.packing||'')); var packing=spk[0]; var setPacking=spk[1];
-  var slb=useState(batch?batch.labelling:(_d.labelling||'')); var labelling=slb[0]; var setLabelling=slb[1];
+  var slb=useState(batch?batch.labelling:(_d.labelling||(isPT?'Ok':''))); var labelling=slb[0]; var setLabelling=slb[1];
   var swx=useState(batch?batch.wax:(_d.wax||'')); var wax=swx[0]; var setWax=swx[1];
   var strace=useState((function(){var r=normTC(batch&&batch.traceCodes?batch.traceCodes:(batch&&batch.traceCode?[batch.traceCode]:[]));return r.length?r:[{code:'',variety:null}];})()); var traceCodes=strace[0]; var setTraceCodes=strace[1];
   var sdec=useState(batch?batch.decision:''); var decision=sdec[0]; var setDecision=sdec[1];
@@ -1562,7 +1583,7 @@ function InspectionForm(props){
   var unitConfirmed=sUC[0]; var setUnitConfirmed=sUC[1];
   var sUCWarn=useState(false); var unitConfirmWarn=sUCWarn[0]; var setUnitConfirmWarn=sUCWarn[1];
   var sPreFilled=useState(false); var preFilled=sPreFilled[0]; var setPreFilled=sPreFilled[1];
-  function allUnitConfirmed(){return unitConfirmed.container&&unitConfirmed.variety&&unitConfirmed.cls&&unitConfirmed.farm;}
+  function allUnitConfirmed(){return unitConfirmed.container&&unitConfirmed.variety&&(isPT||unitConfirmed.cls)&&unitConfirmed.farm;}
   function confirmUnit(k){setUnitConfirmed(function(prev){var n=Object.assign({},prev);n[k]=true;return n;});setUnitConfirmWarn(false);}
   function resetUnitConfirmed(){setUnitConfirmed({container:false,variety:false,cls:false,farm:false});setPreFilled(false);setUnitConfirmWarn(false);}
 
@@ -1629,7 +1650,7 @@ function InspectionForm(props){
   })();
   function emptyDefects(){var d={};defSections.forEach(function(sec){sec.items.forEach(function(i){d[i.key]='0';});});return d;}
   function nowTime(){var n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
-  function newRow(palletNo){if(isPT)return {id:Date.now()+Math.random(),palletNo:palletNo,time:nowTime(),opDate:new Date().toISOString().slice(0,10),sampleSize:'',size:'',cartonWt:'',brix:'',brixV2:'',defects:emptyDefects(),pass:null,notes:'',extraFields:{package_type:'',size_grade:'',peat_g:'',sewing:'Ok'},sampleVariety:variety||'',showExtraFields:false};return {id:Date.now()+Math.random(),palletNo:palletNo,time:nowTime(),opDate:new Date().toISOString().slice(0,10),sampleSize:'',size:'',cartonWt:'',brix:'',brixV2:'',defects:emptyDefects(),pass:null,notes:'',extraFields:{so2:'',jiffy_pad:'',punnet_type:'',package_type:'',grape_size:'',temp_log:'',worker_id:'',pkg_mtl_wt:'',packDate:new Date().toISOString().slice(0,10)},sampleVariety:'',showExtraFields:false};}
+  function newRow(palletNo){if(isPT)return {id:Date.now()+Math.random(),palletNo:palletNo,time:nowTime(),opDate:date||new Date().toISOString().slice(0,10),sampleSize:'',size:'',cartonWt:'',brix:'',brixV2:'',defects:emptyDefects(),pass:null,notes:'',extraFields:{package_type:'',size_grade:'',peat_g:'',sewing:'Ok'},sampleVariety:variety||'',showExtraFields:false};return {id:Date.now()+Math.random(),palletNo:palletNo,time:nowTime(),opDate:new Date().toISOString().slice(0,10),sampleSize:'',size:'',cartonWt:'',brix:'',brixV2:'',defects:emptyDefects(),pass:null,notes:'',extraFields:{so2:'',jiffy_pad:'',punnet_type:'',package_type:'',grape_size:'',temp_log:'',worker_id:'',pkg_mtl_wt:'',packDate:new Date().toISOString().slice(0,10)},sampleVariety:'',showExtraFields:false};}
   function newPallet(num,lbl,cont){return {palletId:Date.now()+Math.random(),palletNo:num,palletLabel:lbl||'',palletContainer:cont||'',palletTraceCodes:[],actualTraceCode:'',showActualTrace:false,rows:[newRow(num)]};}
 
   /* pallets: [{palletId, palletNo, rows:[{id,palletNo,time,size,cartonWt,brix,defects,notes}]}] */
@@ -2463,7 +2484,7 @@ function InspectionForm(props){
   /* pallet + row helpers */
   function addRowToPallet(pIdx){setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;var nr=newRow(p.palletNo);
     /* potatoes: a new bag starts from the previous bag (usually the same bag type, size, variety, farm/pivot/trace) */
-    if(isPT){var last=p.rows[p.rows.length-1];if(last){var le=last.extraFields||{};nr.sampleVariety=last.sampleVariety||nr.sampleVariety;nr.extraFields=Object.assign({},nr.extraFields,{package_type:le.package_type||'',size_grade:le.size_grade||'',sampleFarm:le.sampleFarm||'',samplePlot:le.samplePlot||'',sampleFarm2:le.sampleFarm2||'',samplePlot2:le.samplePlot2||'',sampleTrace:le.sampleTrace||'',sampleTrace2:le.sampleTrace2||''});}}
+    if(isPT){var last=p.rows[p.rows.length-1];if(last){var le=last.extraFields||{};nr.sampleVariety=last.sampleVariety||nr.sampleVariety;nr.opDate=last.opDate||nr.opDate;nr.extraFields=Object.assign({},nr.extraFields,{package_type:le.package_type||'',size_grade:le.size_grade||'',sampleFarm:le.sampleFarm||'',samplePlot:le.samplePlot||'',sampleFarm2:le.sampleFarm2||'',samplePlot2:le.samplePlot2||'',sampleTrace:le.sampleTrace||'',sampleTrace2:le.sampleTrace2||''});}}
     return Object.assign({},p,{rows:p.rows.concat([nr])});});});if(isPT)setIsDirty(true);}
   function updateRowField(pIdx,rId,field,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;var o=Object.assign({},r);o[field]=val;return o;})});});});}
   function updateRowDefect(pIdx,rId,key,val){setIsDirty(true);setPallets(function(prev){return prev.map(function(p,i){if(i!==pIdx)return p;return Object.assign({},p,{rows:p.rows.map(function(r){if(r.id!==rId)return r;return Object.assign({},r,{defects:Object.assign({},r.defects,function(){var o={};o[key]=val;return o;}())});})});});});}
@@ -2875,6 +2896,124 @@ function InspectionForm(props){
             return ce('span',{key:b[0],title:b[1],style:{fontSize:11,fontWeight:on?700:500,borderRadius:6,padding:'3px 8px',border:'1px solid '+(on?col:'var(--border2)'),background:on?col:'transparent',color:on?'#fff':'var(--text3)'}},b[0]);})),
           ptMoth&&ce('div',{style:{fontSize:10,color:'var(--red)',fontWeight:600,marginTop:4}},'Tuber moth found — zero tolerance'))));
   }
+  /* ── POTATOES: header in four groups (Lot · Variety · Origin · Client) ─────────────────────
+     Its own layout so no orchards-only gaps (class/carton/wax/packing are hidden for potatoes).
+     Same state + setters as the orchards header; farm/pivot pairs are a list view over
+     farm..farm4 + additionalFarms so removing a middle pair shifts the rest up. */
+  function ptTick(k){return preFilled&&ce('button',{type:'button','aria-label':'Confirm '+k,onClick:function(){confirmUnit(k);},style:{background:unitConfirmed[k]?'var(--green)':'transparent',border:'1.5px solid '+(unitConfirmed[k]?'var(--green)':'var(--amber)'),borderRadius:'50%',width:18,height:18,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,padding:0}},ce('span',{style:{fontSize:10,color:unitConfirmed[k]?'#fff':'var(--amber)',lineHeight:1}},'✓'));}
+  function ptAmber(k){return preFilled&&!unitConfirmed[k]?{borderColor:'var(--amber)',boxShadow:'0 0 0 2px #e8c87a44'}:{};}
+  function ptLbl(text,k,extra){return ce('label',{className:'form-label',style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}},ce('span',null,text,extra||null),k?ptTick(k):null);}
+  function ptPairs(){
+    var nm=function(v){return (v==='__selecting__')?'':(v||'');};
+    var L=[{name:nm(farm),plot:plot||''}];
+    if(farm2) L.push({name:nm(farm2),plot:plot2||''});
+    if(farm2&&farm3) L.push({name:nm(farm3),plot:plot3||''});
+    if(farm2&&farm3&&farm4){L.push({name:nm(farm4),plot:plot4||''});(additionalFarms||[]).forEach(function(af){L.push({name:af.farmName||'',plot:af.plot||''});});}
+    return L;
+  }
+  function ptSetPairs(L){
+    markDirty();
+    var g=function(i,k){return L[i]?(L[i][k]||''):'';};
+    setFarm(g(0,'name'));setPlot(g(0,'plot'));
+    setFarm2(L[1]?(L[1].name||'__selecting__'):'');setPlot2(g(1,'plot'));
+    setFarm3(L[2]?(L[2].name||'__selecting__'):'');setPlot3(g(2,'plot'));
+    setFarm4(L[3]?(L[3].name||'__selecting__'):'');setPlot4(g(3,'plot'));
+    setAdditionalFarms(L.slice(4).map(function(x){return {farmId:(config.farmsIdMap&&config.farmsIdMap[x.name])||'',farmName:x.name||'',plot:x.plot||''};}));
+  }
+  function ptHeaderBody(){
+    var pairs=ptPairs();
+    var farmOpts=function(cur){var o=farms.slice();if(cur&&o.indexOf(cur)<0)o.push(cur);return o;};
+    var varOpts=((config.varietiesFull||{})[cropId]||[]).map(function(v){return v.name;});
+    return ce(React.Fragment,null,
+      /* LOT */
+      ce('div',{className:'hdr-grp',style:{borderTop:0,paddingTop:0}},'Lot — اللوط'),
+      ce('div',{className:'grid4',style:{marginBottom:6}},
+        ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Date'),ce('input',{className:'form-input',type:'date',value:date,onChange:function(e){setDate(e.target.value);}})),
+        ce('div',{className:'form-field','data-field':'lot'},ce('label',{className:'form-label'},'LOT No',ce('span',{style:{color:'var(--red)',marginLeft:3}},'*')),ce('input',{className:'form-input',value:lot,inputMode:'numeric',required:true,'aria-required':'true',onChange:function(e){setLot(e.target.value);},onBlur:function(e){prefillFromLot(e.target.value);},placeholder:'e.g. 10001'})),
+        ce('div',{className:'form-field pt-s2'},ptLbl('Container No','container',ce('span',{style:{fontWeight:400,color:'var(--text3)',textTransform:'none',letterSpacing:0}},' — optional, set at loading')),
+          ce('input',{className:'form-input',value:container,onChange:function(e){markDirty();setContainer(e.target.value);if(preFilled)confirmUnit('container');},placeholder:'e.g. AMCU 9327595',style:ptAmber('container')}))
+      ),
+      /* VARIETY */
+      ce('div',{className:'hdr-grp'},'Variety — الصنف'),
+      ce('div',{className:'grid4',style:{marginBottom:6}},
+        ce('div',{className:'form-field','data-field':'variety'},ptLbl(varietyType==='mixed'?'Variety 1':'Variety','variety',ce('span',{style:{color:'var(--red)',marginLeft:3}},'*')),
+          ce('select',{className:'form-select',value:variety,style:ptAmber('variety'),onChange:function(e){var nv=e.target.value;var oldV=variety;
+            setPallets(function(prev){return prev.map(function(p){return Object.assign({},p,{rows:p.rows.map(function(r){return (!r.sampleVariety||r.sampleVariety===oldV)?Object.assign({},r,{sampleVariety:nv}):r;})});});});
+            markDirty();setVariety(nv);if(preFilled)confirmUnit('variety');}},
+            ce('option',{value:''},'— Select —'),
+            varOpts.filter(function(n){return varietyType!=='mixed'||n!==variety2;}).map(function(n){return ce('option',{key:n,value:n},n);}),
+            variety&&varOpts.indexOf(variety)<0&&ce('option',{value:variety},variety+' (inactive)'))),
+        ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Variety type'),
+          ce('div',{className:'pt-seg',role:'group','aria-label':'Variety type'},['single','mixed'].map(function(t){var on=varietyType===t;
+            return ce('button',{key:t,type:'button','aria-pressed':on,className:on?'on':'',onClick:function(){markDirty();setVarietyType(t);if(t==='single'){setVariety2('');setCategory2('');}}},t==='single'?'Single':'Mixed');}))),
+        varietyType==='mixed'
+        ?ce('div',{className:'form-field pt-s2'},ce('label',{className:'form-label'},'Variety 2',ce('span',{style:{color:'var(--red)',marginLeft:3}},'*')),
+            ce('select',{className:'form-select',value:variety2,onChange:function(e){markDirty();setVariety2(e.target.value);}},
+              ce('option',{value:''},'— Select —'),
+              varOpts.filter(function(n){return n!==variety;}).map(function(n){return ce('option',{key:n,value:n},n);})),
+            ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:3}},'Mixed = both varieties inside the same bag. Each bag gets a Variety 1 and a Variety 2 farm / pivot.'))
+        :ce('div',{className:'form-field pt-s2'},ce('label',{className:'form-label'},'Extra varieties',ce('span',{style:{fontWeight:400,color:'var(--text3)',textTransform:'none',letterSpacing:0}},' — whole bags of another variety in this lot')),
+            ce('div',{className:'pt-chips'},
+              extraVarieties.map(function(xv,xi){
+                return ce('span',{key:xi,className:'pt-chip'},
+                  ce('select',{value:xv,'aria-label':'Extra variety '+(xi+1),onChange:function(e){var nv=e.target.value;var old=xv;markDirty();setExtraVarieties(function(prev){return prev.map(function(v,i){return i===xi?nv:v;});});
+                    if(old)setPallets(function(prev){return prev.map(function(p){return Object.assign({},p,{rows:p.rows.map(function(r){return r.sampleVariety===old?Object.assign({},r,{sampleVariety:nv}):r;})});});});}},
+                    ce('option',{value:''},'— Select —'),
+                    varOpts.filter(function(n){return n===xv||(n!==variety&&extraVarieties.indexOf(n)<0);}).map(function(n){return ce('option',{key:n,value:n},n);})),
+                  ce('button',{type:'button','aria-label':'Remove '+(xv||'variety'),title:'Remove',onClick:function(){var gone=xv;markDirty();setExtraVarieties(function(prev){return prev.filter(function(_,i){return i!==xi;});});
+                    if(gone)setPallets(function(prev){return prev.map(function(p){return Object.assign({},p,{rows:p.rows.map(function(r){return r.sampleVariety===gone?Object.assign({},r,{sampleVariety:variety}):r;})});});});}},'×'));
+              }),
+              ce('button',{type:'button',className:'pt-add',onClick:function(){markDirty();setExtraVarieties(function(prev){return prev.concat(['']);});}},'+ Add variety')))
+      ),
+      /* ORIGIN */
+      ce('div',{className:'hdr-grp'},'Origin — farms & pivots'),
+      ce('div',{className:'grid4',style:{marginBottom:6}},
+        pairs.map(function(pr,i){
+          var n=pairs.length>1?' '+(i+1):'';
+          return ce('div',{key:i,className:'pt-s2 pt-pair'},
+            ce('div',{className:'form-field'},
+              ce('label',{className:'form-label',style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}},
+                ce('span',null,'Farm'+n),
+                ce('span',{style:{display:'inline-flex',gap:6,alignItems:'center'}},
+                  i===0&&ptTick('farm'),
+                  i>0&&ce('button',{type:'button',className:'pt-rm','aria-label':'Remove farm'+n,onClick:function(){var L=ptPairs();L.splice(i,1);ptSetPairs(L);}},'× Remove'))),
+              ce('select',{className:'form-select',value:pr.name,style:i===0?ptAmber('farm'):{},onChange:function(e){var L=ptPairs();var nv=e.target.value;if(L[i].name!==nv)L[i]={name:nv,plot:''};ptSetPairs(L);if(i===0&&preFilled)confirmUnit('farm');}},
+                ce('option',{value:''},'— Select farm —'),
+                farmOpts(pr.name).map(function(f){return ce('option',{key:f,value:f},f);}))),
+            ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Pivot'+n),
+              ce('input',{className:'form-input',value:pr.plot,placeholder:'e.g. 11/1',style:{fontFamily:'var(--font-mono)'},onChange:function(e){var L=ptPairs();L[i]=Object.assign({},L[i],{plot:e.target.value});ptSetPairs(L);}})));
+        }),
+        !hdrLocked&&ce('div',{className:'pt-s2 pt-addtile-wrap'},
+          ce('button',{type:'button',className:'pt-addtile',onClick:function(){var L=ptPairs();L.push({name:'',plot:''});ptSetPairs(L);}},'+ Add farm / pivot'))
+      ),
+      /* CLIENT */
+      ce('div',{className:'hdr-grp'},'Client — العميل'),
+      ce('div',{className:'grid4',style:{marginBottom:0}},
+        ce('div',{className:'form-field pt-s2','data-field':'client'},ce('label',{className:'form-label'},'Client'),
+          ce(Typeahead,{value:client,onChange:function(v){markDirty();setClient(v);},options:clients,placeholder:'Type to search client…',minChars:2})),
+        ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Country'),
+          ce('select',{className:'form-select',value:country,onChange:function(e){markDirty();setCountry(e.target.value);}},
+            ce('option',{value:''},'— Select country —'),
+            countries.map(function(c){return ce('option',{key:c,value:c},c);}))),
+        ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Client sticker'),
+          ce('div',{className:'pt-seg',role:'group','aria-label':'Client sticker'},[['Ok','OK'],['Not Ok','Not OK']].map(function(o){var on=labelling===o[0];
+            return ce('button',{key:o[0],type:'button','aria-pressed':on,className:on?('on'+(o[0]==='Not Ok'?' bad':'')):'',onClick:function(){markDirty();setLabelling(o[0]);}},o[1]);})))
+      )
+    );
+  }
+  /* potatoes: when the header has exactly ONE farm (+ one pivot) or ONE trace code, empty bags take it
+     automatically (bag 1 used to start blank). Only fills blanks — never overwrites a bag's pick. */
+  React.useEffect(function(){
+    if(!isPT) return;
+    var F=ptHeaderFarms(),T=ptTraceOpts('v1');
+    if(F.length!==1&&T.length!==1) return;
+    setPallets(function(prev){var changed=false;var next=prev.map(function(p){return Object.assign({},p,{rows:p.rows.map(function(r){
+      var ef=r.extraFields||{},patch={};
+      if(F.length===1&&!ef.sampleFarm){patch.sampleFarm=F[0];var pv=ptPivotsFor(F[0]);if(pv.length===1&&!ef.samplePlot)patch.samplePlot=pv[0];}
+      if(T.length===1&&!ef.sampleTrace)patch.sampleTrace=T[0];
+      if(!Object.keys(patch).length)return r;changed=true;return Object.assign({},r,{extraFields:Object.assign({},ef,patch)});})});});
+      return changed?next:prev;});
+  },[isPT,farm,plot,farm2,plot2,farm3,plot3,farm4,plot4,JSON.stringify(additionalFarms||[]),JSON.stringify(traceCodes||[]),varietyType,variety,variety2,pallets.length,allRows.length]);
   /* potatoes: suggest Reject on grade C or any tuber moth (الشحن bands); orchards unchanged */
   var autoDec=isPT?((ptLotGrade==='C'||ptMoth)?'R':'A'):(hasCrit||avgTotal>10?'R':'A');
   function addPalletSameLOT(){setIsDirty(true);/* max+1, not count+1: after removing a middle pallet, count+1 collided with an existing number */var nextNo=pallets.reduce(function(m,p){var n=parseInt(p.palletNo,10);return (n>m)?n:m;},0)+1;setPallets(function(prev){return prev.concat([newPallet(nextNo,'',container)]);});setActivePalletIdx(pallets.length);setDecision('');setShowNP(false);}
@@ -2895,7 +3034,7 @@ function InspectionForm(props){
     setPlot('');setPlot2('');setPlot3('');setPlot4('');
     /* Packing & labelling — wax only applies to citrus */
     setWax((cropId==='grapes'||isPT)?'':'CR');
-    setPacking('');setLabelling('');
+    setPacking('');setLabelling(isPT?'Ok':'');
     /* Trace codes — uses the correct plural setter (was setTraceCode, undefined) */
     setTraceCodes([{code:'',variety:null}]);
     /* Carton / sticker / GGN / codes */
@@ -3366,6 +3505,7 @@ function InspectionForm(props){
           onClick:hdrLocked?flashLockHint:null,
           title:hdrLocked?'Header is locked — tap "Unlock to edit" above':null,
           style:{opacity:hdrLocked?.6:1}},
+          isPT?ptHeaderBody():ce(React.Fragment,null,
           ce('div',{className:'grid4',style:{marginBottom:10}},
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Date'),ce('input',{className:'form-input',type:'date',value:date,onChange:function(e){setDate(e.target.value);}})),
             cropId==='grapes'
@@ -3674,7 +3814,7 @@ function InspectionForm(props){
             cropId!=='grapes'&&cropId!=='citrus'&&!isPT&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Wax — التشميع'),ce('div',{className:'wax-options'},WAX_CODES.map(function(w){return ce('button',{key:w.code,className:'wax-btn'+(wax===w.code?' sel':''),onClick:function(){markDirty()||setWax(w.code);}},w.code);}))),
             !isPT&&ce('div',{className:'form-field'},ce('label',{className:'form-label'},'Packing'),ce('select',{className:'form-select',value:packing,onChange:function(e){markDirty()||setPacking(e.target.value);}},ce('option',{value:''},'— Select —'),['Ok','Not Ok'].map(function(v){return ce('option',{key:v,value:v},v);}))),
             ce('div',{className:'form-field'},ce('label',{className:'form-label'},isPT?'Client sticker — لصقة العميل':'Labelling & coding'),ce('select',{className:'form-select',value:labelling,onChange:function(e){markDirty()||setLabelling(e.target.value);}},ce('option',{value:''},'— Select —'),['Ok','Not Ok'].map(function(v){return ce('option',{key:v,value:v},v);})))
-          )
+          ))
         )
       ),
       /* LABEL STICKER — not used for potatoes */
@@ -3796,7 +3936,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
           ce('div',{className:'section-title',style:{marginBottom:0}},
             ce('div',{className:'section-title-bar',style:{background:'#5a7ab0'}}),
             'Trace Codes',
-            ce('span',{style:{fontSize:10,color:'var(--text3)',fontWeight:400,marginLeft:6}},isPT?'Enter all codes for this lot — each bag then picks its code below':'Enter all codes — then assign each to a pallet below')
+            !isPT&&ce('span',{style:{fontSize:10,color:'var(--text3)',fontWeight:400,marginLeft:6}},'Enter all codes — then assign each to a pallet below')
           )
         ),
         traceCodes.map(function(tc,ti){
@@ -5346,7 +5486,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
           ce('span',{style:{fontSize:16}},'⚠'),
           ce('div',null,
             ce('div',{style:{fontWeight:600,marginBottom:2}},'Please review the unit identity fields'),
-            ce('div',{style:{fontSize:12,opacity:.85}},'Tick ✓ beside Container, Variety, Class and Farm to confirm they are correct for this unit. Click Save again to proceed.')
+            ce('div',{style:{fontSize:12,opacity:.85}},isPT?'Tick ✓ beside Container, Variety and Farm to confirm they are correct for this lot. Click Save again to proceed.':'Tick ✓ beside Container, Variety, Class and Farm to confirm they are correct for this unit. Click Save again to proceed.')
           )
         ),
         ce('button',{className:'btn btn-primary',style:{minWidth:140,padding:'11px 28px',fontSize:15,opacity:isSaving?.7:1,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8},onClick:handleSave,disabled:isSaving},isSaving&&ce('span',{className:'dalos-spinner'}),isSaving?'Saving\u2026':'Save inspection')
