@@ -2745,11 +2745,11 @@ function InspectionForm(props){
     var ef=row.extraFields||{};var big=mobile?{fontSize:14,padding:'8px 10px',minHeight:40}:null;
     var f1=ptSelect(ef.sampleFarm||'',ptHeaderFarms(),function(v){ptPatchEF(pIdx,row.id,ptFarmPatch(row,v,'v1'));},Object.assign({},big||{},ptIsMixed?{borderColor:'#97c459',background:'#f5fbf0'}:{}),'Farm');
     var p1=ptSelect(ef.samplePlot||'',ptPivotsFor(ef.sampleFarm||''),function(v){ptPatchEF(pIdx,row.id,{samplePlot:v});},Object.assign({fontFamily:'var(--font-mono)'},big||{},ptIsMixed?{borderColor:'#97c459',background:'#f5fbf0'}:{}),'Pivot');
-    var t1=ptSelect(ef.sampleTrace||'',ptTraceOpts('v1'),function(v){ptPatchEF(pIdx,row.id,{sampleTrace:v});},Object.assign({fontFamily:'var(--font-mono)'},big||{},ptIsMixed?{borderColor:'#97c459',background:'#f5fbf0'}:{}),'Trace code',mobile?null:ptTail);
+    var t1=ptSelect(ef.sampleTrace||'',ptTraceOpts('v1'),function(v){ptPatchEF(pIdx,row.id,{sampleTrace:v});},Object.assign({fontFamily:'var(--font-mono)'},big||{},ptIsMixed?{borderColor:'#97c459',background:'#f5fbf0'}:{}),'Trace code',null);
     if(!ptIsMixed) return [f1,p1,t1];
     var f2=ptSelect(ef.sampleFarm2||'',ptHeaderFarms(),function(v){ptPatchEF(pIdx,row.id,ptFarmPatch(row,v,'v2'));},Object.assign({},big||{},{borderColor:'#85b7eb',background:'#f0f6fd'}),'Farm V2');
     var p2=ptSelect(ef.samplePlot2||'',ptPivotsFor(ef.sampleFarm2||''),function(v){ptPatchEF(pIdx,row.id,{samplePlot2:v});},Object.assign({fontFamily:'var(--font-mono)'},big||{},{borderColor:'#85b7eb',background:'#f0f6fd'}),'Pivot V2');
-    var t2=ptSelect(ef.sampleTrace2||'',ptTraceOpts('v2'),function(v){ptPatchEF(pIdx,row.id,{sampleTrace2:v});},Object.assign({fontFamily:'var(--font-mono)'},big||{},{borderColor:'#85b7eb',background:'#f0f6fd'}),'Trace code V2',mobile?null:ptTail);
+    var t2=ptSelect(ef.sampleTrace2||'',ptTraceOpts('v2'),function(v){ptPatchEF(pIdx,row.id,{sampleTrace2:v});},Object.assign({fontFamily:'var(--font-mono)'},big||{},{borderColor:'#85b7eb',background:'#f0f6fd'}),'Trace code V2',null);
     return [ptPair(f1,f2),ptPair(p1,p2),ptPair(t1,t2)];
   }
   function ptSewing(row,pIdx,mobile){
@@ -2803,7 +2803,7 @@ function InspectionForm(props){
   function ptBagsDesktop(pIdx,pallet,pRows){
     var secCols=defSections.map(function(){return '62px';}).join(' ')||'62px';
     var pair=ptIsMixed;
-    var gridTpl='30px '+(pair?'92px ':'110px ')+(pair?'118px 82px 128px ':'118px 76px 120px ')+'108px 104px 76px 74px 64px 66px '+secCols+' 64px 120px 50px 20px';
+    var gridTpl='30px '+(pair?'92px ':'110px ')+(pair?'118px 82px 160px ':'118px 76px 160px ')+'108px 104px 76px 74px 64px 66px '+secCols+' 64px 120px 50px 20px';
     var hdr=['','Variety','Farm','Pivot','Trace code','Date','Bag type','Size','Bag kg','Peat g','Sewing'].concat(defSections.map(function(s){return s.section;})).concat(['Total','Notes','P/F','']);
     return ce('div',{style:{minWidth:'max-content'}},
       ce('div',{style:{display:'grid',gridTemplateColumns:gridTpl,gap:4,padding:'5px 14px',background:'var(--bg2)',borderBottom:'1px solid var(--border2)'}},
