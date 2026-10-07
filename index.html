@@ -1740,6 +1740,15 @@ function InspectionForm(props){
     return id;
   })();
 
+  /* potatoes: outcome + extra single varieties are not in the listing view — read them from the inspection on edit-open */
+  React.useEffect(function(){
+    if(!isPT||!isEdit||!batch||!batch.id||props.recoveryDraft) return;
+    supabase.from('inspections').select('outcome,extra_varieties').eq('id',batch.id).single().then(function(r){
+      if(r.error||!r.data) return;
+      if(r.data.outcome) setOutcome(r.data.outcome);
+      if(Array.isArray(r.data.extra_varieties)&&r.data.extra_varieties.length) setExtraVarieties(r.data.extra_varieties);
+    });
+  },[]);
   /* Load sample rows + defect readings from DB when editing */
   React.useEffect(function(){
     if(!isEdit||!batch||!batch.id) return;
