@@ -16579,6 +16579,24 @@ function EscalationReview(props){
   var sComment=useState(''); var comment=sComment[0]; var setComment=sComment[1];
   var sConfirm=useState(false); var showConfirm=sConfirm[0]; var setShowConfirm=sConfirm[1];
   var sFilter=useState('Pending'); var filter=sFilter[0]; var setFilter=sFilter[1];
+  /* potatoes: the board sees the lot grade (rots/skin bands, tuber moth = C), bags and outcome instead of Brix */
+  var sPtInfo=useState({}); var ptInfo=sPtInfo[0]; var setPtInfo=sPtInfo[1];
+  React.useEffect(function(){
+    var b=selId?batches.find(function(x){return x.id===selId;}):null;
+    if(!b||b.crop!=='potatoes'||ptInfo[selId]) return;
+    var id=selId;
+    setPtInfo(function(prev){var u={};u[id]={loading:true};return Object.assign({},prev,u);});
+    Promise.all([
+      supabase.from('inspections').select('outcome').eq('id',id).single(),
+      supabase.from('sample_rows').select('id,sample_defect_readings(value,defects(key,defect_sections(name_en)))').eq('inspection_id',id)
+    ]).then(function(res){
+      var rows=(res[1]&&res[1].data)||[],n=rows.length||1,sec={},moth=false;
+      rows.forEach(function(r){(r.sample_defect_readings||[]).forEach(function(dr){var d=dr.defects||{};var nm=(d.defect_sections&&d.defect_sections.name_en)||'';var v=parseFloat(dr.value)||0;sec[nm]=(sec[nm]||0)+v;if(d.key==='pt_tuber_moth'&&v>0)moth=true;});});
+      var R=(sec.Rots||0)/n,S=(sec.Skin||0)/n;
+      var u={};u[id]={loading:false,R:R,S:S,moth:moth,grade:moth?'C':ptGrade(R,S),bags:rows.length,outcome:(res[0]&&res[0].data&&res[0].data.outcome)||''};
+      setPtInfo(function(prev){return Object.assign({},prev,u);});
+    }).catch(function(){var u={};u[id]={loading:false,error:true};setPtInfo(function(prev){return Object.assign({},prev,u);});});
+  },[selId]);
 
   var escalated=batches.filter(function(b){return b.status==='Escalated';});
   var resolved=batches.filter(function(b){return b.status==='Special Accept'||b.status==='Special Reject';});
@@ -16716,10 +16734,17 @@ function EscalationReview(props){
                 ce('div',{style:{marginBottom:16}},
                   ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:8}},'Defect summary'),
                   ce('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}},
-                    [['Total defect',selB.totalDefect.toFixed(1)+'%'],['Variety',selB.variety],['Brix',selB.brix?parseFloat(selB.brix).toFixed(1)+'°Bx':'—'],['Farm',selB.farm],['Client',selB.client],['Date',selB.date]].map(function(item){
+                    (selB.crop==='potatoes'
+                      ?(function(){var pi=ptInfo[selB.id]||{loading:true};var wait=pi.loading?'\u2026':(pi.error?'\u2014':null);
+                        return [['Total defect',selB.totalDefect.toFixed(1)+'%'],
+                          ['Grade',wait||((pi.grade||'\u2014')+(pi.moth?' \u00b7 tuber moth':'')),pi.grade==='A'?'var(--green)':pi.grade==='B'?'var(--amber)':'var(--red)'],
+                          ['Bags',wait||(pi.bags+' sampled'+(pi.bags?' \u00b7 rots '+pi.R.toFixed(2)+'% \u00b7 skin '+pi.S.toFixed(2)+'%':''))],
+                          ['Outcome',wait||(pi.outcome||'Not recorded')],
+                          ['Variety',selB.variety+(selB.variety2&&selB.varietyType==='mixed'?' + '+selB.variety2:'')],['Farm',selB.farm],['Client',selB.client],['Date',selB.date]];})()
+                      :[['Total defect',selB.totalDefect.toFixed(1)+'%'],['Variety',selB.variety],['Brix',selB.brix?parseFloat(selB.brix).toFixed(1)+'°Bx':'—'],['Farm',selB.farm],['Client',selB.client],['Date',selB.date]]).map(function(item){
                       return ce('div',{key:item[0],style:{background:'var(--bg2)',borderRadius:6,padding:'6px 9px'}},
                         ce('div',{style:{fontSize:9,color:'var(--text3)',textTransform:'uppercase',marginBottom:1}},item[0]),
-                        ce('div',{style:{fontSize:12,fontWeight:500}},item[1])
+                        ce('div',{style:{fontSize:12,fontWeight:item[2]?700:500,color:item[2]||undefined}},item[1])
                       );
                     })
                   )
