@@ -430,6 +430,18 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .topbar-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
 .topbar-title{font-family:var(--font-display);font-size:17px;white-space:nowrap}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+/* listing breadcrumb (replaces the old sidebar "Switch crop") — each step reopens the start page at that step */
+.vcr{display:inline-flex;align-items:center;min-width:0;height:32px;padding:0 4px;border-radius:16px;background:var(--bg2);border:1px solid var(--border);font:500 12px var(--font-body);white-space:nowrap;overflow:hidden}
+.vcr i{font-style:normal;color:var(--text3);margin:0 1px;flex-shrink:0}
+.vcr-s{background:none;border:0;font:inherit;color:var(--text2);padding:5px 8px;border-radius:12px;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:6px}
+.vcr-s:hover{background:rgba(43,92,63,.09);text-decoration:underline;text-underline-offset:3px}
+.vcr-s:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
+.vcr-ph{font-weight:600}.vcr-fix{cursor:default}.vcr-fix:hover{background:none;text-decoration:none}
+.vcr-pr{color:var(--text);font-weight:600;flex-shrink:0}
+.vcr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.vcr-car{font-size:10px;color:var(--text3)}
+.vg .vcr{background:rgba(232,245,236,.6);border-color:rgba(142,203,164,.6)}
+@media (max-width:600px){.topbar-title.vcr-has{display:none}.vcr{height:40px;border-radius:20px;font-size:13px}.vcr-s{padding:9px 9px}.vcr-line{display:none}}
 .page{padding:16px;flex:1}
 
 /* ── Hide number input spinners — reclaims space occupied by up/down arrows ── */
@@ -8868,8 +8880,9 @@ var LANDING_LINES=[
 ];
 function landingLineOf(cropId){return LINE_OF_PRODUCT[cropId]||'orchards';}
 function Landing(props){
-  var sp=useState(null); var phId=sp[0]; var setPhId=sp[1];
-  var sl=useState(null); var lineId=sl[0]; var setLineId=sl[1];
+  var init=props.initial||{};
+  var sp=useState(init.ph||null); var phId=sp[0]; var setPhId=sp[1];
+  var sl=useState(init.line||null); var lineId=sl[0]; var setLineId=sl[1];
   var eg=useState(false); var showEidGame=eg[0]; var setShowEidGame=eg[1];
   var config=props.config||INITIAL_CONFIG;
   var setConfig=props.setConfig||function(){};
@@ -9084,7 +9097,7 @@ function Landing(props){
 }
 /* Classic start page = the prod version before the Glass redesign (a8e46d0^). Shown when the Glass look is switched off. */
 function LandingClassic(props){
-  var sp=useState(null); var phId=sp[0]; var setPhId=sp[1];
+  var sp=useState((props.initial||{}).ph||null); var phId=sp[0]; var setPhId=sp[1];
   var eg=useState(false); var showEidGame=eg[0]; var setShowEidGame=eg[1];
   var config=props.config||INITIAL_CONFIG;
   var setConfig=props.setConfig||function(){};
@@ -17273,6 +17286,7 @@ function App(){
   var sUser=useState(null); var currentUser=sUser[0]; var setCurrentUser=sUser[1];
   var sSessionExp=useState(false); var sessionExpired=sSessionExp[0]; var setSessionExpired=sSessionExp[1];
   var sc=useState(null); var cropId=sc[0]; var setCropId=sc[1];
+  var sli=useState(null); var landingInit=sli[0]; var setLandingInit=sli[1]; /* breadcrumb → start page opens at that step */
   var sph=useState(null); var phId=sph[0]; var setPhId=sph[1];
   var sv=useState(function(){
     var h=(window.location.hash||'').slice(1);
@@ -19353,10 +19367,6 @@ function App(){
               ce('div',{style:{fontSize:10,color:'var(--sidebar-muted)'}},role.label)
             )
           ),
-          view==='fg'&&perms.viewFG&&(cropId||phId)&&ce('div',{className:'nav-item',style:{fontSize:12},onClick:function(){setCropId(null);if(perms.allPackhouses)setPhId(null);setMobOpen(false);}},
-            ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M11 2.5a.5.5 0 0 0-.5-.5H3a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h7.5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h7.5a.5.5 0 0 0 .5-.5v-1zm1.854 4.646a.5.5 0 0 0 0 .708l1.792 1.792-1.792 1.792a.5.5 0 0 0 .707.707l2.146-2.145a.5.5 0 0 0 0-.708L13.56 7.147a.5.5 0 0 0-.707.707z'})),
-            ce('div',null,'Switch crop')
-          ),
           VISION_GLASS&&ce('div',{className:'nav-item',style:{fontSize:12},title:'Switch between the new Glass look and the classic look (this browser only)',onClick:visionGlassToggle},
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z'})),
             ce('div',null,visionGlassOn()?'Classic look':'Glass look')
@@ -19427,10 +19437,10 @@ function App(){
     )
   );
   return ce('div',{className:'layout'+(visionGlassOn()?' lg-layout':'')},sessionExpiredOverlay,mkSidebar(),
-      ce('div',{className:'main'},ce(visionGlassOn()?Landing:LandingClassic,{currentUser:liveCurrentUser,config:config,setConfig:setConfig,batches:batches,perms:perms,inspLoading:inspLoading,currentViewSeason:currentViewSeason,onMobOpen:function(){setMobOpen(true);},onSelectCQC:function(){setView('clientqc');},onSelect:function(pid,cid){
+      ce('div',{className:'main'},ce(visionGlassOn()?Landing:LandingClassic,{initial:landingInit,currentUser:liveCurrentUser,config:config,setConfig:setConfig,batches:batches,perms:perms,inspLoading:inspLoading,currentViewSeason:currentViewSeason,onMobOpen:function(){setMobOpen(true);},onSelectCQC:function(){setView('clientqc');},onSelect:function(pid,cid){
         var phs=currentUser.packhouses||[currentUser.packhouse||'All'];
         var finalPh=(phs.indexOf('All')<0&&phs.length===1)?phs[0]:pid;
-        setPhId(finalPh);setCropId(cid);setView('fg');
+        setLandingInit(null);setPhId(finalPh);setCropId(cid);setView('fg');
       }}))
     );
   }
@@ -19442,7 +19452,20 @@ function App(){
           ce('div',{className:'menu-btn',onClick:function(){setMobOpen(!mobOpen);}},
             ce('svg',{width:18,height:18,viewBox:'0 0 16 16',fill:'#fff'},ce('path',{d:'M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z'}))
           ),
-          ce('div',{className:'topbar-title'},cur.label),
+          ce('div',{className:'topbar-title'+(view==='fg'&&phId&&cropId&&!phLoading?' vcr-has':'')},cur.label),
+          view==='fg'&&phId&&cropId&&!phLoading?(function(){
+            var ln=landingLineOf(cropId),lnName=(LANDING_LINES.find(function(l){return l.id===ln;})||{}).name||'';
+            var lockedPh=!perms.allPackhouses,glass=visionGlassOn();
+            function back(seed){setLandingInit(seed);setCropId(null);if(perms.allPackhouses)setPhId(null);}
+            return ce('nav',{className:'vcr','aria-label':'Location'},
+              glass&&ce('button',{type:'button',className:'vcr-s vcr-line',title:'Change line',onClick:function(){back(null);}},lnName),
+              glass&&ce('i',{className:'vcr-line','aria-hidden':'true'},'\u203a'),
+              lockedPh?ce('span',{className:'vcr-s vcr-ph vcr-fix',style:{color:phInfo.color}},phInfo.name)
+                :ce('button',{type:'button',className:'vcr-s vcr-ph',title:'Change packhouse',style:{color:phInfo.color},onClick:function(){back(glass?{line:ln}:null);}},phInfo.name),
+              ce('i',{'aria-hidden':'true'},'\u203a'),
+              ce('button',{type:'button',className:'vcr-s vcr-pr','aria-current':'page',title:'Change product',onClick:function(){back({line:ln,ph:phId});}},
+                ce('span',{className:'vcr-dot',style:{background:cropInfo.color}}),cropInfo.name,ce('span',{className:'vcr-car','aria-hidden':'true'},'\u25be')));
+          })():
           phId&&ce('div',{style:{display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,padding:'3px 10px'}},
             phLoading
               ?ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
