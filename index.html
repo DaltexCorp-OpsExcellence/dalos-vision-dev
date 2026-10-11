@@ -16346,7 +16346,7 @@ function visionGlassHomeOn(){if(!VISION_GLASSHOME||!visionGlassOn())return false
 var VMX={busy:false,anims:[],timer:null};
 function vmxSkip(){try{if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return true;var c=navigator.hardwareConcurrency||8,m=navigator.deviceMemory||8;return c<=2||m<=2;}catch(e){return false;}}
 function vmxPhone(){return window.innerWidth<768;}
-function vmxDur(){var s=vmxPhone()?.8:1;return {pre:200*s,move:640*s,post:300*s};}
+function vmxDur(){var s=vmxPhone()?.8:1;try{var q=+new URLSearchParams(location.search).get('morphslow');if(q>0&&q<=10)s*=q;}catch(e){}return {pre:200*s,move:640*s,post:300*s};} /* ?morphslow=4 → slow motion for review */
 function vmxQ(s,r){return (r||document).querySelector(s);}
 function vmxQA(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
 function vmxRect(el){var r=el.getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};}
