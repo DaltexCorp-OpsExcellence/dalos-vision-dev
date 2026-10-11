@@ -1584,7 +1584,7 @@ function PivotsInspectionForm(props){
       ce('div',null,lab('Farm'),fc[0]),
       ce('div',null,lab('Pivot'),fc[1]),
       ce('div',{style:{gridColumn:'span 2'}},lab('Trace code'),fc[2]),
-      ce('div',null,lab('Date'),ce('input',{style:big,type:'date',value:row.opDate||'',onChange:function(e){updateRowField(pIdx,row.id,'opDate',e.target.value);}})),
+      ce('div',{style:{gridColumn:'span 2'}},lab('Date'),ce('input',{style:big,type:'date',value:row.opDate||'',onChange:function(e){updateRowField(pIdx,row.id,'opDate',e.target.value);}})),
       ce('div',null,lab('Bag type'),ptSelect(ef.package_type||'',PT_BAG_TYPES.map(function(b){return b.name;}),function(v){ptPatchEF(pIdx,row.id,{package_type:v});},{fontSize:14,padding:'8px 10px',minHeight:40},'Bag type',null,true)),
       ce('div',null,lab('Size'),ptSelect(ef.size_grade||'',PT_SIZE_GRADES,function(v){ptPatchEF(pIdx,row.id,{size_grade:v});},{fontSize:14,padding:'8px 10px',minHeight:40,fontFamily:'var(--font-mono)'},'Size grade',null,true)),
       ce('div',null,lab('Bag kg'),ptWeightInput(row,pIdx,true)),
