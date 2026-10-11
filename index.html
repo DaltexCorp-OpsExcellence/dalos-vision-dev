@@ -434,17 +434,20 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .topbar-title{font-family:var(--font-display);font-size:17px;white-space:nowrap}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 /* listing breadcrumb (replaces the old sidebar "Switch crop") — each step reopens the start page at that step */
-.vcr{display:inline-flex;align-items:center;min-width:0;height:32px;padding:0 4px;border-radius:16px;background:var(--bg2);border:1px solid var(--border);font:500 12px var(--font-body);white-space:nowrap;overflow:hidden}
+.vcr{display:inline-flex;align-items:center;min-width:0;height:34px;padding:0 3px 0 4px;border-radius:16px;background:var(--bg2);border:1px solid var(--border);font:500 12px var(--font-body);white-space:nowrap;overflow:hidden}
 .vcr i{font-style:normal;color:var(--text3);margin:0 1px;flex-shrink:0}
-.vcr-s{background:none;border:0;font:inherit;color:var(--text2);padding:5px 8px;border-radius:12px;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:6px}
-.vcr-s:hover{background:rgba(43,92,63,.09);text-decoration:underline;text-underline-offset:3px}
+.vcr-s{background:none;border:0;font:inherit;color:var(--text2);padding:5px 8px;border-radius:12px;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:6px;text-decoration:underline dotted rgba(43,92,63,.45);text-underline-offset:4px}
+.vcr-s:hover{background:rgba(43,92,63,.09);text-decoration:underline solid}
+.vcr-chg{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;margin-left:4px;padding:4px 11px;border-radius:999px;border:1px solid #8ecba4;background:rgba(255,255,255,.8);color:var(--accent);font:600 11.5px var(--font-body);cursor:pointer;white-space:nowrap}
+.vcr-chg svg{width:11px;height:11px}
+.vcr-chg:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.vcr-chg:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
 .vcr-s:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
-.vcr-ph{font-weight:600}.vcr-fix{cursor:default}.vcr-fix:hover{background:none;text-decoration:none}
+.vcr-ph{font-weight:600}.vcr-fix,.vcr-fix:hover{cursor:default;background:none;text-decoration:none}
 .vcr-pr{color:var(--text);font-weight:600;flex-shrink:0}
 .vcr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.vcr-car{font-size:10px;color:var(--text3)}
 .vg .vcr{background:rgba(232,245,236,.6);border-color:rgba(142,203,164,.6)}
-@media (max-width:600px){.topbar-title.vcr-has{display:none}.vcr{height:40px;border-radius:20px;font-size:13px}.vcr-s{padding:9px 9px}.vcr-line{display:none}}
+@media (max-width:600px){.topbar-title.vcr-has{display:none}.vcr{height:40px;border-radius:20px;font-size:13px}.vcr-s{padding:9px 9px}.vcr-line{display:none}.vcr-chg{padding:7px 11px;font-size:12px}}
 .page{padding:16px;flex:1}
 
 /* ── Hide number input spinners — reclaims space occupied by up/down arrows ── */
@@ -19466,7 +19469,10 @@ function App(){
                 :ce('button',{type:'button',className:'vcr-s vcr-ph',title:'Change packhouse',style:{color:phInfo.color},onClick:function(){back(glass?{line:ln}:null);}},phInfo.name),
               ce('i',{'aria-hidden':'true'},'\u203a'),
               ce('button',{type:'button',className:'vcr-s vcr-pr','aria-current':'page',title:'Change product',onClick:function(){back({line:ln,ph:phId});}},
-                ce('span',{className:'vcr-dot',style:{background:cropInfo.color}}),cropInfo.name,ce('span',{className:'vcr-car','aria-hidden':'true'},'\u25be')));
+                ce('span',{className:'vcr-dot',style:{background:cropInfo.color}}),cropInfo.name),
+              ce('button',{type:'button',className:'vcr-chg',title:'Change packhouse or product',onClick:function(){back({line:ln,ph:phId});}},
+                ce('svg',{viewBox:'0 0 16 16',fill:'currentColor','aria-hidden':'true'},ce('path',{d:'M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5zm14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5z'})),
+                'Change'));
           })():
           phId&&ce('div',{style:{display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,padding:'3px 10px'}},
             phLoading
