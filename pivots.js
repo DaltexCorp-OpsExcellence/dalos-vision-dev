@@ -96,6 +96,12 @@ function ptBagKg(name){var b=PT_BAG_TYPES.find(function(x){return x.name===name;
 function ptSectionTotal(defs,sectionName,sections){var sec=(sections||PT_DEFECT_SECTIONS).find(function(s){return s.section===sectionName;});if(!sec)return 0;return sec.items.reduce(function(t,d){return t+(parseFloat((defs||{})[d.key])||0);},0);}
 function ptApplyBootstrap(cfg){
   try{
+    /* Bag types (+ nominal kg), size grades and outcomes come from products.specifics (potatoes):
+       the database wins; the constants above are only a fallback if it is empty. */
+    var sp=((cfg.products||[]).find(function(p){return p.id==='potatoes';})||{}).specifics||{};
+    if(Array.isArray(sp.package_type)&&sp.package_type.length){var kg=sp.bag_kg||{};PT_BAG_TYPES=sp.package_type.map(function(n){return {name:n,kg:Object.prototype.hasOwnProperty.call(kg,n)?kg[n]:null};});}
+    if(Array.isArray(sp.size_grade)&&sp.size_grade.length) PT_SIZE_GRADES=sp.size_grade.slice();
+    if(Array.isArray(sp.outcome)&&sp.outcome.length) PT_OUTCOMES=sp.outcome.slice();
     var ds=cfg.defectSections||{};
     if(!Array.isArray(ds)&&!(ds.potatoes&&ds.potatoes.length)){ds=Object.assign({},ds,{potatoes:PT_DEFECT_SECTIONS});cfg.defectSections=ds;}
     var vf=Object.assign({},cfg.varietiesFull||{});
@@ -1572,7 +1578,7 @@ function PivotsInspectionForm(props){
     var ef=row.extraFields||{};var fc=ptFarmCells(row,pIdx,true);
     var lab=function(t){return ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},t);};
     var big={width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',background:'var(--card)',minHeight:40};
-    return ce('div',{className:'sample-card-grid',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,padding:'10px 12px',borderBottom:'1px solid var(--border)'}},
+    return ce('div',{className:'sample-card-grid',style:{display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(0,1fr)',gap:8, /* equal columns: the date input no longer squeezes Bag type */padding:'10px 12px',borderBottom:'1px solid var(--border)'}},
       ce('div',{style:{gridColumn:'span 2'}},lab('Variety'),ptVarCell(row,pIdx,true)),
       ce('div',null,lab('Farm'),fc[0]),
       ce('div',null,lab('Pivot'),fc[1]),
@@ -2375,8 +2381,8 @@ function PivotsInspectionForm(props){
             ce('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
               ce('div',{style:{fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em'}},
                 (pRows.length+' sampled bag'+(pRows.length!==1?'s':''))
-              ),
-              ce('button',{className:'btn btn-primary btn-sm',style:{fontSize:13},onClick:function(i){return function(e){e.stopPropagation();addRowToPallet(i);};}(pIdx)},'+ Bag')
+              )
+              /* '+ Bag' lives once, in the Sampled bags header above (was shown twice on phones) */
             ),
             pRows.map(function(row,ri){
               var rowCrit=defSections.some(function(sec){return sec.items.some(function(d){return d.sev==='Critical'&&(parseFloat(row.defects[d.key])||0)>0;});});
@@ -2635,6 +2641,7 @@ function save(newBatch, ctx){
       return {__handled:true};
     }
     var ptId=(res.data&&res.data.id)||newBatch.id;
+    delete ptOutcomeCache[ptId]; if(isEditMode) delete ptOutcomeCache[newBatch.id];
     console.log('[DalOS] Atomic potatoes '+(isEditMode?'edit':'save')+' OK:',ptId,res.data);
     if(isEditMode) dalosClearConflicts(ptId);
     if(onDone){onDone(null,ptId);onDone=null;}
@@ -2645,6 +2652,30 @@ function save(newBatch, ctx){
     if(onDone){onDone('RETRY:Save didn’t go through — your data is still here. Check your connection and tap Save again.');onDone=null;}
     return {__handled:true};
   });
+}
+
+/* ── LOT OUTCOME for the listing — inspections_with_aggregates has no outcome column, so the
+   listing asks for it here: one batched query for all rows on screen, cached per inspection. */
+var ptOutcomeCache={}, ptOutcomeWant={}, ptOutcomeSubs=[], ptOutcomeTimer=null;
+function ptOutcomeLoad(id){
+  if(!id||(id in ptOutcomeCache)||ptOutcomeWant[id]) return;
+  ptOutcomeWant[id]=1; if(ptOutcomeTimer) return;
+  ptOutcomeTimer=setTimeout(function(){
+    var ids=Object.keys(ptOutcomeWant); ptOutcomeWant={}; ptOutcomeTimer=null;
+    supabase.from('inspections').select('id,outcome').in('id',ids).then(function(r){
+      if(r.error) return;
+      (r.data||[]).forEach(function(x){ptOutcomeCache[x.id]=x.outcome||'';});
+      ids.forEach(function(i){if(!(i in ptOutcomeCache))ptOutcomeCache[i]='';});
+      ptOutcomeSubs.slice().forEach(function(f){f();});
+    });
+  },0);
+}
+function PtOutcome(props){
+  var s=React.useState(0); var force=s[1];
+  React.useEffect(function(){var f=function(){force(function(n){return n+1;});};ptOutcomeSubs.push(f);return function(){ptOutcomeSubs=ptOutcomeSubs.filter(function(x){return x!==f;});};},[]);
+  var v=ptOutcomeCache[props.id];
+  if(v===undefined){ptOutcomeLoad(props.id);return props.loading||null;}
+  return v?v:(props.empty||null);
 }
 
 /* ── LISTING (FGView) — potato pieces of the inspections list + detail panel ─────────────── */
@@ -2659,8 +2690,9 @@ var listing={
       ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:12,color:'var(--text)',fontWeight:600}},'LOT '+(b.lot||'—')),
       ce('div',{style:{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--text3)',marginTop:1}},b.id+(cont?' · '+cont:'')));
   },
-  brixCell:function(b){return (b.sampleCount||0)+' bag'+((b.sampleCount||0)===1?'':'s');},
-  detailInfo:function(selB){return [['Client',selB.client],['Country',selB.country],['Farm',selB.farm],['Date',selB.date],['Bags',(selB.sampleCount||0)+' sampled'],['Client sticker',selB.labelling||'—']];},
+  brixCell:function(b){return ce('div',null,(b.sampleCount||0)+' bag'+((b.sampleCount||0)===1?'':'s'),
+    ce('div',{style:{fontFamily:'var(--font-body)',fontSize:10,color:'var(--text3)',marginTop:1}},ce(PtOutcome,{id:b.id})));},
+  detailInfo:function(selB){return [['Client',selB.client],['Country',selB.country],['Farm',selB.farm],['Date',selB.date],['Bags',(selB.sampleCount||0)+' sampled'],['Client sticker',selB.labelling||'—'],['Outcome',ce(PtOutcome,{id:selB.id,empty:'Not recorded',loading:'\u2026'})]];},
   hidePacking:true,
   hideClearance:true,
   /* lot grade from the الشحن bands (rots / skin bag averages); tuber moth = C */
