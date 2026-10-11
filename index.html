@@ -8384,7 +8384,7 @@ function Landing(props){
   var totalBatches=kpiBatches.length;
   var escalated=kpiBatches.filter(function(b){return b.status==='Escalated';}).length;
   var hold=kpiBatches.filter(function(b){return b.status==='Rejected';}).length;
-  var released=kpiBatches.filter(function(b){return b.status==='Accepted';}).length;
+  var released=kpiBatches.filter(function(b){return b.status==='Accepted'||b.status==='Special Accept'; /* board Special Accept is export-ready too (matches the product cards) */}).length;
   /* line → packhouses → products (only active products of that line) */
   function lineCrops(line,p){return products.filter(function(c){return p&&p.crops.indexOf(c.id)>-1&&c.active!==false&&landingLineOf(c.id)===line;});}
   function phsFor(line){return packhouses.filter(function(p){return lineCrops(line,p).length>0;});}
@@ -8596,7 +8596,7 @@ function LandingClassic(props){
   var totalBatches=myBatches.length;
   var escalated=myBatches.filter(function(b){return b.status==='Escalated';}).length;
   var hold=myBatches.filter(function(b){return b.status==='Rejected';}).length;
-  var released=myBatches.filter(function(b){return b.status==='Accepted';}).length;
+  var released=myBatches.filter(function(b){return b.status==='Accepted'||b.status==='Special Accept'; /* board Special Accept is export-ready too (matches the product cards) */}).length;
   var greeting=(function(){var h=new Date().getHours();return h<12?'Good morning':h<18?'Good afternoon':'Good evening';})();
   var firstName=currentUser.name?currentUser.name.split(' ')[0]:'';
 
