@@ -409,6 +409,10 @@ function PivotsInspectionForm(props){
   var swx=useState(batch?batch.wax:(_d.wax||'')); var wax=swx[0]; var setWax=swx[1];
   var strace=useState((function(){var r=normTC(batch&&batch.traceCodes?batch.traceCodes:(batch&&batch.traceCode?[batch.traceCode]:[]));return r.length?r:[{code:'',variety:null}];})()); var traceCodes=strace[0]; var setTraceCodes=strace[1];
   var sdec=useState(batch?batch.decision:''); var decision=sdec[0]; var setDecision=sdec[1];
+  /* A board decision (SA / SR) and a pending escalation survive an inspector edit — only an A or R
+     the inspector picks changes the status (was: anything but R saved as 'Accepted'). */
+  function decisionStatus(){if(decision==='SA')return 'Special Accept';if(decision==='SR')return 'Special Reject';if(decision==='R'&&batch&&batch.status==='Escalated')return 'Escalated';return decision==='R'?'Rejected':'Accepted';}
+  function decisionText(){return decision==='SA'?'Special Accept':decision==='SR'?'Special Reject':decision==='A'?'Accepted':decision==='R'?'Rejected':'\u2014';}
   /* Potatoes: extra SINGLE varieties (whole bags of another variety in the same lot) + lot outcome */
   var sXV=useState(batch&&batch.extraVarieties?batch.extraVarieties:(_d.extraVarieties||[])); var extraVarieties=sXV[0]; var setExtraVarieties=sXV[1];
   var sOut=useState(batch?(batch.outcome||''):(_d.outcome||'')); var outcome=sOut[0]; var setOutcome=sOut[1];
@@ -907,7 +911,7 @@ function PivotsInspectionForm(props){
       brix:avgField('brix')||0,cartonWt:avgField('cartonWt')||0,wax:wax,
       packing:packing,labelling:labelling,traceCodes:traceCodes,traceCode:traceCodes.map(function(tc){return typeof tc==='string'?tc:(tc&&tc.code)||'';}).filter(Boolean).join(','),ggn:ggn,phCode:phCode,
       farmCode:farmCode,netWt:netWt,cartonType:cartonType,cartonColor:cartonColor,cartonCompany:cartonCompany,cartonCompany2:cartonCompany2,importer:importer,importerAddr:importerAddr,stickerImg:stickerImg,stickerChecks:stickerChecks,extraLabels:extraLabels,
-      decision:decision,status:decision==='R'?'Rejected':'Accepted',
+      decision:decision,status:decisionStatus(),
       totalDefect:avgTotal,hasCrit:hasCrit,defects:defectAvgs,
       time:allRows[0]?allRows[0].time:'',size:allRows[0]?allRows[0].size:'',
       notes:allRows.map(function(r){return r.notes;}).filter(Boolean).join('; '),
@@ -1203,7 +1207,7 @@ function PivotsInspectionForm(props){
       kvRow([['Varieties',vtxt],['Farms · pivots',farmsTxt||'—'],['Client sticker',labelling||'—'],['Date',date]]);
       if(!isClient) kvRow([['Trace codes',traceCodes.map(function(tc){return typeof tc==='string'?tc:(tc&&tc.code)||'';}).filter(Boolean).join(', ')||'—'],['Outcome',outcome||'—'],['Inspector',(props.currentUser&&props.currentUser.name)||'—'],['Completion',(batch&&batch.completionMinutes!=null&&batch.completionMinutes!=='')?(batch.completionMinutes+' min'):(isEdit?'—':Math.max(0,Math.round((Date.now()-formOpenedAtRef.current.getTime())/60000))+' min')]]);
       secHead('Quality summary');
-      var cards=[['Total rots',ptRots.toFixed(2)+'%'],['Total skin',ptSkin.toFixed(2)+'%'],['Grand total',avgTotal.toFixed(2)+'%'],['Grade',ptLotGrade+(ptMoth?' · moth':'')],['Decision',decision==='A'?'Accepted':decision==='R'?'Rejected':'—']];
+      var cards=[['Total rots',ptRots.toFixed(2)+'%'],['Total skin',ptSkin.toFixed(2)+'%'],['Grand total',avgTotal.toFixed(2)+'%'],['Grade',ptLotGrade+(ptMoth?' · moth':'')],['Decision',decisionText()]];
       var sw=cw/cards.length;
       cards.forEach(function(c,i){var sx=mg+i*sw;doc.setFillColor(244,248,244);doc.roundedRect(sx,y,sw-2,14,2,2,'F');
         doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(110,110,110);doc.text(c[0],sx+3,y+5);
@@ -1239,7 +1243,7 @@ function PivotsInspectionForm(props){
       kvRow([['Variety',variety+(varietyType==='mixed'&&variety2?' / '+variety2:'')],['Class',cls],['Carton type',cartonType],['Packing / Labelling',(packing||'—')+' / '+(labelling||'—')]]);
       /* Quality summary cards */
       secHead('Quality summary');
-      var sumData=[['Total defect avg',(Math.round(avgTotal*10)/10)+'%'],['Brix avg',(Math.round(avgField('brix')*10)/10||0)+'°'],['Pallets inspected',String(pallets.length)],['Decision',decision==='A'?'Accepted':'Rejected']];
+      var sumData=[['Total defect avg',(Math.round(avgTotal*10)/10)+'%'],['Brix avg',(Math.round(avgField('brix')*10)/10||0)+'°'],['Pallets inspected',String(pallets.length)],['Decision',decisionText()]];
       var sw2=cw/4;
       sumData.forEach(function(s,i){
         var sx=mg+i*sw2;
@@ -1401,7 +1405,7 @@ function PivotsInspectionForm(props){
       /* Metadata */
       addPageIfNeeded(20);
       secHead('Metadata');
-      kvRow([['Decision',decision==='A'?'Accepted':'Rejected'],['Total defect avg',(Math.round(avgTotal*10)/10)+'%'],['Brix avg',(Math.round(avgField('brix')*10)/10||0)+'°'],['Completion',(batch&&batch.completionMinutes!=null)?batch.completionMinutes+' min':(!isEdit&&formOpenedAtRef&&formOpenedAtRef.current?Math.max(0,Math.round((Date.now()-formOpenedAtRef.current.getTime())/60000))+' min (so far)':'—')],['Season',config.activeSeason||'2025/26']]);
+      kvRow([['Decision',decisionText()],['Total defect avg',(Math.round(avgTotal*10)/10)+'%'],['Brix avg',(Math.round(avgField('brix')*10)/10||0)+'°'],['Completion',(batch&&batch.completionMinutes!=null)?batch.completionMinutes+' min':(!isEdit&&formOpenedAtRef&&formOpenedAtRef.current?Math.max(0,Math.round((Date.now()-formOpenedAtRef.current.getTime())/60000))+' min (so far)':'—')],['Season',config.activeSeason||'2025/26']]);
     }
 
     drawFooter();
@@ -4411,6 +4415,8 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
       ce('div',{className:'card','data-field':'decision'},
         ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#1e2d22'}}),'Decision — القرار'),
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:10}},'Auto-suggested: ',ce('strong',{style:{color:autoDec==='A'?'var(--green)':'var(--red)'}},autoDec==='A'?'Accept (A)':'Reject (R)')),
+        (decision==='SA'||decision==='SR')&&ce('div',{style:{fontSize:12,margin:'0 0 10px',padding:'8px 10px',borderRadius:6,background:'var(--bg2)',color:decision==='SA'?'#6a10b0':'var(--red)'}},
+          '\u2605 Board decision: '+decisionText()+' \u2014 kept when you save. Pick A or R only to override it.'),
         ce('div',{className:'decision-bar'},
           ce('button',{className:'decision-btn decision-a'+(decision==='A'?' sel':''),onClick:function(){setDecision('A');setIsDirty(true);}},
             'A — Accept',ce('div',{style:{fontSize:11,fontWeight:400,marginTop:2,opacity:.8}},isPT?'Grade A/B, no tuber moth':'Average totals within limits')),
