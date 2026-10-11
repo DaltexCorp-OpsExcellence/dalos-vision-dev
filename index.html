@@ -425,9 +425,9 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .side-ws{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;border-radius:9px;background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--sidebar-text);font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;text-align:left}
 .side-ws:hover{background:var(--sidebar2);border-color:color-mix(in srgb,var(--accent2) 60%,rgba(255,255,255,.15))}
 .side-ws svg{width:15px;height:15px;opacity:.8;flex-shrink:0}
-.side-look{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;padding:4px 8px;border-radius:999px;background:transparent;border:1px solid rgba(255,255,255,.18);color:var(--sidebar-text);font:500 10.5px var(--font-body);cursor:pointer;white-space:nowrap}
-.side-look:hover{background:var(--sidebar2)}.side-look:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
-.side-look svg{width:11px;height:11px;opacity:.8}
+.side-look{display:inline-flex;align-items:center;gap:4px;padding:0;background:none;border:0;color:var(--sidebar-text);opacity:.8;font:500 10px var(--font-body);cursor:pointer;white-space:nowrap;text-decoration:underline dotted;text-underline-offset:3px}
+.side-look:hover{opacity:1;text-decoration-style:solid}.side-look:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
+.side-look svg{width:9px;height:9px}
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
 .topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-shrink:0;gap:8px}
 .topbar-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
@@ -19370,11 +19370,12 @@ function App(){
               liveCurrentUser.name.split(' ').map(function(n){return n[0];}).slice(0,2).join('')),
             ce('div',{style:{overflow:'hidden',flex:1,minWidth:0}},
               ce('div',{style:{fontSize:12,color:'var(--sidebar-text)',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},currentUser.name),
-              ce('div',{style:{fontSize:10,color:'var(--sidebar-muted)'}},role.label)
-            ),
-            VISION_GLASS&&ce('button',{type:'button',className:'side-look',title:'Switch between the new Glass look and the classic look (this browser only)',onClick:visionGlassToggle},
-              ce('svg',{viewBox:'0 0 16 16',fill:'currentColor','aria-hidden':'true'},ce('path',{d:'M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z'})),
-              visionGlassOn()?'Classic':'Glass')
+              ce('div',{style:{fontSize:10,color:'var(--sidebar-muted)',display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}},role.label,
+                VISION_GLASS&&ce('span',{'aria-hidden':'true',style:{opacity:.5}},'\u00b7'),
+                VISION_GLASS&&ce('button',{type:'button',className:'side-look',title:'Switch between the new Glass look and the classic look (this browser only)',onClick:visionGlassToggle},
+                  ce('svg',{viewBox:'0 0 16 16',fill:'currentColor','aria-hidden':'true'},ce('path',{d:'M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z'})),
+                  visionGlassOn()?'Classic look':'Glass look'))
+            )
           ),
           ce('div',{className:'nav-item',style:{fontSize:12},onClick:signOut},
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z'})),
