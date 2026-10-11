@@ -16384,7 +16384,6 @@ function vmxFadeTree(el,keep,D){if(!el||el.nodeType!==1||el.tagName==='STYLE'||e
   if(inKeep||holds){var cs=getComputedStyle(el);
     if(inKeep){var hasText=Array.prototype.some.call(el.childNodes,function(n){return n.nodeType===3&&n.textContent.trim();});if(hasText)vmxA(el,[{color:cs.color},{color:'rgba(0,0,0,0)'}],{duration:D.pre});}
     else if(!vmxClear(cs.backgroundColor)||cs.backgroundImage!=='none'||cs.boxShadow!=='none')vmxA(el,[{backgroundColor:cs.backgroundColor,boxShadow:cs.boxShadow==='none'?'0 0 0 rgba(0,0,0,0)':cs.boxShadow},{backgroundColor:'rgba(0,0,0,0)',boxShadow:'0 0 0 rgba(0,0,0,0)'}],{duration:D.pre});
-    if(!inKeep&&cs.backgroundImage!=='none')vmxOut(el,D);
     Array.prototype.forEach.call(el.children,function(c){vmxFadeTree(c,keep,D);});return;}
   vmxOut(el,D);}
 /* what each side is made of */
