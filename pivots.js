@@ -1447,12 +1447,13 @@ function PivotsInspectionForm(props){
   function ptFarmPatch(row,newFarm,which){var ef=row.extraFields||{};var fk=which==='v2'?'sampleFarm2':'sampleFarm',pk=which==='v2'?'samplePlot2':'samplePlot';var piv=ptPivotsFor(newFarm);var cur=ef[pk]||'';var o={};o[fk]=newFarm;o[pk]=(cur&&piv.indexOf(cur)>=0)?cur:(piv.length===1?piv[0]:'');return o;}
   var PT_CELL={padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:11,width:'100%',background:'var(--card)',minWidth:0};
   /* select that never blanks a saved value that is no longer in the header list */
-  function ptSelect(value,opts,onChange,style,label,fmt){
-    var o=(opts||[]).slice();var stale=value&&o.indexOf(value)<0;
-    /* a value that is no longer in the header list is shown in red and blocks Save */
-    return ce('select',{style:Object.assign({},PT_CELL,style||{},stale?{borderColor:'var(--red)',background:'var(--red-bg)',color:'var(--red)'}:{}),value:value||'','aria-label':label||undefined,'aria-invalid':stale?'true':undefined,title:stale?(value+' is no longer in the header \u2014 pick again or add it back'):undefined,onChange:function(e){onChange(e.target.value);}},
+  function ptSelect(value,opts,onChange,style,label,fmt,fromList){
+    var o=(opts||[]).slice();var stale=value&&o.indexOf(value)<0;var src=fromList?'the list':'the header';
+    /* a value no longer in the header (farm/pivot/trace/variety) is shown in red and blocks Save;
+       fromList (bag type / size grade from the DB lists) is shown in red only — old bags keep their value */
+    return ce('select',{style:Object.assign({},PT_CELL,style||{},stale?{borderColor:'var(--red)',background:'var(--red-bg)',color:'var(--red)'}:{}),value:value||'','aria-label':label||undefined,'aria-invalid':stale?'true':undefined,title:stale?(value+' is no longer in '+src+' \u2014 pick again or add it back'):undefined,onChange:function(e){onChange(e.target.value);}},
       ce('option',{value:''},'—'),
-      stale&&ce('option',{key:'__stale',value:value},(fmt?fmt(value):value)+' (not in header)'),
+      stale&&ce('option',{key:'__stale',value:value},(fmt?fmt(value):value)+' (not in '+(fromList?'list':'header')+')'),
       o.map(function(x){return ce('option',{key:x,value:x},fmt?fmt(x):x);}));
   }
   
@@ -1554,8 +1555,8 @@ function PivotsInspectionForm(props){
             ptVarCell(row,pIdx,false),
             fc[0],fc[1],fc[2],
             ce('input',{type:'date',value:row.opDate||'',onChange:function(e){updateRowField(pIdx,row.id,'opDate',e.target.value);},'aria-label':'Bag date',style:Object.assign({},PT_CELL,{fontSize:11,fontFamily:'var(--font-mono)'})}),
-            ptSelect(ef.package_type||'',PT_BAG_TYPES.map(function(b){return b.name;}),function(v){ptPatchEF(pIdx,row.id,{package_type:v});},null,'Bag type'),
-            ptSelect(ef.size_grade||'',PT_SIZE_GRADES,function(v){ptPatchEF(pIdx,row.id,{size_grade:v});},{fontFamily:'var(--font-mono)'},'Size grade'),
+            ptSelect(ef.package_type||'',PT_BAG_TYPES.map(function(b){return b.name;}),function(v){ptPatchEF(pIdx,row.id,{package_type:v});},null,'Bag type',null,true),
+            ptSelect(ef.size_grade||'',PT_SIZE_GRADES,function(v){ptPatchEF(pIdx,row.id,{size_grade:v});},{fontFamily:'var(--font-mono)'},'Size grade',null,true),
             ptWeightInput(row,pIdx,false),
             ce('input',{type:'number',step:'1',min:'0',value:ef.peat_g||'',placeholder:'g','aria-label':'Peat grams',onChange:function(e){ptPatchEF(pIdx,row.id,{peat_g:e.target.value});},style:Object.assign({},PT_CELL,{fontSize:12,fontFamily:'var(--font-mono)',textAlign:'right'})}),
             ptSewing(row,pIdx,false),
@@ -1584,8 +1585,8 @@ function PivotsInspectionForm(props){
       ce('div',null,lab('Pivot'),fc[1]),
       ce('div',{style:{gridColumn:'span 2'}},lab('Trace code'),fc[2]),
       ce('div',null,lab('Date'),ce('input',{style:big,type:'date',value:row.opDate||'',onChange:function(e){updateRowField(pIdx,row.id,'opDate',e.target.value);}})),
-      ce('div',null,lab('Bag type'),ptSelect(ef.package_type||'',PT_BAG_TYPES.map(function(b){return b.name;}),function(v){ptPatchEF(pIdx,row.id,{package_type:v});},{fontSize:14,padding:'8px 10px',minHeight:40},'Bag type')),
-      ce('div',null,lab('Size'),ptSelect(ef.size_grade||'',PT_SIZE_GRADES,function(v){ptPatchEF(pIdx,row.id,{size_grade:v});},{fontSize:14,padding:'8px 10px',minHeight:40,fontFamily:'var(--font-mono)'},'Size grade')),
+      ce('div',null,lab('Bag type'),ptSelect(ef.package_type||'',PT_BAG_TYPES.map(function(b){return b.name;}),function(v){ptPatchEF(pIdx,row.id,{package_type:v});},{fontSize:14,padding:'8px 10px',minHeight:40},'Bag type',null,true)),
+      ce('div',null,lab('Size'),ptSelect(ef.size_grade||'',PT_SIZE_GRADES,function(v){ptPatchEF(pIdx,row.id,{size_grade:v});},{fontSize:14,padding:'8px 10px',minHeight:40,fontFamily:'var(--font-mono)'},'Size grade',null,true)),
       ce('div',null,lab('Bag kg'),ptWeightInput(row,pIdx,true)),
       ce('div',null,lab('Peat g'),ce('input',{style:Object.assign({},big,{textAlign:'right'}),type:'number',step:'1',min:'0',placeholder:'g',value:ef.peat_g||'',onChange:function(e){ptPatchEF(pIdx,row.id,{peat_g:e.target.value});}})),
       ce('div',null,lab('Sewing'),ptSewing(row,pIdx,true)),
