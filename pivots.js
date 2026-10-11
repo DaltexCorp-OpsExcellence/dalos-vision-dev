@@ -202,6 +202,7 @@ function PivotsInspectionForm(props){
   },[]);
   /* ── Dirty tracking + draft — must be first so setIsDirty is in scope ── */
   var sIsDirty=useState(false); var isDirty=sIsDirty[0]; var setIsDirty=sIsDirty[1];
+  useVisionCrumbGuard(function(){return {isDirty:isDirty,draftKey:draftKey};}); /* leaving via the path asks about unsaved changes */
   /* User edits mark the form dirty (drives autosave + leave warning). Programmatic loads — draft restore,
      LOT prefill, edit-load, New-LOT reset — keep using the raw setters so they don't. */
   function markDirty(){setIsDirty(true);}
@@ -2091,10 +2092,7 @@ function PivotsInspectionForm(props){
       ce('div',{className:'form-topbar-left-group',style:{display:'flex',alignItems:'center',gap:8,minWidth:0,flex:1}},
         ce('button',{className:'btn btn-secondary btn-sm',onClick:safeClose,style:{flexShrink:0,padding:'6px 10px'}},'← Back'),
         ce('div',{className:'form-topbar-title',style:{fontFamily:'var(--font-display)',fontSize:16,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},isEdit?'Edit':'New inspection'),
-        ce('div',{className:'topbar-badge',style:{display:'flex',alignItems:'center',gap:6,background:packhouse.color+'14',border:'1px solid '+packhouse.color+'40',borderRadius:6,padding:'3px 10px',flexShrink:0}},
-          ce('div',{style:{width:7,height:7,borderRadius:'50%',background:packhouse.color,flexShrink:0}}),
-          ce('span',{style:{fontSize:11,fontWeight:600,color:packhouse.color}},packhouse.name)
-        ),
+        ce(VisionCrumb,{className:'vcr-form',cropId:cropId,ph:packhouse,crop:visionCropInfo(config,cropId)}),
         /* Season chip — where this inspection will be SAVED (the season currently open).
            Green when it's the active/current season, amber when it's a different one. */
         (function(){

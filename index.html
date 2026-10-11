@@ -443,13 +443,15 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .vcr-chg:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 .vcr-chg:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
 .vcr-s:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
-.vcr-ph{font-weight:600}.vcr-fix,.vcr-fix:hover{cursor:default;background:none;text-decoration:none}
+.vcr-ph{font-weight:600}.vcr-fix,.vcr-fix:hover{cursor:default;background:none;text-decoration:none!important}
 .vcr-pr{color:var(--text);font-weight:600;flex-shrink:0}
 .vcr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .vg .vcr{background:rgba(232,245,236,.6);border-color:rgba(142,203,164,.6)}
-/* a form is open: its own bar shows the packhouse, so drop the breadcrumb (and don't navigate away mid-form) */
-.main:has(.form-topbar) .vcr{display:none}
-@media (max-width:600px){.topbar-title.vcr-has{display:none}.main:has(.form-topbar) .topbar-title.vcr-has{display:block}.vcr{height:40px;border-radius:20px;font-size:13px}.vcr-s{padding:9px 9px}.vcr-line{display:none}.vcr-chg{padding:7px 11px;font-size:12px}}
+/* a form is open: the path moves into the form bar next to the season/LOT pills (≥768); on phones the form bar hides badges, so the topbar keeps it */
+.form-topbar .vcr{height:30px;flex-shrink:1;font-size:11.5px}.form-topbar .vcr-s{padding:4px 7px}.form-topbar .vcr-chg{padding:3px 9px;font-size:11px}
+@media (min-width:768px){.main:has(.form-topbar) .topbar .vcr{display:none}}
+@media (max-width:767px){.form-topbar .vcr-form{display:none}}
+@media (max-width:600px){.topbar-title.vcr-has{display:none}.vcr{height:40px;border-radius:20px;font-size:13px}.vcr-s{padding:9px 9px}.vcr-line{display:none}.vcr-chg{padding:7px 11px;font-size:12px}}
 .page{padding:16px;flex:1}
 
 /* ── Hide number input spinners — reclaims space occupied by up/down arrows ── */
@@ -1233,6 +1235,7 @@ function InspectionForm(props){
   },[]);
   /* ── Dirty tracking + draft — must be first so setIsDirty is in scope ── */
   var sIsDirty=useState(false); var isDirty=sIsDirty[0]; var setIsDirty=sIsDirty[1];
+  useVisionCrumbGuard(function(){return {isDirty:isDirty,draftKey:draftKey};}); /* leaving via the path asks about unsaved changes */
   /* User edits mark the form dirty (drives autosave + leave warning). Programmatic loads — draft restore,
      LOT prefill, edit-load, New-LOT reset — keep using the raw setters so they don't. */
   function markDirty(){setIsDirty(true);}
@@ -2740,10 +2743,7 @@ function InspectionForm(props){
       ce('div',{className:'form-topbar-left-group',style:{display:'flex',alignItems:'center',gap:8,minWidth:0,flex:1}},
         ce('button',{className:'btn btn-secondary btn-sm',onClick:safeClose,style:{flexShrink:0,padding:'6px 10px'}},'← Back'),
         ce('div',{className:'form-topbar-title',style:{fontFamily:'var(--font-display)',fontSize:16,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},isEdit?'Edit':'New inspection'),
-        ce('div',{className:'topbar-badge',style:{display:'flex',alignItems:'center',gap:6,background:packhouse.color+'14',border:'1px solid '+packhouse.color+'40',borderRadius:6,padding:'3px 10px',flexShrink:0}},
-          ce('div',{style:{width:7,height:7,borderRadius:'50%',background:packhouse.color,flexShrink:0}}),
-          ce('span',{style:{fontSize:11,fontWeight:600,color:packhouse.color}},packhouse.name)
-        ),
+        ce(VisionCrumb,{className:'vcr-form',cropId:cropId,ph:packhouse,crop:visionCropInfo(config,cropId)}),
         /* Season chip — where this inspection will be SAVED (the season currently open).
            Green when it's the active/current season, amber when it's a different one. */
         (function(){
@@ -16324,6 +16324,39 @@ function useFormRoundTrip(formOpen,key){var was=React.useRef(formOpen),top=React
 /* Phone inspection form */
 function visionStepVal(cur,dir){var v=parseFloat(cur);if(isNaN(v))v=0;v=Math.round((v+dir*0.1)*10)/10;if(v<0)v=0;return v===0?'':String(v);}
 function visionPhoneForm(){return visionMobileFixOn()&&window.innerWidth<768;}
+/* Export Inspection path: Line › Packhouse › Product + Change. Each step reopens the start page at that step.
+   Used in the listing topbar and (merged with the season/LOT pills) in the form bar. App fills visionCrumbCtx each render;
+   an open form registers visionCrumbGuard so leaving through the path asks about unsaved changes. */
+var visionCrumbCtx={locked:true,nav:null},visionCrumbGuard=null;
+function VisionCrumb(props){
+  var cropId=props.cropId,ph=props.ph||{},crop=props.crop||{};
+  var ln=landingLineOf(cropId),lnName=(LANDING_LINES.find(function(l){return l.id===ln;})||{}).name||'';
+  var glass=visionGlassOn(),locked=visionCrumbCtx.locked;
+  /* outside Export Inspection (e.g. a form opened from Escalation Review) the path is read-only */
+  if(visionCrumbCtx.view!=='fg')return ce('nav',{className:'vcr'+(props.className?' '+props.className:''),'aria-label':'Location'},
+    glass&&ce('span',{className:'vcr-s vcr-fix vcr-line'},lnName),glass&&ce('i',{className:'vcr-line','aria-hidden':'true'},'\u203a'),
+    ce('span',{className:'vcr-s vcr-ph vcr-fix',style:{color:ph.color}},ph.name),ce('i',{'aria-hidden':'true'},'\u203a'),
+    ce('span',{className:'vcr-s vcr-pr vcr-fix'},ce('span',{className:'vcr-dot',style:{background:crop.color}}),crop.name));
+  function back(seed){if(visionCrumbGuard&&!visionCrumbGuard())return;if(visionCrumbCtx.nav)visionCrumbCtx.nav(seed);}
+  return ce('nav',{className:'vcr'+(props.className?' '+props.className:''),'aria-label':'Location'},
+    glass&&ce('button',{type:'button',className:'vcr-s vcr-line',title:'Change line',onClick:function(){back(null);}},lnName),
+    glass&&ce('i',{className:'vcr-line','aria-hidden':'true'},'›'),
+    locked?ce('span',{className:'vcr-s vcr-ph vcr-fix',style:{color:ph.color}},ph.name)
+      :ce('button',{type:'button',className:'vcr-s vcr-ph',title:'Change packhouse',style:{color:ph.color},onClick:function(){back(glass?{line:ln}:null);}},ph.name),
+    ce('i',{'aria-hidden':'true'},'›'),
+    ce('button',{type:'button',className:'vcr-s vcr-pr','aria-current':'page',title:'Change product',onClick:function(){back({line:ln,ph:ph.id});}},
+      ce('span',{className:'vcr-dot',style:{background:crop.color}}),crop.name),
+    ce('button',{type:'button',className:'vcr-chg',title:'Change packhouse or product',onClick:function(){back({line:ln,ph:ph.id});}},
+      ce('svg',{viewBox:'0 0 16 16',fill:'currentColor','aria-hidden':'true'},ce('path',{d:'M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5zm14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5z'})),
+      'Change'));
+}
+/* form side: product info + leave-guard registration */
+function useVisionCrumbGuard(get){
+  var r=React.useRef(get);r.current=get;
+  React.useEffect(function(){var g=function(){var st=r.current()||{};if(st.isDirty&&!window.confirm('You have unsaved changes. Leave without saving?'))return false;try{if(st.draftKey)localStorage.removeItem(st.draftKey);}catch(e){}return true;};
+    visionCrumbGuard=g;return function(){if(visionCrumbGuard===g)visionCrumbGuard=null;};},[]);
+}
+function visionCropInfo(config,cropId){var c=((config&&config.products)||CROPS).find(function(x){return x.id===cropId;})||{};return {name:c.name||cropId,color:c.color||'#2b5c3f'};}
 function VisionFormStrip(props){
   var s=React.useState([]),secs=s[0],setSecs=s[1];var nz=React.useState(false),onlyNz=nz[0],setNz=nz[1];
   React.useEffect(function(){if(!visionPhoneForm())return;function scan(){
@@ -18843,6 +18876,7 @@ function App(){
     );
   }
 
+  visionCrumbCtx={view:view,locked:!perms.allPackhouses,nav:function(seed){setLandingInit(seed);setCropId(null);if(perms.allPackhouses)setPhId(null);}};
   return ce('div',{className:'layout'+(visionGlassOn()?' lg-layout vg':'')+(visionScrollFixOn()?' sfx':'')},sessionExpiredOverlay,mkSidebar(),
     ce('div',{className:'main'},
       cur.id&&ce('div',{className:'topbar'},
@@ -18851,22 +18885,7 @@ function App(){
             ce('svg',{width:18,height:18,viewBox:'0 0 16 16',fill:'#fff'},ce('path',{d:'M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z'}))
           ),
           ce('div',{className:'topbar-title'+(view==='fg'&&phId&&cropId&&!phLoading?' vcr-has':'')},cur.label),
-          view==='fg'&&phId&&cropId&&!phLoading?(function(){
-            var ln=landingLineOf(cropId),lnName=(LANDING_LINES.find(function(l){return l.id===ln;})||{}).name||'';
-            var lockedPh=!perms.allPackhouses,glass=visionGlassOn();
-            function back(seed){setLandingInit(seed);setCropId(null);if(perms.allPackhouses)setPhId(null);}
-            return ce('nav',{className:'vcr','aria-label':'Location'},
-              glass&&ce('button',{type:'button',className:'vcr-s vcr-line',title:'Change line',onClick:function(){back(null);}},lnName),
-              glass&&ce('i',{className:'vcr-line','aria-hidden':'true'},'\u203a'),
-              lockedPh?ce('span',{className:'vcr-s vcr-ph vcr-fix',style:{color:phInfo.color}},phInfo.name)
-                :ce('button',{type:'button',className:'vcr-s vcr-ph',title:'Change packhouse',style:{color:phInfo.color},onClick:function(){back(glass?{line:ln}:null);}},phInfo.name),
-              ce('i',{'aria-hidden':'true'},'\u203a'),
-              ce('button',{type:'button',className:'vcr-s vcr-pr','aria-current':'page',title:'Change product',onClick:function(){back({line:ln,ph:phId});}},
-                ce('span',{className:'vcr-dot',style:{background:cropInfo.color}}),cropInfo.name),
-              ce('button',{type:'button',className:'vcr-chg',title:'Change packhouse or product',onClick:function(){back({line:ln,ph:phId});}},
-                ce('svg',{viewBox:'0 0 16 16',fill:'currentColor','aria-hidden':'true'},ce('path',{d:'M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5zm14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5z'})),
-                'Change'));
-          })():
+          view==='fg'&&phId&&cropId&&!phLoading?ce(VisionCrumb,{cropId:cropId,ph:phInfo,crop:cropInfo}):
           phId&&ce('div',{style:{display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,padding:'3px 10px'}},
             phLoading
               ?ce('div',{style:{display:'flex',alignItems:'center',gap:6}},
