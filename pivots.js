@@ -110,15 +110,8 @@ function ptApplyBootstrap(cfg){
       cfg.varietiesFull=vf;
       cfg.varieties=Object.assign({},cfg.varieties||{},{potatoes:PT_VARIETIES.slice()});
     }
-    /* STAGING ONLY: Test Packhouse handles Potatoes (no DB change — Tarek 2026-10-06). */
-    var href=(typeof window!=='undefined'&&window.location&&window.location.href)||'';
-    if(href.indexOf('dalos-vision-dev')>-1||href.indexOf('localhost')>-1){
-      cfg.packhouses=(cfg.packhouses||[]).map(function(p){
-        var isTest=(p.initials==='TP')||/^test packhouse$/i.test(p.name||'');
-        if(isTest&&(p.crops||[]).indexOf('potatoes')<0) return Object.assign({},p,{crops:(p.crops||[]).concat(['potatoes'])});
-        return p;
-      });
-    }
+    /* Which packhouses handle Potatoes comes from the DB (packhouses.product_ids, set in Admin) —
+       Test Packhouse got 'potatoes' there on 2026-10-12, replacing a staging-only hard-code. */
   }catch(e){console.warn('[DalOS] potato bootstrap skipped:',e&&e.message);}
   return cfg;
 }
