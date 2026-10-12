@@ -45,13 +45,9 @@ var CSS=[
 '.sv2-btn:disabled{opacity:.55;cursor:not-allowed}',
 '.sv2-btn:focus-visible,.sv2 [data-act]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
 '.sv2-reset{font:500 12px var(--font-body);border:1px solid var(--border2);background:var(--card);color:var(--text2);border-radius:20px;padding:4px 11px;cursor:pointer;display:none}.sv2-reset.show{display:inline-block}',
-'.sv2-facets{display:grid;gap:6px}',
-'.sv2-fgroup{display:flex;flex-wrap:wrap;gap:5px;align-items:center}',
-'.sv2-flab{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);min-width:86px}',
-'.sv2-chipf{font:12px var(--font-body);border:1px solid var(--border);background:var(--card);color:var(--text2);border-radius:20px;padding:2px 9px;cursor:pointer}',
-'.sv2-chipf .c{font-family:var(--font-mono);font-size:10.5px;color:var(--text3);margin-left:5px}',
-'.sv2-chipf.on{border-color:var(--accent);color:var(--accent);background:var(--green-bg)}',
-'.sv2-chipf.dis{opacity:.45;cursor:default}',
+'.sv2-fsels{display:flex;flex-wrap:wrap;gap:8px}',
+'.sv2-fsel{width:auto;max-width:220px;padding:7px 28px 7px 10px;border-radius:8px}',
+'.sv2-fsel.on{border-color:var(--accent);color:var(--accent);background-color:var(--green-bg)}',
 '.sv2-tw{overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:var(--r2)}',
 '.sv2-tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:12.5px}',
 '.sv2-tbl th{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);text-align:left;padding:8px 10px;border-bottom:2px solid var(--border2);font-weight:600;white-space:nowrap;user-select:none}',
@@ -140,7 +136,7 @@ var CSS=[
 '@media (max-width:700px){',
 '  .sv2-desk{display:none!important}.sv2-cards,.sv2-lcards{display:grid}',
 '  .sv2-grid{grid-template-columns:repeat(2,minmax(0,1fr))}',
-'  .sv2-flab{min-width:0;width:100%}',
+'  .sv2-fsels{width:100%}.sv2-fsel{flex:1 1 140px;max-width:none}',
 '  .sv2-search{flex-basis:100%;max-width:none}',
 '  .sv2-in,.sv2-search input{font-size:16px}',  /* no iOS zoom-on-focus */
 '  .sv2-btn,.sv2-back{min-height:40px}',
@@ -214,11 +210,11 @@ function createInstance(host,O){
     '<div class="sv2-banner" id="sv2-banner"><span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+SNAPSHOT_NOTE+'</span></div>'+
     '<div class="sv2-toolbar">'+
      '<div class="sv2-search" id="sv2-searchwrap"><input id="sv2-q" type="search" placeholder="Search container, client, vessel, booking, invoice, lot, port…" autocomplete="off" aria-label="Search shipments"><button type="button" class="sv2-clr" data-act="clearQ" aria-label="Clear search">✕</button></div>'+
+     '<span class="sv2-fsels" id="sv2-facets"></span>'+
      '<button type="button" class="sv2-reset" id="sv2-resetbtn" data-act="resetAll">Reset filters</button>'+
      '<span class="sv2-sp"></span>'+
      '<button type="button" class="sv2-btn" data-act="openCreate">+ New shipment</button>'+
     '</div>'+
-    '<div class="sv2-facets" id="sv2-facets"></div>'+
     '<div class="sv2-tw sv2-desk"><table class="sv2-tbl"><thead><tr id="sv2-thead"></tr></thead><tbody id="sv2-listbody"></tbody></table></div>'+
     '<div class="sv2-cards" id="sv2-cards"></div>'+
     '<div class="sv2-note" id="sv2-countnote"></div><div id="sv2-showmore"></div>'+
@@ -624,15 +620,15 @@ function createInstance(host,O){
   function anyFilter(){return !!(ST.q||ST.f.cls.length||ST.f.region.length||ST.f.client.length||ST.f.status.length);}
   function hl(s){s=String(s==null?'':s);var t=(ST.q||'').trim();if(!t)return esc(s);var i=s.toLowerCase().indexOf(t);if(i<0)return esc(s);
     return esc(s.slice(0,i))+'<span class="sv2-hl">'+esc(s.slice(i,i+t.length))+'</span>'+esc(s.slice(i+t.length));}
+  var ALL_LABEL={cls:'All client classes',region:'All destinations',client:'All clients',status:'All statuses'};
   function renderFacets(){
     el('facets').innerHTML=FACETS.filter(function(f){return f.vals.length>1;}).map(function(f){
-      var chips=f.vals.map(function(v){
+      var cur=ST.f[f.key][0]||'';
+      var opts=f.vals.slice().sort(function(a,b){return String(a).localeCompare(String(b));}).map(function(v){
         var n=DATA.filter(function(c){return passSearch(c)&&passFacets(c,f.key)&&f.match(c,v);}).length;
-        var on=ST.f[f.key].indexOf(v)>=0,dis=(n===0&&!on);
-        /* value travels in a data- attribute (HTML-escaped) and is read back by the delegated handler — never spliced into JS */
-        return '<button type="button" class="sv2-chipf'+(on?' on':'')+(dis?' dis':'')+'"'+(dis?' disabled':'')+' data-act="facet" data-fk="'+f.key+'" data-fv="'+esc(v)+'" aria-pressed="'+(on?'true':'false')+'">'+esc(v)+(on?' ×':'<span class="c">'+n+'</span>')+'</button>';
+        return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+(n===0&&v!==cur?' disabled':'')+'>'+esc(v)+' ('+n+')</option>';
       }).join('');
-      return '<div class="sv2-fgroup"><span class="sv2-flab">'+f.label+'</span>'+chips+'</div>';
+      return '<select class="sv2-in sv2-fsel'+(cur?' on':'')+'" data-chg="facet" data-fk="'+f.key+'" aria-label="'+f.label+'"><option value="">'+ALL_LABEL[f.key]+'</option>'+opts+'</select>';
     }).join('');
   }
   function renderHead(){
@@ -721,7 +717,6 @@ function createInstance(host,O){
       case 'clearQ':clearTimeout(searchT);el('q').value='';ST.q='';ST.limit=RENDER_STEP;el('searchwrap').classList.remove('has');renderList();el('q').focus();break;
       case 'resetAll':ST.q='';ST.f={cls:[],region:[],client:[],status:[],qc:[]};ST.limit=RENDER_STEP;el('q').value='';el('searchwrap').classList.remove('has');renderList();break;
       case 'showMore':ST.limit+=RENDER_STEP;renderList();break;
-      case 'facet':{var k=t.getAttribute('data-fk'),v=t.getAttribute('data-fv');var arr=ST.f[k];if(!arr)break;var p=arr.indexOf(v);if(p>=0)arr.splice(p,1);else arr.push(v);ST.limit=RENDER_STEP;renderList();break;}
       case 'sort':{var sk=t.getAttribute('data-sk');if(ST.sortKey===sk)ST.dir=ST.dir==='asc'?'desc':'asc';else{ST.sortKey=sk;ST.dir=TEXTSORT[sk]?'asc':'desc';}renderList();break;}
       case 'toggleLine':syncLines();openRows[i]=!openRows[i];renderLines();break;
       case 'rmLine':syncLines();var d=LINES[i];if(d&&d.id)EDIT.deletedIds.push(d.id);LINES.splice(i,1);
@@ -740,6 +735,7 @@ function createInstance(host,O){
     if(c==='status')syncCtxStatus();
     else if(c==='client')fillSubclients();
     else if(c==='ldate')deriveDate();
+    else if(c==='facet'){var fk=t.getAttribute('data-fk');if(ST.f[fk]){ST.f[fk]=t.value?[t.value]:[];ST.limit=RENDER_STEP;renderList();}return;}
     else if(c==='cat'){var line=t.closest('[data-line]');if(line){var i=+line.getAttribute('data-line');syncLines();LINES[i].variety='';renderLines();}}
     if(el('vform').classList.contains('on')&&t.closest('#sv2-vform'))setDirty(true);
   }
