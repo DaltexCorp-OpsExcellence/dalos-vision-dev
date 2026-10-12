@@ -5999,11 +5999,12 @@ function FGView(props){
         var snapPallets=snap.pallets||[];
         var palletCount=snapPallets.length;
         /* Build pallet label list — show up to 3, then "+N more" */
-        var prefix=packhouse&&packhouse.initials?packhouse.initials+'-':'';
+        /* compose like the save (buildMangoSavePayload): packhouse pallet prefix, only if the label doesn't already carry it (was initials + label → 'TP-TS-8101') */
+        var prefix=(packhouse&&(packhouse.palletPrefix||packhouse.pallet_prefix))||'';
         var labelledPallets=snapPallets.filter(function(p){return (p.palletLabel||'').toString().trim();});
         var palletTagStr=PV&&PV.listing.draftTag?PV.listing.draftTag(snap):(function(){ /* potatoes: pivots.js says 'N bags' */
           if(!labelledPallets.length) return palletCount?palletCount+' pallet'+(palletCount!==1?'s':''):'—';
-          var show=labelledPallets.slice(0,3).map(function(p){return prefix+(p.palletLabel||'').toString().trim();});
+          var show=labelledPallets.slice(0,3).map(function(p){var l=(p.palletLabel||'').toString().trim();return (prefix&&!l.startsWith(prefix))?prefix+l:l;});
           var rest=labelledPallets.length-show.length;
           return show.join(', ')+(rest>0?' +'+rest+' more':'');
         })();
