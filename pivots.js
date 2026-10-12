@@ -403,8 +403,9 @@ function PivotsInspectionForm(props){
   var spk=useState(batch?batch.packing:(_d.packing||'')); var packing=spk[0]; var setPacking=spk[1];
   var slb=useState(batch?batch.labelling:(_d.labelling||('Ok'))); var labelling=slb[0]; var setLabelling=slb[1];
   var swx=useState(batch?batch.wax:(_d.wax||'')); var wax=swx[0]; var setWax=swx[1];
-  var strace=useState((function(){var r=normTC(batch&&batch.traceCodes?batch.traceCodes:(batch&&batch.traceCode?[batch.traceCode]:[]));return r.length?r:[{code:'',variety:null}];})()); var traceCodes=strace[0]; var setTraceCodes=strace[1];
-  var sdec=useState(batch?batch.decision:''); var decision=sdec[0]; var setDecision=sdec[1];
+  /* a recovered NEW-inspection draft brings its header trace codes back too (was always reset to one empty code) */
+  var strace=useState((function(){var r=normTC(batch&&batch.traceCodes?batch.traceCodes:(batch&&batch.traceCode?[batch.traceCode]:(_d.traceCodes||[])));return r.length?r:[{code:'',variety:null}];})()); var traceCodes=strace[0]; var setTraceCodes=strace[1];
+  var sdec=useState(batch?batch.decision:(_d.decision||'')); var decision=sdec[0]; var setDecision=sdec[1];
   /* A board decision (SA / SR) and a pending escalation survive an inspector edit — only an A or R
      the inspector picks changes the status (was: anything but R saved as 'Accepted'). */
   function decisionStatus(){if(decision==='SA')return 'Special Accept';if(decision==='SR')return 'Special Reject';if(decision==='R'&&batch&&batch.status==='Escalated')return 'Escalated';return decision==='R'?'Rejected':'Accepted';}
@@ -416,7 +417,7 @@ function PivotsInspectionForm(props){
   var sPtUndo=useState(null); var ptUndo=sPtUndo[0]; var setPtUndo=sPtUndo[1];
   var ptUndoTimerRef=React.useRef(null);
   React.useEffect(function(){return function(){if(ptUndoTimerRef.current)clearTimeout(ptUndoTimerRef.current);};},[]);
-  var sHL=useState(isEdit); var hdrLocked=sHL[0]; var setHdrLocked=sHL[1];
+  var sHL=useState(isEdit||!!_d.hdrLocked); var hdrLocked=sHL[0]; var setHdrLocked=sHL[1];
   /* The locked header uses pointerEvents:none, so clicks and typing are swallowed
      with no feedback — the fields still look editable. Inspectors (and I, twice
      while testing) type into a locked header, hit Save, and believe the change
@@ -2694,6 +2695,8 @@ var listing={
   brixCell:function(b){return ce('div',null,(b.sampleCount||0)+' bag'+((b.sampleCount||0)===1?'':'s'),
     ce('div',{style:{fontFamily:'var(--font-body)',fontSize:10,color:'var(--text3)',marginTop:1}},ce(PtOutcome,{id:b.id})));},
   detailInfo:function(selB){return [['Client',selB.client],['Country',selB.country],['Farm',selB.farm],['Date',selB.date],['Bags',(selB.sampleCount||0)+' sampled'],['Client sticker',selB.labelling||'—'],['Outcome',ce(PtOutcome,{id:selB.id,empty:'Not recorded',loading:'\u2026'})]];},
+  /* recovered-draft banner: 'N bags' instead of pallets */
+  draftTag:function(snap){var n=0;((snap&&snap.pallets)||[]).forEach(function(p){n+=((p&&p.rows)||[]).length;});return n+' bag'+(n===1?'':'s');},
   hidePacking:true,
   hideClearance:true,
   /* lot grade from the الشحن bands (rots / skin bag averages); tuber moth = C */
