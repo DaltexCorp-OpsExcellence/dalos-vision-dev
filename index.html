@@ -6594,6 +6594,7 @@ function AnalyticsView(props){
   var sDL=useState(false);  var defLoading=sDL[0];     var setDefLoading=sDL[1];
   var sBs=useState(null);   var defBySev=sBs[0];       var setDefBySev=sBs[1];
   var sErr=useState(null);  var err=sErr[0];           var setErr=sErr[1];
+  var sRetry=useState(0);  var retryTick=sRetry[0];   var setRetryTick=sRetry[1];
 
   /* ── Helpers ── */
   function toISO(d){return d instanceof Date?d.toISOString().split('T')[0]:d;}
@@ -6687,7 +6688,7 @@ function AnalyticsView(props){
       setCqcByClient(Object.values(cqcMap).map(function(g){return {client_id:g.client_id,cqcContainers:g.containers.size};}));
       setLoading(false);
     });
-  },[seasonId,productId,phFilter,dateMode,rangeStart,rangeEnd]);
+  },[seasonId,productId,phFilter,dateMode,rangeStart,rangeEnd,retryTick]);
 
   /* ── Auto-swap products ↔ varieties tab when product pill changes ── */
   React.useEffect(function(){
@@ -7353,7 +7354,7 @@ function AnalyticsView(props){
       TABS.map(function(t){return ce('div',Object.assign({key:t.id,className:'vg-atab'+(activeTab===t.id?' on':''),onClick:function(){setTab(t.id);},'aria-selected':activeTab===t.id,style:{fontSize:12,padding:'6px 14px',cursor:'pointer',marginBottom:'-0.5px',borderBottom:activeTab===t.id?'2px solid #2e5d3a':'2px solid transparent',color:activeTab===t.id?'#2e5d3a':'var(--text3)',fontWeight:activeTab===t.id?600:400}},visionKbd(function(){setTab(t.id);})),t.label);})),
 
     loading&&ce(VisionLoader,{label:'Loading analytics'}),
-    !loading&&err&&ce(VisionLoadError,{title:'Analytics didn\u2019t load',detail:err}),
+    !loading&&err&&ce(VisionLoadError,{title:'Analytics didn\u2019t load',detail:err,onRetry:function(){setRetryTick(function(t){return t+1;});}}),
     !loading&&!err&&inspections.length===0&&ce('div',{style:{textAlign:'center',padding:'40px 0',color:'var(--text3)',fontSize:13}},'No inspections found for the selected filters.'),
 
     /* ══ OVERVIEW ══ */
