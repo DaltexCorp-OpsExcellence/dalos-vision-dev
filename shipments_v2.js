@@ -107,6 +107,7 @@ var CSS=[
 '.sv2-lines td{padding:4px 5px;border-bottom:1px solid var(--bg2);vertical-align:middle}',
 '.sv2 .cin,.sv2 .csel{width:100%;min-width:62px;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:4px 6px;font:12px var(--font-body);color:var(--text)}',
 '.sv2 .cin.mono,.sv2 .cin.num{font-family:var(--font-mono)}.sv2 .cin.num{text-align:right;min-width:58px}',
+'.sv2 .cin.calc{background:var(--bg2);color:var(--text2);border-style:dashed;cursor:default}',
 '.sv2-lines .idx{font-family:var(--font-mono);color:var(--text3)}',
 '.sv2-lines tr.sub td,.sv2-lines tr.det td{background:var(--bg);font-size:11.5px}',
 '.sv2-lines tr.det{display:none}.sv2-lines tr.det.open{display:table-row}',
@@ -189,7 +190,7 @@ var PT_LISTS={
   ops:['يدوي','تعديل اوزان','ماكينه +تعديل','ماكينه','يدوى+تعديل','شحن مباشر','عينات'],
   packs:['جامب','بروبلين','شبك+جامب شنطه','بروبلين+جامب شنطه','شبكه + بروبلين','شبك','كيس + بروبلين'],
   colours:['اسود×ازرق×احمر','اسود×اصفر×اسود','احمر','ازرق','اسود'],
-  clients:['Burgess Farms','DANKERS'],countries:['انجلترا','المانيا','ايطاليا','روسيا','الكويت','قطر'],
+  clients:['Burgess Farms','DANKERS'],countries:['UK','Germany','Italy','Russia','Kuwait','Qatar'],
   ports:['شرق التفريعة','دمياط'],pivots:['التيسير','31','4','70','58','65','57'],farms:['التيسير','الاوقاف']
 };
 function newLinePT(){return {id:null,variety:'',pivot:'',farm:'',lot:'',size1:'',size2:'',crop_type:'',grade:'',packaging:'',package_weight:'',pack_size:'',pallets:'',brand:'',jumbo_colour:'',jumbo_count:'',sack_colour:'',sack_count:'',standard_weight:'',pascol_weight:'',op_type:'',condition:''};}
@@ -230,6 +231,7 @@ function createInstance(host,O){
   var SEASON_NAME=O.seasonName||'';
   var dead=false;
   function isCitrus(){return PRODUCT==='citrus';}
+  function hasLot(){return PRODUCT!=='grapes';}   /* Tarek 2026-10-13: Lot # everywhere except Grapes */
   var PT=(PRODUCT==='potatoes');           /* Pivots line: own fields, totals and RPCs; everything else shared */
   function blankLine(){return PT?newLinePT():newLine();}
   function q(sel){return host.querySelector(sel);}
@@ -239,6 +241,10 @@ function createInstance(host,O){
 
   var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{}};
   var LINES=[],openRows={},MODE='list',EDIT={container:null,loaded:null,deletedIds:[]};
+  /* Citrus weighbridge maths (same as the sheet, matches 100% of stored net/variance rows):
+     Pascol %  = line gross ÷ voyage gross × pascol weight;  Pascol net = Pascol % − packing;  Variance = Pascol net − net.
+     PAS_LIVE: off when an existing voyage loads (keeps the sheet's stored values), on once a weight changes or for a new shipment. */
+  var PAS_CALC={pascol_pct:1,pascol_net:1,weight_variance:1},PAS_IN={pascol_weight:1,packing_weight:1,gross_weight:1,net_weight:1},PAS_LIVE=true;
   var DATA=[],DIRTY=false,SAVING=false,SEASON_OK=false,listSeq=0,formSeq=0;
   var ST={q:'',sortKey:'loaded',dir:'desc',limit:200,f:{cls:[],region:[],client:[],status:[],qc:[]}};
   var RENDER_STEP=200;
@@ -414,13 +420,14 @@ function createInstance(host,O){
   }
 
   /* ---------------------------------------------------------- lines (desktop rows / phone cards) */
-  function cin(v,k,cls,list){var im=NUMKEYS[k]?' inputmode="'+NUMKEYS[k]+'"':'';
+  function cin(v,k,cls,list){if(isCitrus()&&PAS_CALC[k])return '<input class="cin num calc" data-k="'+k+'" readonly tabindex="-1" title="Calculated from the pascol weight, gross, packing and net weights" value="'+esc(v)+'">';
+    var im=NUMKEYS[k]?' inputmode="'+NUMKEYS[k]+'"':'';
     list=list||(k==='source_type'?'sv2-dl-source':k==='raw_source'?'sv2-dl-rawsource':'');
     return '<input class="cin '+(cls||'')+'" data-k="'+k+'"'+im+(NUMKEYS[k]?'':' dir="auto"')+' value="'+esc(v)+'"'+(list?' list="'+list+'"':'')+'>';}
   function csel(list,v,k,chg){return '<select class="csel" dir="auto" data-k="'+k+'"'+(chg?' data-chg="'+chg+'"':'')+'>'+opts(list,v)+'</select>';}
-  function ncols(){return isCitrus()?18:17;}
+  function ncols(){return (isCitrus()?18:17)-(hasLot()?0:1);}
   function headHTML(){
-    return '<tr><th></th><th>#</th><th>Category</th><th>Variety</th><th>Lot #</th><th>Daltex Class</th><th>Client Class</th><th>Carton Type</th><th>Brand</th><th>Packing</th>'+(isCitrus()?'<th>Caliber</th>':'')+
+    return '<tr><th></th><th>#</th><th>Category</th><th>Variety</th>'+(hasLot()?'<th>Lot #</th>':'')+'<th>Daltex Class</th><th>Client Class</th><th>Carton Type</th><th>Brand</th><th>Packing</th>'+(isCitrus()?'<th>Caliber</th>':'')+
       '<th class="num">Pallets</th><th class="num">Cartons</th><th class="num">Net t</th><th class="num">Gross t</th><th>Count</th><th>Trace code</th><th></th></tr>';
   }
   function rowHTML_line(d,i){
@@ -429,7 +436,7 @@ function createInstance(host,O){
       '<td class="idx">'+(i+1)+'</td>'+
       '<td>'+csel(catNames(),d.category,'category','cat')+'</td>'+
       '<td>'+csel(varsFor(d.category),d.variety,'variety')+'</td>'+
-      '<td>'+cin(d.lot,'lot','mono')+'</td><td>'+cin(d.daltex_class,'daltex_class')+'</td><td>'+cin(d.client_class,'client_class')+'</td>'+
+      (hasLot()?'<td>'+cin(d.lot,'lot','mono')+'</td>':'')+'<td>'+cin(d.daltex_class,'daltex_class')+'</td><td>'+cin(d.client_class,'client_class')+'</td>'+
       '<td>'+csel(REF.cartonTypes,d.carton_type,'carton_type')+'</td><td>'+cin(d.brand,'brand')+'</td><td>'+cin(d.packaging_type,'packaging_type')+'</td>'+
       (isCitrus()?'<td>'+cin(d.caliber,'caliber','mono')+'</td>':'')+
       '<td>'+cin(d.pallet_count,'pallet_count','num')+'</td><td>'+cin(d.carton_count,'carton_count','num')+'</td>'+
@@ -446,11 +453,11 @@ function createInstance(host,O){
       '<div><div class="sv2-dlab">Carton Net (kg)</div>'+cin(d.carton_net_weight,'carton_net_weight','num')+'</div>'+
       '<div><div class="sv2-dlab">Carton Gross (kg)</div>'+cin(d.carton_gross_weight,'carton_gross_weight','num')+'</div>'+
       (isCitrus()?
-      '<div><div class="sv2-dlab">Pascol Weight (t)</div>'+cin(d.pascol_weight,'pascol_weight','num')+'</div>'+
-      '<div><div class="sv2-dlab">Pascol Actual %</div>'+cin(d.pascol_pct,'pascol_pct','num')+'</div>'+
+      '<div><div class="sv2-dlab">Pascol Weight (t) · weighbridge</div>'+cin(d.pascol_weight,'pascol_weight','num')+'</div>'+
+      '<div><div class="sv2-dlab">Pascol Actual % · auto</div>'+cin(d.pascol_pct,'pascol_pct','num')+'</div>'+
       '<div><div class="sv2-dlab">Packing Weight (t)</div>'+cin(d.packing_weight,'packing_weight','num')+'</div>'+
-      '<div><div class="sv2-dlab">Pascol Net (t)</div>'+cin(d.pascol_net,'pascol_net','num')+'</div>'+
-      '<div><div class="sv2-dlab">Weight Variance (t)</div>'+cin(d.weight_variance,'weight_variance','num')+'</div>':'')+
+      '<div><div class="sv2-dlab">Pascol Net (t) · auto</div>'+cin(d.pascol_net,'pascol_net','num')+'</div>'+
+      '<div><div class="sv2-dlab">Weight Variance (t) · auto</div>'+cin(d.weight_variance,'weight_variance','num')+'</div>':'')+
     '</div></td></tr>';
   }
   function cardHTML_line(d,i){
@@ -465,16 +472,16 @@ function createInstance(host,O){
         f('Pallets',cin(d.pallet_count,'pallet_count','num'))+f('Cartons',cin(d.carton_count,'carton_count','num'))+
         f('Net t',cin(d.net_weight,'net_weight','num'))+f('Gross t',cin(d.gross_weight,'gross_weight','num'))+
         f('Carton type',csel(REF.cartonTypes,d.carton_type,'carton_type'))+f('Brand',cin(d.brand,'brand'))+
-        f('Lot #',cin(d.lot,'lot','mono'))+f('Packing',cin(d.packaging_type,'packaging_type'))+
+        (hasLot()?f('Lot #',cin(d.lot,'lot','mono')):'')+f('Packing',cin(d.packaging_type,'packaging_type'))+
         f('Daltex class',cin(d.daltex_class,'daltex_class'))+f('Client class',cin(d.client_class,'client_class'))+
         (isCitrus()?f('Caliber',cin(d.caliber,'caliber','mono')):'')+f('Count',cin(d.count_size,'count_size','mono'))+
         f('Trace code',cin(d.traceability_code,'traceability_code','mono'),true)+
         f('Pack House (Packing)',csel(REF.packs,d.pack_house,'pack_house'),true)+
         f('Source Type',cin(d.source_type,'source_type'))+f('Raw Source',cin(d.raw_source,'raw_source'))+
         f('Carton net kg',cin(d.carton_net_weight,'carton_net_weight','num'))+f('Carton gross kg',cin(d.carton_gross_weight,'carton_gross_weight','num'))+
-        (isCitrus()?f('Pascol t',cin(d.pascol_weight,'pascol_weight','num'))+f('Pascol %',cin(d.pascol_pct,'pascol_pct','num'))+
-          f('Packing t',cin(d.packing_weight,'packing_weight','num'))+f('Pascol net t',cin(d.pascol_net,'pascol_net','num'))+
-          f('Variance t',cin(d.weight_variance,'weight_variance','num')):'')+
+        (isCitrus()?f('Pascol t',cin(d.pascol_weight,'pascol_weight','num'))+f('Pascol % · auto',cin(d.pascol_pct,'pascol_pct','num'))+
+          f('Packing t',cin(d.packing_weight,'packing_weight','num'))+f('Pascol net t · auto',cin(d.pascol_net,'pascol_net','num'))+
+          f('Variance t · auto',cin(d.weight_variance,'weight_variance','num')):'')+
         '<div class="full"><button type="button" class="sv2-btn sec sm" data-act="rmLine" data-i="'+i+'">Remove this line</button></div>'+
       '</div>'+
     '</div>';
@@ -537,7 +544,7 @@ function createInstance(host,O){
       el('lcards').innerHTML='';
       el('lhead').innerHTML=headHTML();
       el('lbody').innerHTML=LINES.map(rowHTML_line).join('');
-      el('lfoot').innerHTML='<tr><td colspan="'+(isCitrus()?11:10)+'" style="font-family:var(--font-body);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)">Totals</td><td id="sv2-tpal">0</td><td id="sv2-tctn">0</td><td id="sv2-tnet">0.00</td><td id="sv2-tgrs">0.00</td><td colspan="3"></td></tr>';
+      el('lfoot').innerHTML='<tr><td colspan="'+((isCitrus()?11:10)-(hasLot()?0:1))+'" style="font-family:var(--font-body);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)">Totals</td><td id="sv2-tpal">0</td><td id="sv2-tctn">0</td><td id="sv2-tnet">0.00</td><td id="sv2-tgrs">0.00</td><td colspan="3"></td></tr>';
     }
     recompute();
   }
@@ -553,6 +560,7 @@ function createInstance(host,O){
     if(PT){var jn=0,sk=0,pp=0,sw=0,ps=0;LINES.forEach(function(d){jn+=numOf(d.jumbo_count,1);sk+=numOf(d.sack_count,1);pp+=numOf(d.pallets,1);sw+=numOf(d.standard_weight);ps+=numOf(d.pascol_weight);});
       var st=function(id,v){var e=el(id);if(e)e.textContent=v;};
       st('slines',LINES.length);st('spal',pp.toLocaleString());st('sjumbo',jn.toLocaleString());st('ssack',sk.toLocaleString());st('snet',sw.toFixed(2)+' t');st('spas',ps.toFixed(2)+' t');return;}
+    if(isCitrus()&&PAS_LIVE)calcPascol();
     var pal=0,ctn=0,net=0,grs=0;
     LINES.forEach(function(d){pal+=numOf(d.pallet_count,1);ctn+=numOf(d.carton_count,1);net+=numOf(d.net_weight);grs+=numOf(d.gross_weight);});
     var set=function(id,v){var e=el(id);if(e)e.textContent=v;};
@@ -560,6 +568,15 @@ function createInstance(host,O){
     set('slines',LINES.length);set('spal',pal.toLocaleString());set('sctn',ctn.toLocaleString());set('snet',net.toFixed(2)+' t');
   }
 
+  function calcPascol(){
+    var blank=function(v){return String(v==null?'':v).trim()==='';},r6=function(x){return String(Number(x.toFixed(6)));};
+    var sg=0;LINES.forEach(function(d){sg+=numOf(d.gross_weight);});
+    LINES.forEach(function(d,i){
+      var ok=!blank(d.pascol_weight)&&!blank(d.gross_weight)&&sg>0,pct=ok?numOf(d.pascol_weight)*numOf(d.gross_weight)/sg:0,pn=pct-numOf(d.packing_weight);
+      var v={pascol_pct:ok?r6(pct):'',pascol_net:ok?r6(pn):'',weight_variance:ok?r6(pn-numOf(d.net_weight)):''};
+      Object.keys(v).forEach(function(k){d[k]=v[k];qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.value=v[k];});});
+    });
+  }
   /* ---------------------------------------------------------- dirty / leave */
   function setDirty(on){if(DIRTY===on)return;DIRTY=on;var c=el('dirty');if(c)c.classList.toggle('on',on);if(O.onDirty)O.onDirty(on);}
   function confirmLeave(){return !DIRTY||window.confirm('You have unsaved changes. Leave without saving?');}
@@ -745,6 +762,7 @@ function createInstance(host,O){
       setv('agent',h.agent);setv('shipper',h.shipper);
       fillHeaderSelects({status:h.shipping_status,client:h.client,subclient:h.subclient,pack_house_departure:h.pack_house_departure});
       deriveDate();syncCtxStatus();
+      PAS_LIVE=false;
       LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
       if(!LINES.length)LINES=[blankLine()];
       openRows={};renderLines();setDirty(false);
@@ -764,7 +782,7 @@ function createInstance(host,O){
   function openCreate(){
     formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;
     blankHeader();fillHeaderSelects({status:''});deriveDate();
-    LINES=[blankLine()];openRows={0:isPhone()};renderLines();
+    PAS_LIVE=true;LINES=[blankLine()];openRows={0:isPhone()};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);
     el('ftitle').textContent='New shipment';el('ctxref').textContent='New';setSeasonChip();
     showView('form');var c=el('container');if(c&&!isPhone())c.focus();
@@ -939,10 +957,10 @@ function createInstance(host,O){
       case 'showMore':ST.limit+=RENDER_STEP;renderList();break;
       case 'sort':{var sk=t.getAttribute('data-sk');if(ST.sortKey===sk)ST.dir=ST.dir==='asc'?'desc':'asc';else{ST.sortKey=sk;ST.dir=TEXTSORT[sk]?'asc':'desc';}renderList();break;}
       case 'toggleLine':syncLines();openRows[i]=!openRows[i];renderLines();break;
-      case 'rmLine':syncLines();var d=LINES[i];if(d&&d.id)EDIT.deletedIds.push(d.id);LINES.splice(i,1);
+      case 'rmLine':syncLines();PAS_LIVE=true;var d=LINES[i];if(d&&d.id)EDIT.deletedIds.push(d.id);LINES.splice(i,1);
         var no={};Object.keys(openRows).forEach(function(k){k=+k;if(k<i)no[k]=openRows[k];else if(k>i)no[k-1]=openRows[k];});openRows=no;renderLines();setDirty(true);break;
       case 'addLine':syncLines();LINES.push(blankLine());openRows[LINES.length-1]=isPhone();renderLines();setDirty(true);break;
-      case 'dupLast':syncLines();var last=LINES[LINES.length-1];var c=last?Object.assign({},last):blankLine();c.id=null;LINES.push(c);renderLines();setDirty(true);break;
+      case 'dupLast':syncLines();PAS_LIVE=true;var last=LINES[LINES.length-1];var c=last?Object.assign({},last):blankLine();c.id=null;LINES.push(c);renderLines();setDirty(true);break;
     }
   }
   function onKey(e){
@@ -956,13 +974,15 @@ function createInstance(host,O){
     else if(c==='client')fillSubclients();
     else if(c==='ldate')deriveDate();
     else if(c==='facet'){var fk=t.getAttribute('data-fk');if(ST.f[fk]){ST.f[fk]=t.value?[t.value]:[];ST.limit=RENDER_STEP;renderList();}return;}
+    else if(isCitrus()&&t.getAttribute&&t.getAttribute('data-k')==='pascol_weight'&&String(t.value).trim()){var me=t.closest('[data-line]');
+      qa('[data-line] [data-k="pascol_weight"]').forEach(function(f){if(f!==t&&f.closest('[data-line]')!==me&&!String(f.value).trim())f.value=t.value;});recompute();}
     else if(c==='cat'){var line=t.closest('[data-line]');if(line){var i=+line.getAttribute('data-line');syncLines();LINES[i].variety='';renderLines();}}
     if(el('vform').classList.contains('on')&&t.closest('#sv2-vform'))setDirty(true);
   }
   function onInput(e){
     var t=e.target;
     if(t.id==='sv2-q'){ST.q=t.value.trim().toLowerCase();ST.limit=RENDER_STEP;el('searchwrap').classList.toggle('has',!!t.value);clearTimeout(searchT);searchT=setTimeout(renderList,150);return;}
-    if(t.closest('[data-line]'))recompute();
+    if(t.closest('[data-line]')){if(PAS_IN[t.getAttribute('data-k')])PAS_LIVE=true;recompute();}
     if(el('vform').classList.contains('on')&&t.closest('#sv2-vform'))setDirty(true);
   }
   function onBlur(e){var t=e.target;if(!t.getAttribute)return;
