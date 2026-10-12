@@ -1,8 +1,8 @@
 // DalOS Vision — Shipments v2 · live read. READ ONLY. Never writes public.shipments.
-// Product: ?product=citrus|grapes|mango|pomegranate|potatoes (default citrus).
-// Auth: verify_jwt=true + in-code getUser (anon key rejected) + _shipments_v2_can_read(product) as the caller (v5, 2026-10-12). Group: (container_number, loading_date).
+// Product: ?product=citrus|grapes|mango|pomegranate|potatoes (default citrus). Optional ?season=<uuid> (v6) scopes to one season.
+// Auth: verify_jwt=true + in-code getUser (anon key rejected) + _shipments_v2_can_read(product) as the caller (v5/v6, 2026-10-12). Group: (container_number, loading_date).
 //
-// SOURCE OF TRUTH: this file mirrors the DEPLOYED function (citrus-shipments v5,
+// SOURCE OF TRUTH: this file mirrors the DEPLOYED function (citrus-shipments v6,
 // deployed 2026-10-12 from this file). If you change it, deploy it — and
 // re-sync here after any dashboard/MCP deploy — so a redeploy from the repo can
 // never silently roll back live behaviour (multi-product + potato fields).
@@ -35,13 +35,14 @@ function toDMY(iso: any): string {
 }
 const g = (rd: any, k: string) => { const v = rd?.[k]; return v === undefined || v === '' ? null : v; };
 
-async function fetchAll(product: string) {
+async function fetchAll(product: string, season: string | null) {
   const out: any[] = [];
   let from = 0;
   while (true) {
     // .order('id') — stable paging; without it Postgres may skip/duplicate rows across pages
-    const { data, error } = await db.from('shipments_v2').select(COLS)
-      .eq('product_id', product).order('id').range(from, from + 999);
+    let q = db.from('shipments_v2').select(COLS).eq('product_id', product);
+    if (season) q = q.eq('season_id', season);
+    const { data, error } = await q.order('id').range(from, from + 999);
     if (error) throw new Error(error.message);
     const page = data || [];
     out.push(...page);
@@ -106,11 +107,18 @@ Deno.serve(async (req) => {
   const { data: userRes, error: authErr } = await db.auth.getUser(token);
   if (authErr || !userRes?.user) return J({ error: 'Sign in required' }, 401);
   let product = 'citrus';
+  let season: string | null = null;
   try {
-    const p = (new URL(req.url).searchParams.get('product') || 'citrus').toLowerCase().trim();
+    const sp = new URL(req.url).searchParams;
+    const p = (sp.get('product') || 'citrus').toLowerCase().trim();
     if (PRODUCTS.indexOf(p) >= 0) product = p;
     else if (p) return J({ error: 'Unknown product' }, 400);
-  } catch (_e) { /* keep default */ }
+    const s = (sp.get('season') || '').trim();
+    if (s) {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) return J({ error: 'Bad season' }, 400);
+      season = s;
+    }
+  } catch (_e) { /* keep defaults */ }
   // Permission: same rule as the v2 RPCs (active user AND editor / product access / client_qc).
   // Evaluated AS THE CALLER (their JWT), so has_role()/auth.uid() see the real user.
   const asUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -121,9 +129,9 @@ Deno.serve(async (req) => {
   if (permErr) { console.error('citrus-shipments perm check:', permErr.message); return J({ error: 'Internal error' }, 500); }
   if (canRead !== true) return J({ error: 'No access to ' + product + ' shipments' }, 403);
   try {
-    const rows = await fetchAll(product);
+    const rows = await fetchAll(product, season);
     const containers = buildContainers(rows);
-    return J({ total: containers.length, generated_at: new Date().toISOString(), product, containers });
+    return J({ total: containers.length, generated_at: new Date().toISOString(), product, season, containers });
   } catch (err: any) {
     console.error('citrus-shipments error:', err?.message);
     return J({ error: 'Internal error' }, 500);   // don't echo PostgREST text to the client

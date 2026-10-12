@@ -9182,9 +9182,9 @@ function ExportView(props){
 ═══════════════════════════════════════ */
 var ROLES = {
   admin:       {label:'Admin',                color:'#1e2d22',badge:'#2b5c3f',
-                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true, manageLeads:true, giveAccess:true}},
+                perms:{editShipments:true, viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true, manageLeads:true, giveAccess:true}},
   power_user:  {label:'Power User',           color:'#0f5a52',badge:'#159085',
-                perms:{viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true, manageLeads:true, giveAccess:false}},
+                perms:{editShipments:true, viewFG:true, createFG:true, editFG:true, approveFG:true,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:true, viewConfig:true, viewEscalation:true, escalate:true, allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true, manageLeads:true, giveAccess:false}},
   board:       {label:'Senior Board',         color:'#2a0a5a',badge:'#6a10b0',
                 perms:{viewFG:true, createFG:false,editFG:true ,approveFG:false,viewClientQC:true,createClientQC:false,viewExport:false,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:true, escalate:false,allPackhouses:true, viewShipments:true}},
   qc_manager:  {label:'QC Manager',           color:'#2b5c3f',badge:'#4a8c62',
@@ -9196,7 +9196,7 @@ var ROLES = {
   inspector:   {label:'Inspector',            color:'#3a6a3a',badge:'#5a9a5a',
                 perms:{viewFG:true, createFG:true, editFG:true ,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false, viewShipments:false}},
   commercial:  {label:'Commercial / Export',  color:'#7a5010',badge:'#b87820',
-                perms:{viewFG:true, createFG:false,editFG:true ,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true}},
+                perms:{editShipments:true, viewFG:true, createFG:false,editFG:true ,approveFG:false,viewClientQC:true,createClientQC:true,viewExport:true,viewAnalytics:true,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:true, viewShipments:true, viewCRM:true, editCRM:true, viewLeads:true, editLeadStatus:true}},
   marketing:   {label:'Marketing',             color:'#6a2ca0',badge:'#9a5ad0',
                 perms:{viewFG:false,createFG:false,editFG:false,approveFG:false,viewClientQC:false,createClientQC:false,viewExport:false,viewAnalytics:false,viewAdmin:false,viewConfig:false,viewEscalation:false,escalate:false,allPackhouses:false,viewShipments:false,viewCRM:true, editCRM:false,viewLeads:true, editLeadStatus:true, manageLeads:true}},
   client_qc:   {label:'Client QC Management',color:'#1a4a7a',badge:'#2a6aaa',
@@ -9215,7 +9215,7 @@ var PERM_LABELS = {
   viewFG:'View inspections',createFG:'Create inspections',editFG:'Edit inspections',
   approveFG:'Approve / reject',viewClientQC:'View client reports',createClientQC:'Submit client reports',
   viewExport:'Export data',viewAnalytics:'Analytics dashboard',viewAdmin:'User management',viewConfig:'System configuration',
-  viewEscalation:'Board review / escalation queue',escalate:'Escalate batches',allPackhouses:'All packhouses',viewShipments:'View shipments',viewCRM:'CRM — claims & regions (view)',
+  viewEscalation:'Board review / escalation queue',escalate:'Escalate batches',allPackhouses:'All packhouses',viewShipments:'View shipments',editShipments:'Shipments — enter & edit (Manage sandbox)',viewCRM:'CRM — claims & regions (view)',
   editCRM:'CRM — raise/edit claims, grade, redirect',viewLeads:'Leads — view',editLeadStatus:'Leads — change status & add notes',manageLeads:'Leads — full management (create, import, assign, campaigns)'
 };
 var INITIAL_USERS = []; /* Demo users removed — users load from Supabase */
@@ -15282,6 +15282,39 @@ function CqcPreviewModal(props){
   );
 }
 
+/* Shipments "Manage" — the entry sandbox on public.shipments_v2 lives in shipments_v2.js
+   (window.ShipV2), loaded on first use so nobody else pays for it. It uses this app's own
+   supabase client and registers visionCrumbGuard so leaving with unsaved changes asks first. */
+var _shipV2Load=null;
+function loadShipV2(){
+  if(window.ShipV2)return Promise.resolve(window.ShipV2);
+  if(_shipV2Load)return _shipV2Load;
+  _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
+    s.src='shipments_v2.js?t='+Math.floor(Date.now()/600000);
+    s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
+    s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
+    document.head.appendChild(s);});
+  return _shipV2Load;
+}
+function ShipV2Host(props){
+  var ref=React.useRef(null),api=React.useRef(null);
+  var sErr=useState(''),err=sErr[0],setErr=sErr[1];
+  var sTick=useState(0),tick=sTick[0],setTick=sTick[1];
+  React.useEffect(function(){
+    var alive=true;setErr('');
+    loadShipV2().then(function(SV){
+      if(!alive||!ref.current)return;
+      api.current=SV.mount(ref.current,{sb:supabase,product:props.product,productName:props.productName,productColor:props.productColor,
+        seasonId:props.seasonId,seasonName:props.seasonName,trueActiveSeasonId:props.trueActiveSeasonId,trueActiveSeasonName:props.trueActiveSeasonName});
+      if(props.apiRef)props.apiRef.current=api.current;
+    },function(e){if(alive)setErr((e&&e.message)||'Could not load the Manage tool.');});
+    var g=function(){return !api.current||api.current.confirmLeave();};visionCrumbGuard=g;
+    return function(){alive=false;if(visionCrumbGuard===g)visionCrumbGuard=null;
+      if(api.current){api.current.unmount();api.current=null;}if(props.apiRef)props.apiRef.current=null;};
+  },[props.product,props.seasonId,tick]);
+  if(err)return ce(VisionLoadError,{title:'Manage didn\u2019t load',detail:err,pad:40,onRetry:function(){setTick(function(t){return t+1;});}});
+  return ce('div',{ref:ref});
+}
 function ShipmentsMgmt(props){
 
   var config=props.config||INITIAL_CONFIG;
@@ -15314,6 +15347,11 @@ function ShipmentsMgmt(props){
   var sStatusFilter=useState(''); var statusFilter=sStatusFilter[0]; var setStatusFilter=sStatusFilter[1];
   var sCountryFilter=useState([]); var countryFilter=sCountryFilter[0]; var setCountryFilter=sCountryFilter[1];
   var sAggMode=useState(true); var aggMode=sAggMode[0]; var setAggMode=sAggMode[1];
+  /* Manage = shipment entry sandbox (shipments_v2.js), editors only; never writes public.shipments */
+  var canManage=!!(props.perms&&props.perms.editShipments);
+  var sManage=useState(false); var manage=sManage[0]&&canManage; var setManage=sManage[1];
+  var shipV2Api=React.useRef(null);
+  function leaveManageOk(){var a=shipV2Api.current;return !manage||!a||a.confirmLeave();}
   var sSelShip=useState(null); var selShip=sSelShip[0]; var setSelShip=sSelShip[1];
   var sSelContainer=useState(null); var selContainer=sSelContainer[0]; var setSelContainer=sSelContainer[1];
   useEscClose(!!selContainer,function(){setSelContainer(null);if(typeof setSelShip==='function')setSelShip(null);});
@@ -15891,18 +15929,19 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       ce('div',{style:{position:'sticky',top:0,zIndex:20,background:'var(--bg)',borderBottom:'1px solid var(--border)',padding:'16px 16px 12px',marginBottom:0}},
       /* Topbar */
       ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}},
-        ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);setCqcShipFilter('all');}},'\u2190 Products'),
+        ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){if(!leaveManageOk())return;setManage(false);setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);setCqcShipFilter('all');}},'\u2190 Products'),
         ce('div',{style:{width:10,height:10,borderRadius:'50%',background:selProdObj.color||'var(--accent)',flexShrink:0}}),
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:16}},selProdObj.name,' Shipments'),
         totalGraded>0&&ce('span',{className:'badge badge-pass',style:{fontSize:11}},totalGraded+' graded'),
         /* Toggle */
         ce('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'3px'}},
-          ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:!aggMode?'var(--card)':'transparent',color:!aggMode?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:!aggMode?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){setAggMode(false);}},'All rows'),
-          ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:aggMode?'var(--card)':'transparent',color:aggMode?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:aggMode?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){setAggMode(true);}},'By container')
+          ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:!aggMode&&!manage?'var(--card)':'transparent',color:!aggMode&&!manage?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:!aggMode&&!manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){if(!leaveManageOk())return;setManage(false);setAggMode(false);}},'All rows'),
+          ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:aggMode&&!manage?'var(--card)':'transparent',color:aggMode&&!manage?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:aggMode&&!manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){if(!leaveManageOk())return;setManage(false);setAggMode(true);}},'By container'),
+          canManage&&ce('button',{title:'Enter and edit shipments (sandbox)','aria-pressed':manage?'true':'false',style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:manage?600:500,background:manage?'var(--card)':'transparent',color:manage?'var(--accent)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){setSelContainer(null);setManage(true);}},'Manage')
         )
       ),
       /* Filters */
-      ce('div',{className:'vsh-filters',style:{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}},
+      !manage&&ce('div',{className:'vsh-filters',style:{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}},
         ce('button',{type:'button',className:'vsh-fbtn',onClick:function(e){var on=document.documentElement.classList.toggle('vsh-f');e.currentTarget.textContent=on?'\u2715 Hide filters':'\u2699 Filters';}},'\u2699 Filters'),
         ce('input',{className:'form-input',style:{width:220,fontSize:13,padding:'6px 10px'},placeholder:'Search container, client, variety...',value:search,onChange:function(e){setSearch(e.target.value);}}),
         ce('select',{className:'form-select',style:{width:140,fontSize:13,padding:'6px 10px'},value:statusFilter,onChange:function(e){setStatusFilter(e.target.value);}},
@@ -15951,7 +15990,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         )
       ),
       /* KPIs — filtered counts */
-      ce('div',{className:'vsh-kpis',style:{display:'flex',gap:10,marginBottom:4,flexWrap:'wrap'}},
+      !manage&&ce('div',{className:'vsh-kpis',style:{display:'flex',gap:10,marginBottom:4,flexWrap:'wrap'}},
         ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},aggMode?'Containers':'Rows'),
           ce('div',{className:'kpi-value',style:{fontSize:22}},aggMode?filteredContainers.length:filteredRows.length)
@@ -15992,7 +16031,10 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       ), /* end frozen header */
       /* Table content */
       ce('div',{style:{padding:'12px 16px 16px'}},
-      /* Table */
+      /* Table — or the Manage sandbox */
+      manage?ce(ShipV2Host,{apiRef:shipV2Api,product:selProd,productName:selProdObj.name,productColor:selProdObj.color,
+        seasonId:config.activeSeasonId,seasonName:((config.seasons||[]).find(function(x){return x.id===config.activeSeasonId;})||{}).name||'',
+        trueActiveSeasonId:config.trueActiveSeasonId,trueActiveSeasonName:((config.seasons||[]).find(function(x){return x.id===config.trueActiveSeasonId;})||{}).name||''}):
       shipErr&&!loading?ce(VisionLoadError,{title:'Shipments didn\u2019t load',detail:shipErr,pad:60,onRetry:function(){setShipTick(function(t){return t+1;});}}):
       loading?ce(VisionLoader,{pad:60}):
       aggMode
@@ -16104,7 +16146,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         )
       ) /* end table content */
     ), /* end main column */
-    mkSidePanel(),
+    manage?null:mkSidePanel(),
         inspPopup&&ce(InspPreviewModal,{popup:inspPopup,onClose:function(){setInspPopup(null);}}),
         sShipCqc[0]&&ce(CqcPreviewModal,{popup:sShipCqc[0],config:config,onClose:function(){sShipCqc[1](null);}})
   );
@@ -19144,7 +19186,7 @@ function App(){
           navBackLabel:cqcLink?'Back to Shipments':(navHistory?'Back to CQC report':null)}),
         view==='analytics'  &&perms.viewAnalytics &&ce(AnalyticsView,{config:config}),
         view==='export'     &&perms.viewExport    &&ce(ExportView,{phId:phId,config:config}),
-        view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){visionSaveScroll('view:shipments');setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
+        view==='shipments'  &&perms.viewShipments &&ce(ShipmentsMgmt,{config:config,perms:perms,currentUser:liveCurrentUser,initialShip:shipReturn,onOpenCqc:function(repId,prodId,shipState){visionSaveScroll('view:shipments');setCqcLink({rep:repId,prod:prodId,ship:shipState||null});setView('clientqc');}}),
         view==='clientqc'   &&perms.viewClientQC  &&ce(ClientQCMgmt,{batches:batches,config:config,setConfig:setConfig,perms:perms,currentUser:liveCurrentUser,
           initialProd:navHistory&&navHistory.view==='clientqc'?navHistory.selCqcProd:(cqcLink?cqcLink.prod:null),
           initialSelRep:navHistory&&navHistory.view==='clientqc'?navHistory.selRep:(cqcLink?cqcLink.rep:null),
