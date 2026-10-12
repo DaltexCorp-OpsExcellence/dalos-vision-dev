@@ -226,6 +226,10 @@ function PivotsInspectionForm(props){
   /* draftId is unique per form instance:
      - Edit mode: keyed by batch.id → each inspection gets its own draft row, even across tabs
      - New inspection: keyed by tabId → each tab gets its own draft row, never overwrites another tab */
+  /* the autosave upsert currently in flight — Discard and the post-save cleanup wait for it before deleting
+     the draft row, so a late upsert can't re-create a draft that was just discarded or saved */
+  var autosaveInFlightRef=React.useRef(null);
+  function afterAutosave(fn){Promise.resolve(autosaveInFlightRef.current).then(fn,fn);}
   var draftIdRef=React.useRef((function(){
     try{
       var suffix=isEdit&&batch?('_edit_'+batch.id):('_new_'+tabId);
@@ -327,7 +331,7 @@ function PivotsInspectionForm(props){
       try{
         var uid=props.currentUser&&(props.currentUser.id||props.currentUser.userId);
         if(uid&&draftIdRef.current){
-          supabase.from('save_drafts').upsert({
+          autosaveInFlightRef.current=supabase.from('save_drafts').upsert({
             id:draftIdRef.current,
             user_id:uid,
             packhouse_id:packhouse.id||'',
@@ -371,9 +375,10 @@ function PivotsInspectionForm(props){
   function discardDraft(){
     if(!window.confirm('Discard this draft? Everything restored from it will be cleared.')) return;
     try{localStorage.removeItem(draftKey);}catch(e){}
-    [props.recoveryDraftId,draftIdRef.current].filter(function(id,i,a){return id&&a.indexOf(id)===i;}).forEach(function(id){
+    var _ids=[props.recoveryDraftId,draftIdRef.current].filter(function(id,i,a){return id&&a.indexOf(id)===i;});
+    afterAutosave(function(){_ids.forEach(function(id){
       supabase.from('save_drafts').delete().eq('id',id).then(function(r){if(r.error)console.warn('[DalOS] Draft discard failed:',r.error.message);});
-    });
+    });});
     if(props.onDiscardDraft){props.onDiscardDraft();return;}
     setPallets([newPallet(1)]);setShowDraftBanner(false);
   }
@@ -1012,8 +1017,9 @@ function PivotsInspectionForm(props){
         if(draftIdRef.current){
           var _did=draftIdRef.current;
           var _now=new Date().toISOString();
-          /* Step 1: stamp confirmed — query excludes confirmed rows so banner won't reappear */
-          supabase.from('save_drafts').update({save_confirmed_at:_now}).eq('id',_did).then(function(){
+          /* Step 1: stamp confirmed — query excludes confirmed rows so banner won't reappear
+             (after any in-flight autosave lands, so it can't re-create the row behind the delete) */
+          afterAutosave(function(){supabase.from('save_drafts').update({save_confirmed_at:_now}).eq('id',_did).then(function(){
             /* Step 2: delete — retry once on failure */
             supabase.from('save_drafts').delete().eq('id',_did).then(function(r){
               if(r.error){
@@ -1025,7 +1031,7 @@ function PivotsInspectionForm(props){
                 console.log('[DalOS] Draft cleaned up after save');
               }
             });
-          });
+          });});
           /* Clear sessionStorage key so next form gets a fresh draftId */
           try{
             var suffix=isEdit&&batch?('_edit_'+batch.id):('_new_'+tabId);
