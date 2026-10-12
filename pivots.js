@@ -365,6 +365,18 @@ function PivotsInspectionForm(props){
      30s autosave a brand-new form suddenly showed "Draft recovered" (seen by all QA agents). */
   var _restoredDraftRef=React.useRef(undefined);
   var sDraftBanner=useState(true); var showDraftBanner=sDraftBanner[0]; var setShowDraftBanner=sDraftBanner[1];
+  /* Discard a recovered draft for real (same as the orchards form, 339f8d2): delete the local copy, the
+     save_drafts row it was restored from and this form's own autosave row; the listing then remounts the
+     form — blank for a new lot, the saved values for an edit. Was: only reset the bags + the local copy. */
+  function discardDraft(){
+    if(!window.confirm('Discard this draft? Everything restored from it will be cleared.')) return;
+    try{localStorage.removeItem(draftKey);}catch(e){}
+    [props.recoveryDraftId,draftIdRef.current].filter(function(id,i,a){return id&&a.indexOf(id)===i;}).forEach(function(id){
+      supabase.from('save_drafts').delete().eq('id',id).then(function(r){if(r.error)console.warn('[DalOS] Draft discard failed:',r.error.message);});
+    });
+    if(props.onDiscardDraft){props.onDiscardDraft();return;}
+    setPallets([newPallet(1)]);setShowDraftBanner(false);
+  }
   if(_restoredDraftRef.current===undefined) _restoredDraftRef.current=(function(){
     if(props.recoveryDraft) return props.recoveryDraft;
     if(isEdit) return null;
@@ -2177,7 +2189,7 @@ function PivotsInspectionForm(props){
       restoredDraft&&showDraftBanner&&ce('div',{style:{marginBottom:10,padding:'10px 14px',background:'#FFF8E1',border:'1px solid #F9A825',borderRadius:8,display:'flex',alignItems:'center',gap:10,fontSize:12,color:'#6D4C00'}},
         ce('span',{style:{fontSize:16,flexShrink:0}},'⚠️'),
         ce('span',null,ce('strong',null,'Draft recovered. '),'Your previous unsaved data has been restored. Review and save when ready.'),
-        ce('button',{onClick:function(){try{localStorage.removeItem(draftKey);}catch(e){}setPallets([newPallet(1)]);setShowDraftBanner(false);},style:{marginLeft:'auto',padding:'3px 10px',fontSize:11,border:'1px solid #F9A825',borderRadius:4,background:'transparent',color:'#6D4C00',cursor:'pointer',flexShrink:0}},'Discard draft')
+        ce('button',{onClick:discardDraft,style:{marginLeft:'auto',padding:'3px 10px',fontSize:11,border:'1px solid #F9A825',borderRadius:4,background:'transparent',color:'#6D4C00',cursor:'pointer',flexShrink:0}},'Discard draft')
       ),
       /* GRAPES session banner */
       false,
