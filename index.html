@@ -822,6 +822,7 @@ input,select,textarea{font-size:16px!important}
 .dalos-field-error{outline:none!important;border-color:#b03030!important;animation:dalos-flash 1.4s ease-in-out 2;background:rgba(176,48,48,.06)!important}
 .dalos-field-error-wrap{border-radius:8px;padding:4px;margin:-4px;animation:dalos-flash 1.4s ease-in-out 2;background:rgba(176,48,48,.06)}
 .grape-dots::after{content:'';animation:gpdots 1.2s steps(1) infinite}
+@media (prefers-reduced-motion:reduce){.vl-anim{animation:none!important}.grape-dots::after{animation:none;content:'\2026'}}
 /* ── Tooltip handled via JS fixed overlay ── */
 .cqc-grid{border-collapse:collapse;width:100%;font-size:12px;table-layout:fixed;}
 .cqc-grid-outer{overflow-x:auto;border:1px solid var(--border);border-radius:6px;}
@@ -1474,13 +1475,14 @@ function InspectionForm(props){
   var spk=useState(batch?batch.packing:(_d.packing||'')); var packing=spk[0]; var setPacking=spk[1];
   var slb=useState(batch?batch.labelling:(_d.labelling||'')); var labelling=slb[0]; var setLabelling=slb[1];
   var swx=useState(batch?batch.wax:(_d.wax||'')); var wax=swx[0]; var setWax=swx[1];
-  var strace=useState((function(){var r=normTC(batch&&batch.traceCodes?batch.traceCodes:(batch&&batch.traceCode?[batch.traceCode]:[]));return r.length?r:[{code:'',variety:null}];})()); var traceCodes=strace[0]; var setTraceCodes=strace[1];
-  var sdec=useState(batch?batch.decision:''); var decision=sdec[0]; var setDecision=sdec[1];
+  /* a recovered NEW-inspection draft brings its header back too — trace codes, decision, lock, carton/sticker fields (were reset to defaults) */
+  var strace=useState((function(){var r=normTC(batch&&batch.traceCodes?batch.traceCodes:(batch&&batch.traceCode?[batch.traceCode]:(_d.traceCodes||[])));return r.length?r:[{code:'',variety:null}];})()); var traceCodes=strace[0]; var setTraceCodes=strace[1];
+  var sdec=useState(batch?batch.decision:(_d.decision||'')); var decision=sdec[0]; var setDecision=sdec[1];
   /* A board decision (SA / SR) and a pending escalation survive an inspector edit — only an A or R
      the inspector picks changes the status (was: anything but R saved as 'Accepted'). */
   function decisionStatus(){if(decision==='SA')return 'Special Accept';if(decision==='SR')return 'Special Reject';if(decision==='R'&&batch&&batch.status==='Escalated')return 'Escalated';return decision==='R'?'Rejected':'Accepted';}
   function decisionText(){return decision==='SA'?'Special Accept':decision==='SR'?'Special Reject':decision==='A'?'Accepted':decision==='R'?'Rejected':'\u2014';}
-  var sHL=useState(isEdit); var hdrLocked=sHL[0]; var setHdrLocked=sHL[1];
+  var sHL=useState(isEdit||!!_d.hdrLocked); var hdrLocked=sHL[0]; var setHdrLocked=sHL[1];
   /* The locked header uses pointerEvents:none, so clicks and typing are swallowed
      with no feedback — the fields still look editable. Inspectors (and I, twice
      while testing) type into a locked header, hit Save, and believe the change
@@ -1494,17 +1496,17 @@ function InspectionForm(props){
     lockHintTimerRef.current=setTimeout(function(){setLockHint(false);},6000);
   }
   React.useEffect(function(){return function(){if(lockHintTimerRef.current) clearTimeout(lockHintTimerRef.current);};},[]);
-  var sGGN=useState(batch?batch.ggn||'':''); var ggn=sGGN[0]; var setGGN=sGGN[1];
-  var sCC=useState(batch?batch.cartonColor||'':''); var cartonColor=sCC[0]; var setCartonColor=sCC[1];
-  var sCCo=useState(batch?batch.cartonCompany||'':''); var cartonCompany=sCCo[0]; var setCartonCompany=sCCo[1];
-  var sCCo2=useState(batch?batch.cartonCompany2||'':''); var cartonCompany2=sCCo2[0]; var setCartonCompany2=sCCo2[1];
-  var sPHC=useState(batch?batch.phCode||'40.01.20.02/CIP':''); var phCode=sPHC[0]; var setPHCode=sPHC[1];
-  var sFC=useState(batch?batch.farmCode||'':''); var farmCode=sFC[0]; var setFarmCode=sFC[1];
-  var sNW=useState(batch?batch.netWt||'':''); var netWt=sNW[0]; var setNetWt=sNW[1];
-  var sCT=useState(batch?batch.cartonType||'':''); var cartonType=sCT[0]; var setCartonType=sCT[1];
-  var sImp=useState(batch?batch.importer||'':''); var importer=sImp[0]; var setImporter=sImp[1];
-  var sIA=useState(batch?batch.importerAddr||'':''); var importerAddr=sIA[0]; var setImporterAddr=sIA[1];
-  var sSI=useState(batch?batch.stickerImg||'':''); var stickerImg=sSI[0]; var setStickerImg=sSI[1];
+  var sGGN=useState(batch?batch.ggn||'':(_d.ggn||'')); var ggn=sGGN[0]; var setGGN=sGGN[1];
+  var sCC=useState(batch?batch.cartonColor||'':(_d.cartonColor||'')); var cartonColor=sCC[0]; var setCartonColor=sCC[1];
+  var sCCo=useState(batch?batch.cartonCompany||'':(_d.cartonCompany||'')); var cartonCompany=sCCo[0]; var setCartonCompany=sCCo[1];
+  var sCCo2=useState(batch?batch.cartonCompany2||'':(_d.cartonCompany2||'')); var cartonCompany2=sCCo2[0]; var setCartonCompany2=sCCo2[1];
+  var sPHC=useState(batch?batch.phCode||'40.01.20.02/CIP':(_d.phCode||'')); var phCode=sPHC[0]; var setPHCode=sPHC[1];
+  var sFC=useState(batch?batch.farmCode||'':(_d.farmCode||'')); var farmCode=sFC[0]; var setFarmCode=sFC[1];
+  var sNW=useState(batch?batch.netWt||'':(_d.netWt||'')); var netWt=sNW[0]; var setNetWt=sNW[1];
+  var sCT=useState(batch?batch.cartonType||'':(_d.cartonType||'')); var cartonType=sCT[0]; var setCartonType=sCT[1];
+  var sImp=useState(batch?batch.importer||'':(_d.importer||'')); var importer=sImp[0]; var setImporter=sImp[1];
+  var sIA=useState(batch?batch.importerAddr||'':(_d.importerAddr||'')); var importerAddr=sIA[0]; var setImporterAddr=sIA[1];
+  var sSI=useState(batch?batch.stickerImg||'':(_d.stickerImg||'')); var stickerImg=sSI[0]; var setStickerImg=sSI[1];
   var sSIU=useState(false); var stickerUploading=sSIU[0]; var setStickerUploading=sSIU[1];
   /* Upload a sticker image file to Supabase Storage and return the public URL */
   function uploadStickerToStorage(file, inspectionId, callback) {
@@ -6050,31 +6052,7 @@ function FGView(props){
             ce('th',null,'Defect'),ce('th',null,'Decision'),ce('th',null,'Status'),ce('th',null,'')
           )),
           ce('tbody',null,
-            inspLoading?ce('tr',null,ce('td',{colSpan:11,style:{textAlign:'center',padding:'40px 0'}},
-              ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:14}},
-                ce('svg',{width:54,height:62,viewBox:'0 0 90 104'},
-                  ce('defs',null,
-                    ce('radialGradient',{id:'tgg1',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#c084e8'}),ce('stop',{offset:'100%',stopColor:'#7a3a9a'})),
-                    ce('radialGradient',{id:'tgg2',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#b06cd4'}),ce('stop',{offset:'100%',stopColor:'#6b2f88'})),
-                    ce('radialGradient',{id:'tgg3',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#9a56be'}),ce('stop',{offset:'100%',stopColor:'#5a2576'})),
-                    ce('radialGradient',{id:'tgg4',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#8844ac'}),ce('stop',{offset:'100%',stopColor:'#4a1b64'}))
-                  ),
-                  ce('path',{d:'M45 6 C47 10 45 14 45 18',fill:'none',stroke:'#5a3a1a',strokeWidth:2,strokeLinecap:'round'}),
-                  ce('path',{d:'M45 12 C34 6 26 10 28 18 C30 24 42 22 45 14Z',fill:'#2b5c3f',opacity:.85}),
-                  ce('path',{d:'M45 12 C56 6 64 10 62 18 C60 24 48 22 45 14Z',fill:'#3a7a4a',opacity:.65}),
-                  ce('circle',{cx:30,cy:34,r:11,fill:'url(#tgg1)',style:{animation:'gp0 1.15s ease-in-out infinite',transformOrigin:'30px 34px'}}),
-                  ce('circle',{cx:53,cy:34,r:11,fill:'url(#tgg1)',style:{animation:'gp1 1.15s ease-in-out .14s infinite',transformOrigin:'53px 34px'}}),
-                  ce('circle',{cx:26,cy:30,r:3.5,fill:'white',opacity:.22}),ce('circle',{cx:49,cy:30,r:3.5,fill:'white',opacity:.22}),
-                  ce('circle',{cx:19,cy:54,r:11,fill:'url(#tgg2)',style:{animation:'gp2 1.15s ease-in-out .28s infinite',transformOrigin:'19px 54px'}}),
-                  ce('circle',{cx:45,cy:54,r:11,fill:'url(#tgg2)',style:{animation:'gp3 1.15s ease-in-out .42s infinite',transformOrigin:'45px 54px'}}),
-                  ce('circle',{cx:71,cy:54,r:11,fill:'url(#tgg2)',style:{animation:'gp4 1.15s ease-in-out .56s infinite',transformOrigin:'71px 54px'}}),
-                  ce('circle',{cx:30,cy:74,r:11,fill:'url(#tgg3)',style:{animation:'gp5 1.15s ease-in-out .7s infinite',transformOrigin:'30px 74px'}}),
-                  ce('circle',{cx:60,cy:74,r:11,fill:'url(#tgg3)',style:{animation:'gp5 1.15s ease-in-out .84s infinite',transformOrigin:'60px 74px'}}),
-                  ce('circle',{cx:45,cy:93,r:11,fill:'url(#tgg4)',style:{animation:'gp6 1.15s ease-in-out .98s infinite',transformOrigin:'45px 93px'}})
-                ),
-                ce('div',{style:{fontSize:12,color:'#7a3a9a',fontWeight:500}},'Loading inspections',ce('span',{className:'grape-dots'}))
-              )
-            )):
+            inspLoading?ce('tr',null,ce('td',{colSpan:11,style:{textAlign:'center',padding:0}},ce(VisionLoader,{size:54,label:'Loading inspections',small:true,gap:14}))):
             (function(){
               var useContGroups=cropId==='grapes'||((cropId==='mango'||cropId==='citrus')&&grpMode==='container');
               var mangoContLots={};
@@ -10837,37 +10815,39 @@ function IntakePanel(props){
   return ce('div',{style:{border:'1px solid var(--border)',borderRadius:10,overflow:'hidden',marginBottom:16}}, header, body);
 }
 
-function ClientQCMgmt(props){
-  function grapeLoader(){
-    return ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 0',gap:18}},
-      ce('svg',{width:72,height:83,viewBox:'0 0 90 104'},
-        ce('defs',null,
-          ce('radialGradient',{id:'sggl1',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#c084e8'}),ce('stop',{offset:'100%',stopColor:'#7a3a9a'})),
-          ce('radialGradient',{id:'sggl2',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#b06cd4'}),ce('stop',{offset:'100%',stopColor:'#6b2f88'})),
-          ce('radialGradient',{id:'sggl3',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#9a56be'}),ce('stop',{offset:'100%',stopColor:'#5a2576'})),
-          ce('radialGradient',{id:'sggl4',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#8844ac'}),ce('stop',{offset:'100%',stopColor:'#4a1b64'}))
-        ),
-        ce('path',{d:'M45 6 C45 1 50 -1 52 0',fill:'none',stroke:'#5a3a1a',strokeWidth:2.5,strokeLinecap:'round'}),
-        ce('path',{d:'M45 6 C41 2 37 3 36 6',fill:'none',stroke:'#7a5a2a',strokeWidth:1.5,strokeLinecap:'round',opacity:.7}),
-        ce('path',{d:'M45 6 C47 10 45 14 45 18',fill:'none',stroke:'#5a3a1a',strokeWidth:2,strokeLinecap:'round'}),
-        ce('path',{d:'M45 12 C34 6 26 10 28 18 C30 24 42 22 45 14Z',fill:'#2b5c3f',opacity:.85}),
-        ce('path',{d:'M45 12 C56 6 64 10 62 18 C60 24 48 22 45 14Z',fill:'#3a7a4a',opacity:.65}),
-        ce('circle',{cx:30,cy:34,r:11,fill:'url(#sggl1)',style:{animation:'gp0 1.15s ease-in-out infinite',transformOrigin:'30px 34px'}}),
-        ce('circle',{cx:53,cy:34,r:11,fill:'url(#sggl1)',style:{animation:'gp1 1.15s ease-in-out .14s infinite',transformOrigin:'53px 34px'}}),
-        ce('circle',{cx:26,cy:30,r:3.5,fill:'white',opacity:.22}),ce('circle',{cx:49,cy:30,r:3.5,fill:'white',opacity:.22}),
-        ce('circle',{cx:19,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp2 1.15s ease-in-out .28s infinite',transformOrigin:'19px 54px'}}),
-        ce('circle',{cx:45,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp3 1.15s ease-in-out .42s infinite',transformOrigin:'45px 54px'}}),
-        ce('circle',{cx:71,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp4 1.15s ease-in-out .56s infinite',transformOrigin:'71px 54px'}}),
-        ce('circle',{cx:15,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:41,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:67,cy:50,r:3.5,fill:'white',opacity:.2}),
-        ce('circle',{cx:30,cy:74,r:11,fill:'url(#sggl3)',style:{animation:'gp5 1.15s ease-in-out .7s infinite',transformOrigin:'30px 74px'}}),
-        ce('circle',{cx:60,cy:74,r:11,fill:'url(#sggl3)',style:{animation:'gp5 1.15s ease-in-out .84s infinite',transformOrigin:'60px 74px'}}),
-        ce('circle',{cx:26,cy:70,r:3.5,fill:'white',opacity:.18}),ce('circle',{cx:56,cy:70,r:3.5,fill:'white',opacity:.18}),
-        ce('circle',{cx:45,cy:93,r:11,fill:'url(#sggl4)',style:{animation:'gp6 1.15s ease-in-out .98s infinite',transformOrigin:'45px 93px'}}),
-        ce('circle',{cx:41,cy:89,r:3.5,fill:'white',opacity:.15})
+/* One loading look for the whole app (Client QC, Shipments, inspections list). Change the design here only.
+   Announces itself to screen readers; holds still when the device asks for reduced motion (CSS .vl-anim). */
+function VisionLoader(props){props=props||{};var w=props.size||72,h=Math.round(w*104/90),label=props.label||'Loading';
+  function g(cx,cy,r,fill,k,d){return ce('circle',{key:k,cx:cx,cy:cy,r:r,fill:fill,className:'vl-anim',style:{animation:k+' 1.15s ease-in-out '+d+'s infinite',transformOrigin:cx+'px '+cy+'px'}});}
+  return ce('div',{role:'status','aria-live':'polite',style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:(props.pad!=null?props.pad:40)+'px 0',gap:props.gap||18}},
+    ce('svg',{width:w,height:h,viewBox:'0 0 90 104','aria-hidden':'true'},
+      ce('defs',null,
+        ce('radialGradient',{id:'vlg1',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#c084e8'}),ce('stop',{offset:'100%',stopColor:'#7a3a9a'})),
+        ce('radialGradient',{id:'vlg2',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#b06cd4'}),ce('stop',{offset:'100%',stopColor:'#6b2f88'})),
+        ce('radialGradient',{id:'vlg3',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#9a56be'}),ce('stop',{offset:'100%',stopColor:'#5a2576'})),
+        ce('radialGradient',{id:'vlg4',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#8844ac'}),ce('stop',{offset:'100%',stopColor:'#4a1b64'}))
       ),
-      ce('div',{style:{fontSize:13,fontWeight:500,color:'#7a3a9a',letterSpacing:'.6px'}},'Loading',ce('span',{className:'grape-dots'}))
-    );
-  }
+      ce('path',{d:'M45 6 C47 10 45 14 45 18',fill:'none',stroke:'#5a3a1a',strokeWidth:2,strokeLinecap:'round'}),
+      ce('path',{d:'M45 12 C34 6 26 10 28 18 C30 24 42 22 45 14Z',fill:'#2b5c3f',opacity:.85}),
+      ce('path',{d:'M45 12 C56 6 64 10 62 18 C60 24 48 22 45 14Z',fill:'#3a7a4a',opacity:.65}),
+      g(30,34,11,'url(#vlg1)','gp0',0),g(53,34,11,'url(#vlg1)','gp1',.14),
+      ce('circle',{cx:26,cy:30,r:3.5,fill:'white',opacity:.22}),ce('circle',{cx:49,cy:30,r:3.5,fill:'white',opacity:.22}),
+      g(19,54,11,'url(#vlg2)','gp2',.28),g(45,54,11,'url(#vlg2)','gp3',.42),g(71,54,11,'url(#vlg2)','gp4',.56),
+      g(30,74,11,'url(#vlg3)','gp5',.7),ce('circle',{cx:60,cy:74,r:11,fill:'url(#vlg3)',className:'vl-anim',style:{animation:'gp5 1.15s ease-in-out .84s infinite',transformOrigin:'60px 74px'}}),
+      g(45,93,11,'url(#vlg4)','gp6',.98)
+    ),
+    ce('div',{style:{fontSize:props.small?12:13,fontWeight:500,color:'#7a3a9a',letterSpacing:props.small?0:'.6px'}},label,ce('span',{className:'grape-dots','aria-hidden':'true'})));
+}
+/* What a page shows when its data could not load: a plain message and Retry, never an endless spinner. */
+function VisionLoadError(props){props=props||{};
+  return ce('div',{role:'alert',style:{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:(props.pad!=null?props.pad:40)+'px 16px',textAlign:'center'}},
+    ce('div',{style:{fontFamily:'var(--font-display)',fontSize:18,color:'var(--text)'}},props.title||'This didn’t load'),
+    ce('div',{style:{fontSize:13,color:'var(--text3)',maxWidth:420}},props.text||'Check your connection, then try again. If it keeps happening, tell the DalOS team.'),
+    props.detail?ce('div',{style:{fontSize:11,color:'var(--text3)',fontFamily:'var(--font-mono)',opacity:.75,maxWidth:420,wordBreak:'break-word'}},props.detail):null,
+    props.onRetry?ce('button',{type:'button',className:'btn btn-primary btn-sm',style:{marginTop:4},onClick:props.onRetry},'↻ Retry'):null);
+}
+function ClientQCMgmt(props){
+
   var batches=props.batches||BATCHES;
   var config=props.config||INITIAL_CONFIG;
   var setConfig=props.setConfig||function(){};
@@ -10952,6 +10932,7 @@ function ClientQCMgmt(props){
   },[showNew]);
   var sReports=useState([]); var reports=sReports[0]; var setReportsRaw=sReports[1];
   var sReloadTick=useState(0); var reloadTick=sReloadTick[0]; var setReloadTick=sReloadTick[1];
+  var sCqcLoad=useState({state:'loading',err:''}); var cqcLoad=sCqcLoad[0]; var setCqcLoad=sCqcLoad[1]; /* loading | ok | error */
   var sCqcSaving=useState(false); var cqcSaving=sCqcSaving[0]; var setCqcSaving=sCqcSaving[1];
   var sCqcSaveErr=useState(''); var cqcSaveErr=sCqcSaveErr[0]; var setCqcSaveErr=sCqcSaveErr[1];
   /* ── Score-change classify step (edit mode) ──
@@ -11178,11 +11159,12 @@ function ClientQCMgmt(props){
       }
       return page(0);
     }
+    setCqcLoad({state:'loading',err:''});
     fetchSeasonInspectionContainers().then(function(containerSet){
     /* paginated: PostgREST caps un-paged reads; the old .limit(200) hid reports beyond 200 (see fetchAllPaged pattern) */
     var cqcQuery=function(){var q=supabase.from('client_qc_reports').select('*, client_qc_defect_readings(bucket_key,value), client_qc_files(id,file_name,file_url,file_type), cqc_sample_rows(id,sample_number,sample_variety_text,sample_variety_id,sample_variety2_id,sample_farm,sample_plot,sample_farm2,sample_plot2,sample_trace_code,notes,score,brix,disputed,dispute_note,cqc_sample_defect_readings(cqc_defect_id,value)), cqc_score_revisions(id,direction,origin,from_score,to_score,sample_numbers,sample_snapshot,note,recorded_at,recorded_by,users(full_name))').order('created_at',{ascending:false});if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);q=q.is('superseded_by',null);return q;};
     (function(){var acc=[];function page(from){return cqcQuery().range(from,from+999).then(function(r){if(r.error) return {data:acc,error:r.error};var batch=r.data||[];acc=acc.concat(batch);if(batch.length<1000) return {data:acc};return page(from+1000);});}return page(0);})().then(function(res){
-        if(res.error){console.error('[DalOS] CQC load error:',res.error.message);return;}
+        if(res.error){console.error('[DalOS] CQC load error:',res.error.message);setCqcLoad({state:'error',err:res.error.message||''});return;}
         var mapped=(res.data||[]).map(function(r){
           /* live match: report container present in this season's inspection container set */
           var _liveMatched=(containerSet[normContainer(r.container_number)]===true);
@@ -11308,10 +11290,11 @@ function ClientQCMgmt(props){
           };
         });
         console.log('[DalOS] Loaded',mapped.length,'CQC reports from DB');
-        if(mapped.length>0) setReportsRaw(mapped);
+        setReportsRaw(mapped); /* an empty season is a real answer, not 'still loading' */
+        setCqcLoad({state:'ok',err:''});
       })
-      .catch(function(e){console.error('[DalOS] CQC load failed:',e);});
-    }); /* end fetchSeasonInspectionContainers().then */
+      .catch(function(e){console.error('[DalOS] CQC load failed:',e);setCqcLoad({state:'error',err:(e&&e.message)||''});});
+    }).catch(function(e){console.error('[DalOS] CQC container match load failed:',e);setCqcLoad({state:'error',err:(e&&e.message)||''});}); /* end fetchSeasonInspectionContainers().then */
   },[config.activeSeasonId,reloadTick]);
   var sSel=useState(null); var selRep=sSel[0]; var setSelRep=sSel[1];
   useEscClose(!!selRep,function(){setSelRep(null);});
@@ -13750,7 +13733,8 @@ function ClientQCMgmt(props){
       ce('div',{style:{maxWidth:680,margin:'0 auto',padding:'0 16px'}},
         ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6,color:'var(--text)'}},'Client QC'),
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:20}},'Select a product to view reports or log a new client QC report.'),
-        reports.length===0?grapeLoader():ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+        cqcLoad.state==='error'&&reports.length===0?ce(VisionLoadError,{title:'Client QC reports didn\u2019t load',detail:cqcLoad.err,onRetry:function(){setReloadTick(function(t){return t+1;});}}):
+        cqcLoad.state==='loading'&&reports.length===0?ce(VisionLoader,null):ce('div',{style:{display:'flex',flexDirection:'column',gap:14}},
         prodList.map(function(p){
           var seasonReports=config.activeSeasonId?reports.filter(function(r){return r.productId===p.id&&(r.season===config.activeSeasonId||!r.season);}):reports.filter(function(r){return r.productId===p.id;});
           var count=seasonReports.length;
@@ -15209,36 +15193,7 @@ function CqcPreviewModal(props){
 }
 
 function ShipmentsMgmt(props){
-  function grapeLoader(){
-    return ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 0',gap:18}},
-      ce('svg',{width:72,height:83,viewBox:'0 0 90 104'},
-        ce('defs',null,
-          ce('radialGradient',{id:'sggl1',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#c084e8'}),ce('stop',{offset:'100%',stopColor:'#7a3a9a'})),
-          ce('radialGradient',{id:'sggl2',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#b06cd4'}),ce('stop',{offset:'100%',stopColor:'#6b2f88'})),
-          ce('radialGradient',{id:'sggl3',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#9a56be'}),ce('stop',{offset:'100%',stopColor:'#5a2576'})),
-          ce('radialGradient',{id:'sggl4',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#8844ac'}),ce('stop',{offset:'100%',stopColor:'#4a1b64'}))
-        ),
-        ce('path',{d:'M45 6 C45 1 50 -1 52 0',fill:'none',stroke:'#5a3a1a',strokeWidth:2.5,strokeLinecap:'round'}),
-        ce('path',{d:'M45 6 C41 2 37 3 36 6',fill:'none',stroke:'#7a5a2a',strokeWidth:1.5,strokeLinecap:'round',opacity:.7}),
-        ce('path',{d:'M45 6 C47 10 45 14 45 18',fill:'none',stroke:'#5a3a1a',strokeWidth:2,strokeLinecap:'round'}),
-        ce('path',{d:'M45 12 C34 6 26 10 28 18 C30 24 42 22 45 14Z',fill:'#2b5c3f',opacity:.85}),
-        ce('path',{d:'M45 12 C56 6 64 10 62 18 C60 24 48 22 45 14Z',fill:'#3a7a4a',opacity:.65}),
-        ce('circle',{cx:30,cy:34,r:11,fill:'url(#sggl1)',style:{animation:'gp0 1.15s ease-in-out infinite',transformOrigin:'30px 34px'}}),
-        ce('circle',{cx:53,cy:34,r:11,fill:'url(#sggl1)',style:{animation:'gp1 1.15s ease-in-out .14s infinite',transformOrigin:'53px 34px'}}),
-        ce('circle',{cx:26,cy:30,r:3.5,fill:'white',opacity:.22}),ce('circle',{cx:49,cy:30,r:3.5,fill:'white',opacity:.22}),
-        ce('circle',{cx:19,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp2 1.15s ease-in-out .28s infinite',transformOrigin:'19px 54px'}}),
-        ce('circle',{cx:45,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp3 1.15s ease-in-out .42s infinite',transformOrigin:'45px 54px'}}),
-        ce('circle',{cx:71,cy:54,r:11,fill:'url(#sggl2)',style:{animation:'gp4 1.15s ease-in-out .56s infinite',transformOrigin:'71px 54px'}}),
-        ce('circle',{cx:15,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:41,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:67,cy:50,r:3.5,fill:'white',opacity:.2}),
-        ce('circle',{cx:30,cy:74,r:11,fill:'url(#sggl3)',style:{animation:'gp5 1.15s ease-in-out .7s infinite',transformOrigin:'30px 74px'}}),
-        ce('circle',{cx:60,cy:74,r:11,fill:'url(#sggl3)',style:{animation:'gp5 1.15s ease-in-out .84s infinite',transformOrigin:'60px 74px'}}),
-        ce('circle',{cx:26,cy:70,r:3.5,fill:'white',opacity:.18}),ce('circle',{cx:56,cy:70,r:3.5,fill:'white',opacity:.18}),
-        ce('circle',{cx:45,cy:93,r:11,fill:'url(#sggl4)',style:{animation:'gp6 1.15s ease-in-out .98s infinite',transformOrigin:'45px 93px'}}),
-        ce('circle',{cx:41,cy:89,r:3.5,fill:'white',opacity:.15})
-      ),
-      ce('div',{style:{fontSize:13,fontWeight:500,color:'#7a3a9a',letterSpacing:'.6px'}},'Loading',ce('span',{className:'grape-dots'}))
-    );
-  }
+
   var config=props.config||INITIAL_CONFIG;
   var currentUser=props.currentUser||{};
   var sSelProd=useState(null); var selProd=sSelProd[0]; var setSelProd=sSelProd[1];
@@ -15263,6 +15218,8 @@ function ShipmentsMgmt(props){
   },[]);
   React.useEffect(function(){var st=props.initialShip;if(st&&st.prod){setSelProd(st.prod);if(typeof setAggMode==='function')setAggMode(st.agg!==false);if(st.container)setSelContainer(st.container);if(st.ship)setSelShip(st.ship);}},[]);
   var sLoading=useState(false); var loading=sLoading[0]; var setLoading=sLoading[1];
+  var sShipErr=useState(''); var shipErr=sShipErr[0]; var setShipErr=sShipErr[1];
+  var sShipTick=useState(0); var shipTick=sShipTick[0]; var setShipTick=sShipTick[1];
   var sSearch=useState(''); var search=sSearch[0]; var setSearch=sSearch[1];
   var sStatusFilter=useState(''); var statusFilter=sStatusFilter[0]; var setStatusFilter=sStatusFilter[1];
   var sCountryFilter=useState([]); var countryFilter=sCountryFilter[0]; var setCountryFilter=sCountryFilter[1];
@@ -15332,7 +15289,7 @@ function ShipmentsMgmt(props){
     setShipments([]);
     setGrades([]);
     setCqcMatches({});setCqcRows({});setInspMatches({});setInspRows({});
-    setLoading(true);
+    setLoading(true);setShipErr('');
     setCqcEnriching(true);
     /* Supabase caps at 1000 rows per request — paginate to get all */
     var allRows=[];
@@ -15340,7 +15297,7 @@ function ShipmentsMgmt(props){
       var q=supabase.from('shipments').select('*').eq('product_id',selProd).order('loading_date',{ascending:false}).range(from,from+999);
       if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);
       q.then(function(res){
-        if(res.error){console.error('[DalOS] Shipments load error:',res.error.message);setLoading(false);setCqcEnriching(false);return;}
+        if(res.error){console.error('[DalOS] Shipments load error:',res.error.message);setShipErr(res.error.message||'error');setLoading(false);setCqcEnriching(false);return;}
         allRows=allRows.concat(res.data||[]);
         if((res.data||[]).length===1000){
           /* More pages exist */
@@ -15383,10 +15340,10 @@ function ShipmentsMgmt(props){
               }).catch(function(){setLoading(false);setCqcEnriching(false);});
           });
         }
-      });
+      }).catch(function(e){console.error('[DalOS] Shipments load failed:',e);setShipErr((e&&e.message)||'error');setLoading(false);setCqcEnriching(false);});
     }
     fetchPage(0);
-  },[selProd,config.activeSeasonId]);
+  },[selProd,config.activeSeasonId,shipTick]);
 
   function getGrade(containerNum){
     return grades.find(function(g){return g.container_number===containerNum;})||null;
@@ -15944,34 +15901,8 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       /* Table content */
       ce('div',{style:{padding:'12px 16px 16px'}},
       /* Table */
-      loading?ce('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'60px 0',gap:18}},
-        ce('svg',{width:72,height:83,viewBox:'0 0 90 104'},
-          ce('defs',null,
-            ce('radialGradient',{id:'sgg1',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#c084e8'}),ce('stop',{offset:'100%',stopColor:'#7a3a9a'})),
-            ce('radialGradient',{id:'sgg2',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#b06cd4'}),ce('stop',{offset:'100%',stopColor:'#6b2f88'})),
-            ce('radialGradient',{id:'sgg3',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#9a56be'}),ce('stop',{offset:'100%',stopColor:'#5a2576'})),
-            ce('radialGradient',{id:'sgg4',cx:'35%',cy:'30%'},ce('stop',{offset:'0%',stopColor:'#8844ac'}),ce('stop',{offset:'100%',stopColor:'#4a1b64'}))
-          ),
-          ce('path',{d:'M45 6 C45 1 50 -1 52 0',fill:'none',stroke:'#5a3a1a',strokeWidth:2.5,strokeLinecap:'round'}),
-          ce('path',{d:'M45 6 C41 2 37 3 36 6',fill:'none',stroke:'#7a5a2a',strokeWidth:1.5,strokeLinecap:'round',opacity:.7}),
-          ce('path',{d:'M45 6 C47 10 45 14 45 18',fill:'none',stroke:'#5a3a1a',strokeWidth:2,strokeLinecap:'round'}),
-          ce('path',{d:'M45 12 C34 6 26 10 28 18 C30 24 42 22 45 14Z',fill:'#2b5c3f',opacity:.85}),
-          ce('path',{d:'M45 12 C56 6 64 10 62 18 C60 24 48 22 45 14Z',fill:'#3a7a4a',opacity:.65}),
-          ce('circle',{cx:30,cy:34,r:11,fill:'url(#sgg1)',style:{animation:'gp0 1.15s ease-in-out infinite',transformOrigin:'30px 34px'}}),
-          ce('circle',{cx:53,cy:34,r:11,fill:'url(#sgg1)',style:{animation:'gp1 1.15s ease-in-out .14s infinite',transformOrigin:'53px 34px'}}),
-          ce('circle',{cx:26,cy:30,r:3.5,fill:'white',opacity:.22}),ce('circle',{cx:49,cy:30,r:3.5,fill:'white',opacity:.22}),
-          ce('circle',{cx:19,cy:54,r:11,fill:'url(#sgg2)',style:{animation:'gp2 1.15s ease-in-out .28s infinite',transformOrigin:'19px 54px'}}),
-          ce('circle',{cx:45,cy:54,r:11,fill:'url(#sgg2)',style:{animation:'gp3 1.15s ease-in-out .42s infinite',transformOrigin:'45px 54px'}}),
-          ce('circle',{cx:71,cy:54,r:11,fill:'url(#sgg2)',style:{animation:'gp4 1.15s ease-in-out .56s infinite',transformOrigin:'71px 54px'}}),
-          ce('circle',{cx:15,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:41,cy:50,r:3.5,fill:'white',opacity:.2}),ce('circle',{cx:67,cy:50,r:3.5,fill:'white',opacity:.2}),
-          ce('circle',{cx:30,cy:74,r:11,fill:'url(#sgg3)',style:{animation:'gp5 1.15s ease-in-out .7s infinite',transformOrigin:'30px 74px'}}),
-          ce('circle',{cx:60,cy:74,r:11,fill:'url(#sgg3)',style:{animation:'gp5 1.15s ease-in-out .84s infinite',transformOrigin:'60px 74px'}}),
-          ce('circle',{cx:26,cy:70,r:3.5,fill:'white',opacity:.18}),ce('circle',{cx:56,cy:70,r:3.5,fill:'white',opacity:.18}),
-          ce('circle',{cx:45,cy:93,r:11,fill:'url(#sgg4)',style:{animation:'gp6 1.15s ease-in-out .98s infinite',transformOrigin:'45px 93px'}}),
-          ce('circle',{cx:41,cy:89,r:3.5,fill:'white',opacity:.15})
-        ),
-        ce('div',{style:{fontSize:13,fontWeight:500,color:'#7a3a9a',letterSpacing:'.6px'}},'Loading',ce('span',{className:'grape-dots'}))
-      ):
+      shipErr&&!loading?ce(VisionLoadError,{title:'Shipments didn\u2019t load',detail:shipErr,pad:60,onRetry:function(){setShipTick(function(t){return t+1;});}}):
+      loading?ce(VisionLoader,{pad:60}):
       aggMode
       /* ── BY CONTAINER ── */
       ?ce('div',{className:'scroll-card'},
