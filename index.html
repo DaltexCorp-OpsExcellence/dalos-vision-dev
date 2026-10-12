@@ -5708,13 +5708,25 @@ function FGView(props){
   useSplitList(!!sel&&!isMobile&&!showNew&&!editBatch,['Brix','Farm','Decision','Client']);
   var _formOpen=!!(showNew||editBatch);var _formWas=React.useRef(_formOpen);
   var _listTop=React.useRef(0);
+  /* browser Back while a form is open closes the form (same unsaved-changes check) instead of leaving Export Inspection:
+     opening a form adds one history entry {vform:1}; Back pops it, closing the form pops it too */
+  var _formHist=React.useRef(false);
+  React.useEffect(function(){if(!_formOpen)return;
+    try{history.pushState(Object.assign({},history.state,{vform:1}),'');_formHist.current=true;}catch(e){}
+    function onPop(){if(!_formHist.current)return;
+      if(visionCrumbGuard&&!visionCrumbGuard()){try{history.pushState(Object.assign({},history.state,{vform:1}),'');}catch(e){}return;}
+      _formHist.current=false;setShowNew(false);setEditBatch(null);setRecoveryDraft(null);}
+    window.addEventListener('popstate',onPop);return function(){window.removeEventListener('popstate',onPop);};},[_formOpen]);
+  function closeForm(){var popIt=_formHist.current;_formHist.current=false;setShowNew(false);setEditBatch(null);setRecoveryDraft(null);
+    if(navBack){try{if(history.state&&history.state.vform)history.replaceState(Object.assign({},history.state,{vform:0}),'');}catch(e){}navBack();}
+    else if(popIt){try{if(history.state&&history.state.vform)history.back();}catch(e){}}}
   React.useEffect(function(){if(_formOpen)return;var m=visionScroller();if(!m)return;var tg=m===document.scrollingElement?window:m;function s(){_listTop.current=m.scrollTop;}s();tg.addEventListener('scroll',s,{passive:true});return function(){tg.removeEventListener('scroll',s);};},[_formOpen]);
   React.useLayoutEffect(function(){if(_formOpen&&!_formWas.current&&visionScrollFixOn())visionScrollMemo['fg:list']={top:_listTop.current,at:Date.now()};
     if(!_formOpen&&_formWas.current)visionRestoreScroll('fg:list');_formWas.current=_formOpen;},[_formOpen]);
 
   if(showNew||editBatch){
-    if(cropId==='potatoes'&&!PV) return ce(PivotsMissing,{onClose:function(){setShowNew(false);setEditBatch(null);setRecoveryDraft(null);if(navBack) navBack();}});
-    return ce(PV?PV.InspectionForm:InspectionForm,{batch:editBatch,packhouse:packhouse,cropId:cropId,config:config,batches:batches,currentUser:currentUser,onAddBatch:onAddBatch,onRefreshBatches:props.onRefreshBatches,recoveryDraft:recoveryDraft?recoveryDraft.snapshot:null,recoveryDraftId:recoveryDraft?recoveryDraft.id:null,onInvalidateSelB:function(ids){setSelBData(function(prev){var u=Object.assign({},prev);ids.forEach(function(id){delete u[id];});return u;});},onDiscardDraft:function(){setRecoveryDraft(null);setFormKey(function(k){return k+1;});},key:'insp-form-'+formKey,onClose:function(){setShowNew(false);setEditBatch(null);setRecoveryDraft(null);if(navBack) navBack();}});
+    if(cropId==='potatoes'&&!PV) return ce(PivotsMissing,{onClose:closeForm});
+    return ce(PV?PV.InspectionForm:InspectionForm,{batch:editBatch,packhouse:packhouse,cropId:cropId,config:config,batches:batches,currentUser:currentUser,onAddBatch:onAddBatch,onRefreshBatches:props.onRefreshBatches,recoveryDraft:recoveryDraft?recoveryDraft.snapshot:null,recoveryDraftId:recoveryDraft?recoveryDraft.id:null,onInvalidateSelB:function(ids){setSelBData(function(prev){var u=Object.assign({},prev);ids.forEach(function(id){delete u[id];});return u;});},onDiscardDraft:function(){setRecoveryDraft(null);setFormKey(function(k){return k+1;});},key:'insp-form-'+formKey,onClose:closeForm});
   }
   if(cqcBatch){
     var existingReport=CLIENT_QC_REPORTS[cqcBatch.id]||null;
@@ -8185,7 +8197,14 @@ function HomeView(props){
   var activeToday=seasonBatches.filter(function(b){return sameDay(b.savedAt)||sameDay(b.date);});
   var palletsToday=activeToday.reduce(function(s,b){return s+(b.palletCount||0);},0);
   var palletsSTD=seasonBatches.reduce(function(s,b){return s+(b.palletCount||0);},0);
-  var drafts=seasonBatches.filter(function(b){return b.status==='Draft';});
+  /* 'unsaved drafts' = this user's autosaved forms not yet saved (save_drafts, same rows as the listing's 'Unsaved draft found' banner);
+     inspections never carry status 'Draft', so the old count was always 0 */
+  var sDraftN=useState(null); var draftN=sDraftN[0]; var setDraftN=sDraftN[1];
+  var _uid=currentUser&&(currentUser.id||currentUser.userId);
+  React.useEffect(function(){if(!_uid)return;var live=true;
+    supabase.from('save_drafts').select('id',{count:'exact',head:true}).eq('user_id',_uid).is('save_confirmed_at',null)
+      .then(function(r){if(live)setDraftN(r.error?null:(r.count||0));},function(){if(live)setDraftN(null);});
+    return function(){live=false;};},[_uid]);
   var escalated=seasonBatches.filter(function(b){return b.status==='Escalated';});
 
   /* distinct crops in season */
@@ -8292,7 +8311,7 @@ function HomeView(props){
       ce('div',{className:'dh-ribbon'},
         ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv'},loading?shim(40,20):palletsToday),ce('span',{className:'dh-rl'},'pallets today')),
         ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv'},loading?shim(56,20):palletsSTD.toLocaleString()),ce('span',{className:'dh-rl'},'pallets \u00b7 season')),
-        ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv dh-gold'},loading?shim(26,20):drafts.length),ce('span',{className:'dh-rl'},'open drafts')),
+        ce('div',{className:'dh-ri'},ce('span',{className:'dh-rv dh-gold'},draftN===null?'—':draftN),ce('span',{className:'dh-rl',title:'Inspection forms you started that autosaved but were not saved yet — open the packhouse + product to restore or discard them'},'unsaved drafts')),
         ce('div',{style:{flex:1}}),
         ce('div',{className:'dh-rtime'},ce('span',{className:'dh-live'}),'Season '+currentViewSeason)
       )
@@ -15310,7 +15329,7 @@ function ShipmentsMgmt(props){
           .not('container_number','is',null)
           .range(from,from+999)
           .then(function(r){
-            if(r.error) return;
+            if(r.error){countFailed();return;}
             (r.data||[]).forEach(function(row){
               allKeys.add((row.container_number||'')+'||'+(row.carta||''));
             });
@@ -15319,8 +15338,10 @@ function ShipmentsMgmt(props){
             } else {
               setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:allKeys.size});});
             }
-          });
+          },countFailed);
       }
+      /* failed count → null = 'not counted' (was 'loading…' forever); the card still opens the product */
+      function countFailed(){setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:null});});}
       fetchCountPage(0);
     });
   },[config.activeSeasonId]);
@@ -15551,9 +15572,9 @@ function ShipmentsMgmt(props){
                   color:(!prodCounts[p.id])?'var(--text3)':(p.color||'var(--accent)'),
                   opacity:prodCounts[p.id]===undefined?.4:1,
                   animation:prodCounts[p.id]===undefined?'dalos-pulse 1.4s ease-in-out infinite':'none'
-                }},prodCounts[p.id]===undefined?'—':prodCounts[p.id]===0?'—':prodCounts[p.id]),
-                ce('div',{style:{fontSize:10,color:'var(--text3)'}},
-                  prodCounts[p.id]===undefined?'loading…':prodCounts[p.id]===0?'no data':prodCounts[p.id]===1?'voyage':'voyages')
+                }},prodCounts[p.id]===undefined||prodCounts[p.id]===null?'—':prodCounts[p.id]===0?'—':prodCounts[p.id]),
+                ce('div',{style:{fontSize:10,color:'var(--text3)'},title:prodCounts[p.id]===null?'The count didn\u2019t load — open the product to see its shipments':undefined},
+                  prodCounts[p.id]===undefined?'loading…':prodCounts[p.id]===null?'not counted':prodCounts[p.id]===0?'no data':prodCounts[p.id]===1?'voyage':'voyages')
               ),
               ce('div',{style:{color:'var(--text3)',fontSize:20,marginLeft:'auto',flexShrink:0}},'\u203a')
             );
@@ -16951,7 +16972,7 @@ function App(){
   }); var view=sv[0]; var setView=sv[1];
   React.useEffect(function(){if(!visionScrollFixOn())return;if(visionRestoreScroll('view:'+view))return;var m=visionScroller();if(m)m.scrollTop=0;},[view]);
   useListKeys();
-  React.useEffect(function(){window.location.hash=view;},[view]);
+  React.useEffect(function(){try{if(history.state&&history.state.vform&&('#'+view)!==window.location.hash){history.replaceState(Object.assign({},history.state,{vform:0}),'','#'+view);return;}}catch(e){}window.location.hash=view;},[view]);
   var viewRef=React.useRef(view);viewRef.current=view;
   /* Back / Forward change only the #view in the address: follow it (same unsaved-changes check as the menu) */
   React.useEffect(function(){function onHash(){var h=(window.location.hash||'').slice(1)||'home';if(h===viewRef.current)return;
