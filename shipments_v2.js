@@ -205,8 +205,10 @@ function numProblem(v,whole){
   if(whole&&Number(s)!==Math.trunc(Number(s)))return 'must be a whole number';
   return null;
 }
-/* stored numbers come back as e.g. "13.216000000" — show the same value without the trailing zeros (exact, no rounding) */
-function tidyNum(v){var s=String(v);return /^-?\d+(\.\d+)?$/.test(s)?String(Number(s)):s;}
+/* stored numbers come back as e.g. "13.216000000" or "13.216000000000001" — show 13.216 (trailing zeros + float noise only) */
+function tidyNum(v){var s=String(v);if(!/^-?\d+(\.\d+)?$/.test(s))return s;
+  var n=Number(s),r=Number(n.toFixed(6));   /* float noise from sheet maths (13.216000000000001) → 13.216; real decimals kept */
+  return String(Math.abs(n-r)<1e-9?r:n);}
 var NUMKEYS={pallets:'numeric',jumbo_count:'numeric',sack_count:'numeric',standard_weight:'decimal',package_weight:'decimal',pack_size:'decimal',pallet_count:'numeric',carton_count:'numeric',net_weight:'decimal',gross_weight:'decimal',carton_net_weight:'decimal',carton_gross_weight:'decimal',pascol_weight:'decimal',pascol_pct:'decimal',packing_weight:'decimal',pascol_net:'decimal',weight_variance:'decimal'};
 
 /* ============================================================== instance */
