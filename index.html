@@ -8265,7 +8265,7 @@ function HomeView(props){
     return ce('div',Object.assign({key:t.key,'data-vk':t.view,className:'dh-tile'+(t.primary?' dh-primary':''),onClick:function(){goto(t);},
         style:{animation:'dh-rise .6s '+(0.1+tiles.indexOf(t)*0.05)+'s ease both',opacity:0}},visionKbd(function(){goto(t);},t.label)),
       t.primary?ce('div',{className:'dh-sheen'}):null,
-      ce('div',{className:'dh-glow',style:{background:t.glow}}),
+      ce('div',{className:'dh-glow',style:{background:'radial-gradient(closest-side,'+t.glow+' 35%,transparent)'}}), /* gradient, not filter:blur — iOS Safari doesn't clip blurred layers to the rounded tile (square corner patch) */
       t.badge?ce('div',{className:'dh-badge'},t.badge):null,
       t.pulse?ce('div',{className:'dh-pulse'}):null,
       ce('div',{className:'dh-eyebrow-t',style:{color:t.eyebrowColor}},t.eyebrow),
@@ -8406,7 +8406,7 @@ var DH_CSS=[
 '.dh-tile{border-radius:20px;padding:22px;cursor:pointer;position:relative;overflow:hidden;transition:transform .25s cubic-bezier(.3,1.4,.5,1),box-shadow .25s,border-color .25s;display:flex;flex-direction:column;justify-content:space-between;background:rgba(255,255,255,.045);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1)}',
 '.dh-tile:hover{transform:translateY(-5px);border-color:rgba(255,255,255,.24);box-shadow:0 22px 50px rgba(0,0,0,.4)}',
 '.dh-tile:active{transform:translateY(-2px) scale(.99)}',
-'.dh-glow{position:absolute;width:120px;height:120px;border-radius:50%;filter:blur(46px);opacity:.5;top:-30px;right:-30px;transition:opacity .25s}',
+'.dh-glow{position:absolute;width:212px;height:212px;border-radius:50%;opacity:.5;top:-76px;right:-76px;transition:opacity .25s}',
 '.dh-tile:hover .dh-glow{opacity:.85}',
 '.dh-eyebrow-t{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;position:relative;z-index:2}',
 '.dh-icon{font-size:26px;line-height:1;margin-bottom:12px;position:relative;z-index:2;color:#f4f1e8}',
