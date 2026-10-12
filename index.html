@@ -15730,13 +15730,13 @@ function ShipmentsMgmt(props){
         ce('div',{style:{background:'var(--amber-bg)',border:'1px solid var(--amber-border)',borderRadius:8,padding:'12px 14px',marginBottom:12}},
           ce('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:6}},
             ce('span',{style:{fontSize:13,lineHeight:1}},'\u2192'),
-            ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--amber)',textTransform:'uppercase',letterSpacing:'.06em'}},'Moved to the CRM')
+            ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--amber)',textTransform:'uppercase',letterSpacing:'.06em'}},'Moved to DalOS Commercial')
           ),
           ce('div',{style:{fontSize:12,color:'var(--text2)',lineHeight:1.55}},
-            'Grading and claims are now recorded in the ',
-            ce('b',null,'CRM'),
-            ' section. Open ',
-            ce('b',null,'CRM \u2192 Shipments'),
+            'Grading and claims are now recorded in ',
+            ce('a',{href:'https://daloshq.com/commercial/',target:'_blank',rel:'noopener',style:{fontWeight:700,color:'inherit'}},'DalOS Commercial'),
+            '. Open ',
+            ce('b',null,'Shipments'),
             ', find this container and use ',
             ce('b',null,'Grade'),' or ',ce('b',null,'Raise claim'),'.'
           ),
