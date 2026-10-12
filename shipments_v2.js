@@ -169,6 +169,9 @@ function numOf(v,whole){
   else if(s.indexOf('.')<0&&(s.match(/,/g)||[]).length===1)s=s.replace(',','.');else s=s.replace(/,/g,'');
   var n=Number(s);return isNaN(n)?0:n;
 }
+/* Arabic-Indic / Persian digits and the Arabic decimal sign → ASCII, so the stored text copy
+   (raw_data) matches the typed number columns. Separators are left for the server to read. */
+function asciiDigits(v){return String(v==null?'':v).replace(/[\u0660-\u0669]/g,function(c){return String(c.charCodeAt(0)-0x660);}).replace(/[\u06F0-\u06F9]/g,function(c){return String(c.charCodeAt(0)-0x6F0);}).replace(/\u066B/g,'.');}
 function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pack_house:'',source_type:'',raw_source:'',pallet_count:'',carton_count:'',net_weight:'',gross_weight:'',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',pascol_net:'',weight_variance:'',traceability_code:''};}
 /* Potatoes (Pivots): lists from the الادخال entry sheet (no registry for these yet).
    Varieties are NOT here — they come from the shared varieties table (same list as potato inspections). */
@@ -627,10 +630,12 @@ function createInstance(host,O){
       hdr.season_id=SEASON;
     }
     SEASON_OK=false;
+    var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});return c;});
+    if(hdr.container_count)hdr.container_count=asciiDigits(hdr.container_count);
     setSaving(true);
     var call=(MODE==='edit')
-      ?sb.rpc(PT?'edit_shipment_v2_potato_full':'edit_shipment_v2_full',{p_header:hdr,p_lines:LINES,p_deleted_ids:EDIT.deletedIds})
-      :sb.rpc(PT?'save_shipment_v2_potato_full':'save_shipment_v2_full',{p_header:hdr,p_lines:LINES});
+      ?sb.rpc(PT?'edit_shipment_v2_potato_full':'edit_shipment_v2_full',{p_header:hdr,p_lines:lines,p_deleted_ids:EDIT.deletedIds})
+      :sb.rpc(PT?'save_shipment_v2_potato_full':'save_shipment_v2_full',{p_header:hdr,p_lines:lines});
     Promise.resolve(call).then(function(res){
       if(dead)return;
       setSaving(false);
