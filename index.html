@@ -1324,6 +1324,9 @@ function InspectionForm(props){
     try{
       var suffix=isEdit&&batch?('_edit_'+batch.id):('_new_'+tabId);
       var k='dalos_draftid_'+(packhouse.id||'')+'_'+(cropId||'grapes')+suffix;
+      /* a restored draft keeps its own row — this form takes it over, so Save/Discard clean THAT row up
+         (was: a new row; the restored one survived a save and the banner came back, inviting a duplicate) */
+      if(props.recoveryDraftId){try{sessionStorage.setItem(k,props.recoveryDraftId);}catch(e){}return props.recoveryDraftId;}
       var t=sessionStorage.getItem(k);
       if(!t){
         t=typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2));
@@ -1332,6 +1335,11 @@ function InspectionForm(props){
       return t;
     }catch(e){return Math.random().toString(36).slice(2);}
   })());
+  /* once the draft row exists (restored, or written once by this form) later autosaves only UPDATE it, so a row
+     that was saved or discarded in ANOTHER tab is never re-created — this form stops autosaving and warns instead */
+  var draftRowLiveRef=React.useRef(!!props.recoveryDraftId);
+  var draftClosedRef=React.useRef(false);
+  var sDCE=useState(false); var draftClosedElsewhere=sDCE[0]; var setDraftClosedElsewhere=sDCE[1];
   /* FIX 1+2: When restoring a draft in edit mode, apply header fields from the snapshot.
      Pallets are handled by initPallets above. Header fields need a useEffect since
      they're initialized from batch (DB state) which takes priority in useState. */
@@ -1408,6 +1416,7 @@ function InspectionForm(props){
   React.useEffect(function(){
     if(!isDirty) return;
     var timer=setInterval(function(){
+      if(draftClosedRef.current) return; /* saved/discarded in another tab — never re-create it */
       /* ── localStorage snapshot (existing) ── */
       try{
         var snap=Object.assign({},snapRef.current,{ts:Date.now()});
@@ -1419,19 +1428,29 @@ function InspectionForm(props){
       try{
         var uid=props.currentUser&&(props.currentUser.id||props.currentUser.userId);
         if(uid&&draftIdRef.current){
-          autosaveInFlightRef.current=supabase.from('save_drafts').upsert({
+          var _at=new Date().toISOString();
+          var _q=draftRowLiveRef.current
+            ? supabase.from('save_drafts').update({inspection_id:grpSessionId||null,snapshot:snap,last_autosaved_at:_at}).eq('id',draftIdRef.current).is('save_confirmed_at',null).select('id')
+            : supabase.from('save_drafts').upsert({
             id:draftIdRef.current,
             user_id:uid,
             packhouse_id:packhouse.id||'',
             product_id:cropId||'grapes',
             inspection_id:grpSessionId||null,
             snapshot:snap,
-            last_autosaved_at:new Date().toISOString()
-          },{onConflict:'id'}).then(function(r){
+            last_autosaved_at:_at
+          },{onConflict:'id'}).select('id');
+          autosaveInFlightRef.current=_q.then(function(r){
             if(r.error){
               console.warn('[DalOS] Autosave to Supabase failed:',r.error.message);
               setDraftSyncFailed(true);
+            } else if(draftRowLiveRef.current&&!(r.data&&r.data.length)){
+              /* the row is gone or confirmed: this draft was saved or discarded in another tab */
+              draftClosedRef.current=true; setDraftClosedElsewhere(true);
+              try{localStorage.removeItem(draftKey);}catch(e){}
+              console.warn('[DalOS] Draft was saved or discarded in another tab — autosave stopped here');
             } else {
+              draftRowLiveRef.current=true;
               var t=new Date();
               var ts=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
               setDraftSavedAt(ts);
@@ -1469,6 +1488,7 @@ function InspectionForm(props){
       supabase.from('save_drafts').delete().eq('id',id).then(function(r){if(r.error)console.warn('[DalOS] Draft discard failed:',r.error.message);});
     });});
     if(props.onDiscardDraft){props.onDiscardDraft();return;}
+    draftIdRef.current=(typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2))); draftRowLiveRef.current=false;
     setPallets([newPallet(1)]);setShowDraftBanner(false);
   }
   if(_restoredDraftRef.current===undefined) _restoredDraftRef.current=(function(){
@@ -2113,6 +2133,8 @@ function InspectionForm(props){
         if(draftIdRef.current){
           var _did=draftIdRef.current;
           var _now=new Date().toISOString();
+          /* the next unit in this form starts a fresh draft row */
+          draftIdRef.current=(typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2))); draftRowLiveRef.current=false;
           /* Step 1: stamp confirmed — query excludes confirmed rows so banner won't reappear
              (after any in-flight autosave lands, so it can't re-create the row behind the delete) */
           afterAutosave(function(){supabase.from('save_drafts').update({save_confirmed_at:_now}).eq('id',_did).then(function(){
@@ -3126,6 +3148,8 @@ function InspectionForm(props){
     ),
     ce('div',{className:'inspection-page',style:{padding:'18px 24px',maxWidth:1200,margin:'0 auto'}},
       /* Draft recovery banner */
+      draftClosedElsewhere&&ce('div',{role:'alert',style:{marginBottom:10,padding:'10px 14px',background:'var(--red-bg)',border:'1px solid var(--red-border)',borderRadius:8,fontSize:12,color:'var(--red)'}},
+        ce('strong',null,'This draft was saved or discarded in another tab. '),'Autosave is off here \u2014 check the list before saving, so the lot isn\u2019t saved twice.'),
       restoredDraft&&showDraftBanner&&ce('div',{style:{marginBottom:10,padding:'10px 14px',background:'#FFF8E1',border:'1px solid #F9A825',borderRadius:8,display:'flex',alignItems:'center',gap:10,fontSize:12,color:'#6D4C00'}},
         ce('span',{style:{fontSize:16,flexShrink:0}},'⚠️'),
         ce('span',null,ce('strong',null,'Draft recovered. '),'Your previous unsaved data has been restored. Review and save when ready.'),
