@@ -896,6 +896,10 @@ input,select,textarea{font-size:16px!important}
 @keyframes vs-ring{0%,100%{opacity:.4;transform:scale(.96) rotate(0deg)}50%{opacity:.85;transform:scale(1.03) rotate(6deg)}}
 @keyframes vs-grape{0%,100%{opacity:.45;transform:scale(.72)}45%,72%{opacity:1;transform:scale(1.12)}}
 @media(prefers-reduced-motion:reduce){.vs-anim .vs-ring,.vs-anim .vs-grape{animation:none;opacity:1;transform:none}}
+/* iOS Safari: date/time inputs keep a fixed native width and ignore width:100% -> they spill out of grid cells (sample card, header Date). */
+input[type=date],input[type=time]{min-width:0;max-width:100%;box-sizing:border-box}
+.sample-card-grid>*{min-width:0}
+@supports(-webkit-touch-callout:none){input[type=date],input[type=time]{-webkit-appearance:none;appearance:none;display:block;width:100%}input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left;margin:0}}
 </style>
 </head>
 <body>
@@ -4852,7 +4856,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       )
                     )
                   )
-                : ce('div',{className:'sample-card-grid',style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,padding:'10px 12px',borderBottom:'1px solid var(--border)'}},
+                : ce('div',{className:'sample-card-grid',style:{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8,padding:'10px 12px',borderBottom:'1px solid var(--border)'}},
                     (cropId==='citrus'||cropId==='mango'||cropId==='pomegranate')&&ce('div',null,
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Farm'),
                       ce('select',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:14,background:'var(--card)',minHeight:40},
