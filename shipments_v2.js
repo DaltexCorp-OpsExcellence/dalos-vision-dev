@@ -163,11 +163,13 @@ function fmtEta(s){s=String(s||'');var m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
 function packShort(p){return String(p||'').replace(/\s*\d+\s*kg.*$/i,'').replace(/Crt|Carton/i,'').trim()||p;}
 /* client-side number read for the running totals only (server re-validates):
    Arabic-Indic digits, Arabic decimal sep, comma decimal (single comma, no dot). */
-function numOf(v){
+function numOf(v,whole){
   var s=String(v==null?'':v).trim();if(!s)return 0;
   s=s.replace(/[٠-٩]/g,function(c){return String(c.charCodeAt(0)-0x660);}).replace(/[۰-۹]/g,function(c){return String(c.charCodeAt(0)-0x6F0);});
   s=s.replace(/٫/g,'.').replace(/[٬\s]/g,'');
-  if(s.indexOf('.')<0&&(s.match(/,/g)||[]).length===1)s=s.replace(',','.');else s=s.replace(/,/g,'');
+  /* counts: a comma can only be a thousands separator ("1,664" = 1664), same rule as the server */
+  if(whole)s=s.replace(/,/g,'');
+  else if(s.indexOf('.')<0&&(s.match(/,/g)||[]).length===1)s=s.replace(',','.');else s=s.replace(/,/g,'');
   var n=Number(s);return isNaN(n)?0:n;
 }
 function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pack_house:'',source_type:'',raw_source:'',pallet_count:'',carton_count:'',net_weight:'',gross_weight:'',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',pascol_net:'',weight_variance:'',traceability_code:''};}
@@ -425,7 +427,7 @@ function createInstance(host,O){
   function recompute(){
     syncLines();
     var pal=0,ctn=0,net=0,grs=0;
-    LINES.forEach(function(d){pal+=numOf(d.pallet_count);ctn+=numOf(d.carton_count);net+=numOf(d.net_weight);grs+=numOf(d.gross_weight);});
+    LINES.forEach(function(d){pal+=numOf(d.pallet_count,1);ctn+=numOf(d.carton_count,1);net+=numOf(d.net_weight);grs+=numOf(d.gross_weight);});
     var set=function(id,v){var e=el(id);if(e)e.textContent=v;};
     set('tpal',pal.toLocaleString());set('tctn',ctn.toLocaleString());set('tnet',net.toFixed(2));set('tgrs',grs.toFixed(2));
     set('slines',LINES.length);set('spal',pal.toLocaleString());set('sctn',ctn.toLocaleString());set('snet',net.toFixed(2)+' t');
