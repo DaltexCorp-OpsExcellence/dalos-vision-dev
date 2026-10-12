@@ -1,15 +1,16 @@
 // DalOS Vision — Shipments v2 · live read. READ ONLY. Never writes public.shipments.
 // Product: ?product=citrus|grapes|mango|pomegranate|potatoes (default citrus).
-// Auth: verify_jwt=true + in-code getUser (anon key rejected). Group: (container_number, loading_date).
+// Auth: verify_jwt=true + in-code getUser (anon key rejected) + _shipments_v2_can_read(product) as the caller (v5, 2026-10-12). Group: (container_number, loading_date).
 //
-// SOURCE OF TRUTH: this file mirrors the DEPLOYED function (citrus-shipments v4,
-// synced 2026-09-28 via get_edge_function). If you change it, deploy it — and
+// SOURCE OF TRUTH: this file mirrors the DEPLOYED function (citrus-shipments v5,
+// deployed 2026-10-12 from this file). If you change it, deploy it — and
 // re-sync here after any dashboard/MCP deploy — so a redeploy from the repo can
 // never silently roll back live behaviour (multi-product + potato fields).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const PRODUCTS = ['citrus', 'grapes', 'mango', 'pomegranate', 'potatoes'];
 const CORS = {
@@ -38,8 +39,9 @@ async function fetchAll(product: string) {
   const out: any[] = [];
   let from = 0;
   while (true) {
+    // .order('id') — stable paging; without it Postgres may skip/duplicate rows across pages
     const { data, error } = await db.from('shipments_v2').select(COLS)
-      .eq('product_id', product).range(from, from + 999);
+      .eq('product_id', product).order('id').range(from, from + 999);
     if (error) throw new Error(error.message);
     const page = data || [];
     out.push(...page);
@@ -109,12 +111,21 @@ Deno.serve(async (req) => {
     if (PRODUCTS.indexOf(p) >= 0) product = p;
     else if (p) return J({ error: 'Unknown product' }, 400);
   } catch (_e) { /* keep default */ }
+  // Permission: same rule as the v2 RPCs (active user AND editor / product access / client_qc).
+  // Evaluated AS THE CALLER (their JWT), so has_role()/auth.uid() see the real user.
+  const asUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: canRead, error: permErr } = await asUser.rpc('_shipments_v2_can_read', { p_product: product });
+  if (permErr) { console.error('citrus-shipments perm check:', permErr.message); return J({ error: 'Internal error' }, 500); }
+  if (canRead !== true) return J({ error: 'No access to ' + product + ' shipments' }, 403);
   try {
     const rows = await fetchAll(product);
     const containers = buildContainers(rows);
     return J({ total: containers.length, generated_at: new Date().toISOString(), product, containers });
   } catch (err: any) {
     console.error('citrus-shipments error:', err?.message);
-    return J({ error: err?.message || 'Internal error' }, 500);
+    return J({ error: 'Internal error' }, 500);   // don't echo PostgREST text to the client
   }
 });
