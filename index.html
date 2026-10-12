@@ -5349,7 +5349,7 @@ function MissingContainerRow(props){
   }
   /* Build pallet string — grapes only */
   var palletArr=b.pallets||[];
-  var palletStr=palletArr.length
+  var palletStr=PIVOTS(b.crop)?PIVOTS(b.crop).listing.bagsLabel(b):palletArr.length /* potatoes: 'N bags' (pivots.js) */
     ?palletArr.slice(0,4).map(function(p){return p.palletLabel||p.palletNo||'';}).filter(Boolean).join(' \u00b7 ')+(palletArr.length>4?' +'+(palletArr.length-4):'')
     :(b.palletCount?b.palletCount+' pallet'+(b.palletCount!==1?'s':''):'—');
   return ce('div',{style:{background:'var(--card)',border:'1px solid var(--amber-border)',borderRadius:'var(--r)',padding:'12px 14px',display:'grid',gridTemplateColumns:'1.4fr 1fr 1fr auto',gap:12,alignItems:'center'}},
@@ -5841,7 +5841,7 @@ function FGView(props){
                               b.status==='Escalated'?'#2a50c0':'var(--text3)';
               var dateStr=b.date?b.date.slice(5).replace('-','/'):'';
               var pallets=(b.pallets||[]);
-              var palletStr=pallets.length
+              var palletStr=PIVOTS(b.crop)?PIVOTS(b.crop).listing.bagsLabel(b):pallets.length /* potatoes: 'N bags' (pivots.js) */
                 ?pallets.slice(0,3).map(function(p){return p.palletLabel||p.palletNo||'';}).filter(Boolean).join(' \u00b7 ')+(pallets.length>3?' +'+(pallets.length-3):'')
                 :(b.palletCount?b.palletCount+' pallet'+(b.palletCount!==1?'s':''):'');
               /* Tags: show max 2, then +N count pill for extras */

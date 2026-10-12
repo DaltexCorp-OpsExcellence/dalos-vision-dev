@@ -2695,6 +2695,8 @@ var listing={
   brixCell:function(b){return ce('div',null,(b.sampleCount||0)+' bag'+((b.sampleCount||0)===1?'':'s'),
     ce('div',{style:{fontFamily:'var(--font-body)',fontSize:10,color:'var(--text3)',marginTop:1}},ce(PtOutcome,{id:b.id})));},
   detailInfo:function(selB){return [['Client',selB.client],['Country',selB.country],['Farm',selB.farm],['Date',selB.date],['Bags',(selB.sampleCount||0)+' sampled'],['Client sticker',selB.labelling||'—'],['Outcome',ce(PtOutcome,{id:selB.id,empty:'Not recorded',loading:'\u2026'})]];},
+  /* recent-sessions card + no-container list: 'N bags' instead of pallets */
+  bagsLabel:function(b){var n=(b&&b.sampleCount)||0;return n+' bag'+(n===1?'':'s');},
   /* recovered-draft banner: 'N bags' instead of pallets */
   draftTag:function(snap){var n=0;((snap&&snap.pallets)||[]).forEach(function(p){n+=((p&&p.rows)||[]).length;});return n+' bag'+(n===1?'':'s');},
   hidePacking:true,
