@@ -58,12 +58,18 @@ input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--te
 .dh-page.vgh .dh-ver{color:#7a7668!important;border-color:rgba(30,45,34,.15)!important;background:transparent!important}
 .dh-page.vgh .dh-pill{background:rgba(255,255,255,.7)!important;color:#3d4a40!important;border-color:rgba(30,45,34,.14)!important}
 .dh-page.vgh .dh-pill select,.dh-page.vgh .dh-season-lbl{color:#1a1a17!important}
-.dh-page.vgh .dh-eyebrow{color:#9a7a3a!important}.dh-page.vgh .dh-eyebrow-line{background:linear-gradient(90deg,#c9a96a,transparent)!important}
+.dh-page.vgh .dh-eyebrow{color:#7a5f22!important}.dh-page.vgh .dh-eyebrow-line{background:linear-gradient(90deg,#c9a96a,transparent)!important}
 .dh-page.vgh .dh-headline{color:#1a1a17!important;text-shadow:none!important}
 .dh-page.vgh .dh-accent{background:linear-gradient(120deg,#2b5c3f,#6a4fb0)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important}
 .dh-page.vgh .dh-tile{background:rgba(255,255,255,.62)!important;border:1px solid rgba(255,255,255,.85)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 10px 28px rgba(30,45,34,.10)!important;-webkit-backdrop-filter:blur(14px)!important;backdrop-filter:blur(14px)!important;animation:none!important;opacity:1!important}
 .dh-page.vgh .dh-tile:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 18px 40px rgba(30,45,34,.16)!important;border-color:rgba(142,203,164,.8)!important}
 .dh-page.vgh .dh-tile *{text-shadow:none!important}
+.dh-err{position:relative;z-index:6;display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:940px;margin:0 0 14px;padding:10px 14px;border-radius:12px;background:rgba(176,48,48,.12);border:1px solid rgba(176,48,48,.35);color:#f4d6d6;font-size:13px}
+.dh-err button{border:0;border-radius:999px;padding:5px 12px;font:600 12px var(--font-body);background:#fff;color:#8a2a2a;cursor:pointer}
+.dh-page.vgh .dh-err{background:rgba(255,255,255,.75);color:#8a2a2a;border-color:rgba(176,48,48,.35)}
+.dh-none{grid-column:1/-1;grid-row:1/-1;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:28px;border-radius:20px;background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.2);color:#f4f1e8}
+.dh-none span{opacity:.7;font-size:13px}
+.dh-page.vgh .dh-none{background:rgba(255,255,255,.55);border-color:rgba(30,45,34,.18);color:#1a1a17}
 .dh-page.vgh .dh-primary{background:rgba(232,245,236,.85)!important;border-color:rgba(142,203,164,.7)!important}
 .dh-page.vgh .dh-title,.dh-page.vgh .dh-big{color:#1a1a17!important}.dh-page.vgh .dh-big small{color:#2b5c3f!important}
 .dh-page.vgh .dh-hint{color:#6a675d!important}.dh-page.vgh .dh-icon{color:#2b5c3f!important}
@@ -150,6 +156,7 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.lg-panel{background:rgba(255,255,255,.94)}}
 /* ── Vision Glass: carries the start-page look to every view. Scope: .layout.vg ── */
 .vg{
+  --text3:#625f53; /* readable on glass (≈5.3:1); #7a7668 was ≈3.6:1 */
   --card:rgba(255,255,255,.66);
   --bg:rgba(255,255,255,.42);
   --bg2:rgba(236,232,222,.55);
@@ -174,6 +181,8 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .vg .tab.active{background:rgba(255,255,255,.88);color:var(--accent);box-shadow:0 1px 0 #fff inset,0 3px 10px rgba(30,45,34,.08)}
 /* buttons + inputs */
 .vg .btn{border-radius:10px}
+@media (max-width:600px){.cqc-pick{padding:0!important}.cqc-pcard{flex-wrap:wrap!important;padding:14px 16px!important;gap:12px!important}.cqc-pname{min-width:0!important;flex:1 1 auto}.cqc-pdiv{display:none!important}.cqc-pstats{flex-basis:100%!important;gap:16px!important;flex-wrap:wrap}}
+[role="button"]:focus-visible,.nav-item:focus-visible,.mobile-nav-item:focus-visible,.dh-tile:focus-visible,.menu-btn:focus-visible{outline:2px solid var(--accent2,#4a8c62);outline-offset:2px}
 .vg .btn-primary{background:linear-gradient(180deg,#356d4b,#2b5c3f);border-color:rgba(255,255,255,.2);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 4px 12px rgba(43,92,63,.25)}
 .vg .btn-secondary{background:rgba(255,255,255,.62);border-color:rgba(255,255,255,.8);box-shadow:0 1px 0 #fff inset,0 2px 8px rgba(30,45,34,.06)}
 .vg .btn-secondary:hover{background:rgba(255,255,255,.9)}
@@ -181,6 +190,13 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .vg .form-input:focus,.vg .form-select:focus{background:#fff;box-shadow:0 0 0 3px rgba(74,140,98,.18)}
 /* modals (inline fixed overlays): keep the panel near-opaque frosted so text stays readable */
 .vg [style*="position: fixed"] [style*="background: var(--card)"]{background:rgba(255,255,255,.9)!important;-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);border-radius:18px}
+/* …but only the panel itself: inputs, chips and inner cards inside a modal keep their own shape and no extra blur */
+.vg [style*="position: fixed"] [style*="background: var(--card)"] [style*="background: var(--card)"]{-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:revert-layer}
+/* drop-downs, suggestion lists and popovers: near-opaque frost so the page does not show through */
+.vg [style*="position: absolute"][style*="var(--card)"]{background:rgba(255,255,255,.96)!important;-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%)}
+/* sticky table headers / first columns: solid enough to read over scrolled rows */
+.vg th[style*="position: sticky"],.vg thead[style*="position: sticky"],.vg td[style*="position: sticky"]{background:rgba(250,248,243,.96)!important}
+@media (max-width:767px){html.vmf .vg .topbar{background:rgba(255,255,255,.92)}}
 @media(prefers-reduced-transparency:reduce){.vg{--card:#fff;--bg:#f6f3ec;--bg2:#ece8de}.vg .card,.vg .kpi,.vg .topbar,.vg .scroll-card,.vg .dp{background:rgba(255,255,255,.96);-webkit-backdrop-filter:none;backdrop-filter:none}}
 /* sticky bars inside pages (filter rows etc.): denser frost so content doesn't show through */
 .vg .page [style*="position: sticky"]:not(.dp):not(thead):not(th):not([style*="position: fixed"] *){background:rgba(247,244,238,.86)!important;-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);border-radius:14px}
@@ -486,7 +502,7 @@ button.lg-panel:focus-visible,.lg-stp button:focus-visible,.lg-back:focus-visibl
 .form-topbar .vcr{height:30px;flex-shrink:1;font-size:11.5px}.form-topbar .vcr-s{padding:4px 7px}.form-topbar .vcr-chg{padding:3px 9px;font-size:11px}
 @media (min-width:768px){.main:has(.form-topbar) .topbar .vcr{display:none}}
 @media (max-width:767px){.form-topbar .vcr-form{display:none}}
-@media (max-width:600px){.topbar-title.vcr-has{display:none}.vcr{height:40px;border-radius:20px;font-size:13px}.vcr-s{padding:9px 9px}.vcr-line{display:none}.vcr-chg{padding:7px 11px;font-size:12px}}
+@media (max-width:600px){.vcr{height:44px!important;border-radius:22px!important}.vcr-s{min-height:40px}.vcr-chg{min-height:36px;padding:8px 12px!important}.topbar-title.vcr-has{display:none}.vcr{height:40px;border-radius:20px;font-size:13px}.vcr-s{padding:9px 9px}.vcr-line{display:none}.vcr-chg{padding:7px 11px;font-size:12px}}
 .page{padding:16px;flex:1}
 
 /* ── Hide number input spinners — reclaims space occupied by up/down arrows ── */
@@ -5434,6 +5450,7 @@ function FGView(props){
   var batches=props.batches||BATCHES;
   var onEscalate=props.onEscalate||function(){};
   var inspLoading=props.inspLoading||false;
+  var inspErr=props.inspErr||'';
   var currentUser=props.currentUser||{name:'QC'};
   var onAddBatch=props.onAddBatch||function(){};
   var viewSeason=props.viewSeason||(config.activeSeason||'2025/26');
@@ -5944,7 +5961,7 @@ function FGView(props){
     ),
     ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,position:'sticky',top:50,zIndex:15,background:'var(--bg)',padding:'8px 0',marginTop:0}},
       ce('div',{className:'tabs',style:{marginBottom:0,flex:1}},
-        tabs.map(function(t){return ce('div',{key:t,className:'tab'+(filter===t?' active':''),onClick:function(){setFilter(t);}},t,t!=='All'&&ce('span',{style:{marginLeft:5,background:t==='Accepted'?'#e8f5ec':t==='Rejected'?'#fdecea':'#fff3e0',color:t==='Accepted'?'#1e6b3a':t==='Rejected'?'#b01010':'#b06010',padding:'1px 5px',borderRadius:8,fontSize:10}},seasonBatches.filter(function(b){return b.status===t;}).length));})
+        tabs.map(function(t){return ce('div',Object.assign({key:t,className:'tab'+(filter===t?' active':''),onClick:function(){setFilter(t);}},visionKbd(function(){setFilter(t);})),t,t!=='All'&&ce('span',{style:{marginLeft:5,background:t==='Accepted'?'#e8f5ec':t==='Rejected'?'#fdecea':'#fff3e0',color:t==='Accepted'?'#1e6b3a':t==='Rejected'?'#b01010':'#b06010',padding:'1px 5px',borderRadius:8,fontSize:10}},seasonBatches.filter(function(b){return b.status===t;}).length));})
       ),
       ce('div',{style:{display:'flex',gap:8,alignItems:'center',marginLeft:16,flexShrink:0}},
         (cropId==='mango'||cropId==='citrus')&&ce('div',{id:'dalos-view-toggle',style:{display:'flex',border:'1px solid var(--border2)',borderRadius:7,overflow:'hidden',flexShrink:0}},
@@ -6075,6 +6092,8 @@ function FGView(props){
           )),
           ce('tbody',null,
             inspLoading?ce('tr',null,ce('td',{colSpan:11,style:{textAlign:'center',padding:0}},ce(VisionLoader,{size:54,label:'Loading inspections',small:true,gap:14}))):
+            inspErr&&!rows.length?ce('tr',null,ce('td',{colSpan:11,style:{padding:0}},ce(VisionLoadError,{title:'Inspections didn\u2019t load',detail:inspErr,onRetry:props.onReloadAll}))):
+            !rows.length?ce('tr',null,ce('td',{colSpan:11,style:{textAlign:'center',padding:'36px 16px',color:'var(--text3)',fontSize:13}},'No inspections to show here. Try another season, packhouse or filter \u2014 or start a new inspection.')):
             (function(){
               var useContGroups=cropId==='grapes'||((cropId==='mango'||cropId==='citrus')&&grpMode==='container');
               var mangoContLots={};
@@ -7030,7 +7049,7 @@ function AnalyticsView(props){
 
   /* ── Client: Defect breakdown sub-tab ── */
   function renderClDefectBreakdown(){
-    if(defLoading) return ce('div',{style:{textAlign:'center',padding:32,color:'var(--text3)',fontSize:13}},'Loading defect data\u2026');
+    if(defLoading) return ce(VisionLoader,{size:54,small:true,label:'Loading defect data',pad:24});
     var byClientArr=defectData&&defectData.byClient?defectData.byClient:[];
     var overall=defectData&&defectData.overall?defectData.overall:[];
     if(overall.length===0) return ce('div',{style:{textAlign:'center',padding:32,color:'var(--text3)',fontSize:13}},'No defect readings found.');
@@ -7331,10 +7350,10 @@ function AnalyticsView(props){
 
     /* Main tabs */
     ce('div',{className:'vg-atabs',style:{display:'flex',gap:2,marginBottom:12,borderBottom:'0.5px solid var(--border)'}},
-      TABS.map(function(t){return ce('div',{key:t.id,className:'vg-atab'+(activeTab===t.id?' on':''),onClick:function(){setTab(t.id);},style:{fontSize:12,padding:'6px 14px',cursor:'pointer',marginBottom:'-0.5px',borderBottom:activeTab===t.id?'2px solid #2e5d3a':'2px solid transparent',color:activeTab===t.id?'#2e5d3a':'var(--text3)',fontWeight:activeTab===t.id?600:400}},t.label);})),
+      TABS.map(function(t){return ce('div',Object.assign({key:t.id,className:'vg-atab'+(activeTab===t.id?' on':''),onClick:function(){setTab(t.id);},'aria-selected':activeTab===t.id,style:{fontSize:12,padding:'6px 14px',cursor:'pointer',marginBottom:'-0.5px',borderBottom:activeTab===t.id?'2px solid #2e5d3a':'2px solid transparent',color:activeTab===t.id?'#2e5d3a':'var(--text3)',fontWeight:activeTab===t.id?600:400}},visionKbd(function(){setTab(t.id);})),t.label);})),
 
-    loading&&ce('div',{style:{textAlign:'center',padding:'40px 0',color:'var(--text3)',fontSize:13}},'Loading analytics\u2026'),
-    !loading&&err&&ce('div',{style:{color:'var(--red)',fontSize:13,padding:'12px 0'}},'Error: '+err),
+    loading&&ce(VisionLoader,{label:'Loading analytics'}),
+    !loading&&err&&ce(VisionLoadError,{title:'Analytics didn\u2019t load',detail:err}),
     !loading&&!err&&inspections.length===0&&ce('div',{style:{textAlign:'center',padding:'40px 0',color:'var(--text3)',fontSize:13}},'No inspections found for the selected filters.'),
 
     /* ══ OVERVIEW ══ */
@@ -7475,7 +7494,7 @@ function AnalyticsView(props){
 
     /* ══ DEFECTS ══ */
     !loading&&!err&&inspections.length>0&&activeTab==='defects'&&ce('div',null,
-      defLoading&&ce('div',{style:{textAlign:'center',padding:32,color:'var(--text3)',fontSize:13}},'Loading defect data\u2026'),
+      defLoading&&ce(VisionLoader,{size:54,small:true,label:'Loading defect data',pad:24}),
       !defLoading&&(!defectData||!defectData.overall||defectData.overall.length===0)&&ce('div',{style:{textAlign:'center',padding:32,color:'var(--text3)',fontSize:13}},'No defect readings found.'),
       !defLoading&&defectData&&defectData.overall&&defectData.overall.length>0&&ce('div',{className:'card'},
         ce('div',{className:'section-title'},ce('div',{className:'section-title-bar',style:{background:'#d4620a'}}),'Top defects by average %'),
@@ -7540,7 +7559,7 @@ function AnalyticsView(props){
             ce('span',{style:{fontSize:10,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em'}},'Show'),
             [{id:'pallets',label:'Pallets'},{id:'defect',label:'Avg defect'},{id:'brix',label:'Avg brix'},{id:'containers',label:'Containers'}].map(function(a){
               var on=vrAspect===a.id;
-              return ce('button',{key:a.id,style:{fontSize:11,padding:'3px 10px',borderRadius:20,border:'0.5px solid '+(on?'#7a3a9a':'transparent'),background:on?'#7a3a9a':'transparent',color:on?'#fff':'var(--text3)',cursor:'pointer'},
+              return ce('button',{key:a.id,style:{fontSize:11,padding:'3px 10px',borderRadius:20,border:'0.5px solid '+(on?'var(--accent)':'transparent'),background:on?'var(--accent)':'transparent',color:on?'#fff':'var(--text3)',minHeight:visionMobileFixOn()&&window.innerWidth<768?36:undefined,cursor:'pointer'},
                 onClick:function(){setVrAspect(a.id);}},a.label);
             })
           )
@@ -8195,8 +8214,8 @@ function HomeView(props){
   if(perms.viewEscalation)tiles.push({key:'escalation',view:'escalation',eyebrow:'Escalations',label:'Escalation Review',     icon:'\u2691', hint:escalated.length+' escalated', dynamicHint:true, glow:'#ff6a52', eyebrowColor:'#ffa593', pulse:!loading&&escalated.length>0});
 
   function tileEl(t){
-    return ce('div',{key:t.key,'data-vk':t.view,className:'dh-tile'+(t.primary?' dh-primary':''),onClick:function(){goto(t);},
-        style:{animation:'dh-rise .6s '+(0.1+tiles.indexOf(t)*0.05)+'s ease both',opacity:0}},
+    return ce('div',Object.assign({key:t.key,'data-vk':t.view,className:'dh-tile'+(t.primary?' dh-primary':''),onClick:function(){goto(t);},
+        style:{animation:'dh-rise .6s '+(0.1+tiles.indexOf(t)*0.05)+'s ease both',opacity:0}},visionKbd(function(){goto(t);},t.label)),
       t.primary?ce('div',{className:'dh-sheen'}):null,
       ce('div',{className:'dh-glow',style:{background:t.glow}}),
       t.badge?ce('div',{className:'dh-badge'},t.badge):null,
@@ -8239,7 +8258,7 @@ function HomeView(props){
           )
         ),
         ce('div',{style:{position:'relative'}},
-          ce('div',{className:'dh-av',onClick:function(){setMenuOpen(!menuOpen);}},userInitials),
+          ce('div',Object.assign({className:'dh-av',onClick:function(){setMenuOpen(!menuOpen);}},visionKbd(function(){setMenuOpen(!menuOpen);},'Account menu')),userInitials),
           menuOpen?ce(React.Fragment,null,
             ce('div',{className:'dh-menu-backdrop',onClick:function(){setMenuOpen(false);}}),
             ce('div',{className:'dh-menu'},
@@ -8247,8 +8266,8 @@ function HomeView(props){
                 ce('div',{className:'dh-menu-name'},currentUser.name||currentUser.full_name||''),
                 ce('div',{className:'dh-menu-role'},roleLabel)
               ),
-              perms.viewAdmin?ce('div',{className:'dh-menu-item',onClick:function(){setMenuOpen(false);setView('admin');}},'\u2699  Admin'):null,
-              ce('div',{className:'dh-menu-item dh-menu-danger',onClick:function(){setMenuOpen(false);signOut();}},'\u23FB  Sign out')
+              perms.viewAdmin?ce('div',Object.assign({className:'dh-menu-item',onClick:function(){setMenuOpen(false);setView('admin');}},visionKbd(function(){setMenuOpen(false);setView('admin');})),'\u2699  Admin'):null,
+              ce('div',Object.assign({className:'dh-menu-item dh-menu-danger',onClick:function(){setMenuOpen(false);signOut();}},visionKbd(function(){setMenuOpen(false);signOut();})),'\u23FB  Sign out')
             )
           ):null
         )
@@ -8264,8 +8283,9 @@ function HomeView(props){
         ce('div',{className:'dh-headline'},greeting+', '+firstName+'.',ce('br'),'Here\u2019s your ',ce('span',{className:'dh-accent'},'harvest floor'),' today.')
       ),
 
+      props.inspErr?ce('div',{className:'dh-err',role:'alert'},'Today\u2019s numbers didn\u2019t load \u2014 they may show 0.',ce('button',{type:'button',onClick:props.onRetry},'\u21bb Retry')):null,
       /* bento */
-      ce('div',{className:'dh-bento'}, tiles.map(tileEl)),
+      ce('div',{className:'dh-bento'}, tiles.length?tiles.map(tileEl):ce('div',{className:'dh-none'},ce('b',null,'No Vision modules for your role yet'),ce('span',null,'Ask an admin for access, or go back to Workspace for your other apps.'))),
 
       /* ribbon */
       ce('div',{className:'dh-ribbon'},
@@ -8440,7 +8460,7 @@ function Landing(props){
   return ce('div',{className:'landing lg-glass',style:{paddingTop:0}},
 
     /* ── MOBILE MENU BUTTON — only shows on mobile ── */
-    ce('div',{className:'menu-btn',style:{position:'fixed',top:10,left:12,zIndex:30},onClick:onMobOpen},
+    ce('div',Object.assign({className:'menu-btn',style:{position:'fixed',top:10,left:12,zIndex:30},onClick:onMobOpen},visionKbd(onMobOpen,'Open menu')),
       ce('svg',{width:18,height:18,viewBox:'0 0 16 16',fill:'#fff'},ce('path',{d:'M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z'}))
     ),
 
@@ -8567,7 +8587,7 @@ function Landing(props){
                   ce('span',{className:'lg-cnt'},inspLoading?'—':n)
                 ),
                 ce('span',{className:'lg-chips'},cs.map(function(c){return ce('span',{key:c.id,className:'lg-cp',style:{'--cc':c.color||'#2b5c3f'}},c.name);})),
-                ce('span',{className:'lg-hint'},inspLoading?'loading…':n?(cs.length===1?'1 product':cs.length+' products'):'No inspections yet this season')
+                ce('span',{className:'lg-hint'},inspLoading?'loading…':props.inspErr?'couldn\u2019t load \u2014 retry from Home':n?(cs.length===1?'1 product':cs.length+' products'):'No inspections yet this season')
               );
             })
           )
@@ -8639,7 +8659,7 @@ function LandingClassic(props){
   return ce('div',{className:'landing',style:{paddingTop:0}},
 
     /* ── MOBILE MENU BUTTON — only shows on mobile ── */
-    ce('div',{className:'menu-btn',style:{position:'fixed',top:10,left:12,zIndex:30},onClick:onMobOpen},
+    ce('div',Object.assign({className:'menu-btn',style:{position:'fixed',top:10,left:12,zIndex:30},onClick:onMobOpen},visionKbd(onMobOpen,'Open menu')),
       ce('svg',{width:18,height:18,viewBox:'0 0 16 16',fill:'#fff'},ce('path',{d:'M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z'}))
     ),
 
@@ -12572,7 +12592,7 @@ function ClientQCMgmt(props){
               ce('label',{className:'form-label'},'Crop category'),
               ce('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--r1)',fontSize:13}},
                 ce('div',{style:{width:10,height:10,borderRadius:'50%',background:selProdObj.color||'var(--accent)',flexShrink:0}}),
-                ce('span',{style:{fontWeight:600,color:'var(--text1)'}},selProdObj.name||selCqcProd),
+                ce('span',{style:{fontWeight:600,color:'var(--text)'}},selProdObj.name||selCqcProd),
                 ce('span',{style:{fontSize:11,color:'var(--text3)',marginLeft:4}},'(locked)')
               )
             ),
@@ -13752,7 +13772,7 @@ function ClientQCMgmt(props){
         firstName&&ce('div',{style:{fontSize:18,color:'var(--text2)',fontFamily:'var(--font-display)'}},'👋 '+greeting+', '+firstName)
       ),
       /* ── PRODUCT CARDS ── */
-      ce('div',{style:{maxWidth:680,margin:'0 auto',padding:'0 16px'}},
+      ce('div',{className:'cqc-pick',style:{maxWidth:680,width:'100%',margin:'0 auto',padding:'0 16px',boxSizing:'border-box'}},
         ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6,color:'var(--text)'}},'Client QC'),
         ce('div',{style:{fontSize:12,color:'var(--text3)',marginBottom:20}},'Select a product to view reports or log a new client QC report.'),
         cqcLoad.state==='error'&&reports.length===0?ce(VisionLoadError,{title:'Client QC reports didn\u2019t load',detail:cqcLoad.err,onRetry:function(){setReloadTick(function(t){return t+1;});}}):
@@ -13764,7 +13784,7 @@ function ClientQCMgmt(props){
           var claims=seasonReports.filter(function(r){return r.potentialClaim||r.claimedValue>0;}).length;
           return ce('div',{
             key:p.id,
-            onClick:function(){setSelCqcProd(p.id);setSelRep(null);},
+            className:'cqc-pcard',onClick:function(){setSelCqcProd(p.id);setSelRep(null);},
             style:{
               background:'var(--card)',
               border:'1px solid var(--border)',
@@ -13781,23 +13801,23 @@ function ClientQCMgmt(props){
             onMouseOut:function(e){e.currentTarget.style.boxShadow='';e.currentTarget.style.transform='';}
           },
             /* Color dot + name */
-            ce('div',{style:{display:'flex',alignItems:'center',gap:14,minWidth:180}},
+            ce('div',{className:'cqc-pname',style:{display:'flex',alignItems:'center',gap:14,minWidth:180}},
               ce('div',{style:{width:42,height:42,borderRadius:10,background:p.color||'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
                 ce('span',{style:{color:'#fff',fontFamily:'var(--font-display)',fontSize:16,fontWeight:700}},
                   (p.name||'').slice(0,2).toUpperCase()
                 )
               ),
               ce('div',null,
-                ce('div',{style:{fontFamily:'var(--font-display)',fontSize:17,color:'var(--text1)'}},(p.name||'')),
+                ce('div',{style:{fontFamily:'var(--font-display)',fontSize:17,color:'var(--text)'}},(p.name||'')),
                 ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:2}},'Client QC reports')
               )
             ),
             /* Divider */
-            ce('div',{style:{width:1,height:40,background:'var(--border)',flexShrink:0}}),
+            ce('div',{className:'cqc-pdiv',style:{width:1,height:40,background:'var(--border)',flexShrink:0}}),
             /* Stats row */
-            ce('div',{style:{display:'flex',gap:32,flex:1}},
+            ce('div',{className:'cqc-pstats',style:{display:'flex',gap:32,flex:1}},
               ce('div',null,
-                ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:'var(--text1)'}},count>0?count:'—'),
+                ce('div',{style:{fontSize:22,fontFamily:'var(--font-display)',color:'var(--text)'}},count>0?count:'—'),
                 ce('div',{style:{fontSize:11,color:'var(--text3)',marginTop:1}},'Total reports')
               ),
               ce('div',null,
@@ -16106,14 +16126,17 @@ function EscalationReview(props){
     ce('div',{className:'tabs',style:{marginBottom:16}},
       ['Pending','Resolved','All'].map(function(t){
         var cnt=t==='Pending'?escalated.length:t==='Resolved'?resolved.length:escalated.length+resolved.length;
-        return ce('div',{key:t,className:'tab'+(filter===t?' active':''),onClick:function(){setFilter(t);}},
+        return ce('div',Object.assign({key:t,className:'tab'+(filter===t?' active':''),onClick:function(){setFilter(t);}},visionKbd(function(){setFilter(t);})),
           t,
           ce('span',{style:{marginLeft:5,background:t==='Pending'?'#e8eeff':t==='Resolved'?'#f0e8ff':'var(--bg2)',color:t==='Pending'?'#2a50c0':t==='Resolved'?'#6a10b0':'var(--text3)',padding:'1px 6px',borderRadius:8,fontSize:10}},cnt)
         );
       })
     ),
 
-    escalated.length===0&&filter==='Pending'&&ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'48px',textAlign:'center'}},
+    props.loading?ce(VisionLoader,{label:'Loading escalations'}):
+    props.loadErr?ce(VisionLoadError,{title:'Escalations didn\u2019t load',detail:props.loadErr,onRetry:props.onRetry}):null,
+    !props.loading&&!props.loadErr&&displayBatches.length===0&&filter!=='Pending'&&ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'36px',textAlign:'center',fontSize:13,color:'var(--text3)'}},filter==='Resolved'?'No board decisions yet this season.':'No escalations this season.'),
+    !props.loading&&!props.loadErr&&escalated.length===0&&filter==='Pending'&&ce('div',{style:{background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'48px',textAlign:'center'}},
       ce('div',{style:{fontSize:32,marginBottom:12}},'✅'),
       ce('div',{style:{fontFamily:'var(--font-display)',fontSize:20,marginBottom:6}},'No pending escalations'),
       ce('div',{style:{fontSize:13,color:'var(--text3)'}},'All escalated inspections have been reviewed. The QC team will escalate batches here when they need board-level exception decisions.')
@@ -16280,26 +16303,30 @@ var DALOS_ACTIVITY_KEY='dalos_last_activity';
 var DALOS_VERSION='v9'; /* bump to clear stale localStorage */
 /* User-visible version shown under "Sign out" in the sidebar. Bump on each user-facing release. */
 var DALOS_BUILD='v1.7'/*BUILD*/;var DALOS_BUILD_INFO=''/*BUILD_INFO*/; /* stamped on deploy by .github/workflows/pages.yml: v1.7 → v1.7.<build>, info = commit · Cairo time. Raise the base version here for a release. */
-/* Glass look on every page (staging test). Kill switch: VISION_GLASS=false. Per browser: ?theme=classic / ?theme=glass, or the sidebar "Classic look" item. */
+/* Per-browser switches for the new UI. On the staging copy (dalos-vision-dev, localhost) every new look is ON unless a browser
+   opts out; on prod it stays OFF unless a browser opts in — until VISION_DEFAULT_ON is set to true there. A ?param is saved
+   for this browser and then removed from the address, so the in-app toggle is never pinned by an old link. */
+var VISION_IS_DEV=/\/dalos-vision-dev\//.test(location.pathname)||/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+var VISION_DEFAULT_ON=VISION_IS_DEV;
+function visionPref(key,param,offVal,onVal){try{var u=new URL(location.href),q=u.searchParams.get(param);
+    if(q===offVal||q===onVal){localStorage.setItem(key,q);u.searchParams.delete(param);try{history.replaceState(history.state,'',u.pathname+(u.search||'')+u.hash);}catch(e){}}
+    var v=localStorage.getItem(key);if(v===offVal)return false;if(v===onVal)return true;return VISION_DEFAULT_ON;}catch(e){return VISION_DEFAULT_ON;}}
+/* Glass look on every page. Kill switch: VISION_GLASS=false. Per browser: ?theme=classic / ?theme=glass, or the "Classic look" link. */
 var VISION_GLASS=true;
-function visionGlassOn(){if(!VISION_GLASS)return false;try{var q=new URLSearchParams(location.search).get('theme');if(q==='classic'||q==='glass')localStorage.setItem('vision_theme',q);return localStorage.getItem('vision_theme')!=='classic';}catch(e){return true;}}
+function visionGlassOn(){return VISION_GLASS&&visionPref('vision_theme','theme','classic','glass');}
 function visionGlassToggle(){try{localStorage.setItem('vision_theme',visionGlassOn()?'classic':'glass');}catch(e){}window.location.reload();}
-/* Listing scroll fixes (phase 1). Kill switch: VISION_SCROLLFIX=false. Per browser: ?scroll=old / ?scroll=new. */
+/* Listing scroll fixes. Kill switch: VISION_SCROLLFIX=false. Per browser: ?scroll=old / ?scroll=new. */
 var VISION_SCROLLFIX=true;
-function visionScrollFixOn(){if(!VISION_SCROLLFIX)return false;try{var q=new URLSearchParams(location.search).get('scroll');if(q==='old'||q==='new')localStorage.setItem('vision_scroll',q);return localStorage.getItem('vision_scroll')!=='old';}catch(e){return true;}}
-/* Mobile quick fixes. Kill switch: VISION_MOBILEFIX=false. Per browser: ?mobile=old / ?mobile=new. */
+function visionScrollFixOn(){return VISION_SCROLLFIX&&visionPref('vision_scroll','scroll','old','new');}
+/* Phone / tablet layout. Kill switch: VISION_MOBILEFIX=false. Per browser: ?mobile=old / ?mobile=new. */
 var VISION_MOBILEFIX=true;
-function visionMobileFixOn(){if(!VISION_MOBILEFIX)return false;try{var q=new URLSearchParams(location.search).get('mobile');if(q==='old'||q==='new')localStorage.setItem('vision_mobile',q);return localStorage.getItem('vision_mobile')!=='old';}catch(e){return true;}}
-/* Glass Home + Morph transition (staging test). Kill switch: VISION_GLASSHOME=false. Per browser: ?home=dark / ?home=glass.
-   Only with the Glass look. Home ⇄ modules in three beats: what has no partner fades out, matched pieces travel and
-   reshape (tiles → menu items, ribbon → KPI cards, logo/avatar/Workspace/season → sidebar), what is new fades in.
-   Never blocks navigation: any error, a slow device or reduced motion → plain instant switch. */
+function visionMobileFixOn(){return VISION_MOBILEFIX&&visionPref('vision_mobile','mobile','old','new');}
 var VISION_GLASSHOME=true;
-function visionGlassHomeOn(){if(!VISION_GLASSHOME||!visionGlassOn())return false;try{var q=new URLSearchParams(location.search).get('home');if(q==='dark'||q==='glass')localStorage.setItem('vision_home',q);return localStorage.getItem('vision_home')!=='dark';}catch(e){return true;}}
+function visionGlassHomeOn(){return VISION_GLASSHOME&&visionGlassOn()&&visionPref('vision_home','home','dark','glass');}
 var VMX={busy:false,anims:[],timer:null};
 function vmxSkip(){try{if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return true;var c=navigator.hardwareConcurrency||8,m=navigator.deviceMemory||8;return c<=2||m<=2;}catch(e){return false;}}
 function vmxPhone(){return window.innerWidth<768;}
-function vmxDur(){var s=vmxPhone()?.8:1;try{var q=+new URLSearchParams(location.search).get('morphslow');if(q>0&&q<=10)s*=q;}catch(e){}return {pre:200*s,move:640*s,post:300*s};} /* ?morphslow=4 → slow motion for review */
+function vmxDur(){var s=vmxPhone()?.8:1;try{var q=VISION_IS_DEV?+new URLSearchParams(location.search).get('morphslow'):0;if(q>0&&q<=10)s*=q;}catch(e){}return {pre:200*s,move:640*s,post:300*s};} /* ?morphslow=4 → slow motion for review */
 function vmxQ(s,r){return (r||document).querySelector(s);}
 function vmxQA(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
 function vmxRect(el){var r=el.getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};}
@@ -16475,6 +16502,8 @@ function visionPhoneForm(){return visionMobileFixOn()&&window.innerWidth<768;}
    Used in the listing topbar and (merged with the season/LOT pills) in the form bar. App fills visionCrumbCtx each render;
    an open form registers visionCrumbGuard so leaving through the path asks about unsaved changes. */
 var visionCrumbCtx={locked:true,nav:null},visionCrumbGuard=null;
+/* make a clickable div reachable by keyboard: Tab to it, Enter/Space to activate */
+function visionKbd(fn,label){return {role:'button',tabIndex:0,'aria-label':label||undefined,onKeyDown:function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();fn(e);}}};}
 function VisionCrumb(props){
   var cropId=props.cropId,ph=props.ph||{},crop=props.crop||{};
   var ln=landingLineOf(cropId),lnName=(LANDING_LINES.find(function(l){return l.id===ln;})||{}).name||'';
@@ -16922,6 +16951,12 @@ function App(){
   React.useEffect(function(){if(!visionScrollFixOn())return;if(visionRestoreScroll('view:'+view))return;var m=visionScroller();if(m)m.scrollTop=0;},[view]);
   useListKeys();
   React.useEffect(function(){window.location.hash=view;},[view]);
+  var viewRef=React.useRef(view);viewRef.current=view;
+  /* Back / Forward change only the #view in the address: follow it (same unsaved-changes check as the menu) */
+  React.useEffect(function(){function onHash(){var h=(window.location.hash||'').slice(1)||'home';if(h===viewRef.current)return;
+      if(visionCrumbGuard&&!visionCrumbGuard()){window.location.hash=viewRef.current;return;}
+      try{if(VMX.busy)vmxClean();}catch(e){}setView(h);}
+    window.addEventListener('hashchange',onHash);return function(){window.removeEventListener('hashchange',onHash);};},[]);
   /* page-view capture (platform usage report) — log each Vision view change for a
      signed-in user; 15s de-dupe; fire-and-forget (.then() required, lazy builder). */
   var _pvLastRef=React.useRef({});
@@ -17004,6 +17039,7 @@ function App(){
   },[currentUser]);
   var sBatches=useState([]); var batches=sBatches[0]; var setBatchesRaw=sBatches[1];
   var sInsLoading=useState(true); var inspLoading=sInsLoading[0]; var setInspLoading=sInsLoading[1];
+  var sInspErr=useState(''); var inspErr=sInspErr[0]; var setInspErr=sInspErr[1]; /* why inspections did not load ('' = fine) */
   function setBatches(v){var next=typeof v==='function'?v:function(){return v;};setBatchesRaw(function(prev){var n=next(prev);return n;});}
   /* Refresh specific batch IDs from DB after a pallet move */
   /* Returns a Promise resolving to the freshly-mapped batch objects for `ids`, so
@@ -17154,7 +17190,7 @@ function App(){
   /* ── Load config from Supabase (called after auth confirmed) ── */
   function loadConfigFromDB(){
     console.log('[DalOS] loadConfigFromDB starting...');
-    setInspLoading(true);
+    setInspLoading(true);setInspErr('');
     Promise.all([
       supabase.from('packhouses').select('*').eq('active',true).order('name'),
       supabase.from('products').select('*').eq('active',true).order('name'),
@@ -17377,7 +17413,7 @@ function App(){
         /* Season-filtered — loads active season only; sidebar season switch triggers full reload */
         inspQ
           .then(function(ir){
-            if(ir.error){console.error('[DalOS] Load inspections error:',ir.error.message);setInspLoading(false);return null;}
+            if(ir.error){console.error('[DalOS] Load inspections error:',ir.error.message);setInspErr(ir.error.message||'error');setInspLoading(false);return null;}
             var inspectionIds=(ir.data||[]).map(function(r){return r.id;});
             var noIds=!inspectionIds.length;
             /* Fetch ALL pallets across loaded inspections, paginating past the PostgREST 1000-row cap.
@@ -17549,9 +17585,9 @@ function App(){
               }).catch(function(e){console.warn('[DalOS] background index load failed:',(e&&e.message)||e);});
             }
           })
-          .catch(function(e){console.error('[DalOS] Load inspections failed:',e);setInspLoading(false);});
+          .catch(function(e){console.error('[DalOS] Load inspections failed:',e);setInspErr((e&&e.message)||'error');setInspLoading(false);});
 
-      }).catch(function(e){console.error('[DalOS] Config load error:',e);});
+      }).catch(function(e){console.error('[DalOS] Config load error:',e);setInspErr((e&&e.message)||'error');setInspLoading(false);});
   }
 
   /* ── Check Supabase session on load ── */
@@ -18868,7 +18904,8 @@ function App(){
   var needsCQCLanding=!perms.viewFG&&perms.viewClientQC&&view==='clientqc'&&false; /* handled inside ClientQCMgmt */
 
   /* menu clicks go through the Glass Home morph when it is on (plain switch otherwise) */
-  function navGo(id){if(id===view||!visionGlassHomeOn()){setView(id);return;}
+  function navGo(id){if(id!==view&&visionCrumbGuard&&!visionCrumbGuard())return;
+    if(id===view||!visionGlassHomeOn()){setView(id);return;}
     if(id==='home')VisionMorph.toHome(function(){setView('home');});else VisionMorph.swap(view,id,function(){setView(id);});}
   function mkSidebar(){
     return ce(React.Fragment,null,
@@ -18903,7 +18940,7 @@ function App(){
         ),
         ce('div',{className:'sidebar-sec'},'Modules'),
         availViews.map(function(v){
-          var navEl=ce('div',{key:v.id,'data-vk':v.id,className:'nav-item'+(view===v.id?' active':''),onClick:function(){navGo(v.id);setMobOpen(false);}},
+          var navEl=ce('div',Object.assign({key:v.id,'data-vk':v.id,className:'nav-item'+(view===v.id?' active':''),'aria-current':view===v.id?'page':undefined,onClick:function(){navGo(v.id);setMobOpen(false);}},visionKbd(function(){navGo(v.id);setMobOpen(false);})),
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:IPATHS[v.id]||IPATHS.fg})),
             ce('div',{style:{flex:1}},
               ce('div',{className:'nav-lbl',style:{lineHeight:1.2,display:'flex',alignItems:'center',gap:6}},
@@ -18952,7 +18989,7 @@ function App(){
                   visionGlassOn()?'Classic look':'Glass look'))
             )
           ),
-          ce('div',{className:'nav-item',style:{fontSize:12},onClick:signOut},
+          ce('div',Object.assign({className:'nav-item',style:{fontSize:12},onClick:signOut},visionKbd(signOut)),
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z'})),
             ce('div',null,'Sign out')
           ),
@@ -18962,9 +18999,9 @@ function App(){
       /* mobile bottom nav */
       ce('div',{className:'mobile-nav',style:{overflowX:'auto',WebkitOverflowScrolling:'touch',justifyContent:'flex-start'}},
         availViews.map(function(v){
-          return ce('div',{key:v.id,'data-vk':v.id,className:'mobile-nav-item'+(view===v.id?' active':''),style:{minWidth:64,flexShrink:0},onClick:function(){navGo(v.id);}},
+          return ce('div',Object.assign({key:v.id,'data-vk':v.id,className:'mobile-nav-item'+(view===v.id?' active':''),'aria-current':view===v.id?'page':undefined,style:{minWidth:64,flexShrink:0},onClick:function(){navGo(v.id);}},visionKbd(function(){navGo(v.id);},v.label)),
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',width:18,height:18},ce('path',{d:IPATHS[v.id]||IPATHS.fg})),
-            ce('span',{style:{fontSize:9,textAlign:'center',lineHeight:1.2}},v.label.split(' ')[0])
+            ce('span',{style:{fontSize:9,textAlign:'center',lineHeight:1.2}},({home:'Home',fg:'Inspections',clientqc:'Client QC',shipments:'Shipments',analytics:'Analytics',escalation:'Board',admin:'Admin'}[v.id]||v.label.split(' ')[0]))
           );
         }),
         ce('div',{className:'mobile-nav-item',style:{minWidth:56,flexShrink:0,borderLeft:'1px solid rgba(255,255,255,.1)'},onClick:function(){setMobOpen(!mobOpen);}},
@@ -18976,7 +19013,7 @@ function App(){
   }
 
   if(view==='home'){
-    return ce(React.Fragment,null,visionGlassHomeOn()?null:ce(DalosBackdrop,{key:'dalos-backdrop'}),ce(HomeView,{currentUser:liveCurrentUser,config:config,batches:batches,perms:perms,setView:setView,currentViewSeason:currentViewSeason,setViewSeason:setViewSeason,setConfig:setConfig,signOut:signOut,loading:inspLoading}));
+    return ce(React.Fragment,null,visionGlassHomeOn()?null:ce(DalosBackdrop,{key:'dalos-backdrop'}),ce(HomeView,{currentUser:liveCurrentUser,config:config,batches:batches,perms:perms,setView:setView,currentViewSeason:currentViewSeason,setViewSeason:setViewSeason,setConfig:setConfig,signOut:signOut,loading:inspLoading,inspErr:inspErr,onRetry:loadConfigFromDB}));
   }
 
   if(needsCropPH){
@@ -19018,7 +19055,7 @@ function App(){
     )
   );
   return ce('div',{className:'layout'+(visionGlassOn()?' lg-layout':'')},sessionExpiredOverlay,mkSidebar(),
-      ce('div',{className:'main'},ce(visionGlassOn()?Landing:LandingClassic,{initial:landingInit,currentUser:liveCurrentUser,config:config,setConfig:setConfig,batches:batches,perms:perms,inspLoading:inspLoading,currentViewSeason:currentViewSeason,onMobOpen:function(){setMobOpen(true);},onSelectCQC:function(){setView('clientqc');},onSelect:function(pid,cid){
+      ce('div',{className:'main'},ce(visionGlassOn()?Landing:LandingClassic,{initial:landingInit,currentUser:liveCurrentUser,config:config,setConfig:setConfig,batches:batches,perms:perms,inspLoading:inspLoading,inspErr:inspErr,currentViewSeason:currentViewSeason,onMobOpen:function(){setMobOpen(true);},onSelectCQC:function(){setView('clientqc');},onSelect:function(pid,cid){
         var phs=currentUser.packhouses||[currentUser.packhouse||'All'];
         var finalPh=(phs.indexOf('All')<0&&phs.length===1)?phs[0]:pid;
         setLandingInit(null);setPhId(finalPh);setCropId(cid);setView('fg');
@@ -19026,12 +19063,12 @@ function App(){
     );
   }
 
-  visionCrumbCtx={view:view,locked:!perms.allPackhouses,nav:function(seed){setLandingInit(seed);setCropId(null);if(perms.allPackhouses)setPhId(null);}};
+  visionCrumbCtx={view:view,locked:(function(){var ph=currentUser.packhouses||[currentUser.packhouse||'All'];return ph.indexOf('All')<0&&ph.length<=1;})(),nav:function(seed){setLandingInit(seed);setCropId(null);if(perms.allPackhouses)setPhId(null);}};
   return ce('div',{className:'layout'+(visionGlassOn()?' lg-layout vg':'')+(visionScrollFixOn()?' sfx':'')},sessionExpiredOverlay,mkSidebar(),
     ce('div',{className:'main'},
       cur.id&&ce('div',{className:'topbar'},
         ce('div',{className:'topbar-left'},
-          ce('div',{className:'menu-btn',onClick:function(){setMobOpen(!mobOpen);}},
+          ce('div',Object.assign({className:'menu-btn',onClick:function(){setMobOpen(!mobOpen);}},visionKbd(function(){setMobOpen(!mobOpen);},'Open menu')),
             ce('svg',{width:18,height:18,viewBox:'0 0 16 16',fill:'#fff'},ce('path',{d:'M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z'}))
           ),
           ce('div',{className:'topbar-title'+(view==='fg'&&phId&&cropId&&!phLoading?' vcr-has':'')},cur.label),
@@ -19051,7 +19088,7 @@ function App(){
         ce('div',{className:'topbar-right'})
       ),
       ce('div',{className:'page'},
-        view==='fg'         &&perms.viewFG        &&ce(FGView,{packhouse:phInfo,perms:perms,cropId:cropId,config:config,batches:batches,onEscalate:escalateBatch,currentUser:liveCurrentUser,onAddBatch:addBatch,currentUserObj:currentUser,viewSeason:currentViewSeason,inspLoading:inspLoading,onRefreshBatches:refreshBatchesById,onReloadAll:loadConfigFromDB,
+        view==='fg'         &&perms.viewFG        &&ce(FGView,{packhouse:phInfo,perms:perms,cropId:cropId,config:config,batches:batches,onEscalate:escalateBatch,currentUser:liveCurrentUser,onAddBatch:addBatch,currentUserObj:currentUser,viewSeason:currentViewSeason,inspLoading:inspLoading,inspErr:inspErr,onRefreshBatches:refreshBatchesById,onReloadAll:loadConfigFromDB,
           initialSel:navTarget,
           navBack:cqcLink?function(){var l=cqcLink;setShipReturn(l.ship||null);setCqcLink(null);setView('shipments');}:(navHistory?function(){var h=navHistory;setNavHistory(null);setNavTarget(null);setView(h.view);}:null),
           navBackLabel:cqcLink?'Back to Shipments':(navHistory?'Back to CQC report':null)}),
@@ -19070,7 +19107,7 @@ function App(){
             if(found&&found.packhouse) setPhId(found.packhouse);
             setView('fg');
           }}),
-        view==='escalation' &&perms.viewEscalation&&ce(EscalationReview,{batches:batches,perms:perms,currentUser:liveCurrentUser,onDecide:boardDecide}),
+        view==='escalation' &&perms.viewEscalation&&ce(EscalationReview,{batches:batches,perms:perms,currentUser:liveCurrentUser,onDecide:boardDecide,loading:inspLoading,loadErr:inspErr,onRetry:loadConfigFromDB}),
         view==='admin'      &&perms.viewAdmin     &&ce(AdminCenter,{users:users,setUsers:setUsers,config:config,setConfig:setConfig,currentUser:liveCurrentUser,reloadConfig:loadConfigFromDB})
       )
     )
