@@ -15348,7 +15348,8 @@ function ShipmentsMgmt(props){
   var sCountryFilter=useState([]); var countryFilter=sCountryFilter[0]; var setCountryFilter=sCountryFilter[1];
   var sAggMode=useState(true); var aggMode=sAggMode[0]; var setAggMode=sAggMode[1];
   /* Manage = shipment entry sandbox (shipments_v2.js), editors only; never writes public.shipments */
-  var canManage=!!(props.perms&&props.perms.editShipments);
+  /* only products the entry tool supports (orchards + potatoes); Berries/Olives have no form yet */
+  var canManage=!!(props.perms&&props.perms.editShipments)&&['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0;
   var sManage=useState(false); var manage=sManage[0]&&canManage; var setManage=sManage[1];
   var shipV2Api=React.useRef(null);
   function leaveManageOk(){var a=shipV2Api.current;return !manage||!a||a.confirmLeave();}
