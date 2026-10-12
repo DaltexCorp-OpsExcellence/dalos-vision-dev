@@ -1,0 +1,36 @@
+# Publishes staging to GitHub Pages on every push to main and stamps the version shown in Vision.
+# Short version: base version from index.html + build number, e.g. v1.7.412; commit · Cairo time on hover.
+# The repo file is never changed — only the published copy is stamped.
+name: Deploy staging
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stamp version
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          WHEN="$(TZ=Africa/Cairo date '+%-d %b %Y %H:%M')"
+          sed -i "s|'\(v[0-9][0-9.]*\)'/\*BUILD\*/|'\1.${GITHUB_RUN_NUMBER}'/*BUILD*/|; s|''/\*BUILD_INFO\*/|'${SHA} · ${WHEN}'/*BUILD_INFO*/|" index.html
+          grep -o "var DALOS_BUILD=[^;]*;var DALOS_BUILD_INFO=[^;]*" index.html
+          grep -q "'v[0-9.]*\.${GITHUB_RUN_NUMBER}'/\*BUILD\*/" index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deploy
+        uses: actions/deploy-pages@v4

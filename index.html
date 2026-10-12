@@ -8228,7 +8228,7 @@ function HomeView(props){
       ce('div',{className:'dh-tb-l'},
         
         ce('div',{className:'dh-logo'},ce('span',{style:{color:'#fff'}},'Dal'),ce('span',{style:{color:'#6fc191'}},'OS'),ce('span',{style:{color:'#5d8a6d',fontFamily:'var(--font-body)',fontSize:14,fontWeight:500,marginLeft:4}},'Vision')),
-        ce('div',{className:'dh-ver'},DALOS_BUILD.split(' ')[0]),ce('a',{className:'dh-pill',href:(location.pathname.indexOf('/dalos-vision-dev/')===0?'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/':'https://daloshq.com/workspace/workspace.html'),title:'Back to DalOS Workspace',style:{textDecoration:'none',height:28,padding:'0 11px',fontSize:11,marginLeft:4}},ce('span',{style:{display:'inline-flex',alignItems:'center',marginRight:1},dangerouslySetInnerHTML:{__html:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>'}}),'Workspace')
+        ce('div',{className:'dh-ver',title:DALOS_BUILD_INFO?'Build '+DALOS_BUILD_INFO:null},DALOS_BUILD.split(' ')[0]),ce('a',{className:'dh-pill',href:(location.pathname.indexOf('/dalos-vision-dev/')===0?'https://daltexcorp-opsexcellence.github.io/dalos-workspace-dev/':'https://daloshq.com/workspace/workspace.html'),title:'Back to DalOS Workspace',style:{textDecoration:'none',height:28,padding:'0 11px',fontSize:11,marginLeft:4}},ce('span',{style:{display:'inline-flex',alignItems:'center',marginRight:1},dangerouslySetInnerHTML:{__html:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>'}}),'Workspace')
       ),
       ce('div',{className:'dh-tb-r'},
         ce('div',{className:'dh-pill dh-season-pill'},
@@ -16326,7 +16326,7 @@ var DALOS_ACTIVITY_KEY='dalos_last_activity';
 
 var DALOS_VERSION='v9'; /* bump to clear stale localStorage */
 /* User-visible version shown under "Sign out" in the sidebar. Bump on each user-facing release. */
-var DALOS_BUILD='v1.6.0 (2026.06.04)';
+var DALOS_BUILD='v1.7'/*BUILD*/;var DALOS_BUILD_INFO=''/*BUILD_INFO*/; /* stamped on deploy by .github/workflows/pages.yml: v1.7 → v1.7.<build>, info = commit · Cairo time. Raise the base version here for a release. */
 /* Glass look on every page (staging test). Kill switch: VISION_GLASS=false. Per browser: ?theme=classic / ?theme=glass, or the sidebar "Classic look" item. */
 var VISION_GLASS=true;
 function visionGlassOn(){if(!VISION_GLASS)return false;try{var q=new URLSearchParams(location.search).get('theme');if(q==='classic'||q==='glass')localStorage.setItem('vision_theme',q);return localStorage.getItem('vision_theme')!=='classic';}catch(e){return true;}}
@@ -19003,7 +19003,7 @@ function App(){
             ce('svg',{viewBox:'0 0 16 16',fill:'currentColor',className:'nav-icon'},ce('path',{d:'M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z'})),
             ce('div',null,'Sign out')
           ),
-          ce('div',{style:{padding:'5px 16px 7px',fontSize:10,color:'var(--sidebar-muted)',opacity:.6,letterSpacing:'.04em',userSelect:'none'}},'DalOS Vision · '+DALOS_BUILD)
+          ce('div',{title:DALOS_BUILD_INFO?'Build '+DALOS_BUILD_INFO:null,style:{padding:'5px 16px 7px',fontSize:10,color:'var(--sidebar-muted)',opacity:.6,letterSpacing:'.04em',userSelect:'none'}},'DalOS Vision · '+DALOS_BUILD)
         )
       ),
       /* mobile bottom nav */
