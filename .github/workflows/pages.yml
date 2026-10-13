@@ -21,6 +21,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Stamp script versions (vision.js / pivots.js ?v=<content hash>)
+        run: python3 tools/stamp-assets.py
       - name: Stamp version
         run: |
           SHA="${GITHUB_SHA::7}"
