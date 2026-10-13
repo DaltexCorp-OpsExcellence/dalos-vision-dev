@@ -15031,7 +15031,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       ce('div',{style:{position:'sticky',top:0,zIndex:20,background:'var(--bg)',borderBottom:'1px solid var(--border)',padding:'16px 16px 12px',marginBottom:0}},
       /* Topbar */
       ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}},
-        ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){if(!leaveManageOk())return;setManage(false);setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);setCqcShipFilter('all');}},'\u2190 Products'),
+        ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){if(!leaveManageOk())return;setManage(false);setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);setCqcShipFilter('all');setInspShipFilter('all');}},'\u2190 Products'),
         ce('div',{style:{width:10,height:10,borderRadius:'50%',background:selProdObj.color||'var(--accent)',flexShrink:0}}),
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:16}},selProdObj.name,' Shipments'),
         totalGraded>0&&ce('span',{className:'badge badge-pass',style:{fontSize:11}},totalGraded+' graded'),
@@ -15068,7 +15068,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
           )
         ),
         countryFilter.length>0&&ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){setCountryFilter([]);}},'\u00d7 Clear countries'),
-        ce('div',{style:{display:'flex',gap:4,marginLeft:'auto'}},
+        !shipPT&&ce('div',{style:{display:'flex',gap:4,marginLeft:'auto'}},
           [['all','All'],['with','\u2713 With CQC'],['without','No CQC']].map(function(f){
             var active=cqcShipFilter===f[0];
             return ce('button',{key:f[0],onClick:function(){setCqcShipFilter(f[0]);},
@@ -15079,7 +15079,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
             },f[1]);
           })
         ),
-        ce('div',{style:{display:'flex',gap:4}},
+        !shipPT&&ce('div',{style:{display:'flex',gap:4}},
           [['all','All'],['with','\u2713 With insp'],['without','No insp']].map(function(f){
             var active=inspShipFilter===f[0];
             return ce('button',{key:f[0],onClick:function(){setInspShipFilter(f[0]);},
@@ -15097,11 +15097,11 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
           ce('div',{className:'kpi-label'},aggMode?'Containers':'Rows'),
           ce('div',{className:'kpi-value',style:{fontSize:22}},aggMode?filteredContainers.length:filteredRows.length)
         ),
-        ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
+        !shipPT&&ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},'Claims'),
           ce('div',{className:'kpi-value',style:{fontSize:13,color:'var(--text3)',fontWeight:500,paddingTop:5}},'in CRM')
         ),
-        ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
+        !shipPT&&ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},'With CQC'),
           ce('div',{className:'kpi-value',style:{fontSize:22,color:'var(--green)'}},
             cqcEnriching
@@ -15111,7 +15111,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                 :[...new Set(filteredRows.filter(function(s){return (cqcMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length)
           )
         ),
-        ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
+        !shipPT&&ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},'With insp'),
           ce('div',{className:'kpi-value',style:{fontSize:22,color:'#2563ad'}},
             cqcEnriching
@@ -15121,7 +15121,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                 :[...new Set(filteredRows.filter(function(s){return (inspMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0)>0;}).map(function(s){return s.container_number;}))].length)
           )
         ),
-        ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
+        !shipPT&&ce('div',{className:'kpi',style:{flex:'1 1 100px',padding:'10px 14px'}},
           ce('div',{className:'kpi-label'},'Graded'),
           ce('div',{className:'kpi-value',style:{fontSize:22}},
             aggMode
