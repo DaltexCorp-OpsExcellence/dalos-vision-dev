@@ -1,4 +1,4 @@
--- shipments read speed (NOT APPLIED — needs Tarek's go-ahead; shared prod DB)
+-- shipments read speed — APPLIED 2026-10-13 (Tarek go-ahead). Before-snapshot: mig_backup.shipments_rls_access_before_20261013 (47 users x 4 products, 0 mismatches after).
 -- Problem: policy USING has_product_access(product_id) runs per ROW (SECURITY DEFINER sql fn → 4× has_dashboard_access each),
 -- ~0.35 ms/row → 6,192 citrus rows ≈ 2.2 s per 1,000-row page, every page re-filters the whole season.
 -- Fix: same rule, evaluated ONCE per query: the list of products this user may read, then product_id = ANY(list).
@@ -12,7 +12,7 @@ grant execute on function public.my_readable_shipment_products() to authenticate
 
 drop policy if exists shipments_per_product_read on public.shipments;
 create policy shipments_per_product_read on public.shipments for select to authenticated
-  using (product_id = any ((select public.my_readable_shipment_products())));
+  using (product_id = any (((select public.my_readable_shipment_products()))::text[]));  -- ::text[] so ANY sees an array, not a row-set
 
 drop policy if exists shipments_client_qc_all_products_read on public.shipments;
 create policy shipments_client_qc_all_products_read on public.shipments for select to authenticated
