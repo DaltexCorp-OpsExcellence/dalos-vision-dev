@@ -15422,58 +15422,77 @@ function ShipmentsMgmt(props){
     setCqcMatches({});setCqcRows({});setInspMatches({});setInspRows({});
     setLoading(true);setShipErr('');
     setCqcEnriching(true);
-    /* Supabase caps at 1000 rows per request — paginate to get all */
-    var allRows=[];
-    function fetchPage(from){
-      var q=supabase.from('shipments').select('*').eq('product_id',selProd).order('loading_date',{ascending:false}).range(from,from+999);
+    /* Speed (S1–S3): (1) every column EXCEPT raw_data — the original sheet row, ~76% of the bytes and never
+       read here; (2) page 1 also returns the row count, then the remaining pages are fetched AT ONCE instead of
+       one after another (stable order: loading_date, then id); (3) grades, Client QC and inspection matches start
+       at the same time as the rows instead of after them. Same results, same states, same order as before. */
+    var dead=false;
+    var SHIP_COLS='id,row_key,product_id,season_id,container_number,carta,pack_house,variety,color,daltex_class,carton_type,loading_date,client,subclient,vessel,etd,eta,receiving_country,receiving_port,shipping_status,carton_count,pallet_count,net_weight,gross_weight,variety_type,traceability_code,farm_source,shipper,agent,shipping_line,booking_no,invoice_no,departure_port,brand,size,has_claim,claim_notes,matched_inspection_id,match_strength,synced_at,created_at,claim_value,claim_currency,carton_net_weight,carton_specs,arrival_date,punnet_count';
+    function shipPage(from,withCount){
+      var q=supabase.from('shipments').select(SHIP_COLS,withCount?{count:'exact'}:undefined).eq('product_id',selProd);
       if(config.activeSeasonId) q=q.eq('season_id',config.activeSeasonId);
-      q.then(function(res){
-        if(res.error){console.error('[DalOS] Shipments load error:',res.error.message);setShipErr(res.error.message||'error');setLoading(false);setCqcEnriching(false);return;}
-        allRows=allRows.concat(res.data||[]);
-        if((res.data||[]).length===1000){
-          /* More pages exist */
-          fetchPage(from+1000);
-        } else {
-          /* Done — set state and load grades/CQC */
-          setShipments(allRows);
-          /* Load grades */
-          var gq=supabase.from('shipment_container_grades').select('*').eq('product_id',selProd);
-          if(config.activeSeasonId) gq=gq.eq('season_id',config.activeSeasonId);
-          gq.then(function(gr){
-            if(!gr.error) setGrades(gr.data||[]);
-            /* Load CQC matches by season — avoids container list slice(200) limit and whitespace mismatch */
-            var cqcQ=supabase.from('client_qc_reports').select('id,container_number,score,qc_report_number,client_decision,potential_claim').eq('product_id',selProd);
-            if(config.activeSeasonId) cqcQ=cqcQ.eq('season_id',config.activeSeasonId);
-            cqcQ.then(function(cr){
-                setLoading(false);
-                if(cr.error){setCqcEnriching(false);return;}
-                var map={}; var rowsMap={};
-                /* normalise key: trim + collapse whitespace, uppercase */
-                function normCN(cn){return (cn||'').replace(/\s+/g,'').toUpperCase();}
-                (cr.data||[]).forEach(function(r){
-                  var k=normCN(r.container_number);
-                  if(k){ map[k]=(map[k]||0)+1; if(!rowsMap[k])rowsMap[k]=[]; rowsMap[k].push(r); }
-                });
-                setCqcMatches(map); setCqcRows(rowsMap);
-                /* Inspection match (container-level, season+product scoped) */
-                var inspQ=supabase.from('inspections_with_aggregates').select('id,container_number,status,decision,avg_total_defect,avg_brix,avg_carton_weight,date,packhouse_id,has_critical,variety_id,variety2_id,farm_id,trace_code,trace_codes,live_avg_total_defect,live_avg_brix').eq('product_id',selProd);
-                if(config.activeSeasonId) inspQ=inspQ.eq('season_id',config.activeSeasonId);
-                inspQ.then(function(ir){
-                  if(ir.error){setCqcEnriching(false);return;}
-                  var imap={}; var irows={};
-                  (ir.data||[]).forEach(function(r){
-                    var k=normCN(r.container_number);
-                    if(k){ imap[k]=(imap[k]||0)+1; if(!irows[k])irows[k]=[]; irows[k].push(r); }
-                  });
-                  setInspMatches(imap); setInspRows(irows);
-                  setCqcEnriching(false);
-                }).catch(function(){setCqcEnriching(false);});
-              }).catch(function(){setLoading(false);setCqcEnriching(false);});
-          });
-        }
-      }).catch(function(e){console.error('[DalOS] Shipments load failed:',e);setShipErr((e&&e.message)||'error');setLoading(false);setCqcEnriching(false);});
+      return Promise.resolve(q.order('loading_date',{ascending:false}).order('id',{ascending:true}).range(from,from+999));
     }
-    fetchPage(0);
+    function normCN(cn){return (cn||'').replace(/\s+/g,'').toUpperCase();}
+    var rowsP=shipPage(0,true).then(function(first){
+      if(first.error) throw first.error;
+      var total=first.count, got=(first.data||[]).length, pages=[];
+      if(got===1000){
+        /* count known → all remaining pages at once; count missing → old one-by-one walk */
+        if(typeof total==='number'){ for(var off=1000;off<total;off+=1000) pages.push(shipPage(off)); }
+        else { return (function walk(from,acc){return shipPage(from).then(function(r){if(r.error)throw r.error;acc=acc.concat(r.data||[]);return (r.data||[]).length===1000?walk(from+1000,acc):acc;});})(1000,first.data||[]); }
+      }
+      return Promise.all(pages).then(function(rs){
+        var all=(first.data||[]).slice();
+        rs.forEach(function(r){ if(r.error) throw r.error; all=all.concat(r.data||[]); });
+        /* rows added while paging (sync) could push the tail past the count → fetch on until a short page */
+        var last=rs.length?rs[rs.length-1]:first;
+        if((last.data||[]).length===1000) return (function walk(from,acc){return shipPage(from).then(function(r){if(r.error)throw r.error;acc=acc.concat(r.data||[]);return (r.data||[]).length===1000?walk(from+1000,acc):acc;});})(all.length,all);
+        return all;
+      });
+    });
+    var gq=supabase.from('shipment_container_grades').select('*').eq('product_id',selProd);
+    if(config.activeSeasonId) gq=gq.eq('season_id',config.activeSeasonId);
+    var gradesP=Promise.resolve(gq).catch(function(e){return {error:e};});
+    /* CQC matches by season — avoids container list slice(200) limit and whitespace mismatch */
+    var cqcQ=supabase.from('client_qc_reports').select('id,container_number,score,qc_report_number,client_decision,potential_claim').eq('product_id',selProd);
+    if(config.activeSeasonId) cqcQ=cqcQ.eq('season_id',config.activeSeasonId);
+    var cqcP=Promise.resolve(cqcQ).catch(function(e){return {error:e};});
+    /* Inspection match (container-level, season+product scoped) */
+    var inspQ=supabase.from('inspections_with_aggregates').select('id,container_number,status,decision,avg_total_defect,avg_brix,avg_carton_weight,date,packhouse_id,has_critical,variety_id,variety2_id,farm_id,trace_code,trace_codes,live_avg_total_defect,live_avg_brix').eq('product_id',selProd);
+    if(config.activeSeasonId) inspQ=inspQ.eq('season_id',config.activeSeasonId);
+    var inspP=Promise.resolve(inspQ).catch(function(e){return {error:e};});
+    rowsP.then(function(allRows){
+      if(dead) return;
+      setShipments(allRows);
+      return gradesP.then(function(gr){
+        if(dead) return;
+        if(!gr.error) setGrades(gr.data||[]);
+        return cqcP.then(function(cr){
+          if(dead) return;
+          setLoading(false);
+          if(cr.error){setCqcEnriching(false);return;}
+          var map={}; var rowsMap={};
+          (cr.data||[]).forEach(function(r){
+            var k=normCN(r.container_number);
+            if(k){ map[k]=(map[k]||0)+1; if(!rowsMap[k])rowsMap[k]=[]; rowsMap[k].push(r); }
+          });
+          setCqcMatches(map); setCqcRows(rowsMap);
+          return inspP.then(function(ir){
+            if(dead) return;
+            if(ir.error){setCqcEnriching(false);return;}
+            var imap={}; var irows={};
+            (ir.data||[]).forEach(function(r){
+              var k=normCN(r.container_number);
+              if(k){ imap[k]=(imap[k]||0)+1; if(!irows[k])irows[k]=[]; irows[k].push(r); }
+            });
+            setInspMatches(imap); setInspRows(irows);
+            setCqcEnriching(false);
+          });
+        });
+      });
+    }).catch(function(e){if(dead)return;console.error('[DalOS] Shipments load failed:',e&&e.message||e);setShipErr((e&&e.message)||'error');setLoading(false);setCqcEnriching(false);});
+    return function(){dead=true;};
   },[selProd,config.activeSeasonId,shipTick]);
 
   function getGrade(containerNum){
@@ -17284,6 +17303,15 @@ function App(){
   function loadConfigFromDB(){
     console.log('[DalOS] loadConfigFromDB starting...');
     setInspLoading(true);setInspErr('');
+    /* Speed (B): start the season inspections query now, in parallel with the lookup lists, for the season this
+       browser last viewed. Used only if it is still the season to show once seasons load (checked below). */
+    function visionInspQuery(sid){return Promise.resolve(supabase.from('inspections_with_aggregates')
+          .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,sub_client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count,seasons(name)')
+          .eq('season_id', sid)
+          .order('date', {ascending:false})
+          .limit(2000));}
+    var _inspEarly=null;
+    try{var _vs=localStorage.getItem('dalos_view_season'),_la=localStorage.getItem('dalos_last_active_season');if(_vs&&_vs===_la)_inspEarly={sid:_vs,p:visionInspQuery(_vs)};}catch(_e){}
     Promise.all([
       supabase.from('packhouses').select('*').eq('active',true).order('name'),
       supabase.from('products').select('*').eq('active',true).order('name'),
@@ -17498,11 +17526,9 @@ function App(){
         setConfig(newCfg);
 
         /* ── Load inspections from Supabase + pallet index for grapes pallet search ── */
-        var inspQ=supabase.from('inspections_with_aggregates')
-          .select('id,season_id,packhouse_id,product_id,variety_id,class_id,client_id,sub_client_id,country_id,farm_id,farm2_id,farm3_id,farm4_id,additional_farms,variety2_id,variety_type,lot_number,container_number,date,wax,packing,labelling,trace_code,ggn,ph_code,farm_code,net_weight,importer,decision,status,avg_brix,avg_carton_weight,avg_total_defect,has_critical,draft_started_at,submitted_at,completion_minutes,created_by,last_edited_by,last_edited_at,decision_by,decision_at,created_at,updated_at,carton_type_id,carton_color,carton_company,carton_company2,trace_codes,extra_labels,plot,plot2,plot3,plot4,sticker_image_url,live_avg_brix,live_avg_carton_weight,live_avg_total_defect,live_has_critical,live_pallet_count,live_sample_count,seasons(name)')
-          .eq('season_id', displaySeason.id)
-          .order('date', {ascending:false})
-          .limit(2000);
+        /* Speed: the inspections query was started early (in parallel with the lookups) for the season this browser
+           last viewed — reuse it when that is still the season to show, else query now. */
+        var inspQ=(_inspEarly&&_inspEarly.sid===displaySeason.id)?_inspEarly.p:visionInspQuery(displaySeason.id);
         /* Season-filtered — loads active season only; sidebar season switch triggers full reload */
         inspQ
           .then(function(ir){
@@ -17515,14 +17541,14 @@ function App(){
             /* Generic paginated IN-fetch — walks past the PostgREST 1000-row cap.
                makeQuery() returns a FRESH query WITH .select()/.in()/.order() but WITHOUT .range().
                A stable .order() is required so rows don't shift between pages. */
-            function fetchAllPaged(makeQuery){
+            function fetchAllPaged(makeQuery,wave){
               /* Parallel paginated IN-fetch. Fires a WAVE of pages concurrently instead of
                  walking them one-at-a-time — the season pallet index (~9 pages / ~9k rows)
                  was 9 serial round-trips that blocked the list + hero KPIs from rendering.
                  makeQuery() must return a fresh filter+order query WITHOUT .range(); a stable
                  .order() keeps page boundaries consistent. Order is preserved because
                  Promise.all resolves in request order. */
-              var PAGE=1000, WAVE=10, acc=[];
+              var PAGE=1000, WAVE=wave||10, acc=[]; /* wave = pages fired at once; more waves follow only if the last page is full */
               function runWave(start){
                 var reqs=[];
                 for(var k=0;k<WAVE;k++){ (function(off){ reqs.push(makeQuery().range(off,off+PAGE-1)); })(start+k*PAGE); }
@@ -17662,8 +17688,8 @@ function App(){
             if(!noIds){
               Promise.all([
                 fetchAllPallets(inspectionIds),
-                fetchAllPaged(function(){return supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('item_index',{ascending:true});}),
-                fetchAllPaged(function(){return supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('round',{ascending:false});})
+                fetchAllPaged(function(){return supabase.from('inspection_clearance').select('inspection_id,item_index,item_label,status').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('item_index',{ascending:true});},3),
+                fetchAllPaged(function(){return supabase.from('inspection_escalations').select('inspection_id,escalation_note,escalated_at,resolution,resolution_comment,escalated_by,round,users!escalated_by(full_name)').in('inspection_id',inspectionIds).order('inspection_id',{ascending:true}).order('round',{ascending:false});},1)
               ]).then(function(results){
                 var pr=results[0],cr=results[1],er=results[2];
                 var palletsByInspection={};
