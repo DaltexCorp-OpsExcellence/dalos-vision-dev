@@ -20,8 +20,9 @@
 (function(){
 'use strict';
 
-var STATUS_OPTS=['Delivered','Shipped','Returned'];
+var STATUS_OPTS=['Loading','Shipped','On Water','Delivered','Returned'];   /* the container's journey in order, then Returned */
 var SNAPSHOT_NOTE='Copied from the live shipment records on 17 Sep 2026.';
+var SNAPSHOT_PRODUCTS={citrus:1,grapes:1,mango:1,pomegranate:1};   /* products whose rows were copied in — Potatoes start empty */
 
 /* ---------------------------------------------------------------- styles */
 var CSS=[
@@ -102,7 +103,7 @@ var CSS=[
 '.sv2-ar{font-weight:500;font-size:12px;text-transform:none;letter-spacing:0;color:var(--text2);font-family:var(--font-body);unicode-bidi:isolate}',
 '.sv2-lab2{display:inline-flex;justify-content:space-between;align-items:baseline;gap:8px;width:calc(100% - 12px)}',
 '.sv2-f label .sv2-lab2{width:calc(100% - 14px)}',
-'.sv2-lines{border-collapse:collapse;width:100%;min-width:1180px;font-size:12px}',
+'.sv2-lines{border-collapse:collapse;width:100%;min-width:1040px;font-size:12px}',
 '.sv2-lines th{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);text-align:left;padding:6px 5px;border-bottom:2px solid var(--border2);font-weight:600;white-space:nowrap}',
 '.sv2-lines td{padding:4px 5px;border-bottom:1px solid var(--bg2);vertical-align:middle}',
 '.sv2 .cin,.sv2 .csel{width:100%;min-width:62px;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:4px 6px;font:12px var(--font-body);color:var(--text)}',
@@ -122,7 +123,7 @@ var CSS=[
 '.sv2-lcard .lb{display:none;padding:2px 11px 11px;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}',
 '.sv2-lcard.open .lb{display:grid}',
 '.sv2-lcard .lb .full{grid-column:1/-1}',
-'.sv2-submit{position:sticky;bottom:var(--sv2-bottom,8px);z-index:6;box-shadow:0 -2px 18px rgba(26,26,23,.10);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:10px 14px}',
+'.sv2-submit{position:sticky;bottom:var(--sv2-bottom,8px);z-index:6;box-shadow:0 -2px 18px rgba(26,26,23,.10);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;background:linear-gradient(var(--card),var(--card)),#fff;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--r2);padding:10px 14px}',
 '.sv2-tot{display:grid}.sv2-tot .k{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)}.sv2-tot .v{font-family:var(--font-display);font-size:19px;font-variant-numeric:tabular-nums}',
 '.sv2-ferr .sv2-banner{align-items:center}',
 '.sv2-overlay{position:absolute;inset:0;background:color-mix(in srgb,var(--card) 80%,transparent);display:none;align-items:center;justify-content:center;gap:10px;z-index:3;border-radius:var(--r2);font-size:13px;color:var(--text2)}',
@@ -156,7 +157,7 @@ function injectCss(){
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function uniq(a){return a.filter(function(v,i){return v!=null&&v!==''&&a.indexOf(v)===i;});}
 function sum(a,k){return a.reduce(function(t,x){return t+(+x[k]||0);},0);}
-function statusClass(s){s=String(s||'').toLowerCase();if(s.indexOf('deliver')>=0)return 'green';if(s.indexOf('ship')>=0)return 'blue';if(s.indexOf('return')>=0)return 'amber';return 'neutral';}
+function statusClass(s){s=String(s||'').toLowerCase();if(s.indexOf('deliver')>=0)return 'green';if(s.indexOf('ship')>=0||s.indexOf('water')>=0)return 'blue';if(s.indexOf('return')>=0)return 'amber';return 'neutral';}
 function fmtDate(iso){if(!iso)return '—';var d=new Date(iso+'T00:00');if(isNaN(d))return esc(iso);var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return d.getDate()+' '+m[d.getMonth()]+' '+d.getFullYear();}
 function fmtT(n){return (Math.round((+n||0)*100)/100).toFixed(2);}
 function fmtEta(s){s=String(s||'');var m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!m)return esc(s||'—');return fmtDate(m[3]+'-'+m[2]+'-'+m[1]);}
@@ -210,6 +211,10 @@ function numProblem(v,whole){
 function tidyNum(v){var s=String(v);if(!/^-?\d+(\.\d+)?$/.test(s))return s;
   var n=Number(s),r=Number(n.toFixed(6));   /* float noise from sheet maths (13.216000000000001) → 13.216; real decimals kept */
   return String(Math.abs(n-r)<1e-9?r:n);}
+/* carton weights are typed in kg but stored in tonnes like every other weight (0.015 = 15 kg) */
+var KG_KEYS={carton_net_weight:1,carton_gross_weight:1};
+function kgToT(v){var s=asciiDigits(v).trim();if(!s||numProblem(s))return v;return String(Number((numOf(s)/1000).toPrecision(12)));}
+function tToKg(v){var s=String(v==null?'':v).trim();if(!/^-?\d+(\.\d+)?$/.test(s))return s;return String(Number((Number(s)*1000).toPrecision(12)));}
 var NUMKEYS={pallets:'numeric',jumbo_count:'numeric',sack_count:'numeric',standard_weight:'decimal',package_weight:'decimal',pack_size:'decimal',pallet_count:'numeric',carton_count:'numeric',net_weight:'decimal',gross_weight:'decimal',carton_net_weight:'decimal',carton_gross_weight:'decimal',pascol_weight:'decimal',pascol_pct:'decimal',packing_weight:'decimal',pascol_net:'decimal',weight_variance:'decimal'};
 
 /* ============================================================== instance */
@@ -234,6 +239,7 @@ function createInstance(host,O){
   function hasLot(){return PRODUCT!=='grapes';}   /* Tarek 2026-10-13: Lot # everywhere except Grapes */
   var PT=(PRODUCT==='potatoes');           /* Pivots line: own fields, totals and RPCs; everything else shared */
   function blankLine(){return PT?newLinePT():newLine();}
+  function snapNote(){return SNAPSHOT_PRODUCTS[PRODUCT]?SNAPSHOT_NOTE:'';}
   function q(sel){return host.querySelector(sel);}
   function qa(sel){return Array.prototype.slice.call(host.querySelectorAll(sel));}
   function el(id){return host.querySelector('#sv2-'+id);}
@@ -255,7 +261,7 @@ function createInstance(host,O){
   host.innerHTML=
   '<div class="sv2">'+
    '<div class="sv2-view on" id="sv2-vlist">'+
-    '<div class="sv2-banner" id="sv2-banner"><span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+SNAPSHOT_NOTE+'</span></div>'+
+    '<div class="sv2-banner" id="sv2-banner"><span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+snapNote()+'</span></div>'+
     '<div class="sv2-toolbar">'+
      '<div class="sv2-search" id="sv2-searchwrap"><input id="sv2-q" type="search" placeholder="'+(PT?'Search container, client, station, variety, pivot, farm, lot, grade…':'Search container, client, vessel, booking, invoice, lot, port…')+'" autocomplete="off" aria-label="Search shipments"><button type="button" class="sv2-clr" data-act="clearQ" aria-label="Clear search">✕</button></div>'+
      '<span class="sv2-fsels" id="sv2-facets"></span>'+
@@ -332,11 +338,12 @@ function createInstance(host,O){
   function ptHeaderHTML(){return ''+
      '<div class="sv2-st">Voyage <small id="sv2-lockhint" hidden>· container + date locked while editing</small></div>'+
      '<div class="sv2-grid">'+
-      fld(ar('Loading Date','التاريخ'),'ldate','date',{req:1})+sel(ar('Packing Station','محطه التعبئه'),'station')+
+      fld(ar('Loading Date','التاريخ'),'ldate','date',{req:1,chg:'ldate'})+sel(ar('Packing Station','محطه التعبئه'),'station')+
       sel(ar('Sector','القطاع'),'sector')+sel(ar('Crop season','الموسم'),'pseason')+
       fld(ar('Container No.','رقم الحاويه'),'container','text',{req:1,mono:1,ph:'e.g. MNBU 9188741'})+fld(ar('Carta','كارته شحن'),'carta','text',{mono:1})+
       fld(ar('Vessel','اسم المركب'),'vessel')+fld(ar('Container Count','عدد الحاويات'),'ccount','text',{mono:1,inputmode:'numeric'})+
      '</div>'+
+     '<div class="sv2-derived">Auto · Month <b id="sv2-dmonth">—</b> · Week <b id="sv2-dweek">—</b></div>'+
      '<div class="sv2-st">Destination &amp; documents</div>'+
      '<div class="sv2-grid">'+
       fld(ar('Client','العميل'),'client','text',{list:'sv2-dl-client'})+fld(ar('Country','الدولة'),'country','text',{list:'sv2-dl-country'})+
@@ -424,11 +431,12 @@ function createInstance(host,O){
     var im=NUMKEYS[k]?' inputmode="'+NUMKEYS[k]+'"':'';
     list=list||(k==='source_type'?'sv2-dl-source':k==='raw_source'?'sv2-dl-rawsource':'');
     return '<input class="cin '+(cls||'')+'" data-k="'+k+'"'+im+(NUMKEYS[k]?'':' dir="auto"')+' value="'+esc(v)+'"'+(list?' list="'+list+'"':'')+'>';}
+  function cpct(i){return '<input class="cin num calc" data-cpct="'+i+'" readonly tabindex="-1" title="This line’s share of the container’s net weight (worked out when saved)" value="">';}
   function csel(list,v,k,chg){return '<select class="csel" dir="auto" data-k="'+k+'"'+(chg?' data-chg="'+chg+'"':'')+'>'+opts(list,v)+'</select>';}
-  function ncols(){return (isCitrus()?18:17)-(hasLot()?0:1);}
+  function ncols(){return (isCitrus()?16:15)-(hasLot()?0:1);}
   function headHTML(){
     return '<tr><th></th><th>#</th><th>Category</th><th>Variety</th>'+(hasLot()?'<th>Lot #</th>':'')+'<th>Daltex Class</th><th>Client Class</th><th>Carton Type</th><th>Brand</th><th>Packing</th>'+(isCitrus()?'<th>Caliber</th>':'')+
-      '<th class="num">Pallets</th><th class="num">Cartons</th><th class="num">Net t</th><th class="num">Gross t</th><th>Count</th><th>Trace code</th><th></th></tr>';
+      '<th class="num">Pallets</th><th class="num">Cartons</th><th class="num">Net t</th><th class="num">Gross t</th><th></th></tr>';
   }
   function rowHTML_line(d,i){
     return '<tr data-line="'+i+'">'+
@@ -441,17 +449,19 @@ function createInstance(host,O){
       (isCitrus()?'<td>'+cin(d.caliber,'caliber','mono')+'</td>':'')+
       '<td>'+cin(d.pallet_count,'pallet_count','num')+'</td><td>'+cin(d.carton_count,'carton_count','num')+'</td>'+
       '<td>'+cin(d.net_weight,'net_weight','num')+'</td><td>'+cin(d.gross_weight,'gross_weight','num')+'</td>'+
-      '<td>'+cin(d.count_size,'count_size','mono')+'</td><td>'+cin(d.traceability_code,'traceability_code','mono')+'</td>'+
       '<td><button type="button" class="sv2-ib rm" data-act="rmLine" data-i="'+i+'" aria-label="Remove line '+(i+1)+'">×</button></td>'+
     '</tr>'+
     '<tr class="sub" data-line="'+i+'"><td></td><td colspan="'+(ncols()-1)+'"><div class="sv2-dgrid">'+
       '<div><div class="sv2-dlab">Handling · this line — Pack House (Packing)</div>'+csel(REF.packs,d.pack_house,'pack_house')+'</div>'+
       '<div><div class="sv2-dlab">Source Type</div>'+cin(d.source_type,'source_type')+'</div>'+
       '<div><div class="sv2-dlab">Raw Source</div>'+cin(d.raw_source,'raw_source')+'</div>'+
+      '<div><div class="sv2-dlab">Count</div>'+cin(d.count_size,'count_size','mono')+'</div>'+
+      '<div><div class="sv2-dlab">Trace code</div>'+cin(d.traceability_code,'traceability_code','mono')+'</div>'+
     '</div></td></tr>'+
     '<tr class="det'+(openRows[i]?' open':'')+'" data-line="'+i+'"><td></td><td colspan="'+(ncols()-1)+'"><div class="sv2-dgrid">'+
       '<div><div class="sv2-dlab">Carton Net (kg)</div>'+cin(d.carton_net_weight,'carton_net_weight','num')+'</div>'+
       '<div><div class="sv2-dlab">Carton Gross (kg)</div>'+cin(d.carton_gross_weight,'carton_gross_weight','num')+'</div>'+
+      '<div><div class="sv2-dlab">Container % · auto</div>'+cpct(i)+'</div>'+
       (isCitrus()?
       '<div><div class="sv2-dlab">Pascol Weight (t) · weighbridge</div>'+cin(d.pascol_weight,'pascol_weight','num')+'</div>'+
       '<div><div class="sv2-dlab">Pascol Actual % · auto</div>'+cin(d.pascol_pct,'pascol_pct','num')+'</div>'+
@@ -479,6 +489,7 @@ function createInstance(host,O){
         f('Pack House (Packing)',csel(REF.packs,d.pack_house,'pack_house'),true)+
         f('Source Type',cin(d.source_type,'source_type'))+f('Raw Source',cin(d.raw_source,'raw_source'))+
         f('Carton net kg',cin(d.carton_net_weight,'carton_net_weight','num'))+f('Carton gross kg',cin(d.carton_gross_weight,'carton_gross_weight','num'))+
+        f('Container % · auto',cpct(i))+
         (isCitrus()?f('Pascol t',cin(d.pascol_weight,'pascol_weight','num'))+f('Pascol % · auto',cin(d.pascol_pct,'pascol_pct','num'))+
           f('Packing t',cin(d.packing_weight,'packing_weight','num'))+f('Pascol net t · auto',cin(d.pascol_net,'pascol_net','num'))+
           f('Variance t · auto',cin(d.weight_variance,'weight_variance','num')):'')+
@@ -544,7 +555,7 @@ function createInstance(host,O){
       el('lcards').innerHTML='';
       el('lhead').innerHTML=headHTML();
       el('lbody').innerHTML=LINES.map(rowHTML_line).join('');
-      el('lfoot').innerHTML='<tr><td colspan="'+((isCitrus()?11:10)-(hasLot()?0:1))+'" style="font-family:var(--font-body);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)">Totals</td><td id="sv2-tpal">0</td><td id="sv2-tctn">0</td><td id="sv2-tnet">0.00</td><td id="sv2-tgrs">0.00</td><td colspan="3"></td></tr>';
+      el('lfoot').innerHTML='<tr><td colspan="'+((isCitrus()?11:10)-(hasLot()?0:1))+'" style="font-family:var(--font-body);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)">Totals</td><td id="sv2-tpal">0</td><td id="sv2-tctn">0</td><td id="sv2-tnet">0.00</td><td id="sv2-tgrs">0.00</td><td></td></tr>';
     }
     recompute();
   }
@@ -566,6 +577,7 @@ function createInstance(host,O){
     var set=function(id,v){var e=el(id);if(e)e.textContent=v;};
     set('tpal',pal.toLocaleString());set('tctn',ctn.toLocaleString());set('tnet',net.toFixed(2));set('tgrs',grs.toFixed(2));
     set('slines',LINES.length);set('spal',pal.toLocaleString());set('sctn',ctn.toLocaleString());set('snet',net.toFixed(2)+' t');
+    LINES.forEach(function(d,i){var n=numOf(d.net_weight),v=net>0&&String(d.net_weight||'').trim()?(Math.round(n/net*1000)/10).toFixed(1)+' %':'';qa('[data-cpct="'+i+'"]').forEach(function(f){f.value=v;});});
   }
 
   function calcPascol(){
@@ -707,7 +719,8 @@ function createInstance(host,O){
       hdr.season_id=SEASON;
     }
     SEASON_OK=false;
-    var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});return c;});
+    var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});
+      if(!PT)Object.keys(KG_KEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=kgToT(c[k]);});return c;});
     if(hdr.container_count)hdr.container_count=asciiDigits(hdr.container_count);
     setSaving(true);
     var call=(MODE==='edit')
@@ -749,7 +762,7 @@ function createInstance(host,O){
         setv('container',h.container_number);setv('carta',h.carta);setv('ldate',h.loading_date);setv('vessel',h.vessel);setv('ccount',h.container_count);
         setv('client',h.client);setv('country',h.receiving_country);setv('country2',h.country2);setv('port',h.receiving_port);
         setv('invoice',h.invoice_no);setv('permit',h.permit_no);setv('workorder',h.work_order);
-        fillHeaderSelects({station:h.station,sector:h.sector,season:h.season});
+        fillHeaderSelects({station:h.station,sector:h.sector,season:h.season});deriveDate();
         LINES=lines.map(function(l){var d=newLinePT();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
         if(!LINES.length)LINES=[newLinePT()];
         openRows={};renderLines();setDirty(false);
@@ -763,7 +776,7 @@ function createInstance(host,O){
       fillHeaderSelects({status:h.shipping_status,client:h.client,subclient:h.subclient,pack_house_departure:h.pack_house_departure});
       deriveDate();syncCtxStatus();
       PAS_LIVE=false;
-      LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
+      LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=KG_KEYS[k]?tToKg(l[k]):NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
       if(!LINES.length)LINES=[blankLine()];
       openRows={};renderLines();setDirty(false);
       el('ftitle').textContent='Edit shipment';el('ctxref').textContent=h.container_number||container;setSeasonChip();
@@ -918,7 +931,7 @@ function createInstance(host,O){
   }
   function setListBanner(err){
     var b=el('banner');if(!b)return;
-    if(!err){b.className='sv2-banner';b.innerHTML='<span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+SNAPSHOT_NOTE+'</span>';return;}
+    if(!err){b.className='sv2-banner';b.innerHTML='<span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+snapNote()+'</span>';return;}
     b.className='sv2-banner err';b.setAttribute('role','alert');
     b.innerHTML='<span aria-hidden="true">!</span><span style="flex:1">'+esc(err)+'</span><button type="button" class="sv2-btn sec sm" data-act="reloadList">Retry</button>';
   }
@@ -1028,5 +1041,5 @@ function createInstance(host,O){
   return {api:api,unmount:api.unmount};
 }
 
-window.ShipV2={mount:mount,version:'2026-10-12'};
+window.ShipV2={mount:mount,version:'2026-10-13'};
 })();

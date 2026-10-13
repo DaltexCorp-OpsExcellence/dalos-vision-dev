@@ -14371,7 +14371,7 @@ function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?t='+Math.floor(Date.now()/600000);
+    s.src='shipments_v2.js?v=6a2a2ba4b9';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});
@@ -14430,6 +14430,7 @@ function ShipmentsMgmt(props){
   var sAggMode=useState(true); var aggMode=sAggMode[0]; var setAggMode=sAggMode[1];
   /* Manage = shipment entry sandbox (shipments_v2.js), editors only; never writes public.shipments */
   /* only products the entry tool supports (orchards + potatoes); Berries/Olives have no form yet */
+  var shipPT=selProd==='potatoes';
   var canManage=!!(props.perms&&props.perms.editShipments)&&['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0;
   var sManage=useState(false); var manage=sManage[0]&&canManage; var setManage=sManage[1];
   var shipV2Api=React.useRef(null);
@@ -15146,12 +15147,14 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Invoice(s)'),ce('th',null,'Varieties'),ce('th',null,'Farms'),
                 ce('th',null,'Subclient'),ce('th',null,'Country'),ce('th',null,'Loading'),
-                ce('th',null,'Arrival'),ce('th',null,'Status'),ce('th',{style:{textAlign:'center'}},'Cartons'),
-                ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'INSP'),ce('th',{style:{textAlign:'center'}},'Grade'),
-                ce('th',{style:{textAlign:'center'}},'Claim')
+                ce('th',null,'Arrival'),ce('th',null,'Status'),
+                /* Cartons / CQC / INSP / Grade / Claim are orchard ideas — not shown for Potatoes (packed in bags, no CQC or grading) */
+                !shipPT&&ce('th',{style:{textAlign:'center'}},'Cartons'),
+                !shipPT&&ce('th',{style:{textAlign:'center'}},'CQC'),!shipPT&&ce('th',{style:{textAlign:'center'}},'INSP'),!shipPT&&ce('th',{style:{textAlign:'center'}},'Grade'),
+                !shipPT&&ce('th',{style:{textAlign:'center'}},'Claim')
               )),
               ce('tbody',null,
-                filteredContainers.length===0&&ce('tr',null,ce('td',{colSpan:14,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No containers found')),
+                filteredContainers.length===0&&ce('tr',null,ce('td',{colSpan:shipPT?9:14,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No containers found')),
                 filteredContainers.map(function(c){
                   var g=getGrade(c.container_number);
                   var cqcCount=cqcMatches[(c.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
@@ -15179,17 +15182,17 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},loadArr[0]||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},arrArr[arrArr.length-1]||'—'),
                     ce('td',null, statArr.length? statArr.map(function(st,i){return ce('span',{key:i,className:'badge '+(st==='Delivered'?'badge-pass':st==='In Transit'?'badge-warn':'badge-neutral'),style:{fontSize:10,marginRight:3}},st);}) : ce('span',{style:{color:'var(--text3)',fontSize:12}},'\u2014')),
-                    ce('td',{style:{textAlign:'center',fontFamily:'var(--font-mono)',fontSize:12}},c.total_cartons||'—'),
-                    ce('td',{style:{textAlign:'center'}},
+                    !shipPT&&ce('td',{style:{textAlign:'center',fontFamily:'var(--font-mono)',fontSize:12}},c.total_cartons||'—'),
+                    !shipPT&&ce('td',{style:{textAlign:'center'}},
                       cqcEnriching?shimCell():(cqcCount>0?ce('span',{className:'badge badge-pass',style:{fontSize:10}},'\u2713 '+cqcCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—'))
                     ),
-                    ce('td',{style:{textAlign:'center'}},
+                    !shipPT&&ce('td',{style:{textAlign:'center'}},
                       cqcEnriching?shimCell():(inspCount>0?ce('span',{style:{background:'rgba(37,99,173,0.12)',color:'#2563ad',fontSize:10,padding:'2px 7px',borderRadius:6,fontWeight:600}},'\u2713 '+inspCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—'))
                     ),
-                    ce('td',{style:{textAlign:'center'}},
+                    !shipPT&&ce('td',{style:{textAlign:'center'}},
                       g&&g.grade?ce('span',{style:{fontWeight:700,color:gradeColor(g.grade),fontSize:14}},g.grade):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                     ),
-                    ce('td',{style:{textAlign:'center'}},
+                    !shipPT&&ce('td',{style:{textAlign:'center'}},
                       g&&g.has_claim?ce('span',{className:'badge badge-fail',style:{fontSize:10}},'\uD83D\uDEA9'+(g.claim_value?' '+(g.claim_currency||'USD')+' '+Number(g.claim_value).toLocaleString():'')):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                     )
                   );
@@ -15205,12 +15208,14 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
               ce('thead',{style:{position:'sticky',top:0,zIndex:10,background:'var(--card)'}},ce('tr',null,
                 ce('th',null,'Container'),ce('th',null,'Carta'),ce('th',null,'Invoice No.'),
                 ce('th',null,'Variety'),ce('th',null,'Farm'),ce('th',null,'Subclient'),ce('th',null,'Loading'),
-                ce('th',null,'Arrival'),ce('th',null,'Status'),ce('th',{style:{textAlign:'center'}},'Cartons'),
-                ce('th',{style:{textAlign:'center'}},'CQC'),ce('th',{style:{textAlign:'center'}},'INSP'),ce('th',{style:{textAlign:'center'}},'Grade'),
-                ce('th',{style:{textAlign:'center'}},'Claim')
+                ce('th',null,'Arrival'),ce('th',null,'Status'),
+                /* Cartons / CQC / INSP / Grade / Claim are orchard ideas — not shown for Potatoes (packed in bags, no CQC or grading) */
+                !shipPT&&ce('th',{style:{textAlign:'center'}},'Cartons'),
+                !shipPT&&ce('th',{style:{textAlign:'center'}},'CQC'),!shipPT&&ce('th',{style:{textAlign:'center'}},'INSP'),!shipPT&&ce('th',{style:{textAlign:'center'}},'Grade'),
+                !shipPT&&ce('th',{style:{textAlign:'center'}},'Claim')
               )),
               ce('tbody',null,
-                filteredRows.length===0&&ce('tr',null,ce('td',{colSpan:14,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No shipments found')),
+                filteredRows.length===0&&ce('tr',null,ce('td',{colSpan:shipPT?9:14,style:{textAlign:'center',padding:32,color:'var(--text3)'}},'No shipments found')),
                 filteredRows.map(function(s){
                   var g=getGrade(s.container_number);
                   var cqcCount=cqcMatches[(s.container_number||'').replace(/\s+/g,'').toUpperCase()]||0;
@@ -15226,17 +15231,17 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.loading_date||'—'),
                     ce('td',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}},s.arrival_date||'—'),
                     ce('td',null,s.shipping_status?ce('span',{className:'badge '+(s.shipping_status==='Delivered'?'badge-pass':s.shipping_status==='In Transit'?'badge-warn':'badge-neutral'),style:{fontSize:10}},s.shipping_status):'—'),
-                    ce('td',{style:{textAlign:'center',fontFamily:'var(--font-mono)',fontSize:12}},s.carton_count||'—'),
-                    ce('td',{style:{textAlign:'center'}},
+                    !shipPT&&ce('td',{style:{textAlign:'center',fontFamily:'var(--font-mono)',fontSize:12}},s.carton_count||'—'),
+                    !shipPT&&ce('td',{style:{textAlign:'center'}},
                       cqcEnriching?shimCell():(cqcCount>0?ce('span',{className:'badge badge-pass',style:{fontSize:10}},'\u2713 '+cqcCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—'))
                     ),
-                    ce('td',{style:{textAlign:'center'}},
+                    !shipPT&&ce('td',{style:{textAlign:'center'}},
                       cqcEnriching?shimCell():(inspCount>0?ce('span',{style:{background:'rgba(37,99,173,0.12)',color:'#2563ad',fontSize:10,padding:'2px 7px',borderRadius:6,fontWeight:600}},'\u2713 '+inspCount):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—'))
                     ),
-                    ce('td',{style:{textAlign:'center'}},
+                    !shipPT&&ce('td',{style:{textAlign:'center'}},
                       g&&g.grade?ce('span',{style:{fontWeight:700,color:gradeColor(g.grade),fontSize:14}},g.grade):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                     ),
-                    ce('td',{style:{textAlign:'center'}},
+                    !shipPT&&ce('td',{style:{textAlign:'center'}},
                       g&&g.has_claim?ce('span',{className:'badge badge-fail',style:{fontSize:10}},'\uD83D\uDEA9'+(g.claim_value?' '+(g.claim_currency||'USD')+' '+Number(g.claim_value).toLocaleString():'')):ce('span',{style:{color:'var(--text3)',fontSize:12}},'—')
                     )
                   );
