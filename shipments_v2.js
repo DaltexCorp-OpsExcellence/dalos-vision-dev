@@ -317,7 +317,7 @@ function createInstance(host,O){
      '<div class="sv2-grid">'+
       fld('Loading Date','ldate','date',{req:1,chg:'ldate'})+
       '<div class="sv2-dep"><label class="chk"><input type="checkbox" id="sv2-depdiff" data-chg="depdiff">Departure date differs from loading date</label>'+
-       '<span class="hint" id="sv2-dephint"></span><div class="dd" id="sv2-depwrap" hidden>'+fld('Departure Date','depdate','date',{req:1})+'</div></div>'+
+       '<span class="hint" id="sv2-dephint"></span><div class="dd" id="sv2-depwrap" hidden>'+fld('Departure Date','depdate','date',{req:1})+(SV2_SEND_DEPARTURE_DATE?'':'<div class="hint" style="color:var(--red);font-weight:600">Preview only: departure date will not be saved yet</div>')+'</div></div>'+
       '<div class="sv2-f"><label for="sv2-status">Shipping Status <span class="req">*</span></label><select class="sv2-in" id="sv2-status" data-chg="status" data-req="1"></select></div>'+
       fld('Carta','carta','text',{mono:1})+
       fld('Container No.','container','text',{req:1,mono:1,ph:'e.g. MNBU 3751992'})+
@@ -717,7 +717,7 @@ function createInstance(host,O){
     var okC=validateField('container'),okL=validateField('ldate'),okS=PT||validateField('status');
     var missH=[];if(!okC)missH.push('Container No.');if(!okL)missH.push('Loading Date');if(!okS)missH.push('Shipping Status');
     if(missH.length){showFormError(missH.join(', ')+(missH.length>1?' are':' is')+' required.');el(!okC?'container':!okL?'ldate':'status').focus();return;}
-    if(!PT&&el('depdiff')&&el('depdiff').checked){var dd=val('depdate'),dErr=!dd?'Departure date is required':(dd<val('ldate')?'Departure date can\'t be before the loading date':'');
+    if(!PT&&el('depdiff')&&el('depdiff').checked){var dd=val('depdate'),dErr=!dd?'Departure date is required':(dd<val('ldate')?'Departure date can\'t be before the loading date':(!SV2_SEND_DEPARTURE_DATE?'Preview only: departure date can\'t be saved yet. Untick the box to save':''));
       el('depdate').classList.toggle('invalid',!!dErr);if(dErr){showFormError(dErr+'.');el('depdate').focus();return;}}
     if(checkExisting())return;
     syncLines();
