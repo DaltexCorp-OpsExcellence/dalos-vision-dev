@@ -23,6 +23,7 @@
 var STATUS_OPTS=['Loading','Shipped','On Water','Delivered','Returned'];   /* the container's journey in order, then Returned */
 var SNAPSHOT_NOTE='Copied from the live shipment records on 17 Sep 2026.';
 var SNAPSHOT_PRODUCTS={citrus:1,grapes:1,mango:1,pomegranate:1};   /* products whose rows were copied in — Potatoes start empty */
+var SV2_SEND_DEPARTURE_DATE=false; // enable only after the DB column + RPC mapping are applied (pending Anna/Ash/Tarek)
 
 /* ---------------------------------------------------------------- styles */
 var CSS=[
@@ -99,6 +100,10 @@ var CSS=[
 '.sv2-in[readonly]{background:var(--bg2);color:var(--text3);cursor:not-allowed}',
 '.sv2-in.invalid,.sv2 .cin.invalid,.sv2 .csel.invalid{border-color:var(--red);background:var(--red-bg)}',
 '.sv2-derived{display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--text3)}',
+'.sv2-dep{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center}',
+'.sv2-dep .chk{display:inline-flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;font-size:12.5px;color:var(--text)}',
+'.sv2-dep .chk input{width:18px;height:18px;margin:0;accent-color:var(--accent);cursor:pointer}',
+'.sv2-dep .hint{font-size:11.5px;color:var(--text3)}.sv2-dep .dd{min-width:180px}',
 '.sv2-derived b{font-family:var(--font-mono);color:var(--text2)}',
 '.sv2-ar{font-weight:500;font-size:12px;text-transform:none;letter-spacing:0;color:var(--text2);font-family:var(--font-body);unicode-bidi:isolate}',
 '.sv2-lab2{display:inline-flex;justify-content:space-between;align-items:baseline;gap:8px;width:calc(100% - 12px)}',
@@ -311,6 +316,8 @@ function createInstance(host,O){
      '<div class="sv2-st">Logistics <small id="sv2-lockhint" hidden>· container + date locked while editing</small></div>'+
      '<div class="sv2-grid">'+
       fld('Loading Date','ldate','date',{req:1,chg:'ldate'})+
+      '<div class="sv2-dep"><label class="chk"><input type="checkbox" id="sv2-depdiff" data-chg="depdiff">Departure date differs from loading date</label>'+
+       '<span class="hint" id="sv2-dephint"></span><div class="dd" id="sv2-depwrap" hidden>'+fld('Departure Date','depdate','date',{req:1})+'</div></div>'+
       '<div class="sv2-f"><label for="sv2-status">Shipping Status <span class="req">*</span></label><select class="sv2-in" id="sv2-status" data-chg="status" data-req="1"></select></div>'+
       fld('Carta','carta','text',{mono:1})+
       fld('Container No.','container','text',{req:1,mono:1,ph:'e.g. MNBU 3751992'})+
@@ -604,6 +611,10 @@ function createInstance(host,O){
     var t=new Date(dt);t.setHours(0,0,0,0);t.setDate(t.getDate()+3-((t.getDay()+6)%7));var w1=new Date(t.getFullYear(),0,4);
     el('dweek').textContent=1+Math.round(((t-w1)/86400000-3+((w1.getDay()+6)%7))/7);
   }
+  function syncDep(){var cb=el('depdiff');if(!cb)return;var on=cb.checked,w=el('depwrap'),h=el('dephint'),ld=val('ldate');
+    if(w)w.hidden=!on;if(h){h.hidden=on;h.textContent='Departure date: same as loading date ('+(ld?fmtDate(ld):'not set')+')';}
+    if(!on){var d=el('depdate');if(d)d.classList.remove('invalid');}}
+  function setDep(on,v){var cb=el('depdiff'),d=el('depdate');if(!cb)return;cb.checked=!!on;if(d){d.value=on&&v?v:'';d.classList.remove('invalid');}syncDep();}
   function syncCtxStatus(){var st=val('status');var p=el('ctxstatus');if(p){p.className='sv2-pill '+statusClass(st);p.textContent=st||'Status not set';}}
   function validateField(id){var e=el(id);if(!e)return true;var ok=!!String(e.value||'').trim();e.classList.toggle('invalid',!ok);return ok;}
   function setVoyageLock(on){['container','ldate'].forEach(function(id){var e=el(id);if(e){e.readOnly=on;}});var h=el('lockhint');if(h)h.hidden=!on;}
@@ -613,11 +624,13 @@ function createInstance(host,O){
     if(PT)return {container_number:val('container'),carta:val('carta'),loading_date:val('ldate'),station:val('station'),sector:val('sector'),
       season:val('pseason'),container_count:val('ccount'),client:val('client'),receiving_country:val('country'),country2:val('country2'),
       receiving_port:val('port'),vessel:val('vessel'),invoice_no:val('invoice'),permit_no:val('permit'),work_order:val('workorder')};
-    return {product_id:PRODUCT,container_number:val('container'),carta:val('carta'),loading_date:val('ldate'),
+    var h={product_id:PRODUCT,container_number:val('container'),carta:val('carta'),loading_date:val('ldate'),
       shipping_status:val('status'),vessel:val('vessel'),shipping_line:val('line'),booking_no:val('booking'),
       invoice_no:val('invoice'),po_number:val('po'),etd:val('etd'),eta:val('eta'),arrival_date:val('arrival'),
       departure_port:val('depport'),receiving_country:val('country'),receiving_port:val('port'),client:val('client'),
       subclient:val('subclient'),agent:val('agent'),shipper:val('shipper'),pack_house_departure:val('packdep')};
+    if(SV2_SEND_DEPARTURE_DATE){var cb=el('depdiff');h.departure_date=(cb&&cb.checked)?val('depdate'):val('ldate');}
+    return h;
   }
   function setSeasonChip(){var c=el('ctxseason');if(c)c.textContent=MODE==='create'?('Season '+(SEASON_NAME||'—')+' · from the sidebar'):'Season kept from the record';}
 
@@ -704,6 +717,8 @@ function createInstance(host,O){
     var okC=validateField('container'),okL=validateField('ldate'),okS=PT||validateField('status');
     var missH=[];if(!okC)missH.push('Container No.');if(!okL)missH.push('Loading Date');if(!okS)missH.push('Shipping Status');
     if(missH.length){showFormError(missH.join(', ')+(missH.length>1?' are':' is')+' required.');el(!okC?'container':!okL?'ldate':'status').focus();return;}
+    if(!PT&&el('depdiff')&&el('depdiff').checked){var dd=val('depdate'),dErr=!dd?'Departure date is required':(dd<val('ldate')?'Departure date can\'t be before the loading date':'');
+      el('depdate').classList.toggle('invalid',!!dErr);if(dErr){showFormError(dErr+'.');el('depdate').focus();return;}}
     if(checkExisting())return;
     syncLines();
     /* drop new lines nobody touched (the form starts with one blank line) */
@@ -746,7 +761,7 @@ function createInstance(host,O){
   /* ---------------------------------------------------------- edit load */
   function loadForEdit(container,loaded){
     var my=++formSeq;
-    clearFormError();blankHeader();LINES=[];openRows={};renderLines();
+    clearFormError();blankHeader();setDep(false);LINES=[];openRows={};renderLines();
     setVoyageLock(true);showOverlay(true);
     var getCall=PT?sb.rpc('get_shipment_v2_potato_container',{p_container:container,p_loaded:loaded})
                   :sb.rpc('get_shipment_v2_container',{p_container:container,p_loaded:loaded,p_product:PRODUCT});
@@ -773,6 +788,7 @@ function createInstance(host,O){
       setv('po',h.po_number);setv('etd',h.etd);setv('eta',h.eta);setv('arrival',h.arrival_date);
       setv('depport',h.departure_port);setv('country',h.receiving_country);setv('port',h.receiving_port);
       setv('agent',h.agent);setv('shipper',h.shipper);
+      setDep(!!h.departure_date&&h.departure_date!==h.loading_date,h.departure_date);
       fillHeaderSelects({status:h.shipping_status,client:h.client,subclient:h.subclient,pack_house_departure:h.pack_house_departure});
       deriveDate();syncCtxStatus();
       PAS_LIVE=false;
@@ -794,7 +810,7 @@ function createInstance(host,O){
   }
   function openCreate(){
     formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;
-    blankHeader();fillHeaderSelects({status:''});deriveDate();
+    blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();
     PAS_LIVE=true;LINES=[blankLine()];openRows={0:isPhone()};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);
     el('ftitle').textContent='New shipment';el('ctxref').textContent='New';setSeasonChip();
@@ -985,7 +1001,8 @@ function createInstance(host,O){
     var t=e.target,c=t.getAttribute&&t.getAttribute('data-chg');
     if(c==='status')syncCtxStatus();
     else if(c==='client')fillSubclients();
-    else if(c==='ldate')deriveDate();
+    else if(c==='ldate'){deriveDate();syncDep();}
+    else if(c==='depdiff')syncDep();
     else if(c==='facet'){var fk=t.getAttribute('data-fk');if(ST.f[fk]){ST.f[fk]=t.value?[t.value]:[];ST.limit=RENDER_STEP;renderList();}return;}
     else if(isCitrus()&&t.getAttribute&&t.getAttribute('data-k')==='pascol_weight'&&String(t.value).trim()){var me=t.closest('[data-line]');
       qa('[data-line] [data-k="pascol_weight"]').forEach(function(f){if(f!==t&&f.closest('[data-line]')!==me&&!String(f.value).trim())f.value=t.value;});recompute();}
