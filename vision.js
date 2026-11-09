@@ -11364,7 +11364,8 @@ function ClientQCMgmt(props){
     };
     supabase.auth.getUser().then(function(ur){
       if(ur.data&&ur.data.user) dbRow.created_by=ur.data.user.id;
-      dbRow.season_id=config.trueActiveSeasonId||config.activeSeasonId||null;
+      /* Save into the season the user has OPEN (same rule as inspection saves) — not the global DB-active one. */
+      dbRow.season_id=config.activeSeasonId||config.trueActiveSeasonId||null;
       console.log('[DalOS] Saving CQC report:',JSON.stringify(dbRow));
       if(isNew){
         return supabase.from('client_qc_reports').insert([dbRow]).select();
