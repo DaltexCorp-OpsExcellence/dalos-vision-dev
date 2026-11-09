@@ -5693,7 +5693,7 @@ function AnalyticsView(props){
 
   /* ── State: filters ── */
   var sProd=useState('grapes');   var productId=sProd[0];    var setProductId=sProd[1];
-  var sSeas=useState(config.trueActiveSeasonId||config.activeSeasonId||null);
+  var sSeas=useState(config.activeSeasonId||config.trueActiveSeasonId||null);
   var seasonId=sSeas[0]; var setSeasonId=sSeas[1];
   /* FIX: header season dropdown sets config.activeSeasonId; keep local seasonId (drives inspections loader + KPIs) in sync so switching season refetches. */
   React.useEffect(function(){ if(config.activeSeasonId&&config.activeSeasonId!==seasonId) setSeasonId(config.activeSeasonId); },[config.activeSeasonId]);
@@ -11236,7 +11236,7 @@ function ClientQCMgmt(props){
       setCqcSaveErr('');
       setCqcSaving(true);
       supabase.rpc('cqc_container_duplicate_check',{
-        p_season:config.trueActiveSeasonId||config.activeSeasonId||null,
+        p_season:config.activeSeasonId||config.trueActiveSeasonId||null, /* duplicate check in the OPEN season (same season the CQC saves into) */
         p_container:String(fContainer).trim(),
         p_exclude:null
       }).then(function(res){
