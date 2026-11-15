@@ -24,6 +24,15 @@ var STATUS_OPTS=['Loading','Shipped','On Water','Delivered','Returned'];   /* th
 var SNAPSHOT_NOTE='Copied from the live shipment records on 17 Sep 2026.';
 var SNAPSHOT_PRODUCTS={citrus:1,grapes:1,mango:1,pomegranate:1};   /* products whose rows were copied in — Potatoes start empty */
 var SV2_SEND_DEPARTURE_DATE=false; // enable only after the DB column + RPC mapping are applied (pending Anna/Ash/Tarek)
+var SV2_INTAKE_FIELDS_ENABLED=false; // enable only after the intake DB package is applied (pending Ash/Anna/Tarek)
+/* testers: localStorage.setItem('SV2_INTAKE_FIELDS_ENABLED','true') then reload (read once at mount) */
+function intakeFieldsEnabled(){
+  if(SV2_INTAKE_FIELDS_ENABLED)return true;
+  try{
+    var v=window.localStorage&&localStorage.getItem('SV2_INTAKE_FIELDS_ENABLED');
+    return v==='true'||v==='1';
+  }catch(e){return false;}
+}
 
 /* ---------------------------------------------------------------- styles */
 var CSS=[
@@ -114,6 +123,12 @@ var CSS=[
 '.sv2 .cin,.sv2 .csel{width:100%;min-width:62px;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:4px 6px;font:12px var(--font-body);color:var(--text)}',
 '.sv2 .cin.mono,.sv2 .cin.num{font-family:var(--font-mono)}.sv2 .cin.num{text-align:right;min-width:58px}',
 '.sv2 .cin.calc{background:var(--bg2);color:var(--text2);border-style:dashed;cursor:default}',
+'.sv2 .cin.warn,.sv2-in.warn{border-color:var(--amber);background:var(--amber-bg)}',
+'.sv2-wgroup{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px 10px;padding:6px 8px;border:1px dashed var(--border2);border-radius:8px;background:var(--bg)}',
+'.sv2-wgh{grid-column:1/-1;font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}',
+'.sv2-wgh small{text-transform:none;letter-spacing:0;font-weight:500}',
+'.sv2-ctnwarn{display:none;font-size:12px;color:#7a4a10;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:8px;padding:6px 10px;flex-basis:100%}',
+'.sv2-ctnwarn.on{display:block}',
 '.sv2-lines .idx{font-family:var(--font-mono);color:var(--text3)}',
 '.sv2-lines tr.sub td,.sv2-lines tr.det td{background:var(--bg);font-size:11.5px}',
 '.sv2-lines tr.det{display:none}.sv2-lines tr.det.open{display:table-row}',
@@ -151,6 +166,7 @@ var CSS=[
 '  .sv2-in,.sv2-search input{font-size:16px}',  /* no iOS zoom-on-focus */
 '  .sv2-btn,.sv2-back{min-height:40px}',
 '  .sv2-submit .sv2-btn{flex-basis:100%}',
+'  .sv2-lcard .sv2-wgroup{grid-template-columns:repeat(2,minmax(0,1fr))}',
 '}'
 ].join('\n');
 function injectCss(){
@@ -181,7 +197,7 @@ function numOf(v,whole){
 /* Arabic-Indic / Persian digits and the Arabic decimal sign → ASCII, so the stored text copy
    (raw_data) matches the typed number columns. Separators are left for the server to read. */
 function asciiDigits(v){return String(v==null?'':v).replace(/[\u0660-\u0669]/g,function(c){return String(c.charCodeAt(0)-0x660);}).replace(/[\u06F0-\u06F9]/g,function(c){return String(c.charCodeAt(0)-0x6F0);}).replace(/\u066B/g,'.');}
-function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pack_house:'',source_type:'',raw_source:'',pallet_count:'',carton_count:'',net_weight:'',gross_weight:'',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',pascol_net:'',weight_variance:'',traceability_code:''};}
+function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pack_house:'',source_type:'',raw_source:'',pallet_count:'',carton_count:'',net_weight:'',gross_weight:'',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',packing_factor:'',pascol_net:'',weight_variance:'',traceability_code:''};}
 /* Potatoes (Pivots): lists from the الادخال entry sheet (no registry for these yet).
    Varieties are NOT here — they come from the shared varieties table (same list as potato inspections). */
 var PT_LISTS={
@@ -216,11 +232,41 @@ function numProblem(v,whole){
 function tidyNum(v){var s=String(v);if(!/^-?\d+(\.\d+)?$/.test(s))return s;
   var n=Number(s),r=Number(n.toFixed(6));   /* float noise from sheet maths (13.216000000000001) → 13.216; real decimals kept */
   return String(Math.abs(n-r)<1e-9?r:n);}
-/* carton weights are typed in kg but stored in tonnes like every other weight (0.015 = 15 kg) */
-var KG_KEYS={carton_net_weight:1,carton_gross_weight:1};
-function kgToT(v){var s=asciiDigits(v).trim();if(!s||numProblem(s))return v;return String(Number((numOf(s)/1000).toPrecision(12)));}
-function tToKg(v){var s=String(v==null?'':v).trim();if(!/^-?\d+(\.\d+)?$/.test(s))return s;return String(Number((Number(s)*1000).toPrecision(12)));}
-var NUMKEYS={pallets:'numeric',jumbo_count:'numeric',sack_count:'numeric',standard_weight:'decimal',package_weight:'decimal',pack_size:'decimal',pallet_count:'numeric',carton_count:'numeric',net_weight:'decimal',gross_weight:'decimal',carton_net_weight:'decimal',carton_gross_weight:'decimal',pascol_weight:'decimal',pascol_pct:'decimal',packing_weight:'decimal',pascol_net:'decimal',weight_variance:'decimal'};
+var NUMKEYS={pallets:'numeric',jumbo_count:'numeric',sack_count:'numeric',standard_weight:'decimal',package_weight:'decimal',pack_size:'decimal',pallet_count:'numeric',carton_count:'numeric',net_weight:'decimal',gross_weight:'decimal',carton_net_weight:'decimal',carton_gross_weight:'decimal',pascol_weight:'decimal',pascol_pct:'decimal',packing_weight:'decimal',packing_factor:'decimal',pascol_net:'decimal',weight_variance:'decimal'};
+
+/* ---------------------------------------------------------------- intake maths (all weights in tonnes, never ÷1000)
+   Strings in, strings out ('' = blank), same 6-decimal tidy as calcPascol. Invalid numbers count as blank here
+   (numProblem flags them as invalid separately). Exported on window.ShipV2 for tests. */
+var INTAKE_WARN={cartonNetMin:0.001,cartonNetMax:0.05,grossHeadroom:0.01,packingFactorMin:0,packingFactorMax:0.01};
+function intakeBlank(v){return String(v==null?'':v).trim()==='';}
+function intakeR6(x){return String(Number(x.toFixed(6)));}
+function intakeOk(v,whole){return !intakeBlank(v)&&!numProblem(v,whole);}
+function intakeNum(v,whole){return intakeOk(v,whole)?numOf(v,whole):null;}
+/* aWhole: read a as a count ("1,664" = 1664, same rule as the server) */
+function intakeMul(a,b,aWhole){if(!intakeOk(a,aWhole)||!intakeOk(b))return '';return intakeR6(numOf(a,aWhole)*numOf(b));}
+function intakeLineNetT(cartonCount,cartonNet){return intakeMul(cartonCount,cartonNet,1);}
+function intakeLineGrossT(cartonCount,cartonGross){return intakeMul(cartonCount,cartonGross,1);}
+/* unrounded share (number) or null; never divides by zero */
+function intakeShareRaw(lineCartons,totalCartons){
+  var l=intakeNum(lineCartons,1),t=intakeNum(totalCartons,1);
+  if(l===null||t===null||!(t>0))return null;
+  return l/t;
+}
+/* Container % as a fraction 0–1 (string, e.g. '0.5'), '' if line/total blank or total is 0 */
+function intakeContainerShare(lineCartons,totalCartons){var s=intakeShareRaw(lineCartons,totalCartons);return s===null?'':intakeR6(s);}
+function intakePascolActual(pascolWeight,share){var p=intakeNum(pascolWeight),s=intakeNum(share);if(p===null||s===null)return '';return intakeR6(p*s);}
+function intakePackingWeight(cartonCount,factor){return intakeMul(cartonCount,factor,1);}
+/* warn-only range checks: blank / not a number → false */
+function intakeCartonNetWarn(v){var n=intakeNum(v);return n!==null&&(n<INTAKE_WARN.cartonNetMin||n>INTAKE_WARN.cartonNetMax);}
+function intakeCartonGrossWarn(net,gross){var n=intakeNum(net),g=intakeNum(gross);if(n===null||g===null)return false;
+  return g<n-1e-9||g>n+INTAKE_WARN.grossHeadroom+1e-9;}   /* 1e-9: float noise at the exact edges (0.015+0.01) */
+function intakePackingFactorWarn(v){var n=intakeNum(v);return n!==null&&(n<INTAKE_WARN.packingFactorMin||n>INTAKE_WARN.packingFactorMax);}
+function intakeCartonFooter(sumLineCartons,totalCartons){
+  var t=numOf(totalCartons,1),s=numOf(sumLineCartons,1);
+  if(intakeBlank(totalCartons)||t===0)return {kind:'missing',message:'Total cartons missing — enter the container’s total cartons under Container weights.'};
+  if(t>0&&s!==t)return {kind:'mismatch',message:'Line cartons ('+s.toLocaleString()+') don’t match Total cartons ('+t.toLocaleString()+'). Check before saving.'};
+  return {kind:'ok',message:''};
+}
 
 /* ============================================================== instance */
 var CUR=null;   /* the one mounted instance */
@@ -243,6 +289,8 @@ function createInstance(host,O){
   function isCitrus(){return PRODUCT==='citrus';}
   function hasLot(){return PRODUCT!=='grapes';}   /* Tarek 2026-10-13: Lot # everywhere except Grapes */
   var PT=(PRODUCT==='potatoes');           /* Pivots line: own fields, totals and RPCs; everything else shared */
+  /* new-column intake fields (planned date, total cartons, header pascol, packing factor). Read once at mount. Never potatoes. */
+  var INTAKE=!PT&&intakeFieldsEnabled();
   function blankLine(){return PT?newLinePT():newLine();}
   function snapNote(){return SNAPSHOT_PRODUCTS[PRODUCT]?SNAPSHOT_NOTE:'';}
   function q(sel){return host.querySelector(sel);}
@@ -256,6 +304,12 @@ function createInstance(host,O){
      Pascol %  = line gross ÷ voyage gross × pascol weight;  Pascol net = Pascol % − packing;  Variance = Pascol net − net.
      PAS_LIVE: off when an existing voyage loads (keeps the sheet's stored values), on once a weight changes or for a new shipment. */
   var PAS_CALC={pascol_pct:1,pascol_net:1,weight_variance:1},PAS_IN={pascol_weight:1,packing_weight:1,gross_weight:1,net_weight:1},PAS_LIVE=true;
+  /* intake flag on: Container % = line cartons ÷ Total cartons; Pascol Actual (t) = header pascol × Container %;
+     Packing weight = cartons × packing factor. These inputs also switch PAS_LIVE on. */
+  var INTAKE_IN={carton_count:1,packing_factor:1};
+  /* new lines: Net t / Gross t are cartons × carton net/gross t, so these feed gross (and the pascol maths) */
+  var CARTON_SRC={carton_count:1,carton_net_weight:1,carton_gross_weight:1};
+  var WARN_KEYS={carton_net_weight:1,carton_gross_weight:1,packing_factor:1};
   var DATA=[],DIRTY=false,SAVING=false,SEASON_OK=false,listSeq=0,formSeq=0;
   var ST={q:'',sortKey:'loaded',dir:'desc',limit:200,f:{cls:[],region:[],client:[],status:[],qc:[]}};
   var RENDER_STEP=200;
@@ -308,6 +362,7 @@ function createInstance(host,O){
      (PT?tot('Jumbo bags','sjumbo')+tot('Sacks','ssack')+tot('Standard wt','snet')+tot('Pascol wt','spas')
         :tot('Cartons','sctn')+tot('Net weight','snet'))+
      '<span class="sv2-sp"></span><button type="button" class="sv2-btn" data-act="save">Save shipment</button>'+
+     (INTAKE?'<div class="sv2-ctnwarn" id="sv2-ctnwarn" role="status" aria-live="polite"></div>':'')+
     '</div>'+
    '</div>'+
   '</div>';
@@ -315,7 +370,8 @@ function createInstance(host,O){
   function orHeaderHTML(){return ''+
      '<div class="sv2-st">Logistics <small id="sv2-lockhint" hidden>· container + date locked while editing</small></div>'+
      '<div class="sv2-grid">'+
-      fld('Loading Date','ldate','date',{req:1,chg:'ldate'})+
+      fld(INTAKE?'Actual loading date':'Loading Date','ldate','date',{req:1,chg:'ldate'})+
+      (INTAKE?fld('Planned loading date','plandate','date'):'')+
       '<div class="sv2-dep"><label class="chk"><input type="checkbox" id="sv2-depdiff" data-chg="depdiff">Departure date differs from loading date</label>'+
        '<span class="hint" id="sv2-dephint"></span><div class="dd" id="sv2-depwrap" hidden>'+fld('Departure Date','depdate','date',{req:1})+(SV2_SEND_DEPARTURE_DATE?'':'<div class="hint" style="color:var(--red);font-weight:600">Preview only: departure date will not be saved yet</div>')+'</div></div>'+
       '<div class="sv2-f"><label for="sv2-status">Shipping Status <span class="req">*</span></label><select class="sv2-in" id="sv2-status" data-chg="status" data-req="1"></select></div>'+
@@ -327,6 +383,11 @@ function createInstance(host,O){
       fld('Departure Port','depport','text',{list:'sv2-dl-depport'})+
      '</div>'+
      '<div class="sv2-derived">Auto · Month <b id="sv2-dmonth">—</b> · Week <b id="sv2-dweek">—</b></div>'+
+     (INTAKE?'<div class="sv2-st">Container weights <small>· once per container, not per line</small></div>'+
+      '<div class="sv2-grid">'+
+       fld('Total cartons','tcartons','text',{mono:1,inputmode:'numeric'})+
+       (isCitrus()?fld('Pascol weight (t)','hpascol','text',{mono:1,inputmode:'decimal'}):'')+
+      '</div>':'')+
      '<div class="sv2-st">Destination &amp; commercial</div>'+
      '<div class="sv2-grid">'+
       fld('Receiving Country','country','text',{list:'sv2-dl-country'})+fld('Receiving Port','port','text',{list:'sv2-dl-port'})+
@@ -434,11 +495,33 @@ function createInstance(host,O){
   }
 
   /* ---------------------------------------------------------- lines (desktop rows / phone cards) */
-  function cin(v,k,cls,list){if(isCitrus()&&PAS_CALC[k])return '<input class="cin num calc" data-k="'+k+'" readonly tabindex="-1" title="Calculated from the pascol weight, gross, packing and net weights" value="'+esc(v)+'">';
+  var INTAKE_CALC_TITLE={pascol_pct:'Pascol weight (t) × Container %',packing_weight:'Cartons × packing factor',
+    pascol_net:'Pascol Actual (t) − Packing weight (t)',weight_variance:'Pascol Net (t) − Net t'};
+  function cin(v,k,cls,list){if(isCitrus()&&(PAS_CALC[k]||(INTAKE&&k==='packing_weight')))return roIn(v,k,INTAKE?INTAKE_CALC_TITLE[k]:'Calculated from the pascol weight, gross, packing and net weights');
     var im=NUMKEYS[k]?' inputmode="'+NUMKEYS[k]+'"':'';
     list=list||(k==='source_type'?'sv2-dl-source':k==='raw_source'?'sv2-dl-rawsource':'');
     return '<input class="cin '+(cls||'')+'" data-k="'+k+'"'+im+(NUMKEYS[k]?'':' dir="auto"')+' value="'+esc(v)+'"'+(list?' list="'+list+'"':'')+'>';}
-  function cpct(i){return '<input class="cin num calc" data-cpct="'+i+'" readonly tabindex="-1" title="This line’s share of the container’s net weight (worked out when saved)" value="">';}
+  /* read-only computed line field (still data-k, so the computed value is what gets saved in the existing column) */
+  function roIn(v,k,title){return '<input class="cin num calc" data-k="'+k+'" readonly tabindex="-1" title="'+esc(title)+'" value="'+esc(v)+'">';}
+  /* Net t / Gross t: new lines are cartons × carton net/gross t (read-only); existing lines keep their stored, editable value */
+  function netIn(d){return d.id?cin(d.net_weight,'net_weight','num'):roIn(d.net_weight,'net_weight','Cartons × carton net t');}
+  function grsIn(d){return d.id?cin(d.gross_weight,'gross_weight','num'):roIn(d.gross_weight,'gross_weight','Cartons × carton gross t');}
+  function cpct(i){return '<input class="cin num calc" data-cpct="'+i+'" readonly tabindex="-1" title="'+(INTAKE?'This line’s share of the container’s total cartons (line cartons ÷ Total cartons)':'This line’s share of the container’s net weight (worked out when saved)')+'" value="">';}
+  /* display-only computed weight (no data-k: never written into the line) */
+  function hintIn(attr,i,title){return '<input class="cin num calc" data-'+attr+'="'+i+'" readonly tabindex="-1" title="'+esc(title)+'" value="">';}
+  /* weights block shared by the desktop detail row and the phone card */
+  function wgroupHTML(d,i,phone){
+    function g(lab,inner){return '<div><div class="sv2-dlab">'+lab+'</div>'+inner+'</div>';}
+    var old=!!d.id;
+    return '<div class="sv2-wgroup'+(phone?' full':'')+'" title="Net t = cartons × carton net t">'+
+      '<div class="sv2-wgh">Weights (tonnes) <small>· Net t = cartons × carton net t</small></div>'+
+      g('Carton net t',cin(d.carton_net_weight,'carton_net_weight','num'))+
+      g('Carton gross t',cin(d.carton_gross_weight,'carton_gross_weight','num'))+
+      (INTAKE&&isCitrus()?g('Packing factor (t / carton)',cin(d.packing_factor,'packing_factor','num')):'')+
+      g(old?'Computed net t · hint':'Net t · auto',hintIn('cnet',i,old?'Cartons × carton net t. A hint only: the stored Net t is not changed':'Cartons × carton net t'))+
+      g(old?'Computed gross t · hint':'Gross t · auto',hintIn('cgrs',i,old?'Cartons × carton gross t. A hint only: the stored Gross t is not changed':'Cartons × carton gross t'))+
+    '</div>';
+  }
   function csel(list,v,k,chg){return '<select class="csel" dir="auto" data-k="'+k+'"'+(chg?' data-chg="'+chg+'"':'')+'>'+opts(list,v)+'</select>';}
   function ncols(){return (isCitrus()?16:15)-(hasLot()?0:1);}
   function headHTML(){
@@ -455,7 +538,7 @@ function createInstance(host,O){
       '<td>'+csel(REF.cartonTypes,d.carton_type,'carton_type')+'</td><td>'+cin(d.brand,'brand')+'</td><td>'+cin(d.packaging_type,'packaging_type')+'</td>'+
       (isCitrus()?'<td>'+cin(d.caliber,'caliber','mono')+'</td>':'')+
       '<td>'+cin(d.pallet_count,'pallet_count','num')+'</td><td>'+cin(d.carton_count,'carton_count','num')+'</td>'+
-      '<td>'+cin(d.net_weight,'net_weight','num')+'</td><td>'+cin(d.gross_weight,'gross_weight','num')+'</td>'+
+      '<td>'+netIn(d)+'</td><td>'+grsIn(d)+'</td>'+
       '<td><button type="button" class="sv2-ib rm" data-act="rmLine" data-i="'+i+'" aria-label="Remove line '+(i+1)+'">×</button></td>'+
     '</tr>'+
     '<tr class="sub" data-line="'+i+'"><td></td><td colspan="'+(ncols()-1)+'"><div class="sv2-dgrid">'+
@@ -466,13 +549,12 @@ function createInstance(host,O){
       '<div><div class="sv2-dlab">Trace code</div>'+cin(d.traceability_code,'traceability_code','mono')+'</div>'+
     '</div></td></tr>'+
     '<tr class="det'+(openRows[i]?' open':'')+'" data-line="'+i+'"><td></td><td colspan="'+(ncols()-1)+'"><div class="sv2-dgrid">'+
-      '<div><div class="sv2-dlab">Carton Net (kg)</div>'+cin(d.carton_net_weight,'carton_net_weight','num')+'</div>'+
-      '<div><div class="sv2-dlab">Carton Gross (kg)</div>'+cin(d.carton_gross_weight,'carton_gross_weight','num')+'</div>'+
+      wgroupHTML(d,i,false)+
       '<div><div class="sv2-dlab">Container % · auto</div>'+cpct(i)+'</div>'+
       (isCitrus()?
-      '<div><div class="sv2-dlab">Pascol Weight (t) · weighbridge</div>'+cin(d.pascol_weight,'pascol_weight','num')+'</div>'+
-      '<div><div class="sv2-dlab">Pascol Actual % · auto</div>'+cin(d.pascol_pct,'pascol_pct','num')+'</div>'+
-      '<div><div class="sv2-dlab">Packing Weight (t)</div>'+cin(d.packing_weight,'packing_weight','num')+'</div>'+
+      (INTAKE?'':'<div><div class="sv2-dlab">Pascol Weight (t) · weighbridge</div>'+cin(d.pascol_weight,'pascol_weight','num')+'</div>')+
+      '<div><div class="sv2-dlab">'+(INTAKE?'Pascol Actual (t) · auto':'Pascol Actual % · auto')+'</div>'+cin(d.pascol_pct,'pascol_pct','num')+'</div>'+
+      '<div><div class="sv2-dlab">'+(INTAKE?'Packing Weight (t) · auto':'Packing Weight (t)')+'</div>'+cin(d.packing_weight,'packing_weight','num')+'</div>'+
       '<div><div class="sv2-dlab">Pascol Net (t) · auto</div>'+cin(d.pascol_net,'pascol_net','num')+'</div>'+
       '<div><div class="sv2-dlab">Weight Variance (t) · auto</div>'+cin(d.weight_variance,'weight_variance','num')+'</div>':'')+
     '</div></td></tr>';
@@ -487,7 +569,7 @@ function createInstance(host,O){
       '<div class="lb">'+
         f('Category',csel(catNames(),d.category,'category','cat'))+f('Variety',csel(varsFor(d.category),d.variety,'variety'))+
         f('Pallets',cin(d.pallet_count,'pallet_count','num'))+f('Cartons',cin(d.carton_count,'carton_count','num'))+
-        f('Net t',cin(d.net_weight,'net_weight','num'))+f('Gross t',cin(d.gross_weight,'gross_weight','num'))+
+        f('Net t',netIn(d))+f('Gross t',grsIn(d))+
         f('Carton type',csel(REF.cartonTypes,d.carton_type,'carton_type'))+f('Brand',cin(d.brand,'brand'))+
         (hasLot()?f('Lot #',cin(d.lot,'lot','mono')):'')+f('Packing',cin(d.packaging_type,'packaging_type'))+
         f('Daltex class',cin(d.daltex_class,'daltex_class'))+f('Client class',cin(d.client_class,'client_class'))+
@@ -495,10 +577,10 @@ function createInstance(host,O){
         f('Trace code',cin(d.traceability_code,'traceability_code','mono'),true)+
         f('Pack House (Packing)',csel(REF.packs,d.pack_house,'pack_house'),true)+
         f('Source Type',cin(d.source_type,'source_type'))+f('Raw Source',cin(d.raw_source,'raw_source'))+
-        f('Carton net kg',cin(d.carton_net_weight,'carton_net_weight','num'))+f('Carton gross kg',cin(d.carton_gross_weight,'carton_gross_weight','num'))+
+        wgroupHTML(d,i,true)+
         f('Container % · auto',cpct(i))+
-        (isCitrus()?f('Pascol t',cin(d.pascol_weight,'pascol_weight','num'))+f('Pascol % · auto',cin(d.pascol_pct,'pascol_pct','num'))+
-          f('Packing t',cin(d.packing_weight,'packing_weight','num'))+f('Pascol net t · auto',cin(d.pascol_net,'pascol_net','num'))+
+        (isCitrus()?(INTAKE?'':f('Pascol t',cin(d.pascol_weight,'pascol_weight','num')))+f(INTAKE?'Pascol Actual (t) · auto':'Pascol % · auto',cin(d.pascol_pct,'pascol_pct','num'))+
+          f(INTAKE?'Packing t · auto':'Packing t',cin(d.packing_weight,'packing_weight','num'))+f('Pascol net t · auto',cin(d.pascol_net,'pascol_net','num'))+
           f('Variance t · auto',cin(d.weight_variance,'weight_variance','num')):'')+
         '<div class="full"><button type="button" class="sv2-btn sec sm" data-act="rmLine" data-i="'+i+'">Remove this line</button></div>'+
       '</div>'+
@@ -578,13 +660,58 @@ function createInstance(host,O){
     if(PT){var jn=0,sk=0,pp=0,sw=0,ps=0;LINES.forEach(function(d){jn+=numOf(d.jumbo_count,1);sk+=numOf(d.sack_count,1);pp+=numOf(d.pallets,1);sw+=numOf(d.standard_weight);ps+=numOf(d.pascol_weight);});
       var st=function(id,v){var e=el(id);if(e)e.textContent=v;};
       st('slines',LINES.length);st('spal',pp.toLocaleString());st('sjumbo',jn.toLocaleString());st('ssack',sk.toLocaleString());st('snet',sw.toFixed(2)+' t');st('spas',ps.toFixed(2)+' t');return;}
-    if(isCitrus()&&PAS_LIVE)calcPascol();
+    calcNewLineWeights();
+    if(isCitrus()&&PAS_LIVE){if(INTAKE)calcPascolIntake();else calcPascol();}
     var pal=0,ctn=0,net=0,grs=0;
     LINES.forEach(function(d){pal+=numOf(d.pallet_count,1);ctn+=numOf(d.carton_count,1);net+=numOf(d.net_weight);grs+=numOf(d.gross_weight);});
     var set=function(id,v){var e=el(id);if(e)e.textContent=v;};
     set('tpal',pal.toLocaleString());set('tctn',ctn.toLocaleString());set('tnet',net.toFixed(2));set('tgrs',grs.toFixed(2));
     set('slines',LINES.length);set('spal',pal.toLocaleString());set('sctn',ctn.toLocaleString());set('snet',net.toFixed(2)+' t');
-    LINES.forEach(function(d,i){var n=numOf(d.net_weight),v=net>0&&String(d.net_weight||'').trim()?(Math.round(n/net*1000)/10).toFixed(1)+' %':'';qa('[data-cpct="'+i+'"]').forEach(function(f){f.value=v;});});
+    if(INTAKE){var tc=val('tcartons');
+      LINES.forEach(function(d,i){var s=intakeShareRaw(d.carton_count,tc),v=s===null?'':(Math.round(s*1000)/10).toFixed(1)+' %';qa('[data-cpct="'+i+'"]').forEach(function(f){f.value=v;});});
+      var fw=el('ctnwarn');if(fw){var r=intakeCartonFooter(ctn,tc);fw.classList.toggle('on',r.kind!=='ok');fw.textContent=r.message;}
+    }
+    else LINES.forEach(function(d,i){var n=numOf(d.net_weight),v=net>0&&String(d.net_weight||'').trim()?(Math.round(n/net*1000)/10).toFixed(1)+' %':'';qa('[data-cpct="'+i+'"]').forEach(function(f){f.value=v;});});
+    /* computed net/gross display in the weights block (for existing lines a hint only — never written into the line) */
+    LINES.forEach(function(d,i){
+      var n=intakeLineNetT(d.carton_count,d.carton_net_weight),g=intakeLineGrossT(d.carton_count,d.carton_gross_weight);
+      qa('[data-cnet="'+i+'"]').forEach(function(f){f.value=n;});qa('[data-cgrs="'+i+'"]').forEach(function(f){f.value=g;});
+    });
+    paintWarns();
+  }
+  /* new (unsaved) lines: Net t / Gross t = cartons × carton net / gross t, saved in the existing net_weight / gross_weight columns.
+     Existing lines (d.id) keep their stored net/gross — never silently overwritten. */
+  function calcNewLineWeights(){
+    LINES.forEach(function(d,i){if(d.id)return;
+      var v={net_weight:intakeLineNetT(d.carton_count,d.carton_net_weight),gross_weight:intakeLineGrossT(d.carton_count,d.carton_gross_weight)};
+      Object.keys(v).forEach(function(k){d[k]=v[k];qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.value=v[k];});});
+    });
+  }
+  /* Anna's ranges: amber warn only (class "warn", never "invalid"), never blocks save */
+  function warnCell(i,k,on,msg){qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.classList.toggle('warn',on);if(!f.classList.contains('invalid'))f.title=on?msg:'';});}
+  function paintWarns(){
+    if(PT)return;var W=INTAKE_WARN;
+    LINES.forEach(function(d,i){
+      warnCell(i,'carton_net_weight',intakeCartonNetWarn(d.carton_net_weight),'Unusual carton net t (expected '+W.cartonNetMin+'–'+W.cartonNetMax+')');
+      warnCell(i,'carton_gross_weight',intakeCartonGrossWarn(d.carton_net_weight,d.carton_gross_weight),'Unusual carton gross t (expected carton net t to carton net t + '+W.grossHeadroom+')');
+      if(INTAKE)warnCell(i,'packing_factor',intakePackingFactorWarn(d.packing_factor),'Unusual packing factor (expected '+W.packingFactorMin+'–'+W.packingFactorMax+')');
+    });
+  }
+  /* intake flag on (citrus): split the one container Pascol weight by cartons, like the sheet.
+     Pascol Actual (t) = pascol × (line cartons ÷ Total cartons); Packing = cartons × packing factor;
+     Pascol Net = Pascol Actual − Packing; Variance = Pascol Net − Net. Written into the existing line keys. */
+  function calcPascolIntake(){
+    var hp=val('hpascol'),tc=val('tcartons'),p=intakeNum(hp);
+    LINES.forEach(function(d,i){
+      d.pascol_weight=hp;   /* single header value copied into each line (today's line payload) */
+      var s=intakeShareRaw(d.carton_count,tc),ok=p!==null&&s!==null,pa=ok?p*s:0;   /* unrounded share, so 1/3 splits exactly */
+      var pw=intakePackingWeight(d.carton_count,d.packing_factor);
+      /* existing rows have no packing_factor yet: keep the stored packing weight instead of blanking it */
+      if(d.id&&intakeBlank(d.packing_factor))pw=intakeBlank(d.packing_weight)?'':String(d.packing_weight);
+      var pn=pa-numOf(pw);
+      var v={pascol_pct:ok?intakeR6(pa):'',packing_weight:pw,pascol_net:ok?intakeR6(pn):'',weight_variance:ok?intakeR6(pn-numOf(d.net_weight)):''};
+      Object.keys(v).forEach(function(k){d[k]=v[k];qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.value=v[k];});});
+    });
   }
 
   function calcPascol(){
@@ -619,6 +746,7 @@ function createInstance(host,O){
   function validateField(id){var e=el(id);if(!e)return true;var ok=!!String(e.value||'').trim();e.classList.toggle('invalid',!ok);return ok;}
   function setVoyageLock(on){['container','ldate'].forEach(function(id){var e=el(id);if(e){e.readOnly=on;}});var h=el('lockhint');if(h)h.hidden=!on;}
   var HDR_IDS=PT?['container','carta','ldate','vessel','ccount','client','country','country2','port','invoice','permit','workorder']:['container','carta','ldate','vessel','line','booking','invoice','po','etd','eta','arrival','depport','country','port','agent','shipper'];
+  if(INTAKE)HDR_IDS=HDR_IDS.concat(['plandate','tcartons','hpascol']);
   function blankHeader(){HDR_IDS.forEach(function(id){var e=el(id);if(e){e.value='';e.classList.remove('invalid');}});}
   function readHeader(){
     if(PT)return {container_number:val('container'),carta:val('carta'),loading_date:val('ldate'),station:val('station'),sector:val('sector'),
@@ -630,6 +758,7 @@ function createInstance(host,O){
       departure_port:val('depport'),receiving_country:val('country'),receiving_port:val('port'),client:val('client'),
       subclient:val('subclient'),agent:val('agent'),shipper:val('shipper'),pack_house_departure:val('packdep')};
     if(SV2_SEND_DEPARTURE_DATE){var cb=el('depdiff');h.departure_date=(cb&&cb.checked)?val('depdate'):val('ldate');}
+    if(INTAKE){h.planned_loading_date=val('plandate');h.total_cartons=val('tcartons');if(el('hpascol'))h.pascol_weight=val('hpascol');}
     return h;
   }
   function setSeasonChip(){var c=el('ctxseason');if(c)c.textContent=MODE==='create'?('Season '+(SEASON_NAME||'—')+' · from the sidebar'):'Season kept from the record';}
@@ -693,9 +822,11 @@ function createInstance(host,O){
   /* ---------------------------------------------------------- line checks (before save) */
   function lineLabel(k){var m={variety:'Variety',pallet_count:'Pallets',net_weight:'Net t',pallets:'Pallets',standard_weight:'Standard wt',carton_count:'Cartons',
     gross_weight:'Gross t',jumbo_count:'Jumbo #',sack_count:'Sack #',pascol_weight:'Pascol t',package_weight:'Package weight',pack_size:'Pack size',
-    carton_net_weight:'Carton net kg',carton_gross_weight:'Carton gross kg',pascol_pct:'Pascol %',packing_weight:'Packing t',pascol_net:'Pascol net t',weight_variance:'Variance t'};return m[k]||k;}
-  function isUntouched(d){return !d.id&&Object.keys(d).every(function(k){return k==='id'||String(d[k]||'').trim()==='';});}
-  var REQ_LINE=PT?['variety','pallets','standard_weight']:['variety','pallet_count','net_weight'];
+    carton_net_weight:'Carton net t',carton_gross_weight:'Carton gross t',pascol_pct:INTAKE?'Pascol Actual t':'Pascol %',packing_weight:'Packing t',packing_factor:'Packing factor',pascol_net:'Pascol net t',weight_variance:'Variance t'};return m[k]||k;}
+  /* flag on: pascol_weight is copied in from the header, so it doesn't count as the user touching a line */
+  function isUntouched(d){return !d.id&&Object.keys(d).every(function(k){return k==='id'||(INTAKE&&k==='pascol_weight')||String(d[k]||'').trim()==='';});}
+  /* new orchard lines: Net t is computed (cartons × carton net t, read-only), so cartons + carton net are what's required */
+  var REQ_LINE=PT?['variety','pallets','standard_weight']:['variety','pallet_count','carton_count','carton_net_weight'];
   function markCell(i,k,on){qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.classList.toggle('invalid',on);f.setAttribute('aria-invalid',on?'true':'false');});}
   function checkLines(){
     var problems=[];
@@ -715,12 +846,15 @@ function createInstance(host,O){
     if(SAVING)return;
     clearFormError();
     var okC=validateField('container'),okL=validateField('ldate'),okS=PT||validateField('status');
-    var missH=[];if(!okC)missH.push('Container No.');if(!okL)missH.push('Loading Date');if(!okS)missH.push('Shipping Status');
+    var missH=[];if(!okC)missH.push('Container No.');if(!okL)missH.push(INTAKE?'Actual loading date':'Loading Date');if(!okS)missH.push('Shipping Status');
     if(missH.length){showFormError(missH.join(', ')+(missH.length>1?' are':' is')+' required.');el(!okC?'container':!okL?'ldate':'status').focus();return;}
     if(!PT&&el('depdiff')&&el('depdiff').checked){var dd=val('depdate'),dErr=!dd?'Departure date is required':(dd<val('ldate')?'Departure date can\'t be before the loading date':(!SV2_SEND_DEPARTURE_DATE?'Preview only: departure date can\'t be saved yet. Untick the box to save':''));
       el('depdate').classList.toggle('invalid',!!dErr);if(dErr){showFormError(dErr+'.');el('depdate').focus();return;}}
+    if(INTAKE){var hb=[];[['tcartons',1,'Total cartons'],['hpascol',0,'Pascol weight']].forEach(function(x){var e=el(x[0]);if(!e)return;
+        var pr=numProblem(e.value,x[1]);e.classList.toggle('invalid',!!pr);e.setAttribute('aria-invalid',pr?'true':'false');if(pr)hb.push(x[2]+' '+pr);});
+      if(hb.length){showFormError('Fix these before saving:\n'+hb.join('\n'));var hf=host.querySelector('.sv2-in.invalid');if(hf)hf.focus();return;}}
     if(checkExisting())return;
-    syncLines();
+    recompute();   /* sync + computed net/gross on new lines before the checks */
     /* drop new lines nobody touched (the form starts with one blank line) */
     var before=LINES.length;LINES=LINES.filter(function(d){return !isUntouched(d);});
     if(LINES.length!==before){openRows={};renderLines();}
@@ -734,9 +868,13 @@ function createInstance(host,O){
       hdr.season_id=SEASON;
     }
     SEASON_OK=false;
-    var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});
-      if(!PT)Object.keys(KG_KEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=kgToT(c[k]);});return c;});
+    var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});return c;});
     if(hdr.container_count)hdr.container_count=asciiDigits(hdr.container_count);
+    if(hdr.total_cartons)hdr.total_cartons=asciiDigits(hdr.total_cartons);
+    if(hdr.pascol_weight)hdr.pascol_weight=asciiDigits(hdr.pascol_weight);
+    /* new intake columns only go to the server once the DB package is applied (flag on) */
+    if(!INTAKE){delete hdr.planned_loading_date;delete hdr.total_cartons;delete hdr.pascol_weight;
+      lines.forEach(function(c){delete c.packing_factor;});}
     setSaving(true);
     var call=(MODE==='edit')
       ?sb.rpc(PT?'edit_shipment_v2_potato_full':'edit_shipment_v2_full',{p_header:hdr,p_lines:lines,p_deleted_ids:EDIT.deletedIds})
@@ -791,8 +929,16 @@ function createInstance(host,O){
       setDep(!!h.departure_date&&h.departure_date!==h.loading_date,h.departure_date);
       fillHeaderSelects({status:h.shipping_status,client:h.client,subclient:h.subclient,pack_house_departure:h.pack_house_departure});
       deriveDate();syncCtxStatus();
+      if(INTAKE){
+        setv('plandate',h.planned_loading_date);setv('tcartons',h.total_cartons!=null&&h.total_cartons!==''?tidyNum(h.total_cartons):'');
+        /* header pascol; older rows only have it per line → first non-empty line value */
+        var hp=h.pascol_weight;
+        if(hp==null||String(hp).trim()===''){var fl=lines.find(function(l){return l.pascol_weight!=null&&String(l.pascol_weight).trim()!=='';});hp=fl?fl.pascol_weight:'';}
+        setv('hpascol',hp!=null&&String(hp).trim()!==''?tidyNum(hp):'');
+      }
       PAS_LIVE=false;
-      LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=KG_KEYS[k]?tToKg(l[k]):NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
+      /* carton weights are tonnes in the DB and on screen (no kg conversion) */
+      LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
       if(!LINES.length)LINES=[blankLine()];
       openRows={};renderLines();setDirty(false);
       el('ftitle').textContent='Edit shipment';el('ctxref').textContent=h.container_number||container;setSeasonChip();
@@ -1004,7 +1150,7 @@ function createInstance(host,O){
     else if(c==='ldate'){deriveDate();syncDep();}
     else if(c==='depdiff')syncDep();
     else if(c==='facet'){var fk=t.getAttribute('data-fk');if(ST.f[fk]){ST.f[fk]=t.value?[t.value]:[];ST.limit=RENDER_STEP;renderList();}return;}
-    else if(isCitrus()&&t.getAttribute&&t.getAttribute('data-k')==='pascol_weight'&&String(t.value).trim()){var me=t.closest('[data-line]');
+    else if(!INTAKE&&isCitrus()&&t.getAttribute&&t.getAttribute('data-k')==='pascol_weight'&&String(t.value).trim()){var me=t.closest('[data-line]');
       qa('[data-line] [data-k="pascol_weight"]').forEach(function(f){if(f!==t&&f.closest('[data-line]')!==me&&!String(f.value).trim())f.value=t.value;});recompute();}
     else if(c==='cat'){var line=t.closest('[data-line]');if(line){var i=+line.getAttribute('data-line');syncLines();LINES[i].variety='';renderLines();}}
     if(el('vform').classList.contains('on')&&t.closest('#sv2-vform'))setDirty(true);
@@ -1012,7 +1158,10 @@ function createInstance(host,O){
   function onInput(e){
     var t=e.target;
     if(t.id==='sv2-q'){ST.q=t.value.trim().toLowerCase();ST.limit=RENDER_STEP;el('searchwrap').classList.toggle('has',!!t.value);clearTimeout(searchT);searchT=setTimeout(renderList,150);return;}
-    if(t.closest('[data-line]')){if(PAS_IN[t.getAttribute('data-k')])PAS_LIVE=true;recompute();}
+    if(INTAKE&&(t.id==='sv2-tcartons'||t.id==='sv2-hpascol')){PAS_LIVE=true;recompute();}
+    var ln=t.closest('[data-line]');
+    if(ln){var k=t.getAttribute('data-k'),li=LINES[+ln.getAttribute('data-line')];
+      if(PAS_IN[k]||(INTAKE&&INTAKE_IN[k])||(CARTON_SRC[k]&&li&&!li.id))PAS_LIVE=true;recompute();}
     if(el('vform').classList.contains('on')&&t.closest('#sv2-vform'))setDirty(true);
   }
   function onBlur(e){var t=e.target;if(!t.getAttribute)return;
@@ -1021,6 +1170,9 @@ function createInstance(host,O){
     var k=t.getAttribute('data-k');
     if(k&&NUMKEYS[k]){var pr=numProblem(t.value,INTKEYS[k]);t.classList.toggle('invalid',!!pr);t.setAttribute('aria-invalid',pr?'true':'false');t.title=pr?lineLabel(k)+' '+pr:'';}
     else if(k&&t.classList.contains('invalid')&&String(t.value||'').trim()){t.classList.remove('invalid');t.setAttribute('aria-invalid','false');}
+    if(k&&WARN_KEYS[k]&&t.closest('[data-line]')){syncLines();paintWarns();}   /* range warn after number validation */
+    if(INTAKE&&(t.id==='sv2-tcartons'||t.id==='sv2-hpascol')){var hpr=numProblem(t.value,t.id==='sv2-tcartons'?1:0);
+      t.classList.toggle('invalid',!!hpr);t.setAttribute('aria-invalid',hpr?'true':'false');t.title=hpr?(t.id==='sv2-tcartons'?'Total cartons ':'Pascol weight ')+hpr:'';}
   }
   host.addEventListener('click',onClick);host.addEventListener('keydown',onKey);
   host.addEventListener('change',onChange);host.addEventListener('input',onInput);host.addEventListener('focusout',onBlur);
@@ -1058,5 +1210,10 @@ function createInstance(host,O){
   return {api:api,unmount:api.unmount};
 }
 
-window.ShipV2={mount:mount,version:'2026-10-13'};
+window.ShipV2={mount:mount,version:'2026-11-16',
+  intakeFieldsEnabled:intakeFieldsEnabled,INTAKE_WARN:INTAKE_WARN,
+  intakeBlank:intakeBlank,intakeMul:intakeMul,intakeLineNetT:intakeLineNetT,intakeLineGrossT:intakeLineGrossT,
+  intakeContainerShare:intakeContainerShare,intakePascolActual:intakePascolActual,intakePackingWeight:intakePackingWeight,
+  intakeCartonNetWarn:intakeCartonNetWarn,intakeCartonGrossWarn:intakeCartonGrossWarn,intakePackingFactorWarn:intakePackingFactorWarn,
+  intakeCartonFooter:intakeCartonFooter};
 })();
