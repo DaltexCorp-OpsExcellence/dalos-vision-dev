@@ -102,7 +102,7 @@ var CSS=[
 '.sv2-st small{text-transform:none;letter-spacing:0;font-weight:500}',
 '.sv2-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 10px}',
 '.sv2-f label{display:block;font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text3);margin-bottom:2px}',
-'.sv2-f .req{color:var(--red)}',
+'.sv2-f .req,.sv2 .req{color:var(--red)}',
 '.sv2-in{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:6px 9px;font:13px var(--font-body);color:var(--text);outline:none;min-width:0}',
 '.sv2-in:focus{border-color:var(--accent)}',
 '.sv2-in.mono{font-family:var(--font-mono);font-size:12.5px}',
@@ -127,8 +127,10 @@ var CSS=[
 '.sv2-wgroup{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px 10px;padding:6px 8px;border:1px dashed var(--border2);border-radius:8px;background:var(--bg)}',
 '.sv2-wgh{grid-column:1/-1;font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}',
 '.sv2-wgh small{text-transform:none;letter-spacing:0;font-weight:500}',
-'.sv2-ctnwarn{display:none;font-size:12px;color:#7a4a10;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:8px;padding:6px 10px;flex-basis:100%}',
-'.sv2-ctnwarn.on{display:block}',
+'.sv2-ctnwarn,.sv2-kgwarn{display:none;font-size:12px;color:#7a4a10;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:8px;padding:6px 10px;flex-basis:100%}',
+'.sv2-ctnwarn.on,.sv2-kgwarn.on{display:block}',
+/* r2 P1: plain inline message under a flagged carton weight (warn-only, never blocks save) */
+'.sv2-wmsg{font-size:12px;line-height:1.35;color:#7a4a10;margin-top:3px}.sv2-wmsg[hidden]{display:none}',
 '.sv2-lines .idx{font-family:var(--font-mono);color:var(--text3)}',
 '.sv2-lines tr.sub td,.sv2-lines tr.det td{background:var(--bg);font-size:11.5px}',
 '.sv2-lines tr.det{display:none}.sv2-lines tr.det.open{display:table-row}',
@@ -167,8 +169,24 @@ var CSS=[
 '  .sv2-in,.sv2-search input{font-size:16px}',  /* no iOS zoom-on-focus */
 '  .sv2-btn,.sv2-back{min-height:40px}',
 '  .sv2-submit .sv2-btn{flex-basis:100%}',
+'}',
+/* r2 P2 (Pixel): <=768px the form lines are cards (no sideways scroll), weights wrap to 2 columns, and the
+   form keeps room for the sticky Save bar (--sv2-footh = its measured height, set by placeFoot) */
+'@media (max-width:768px){',
+'  #sv2-vform .sv2-desk{display:none!important}#sv2-vform .sv2-lcards{display:grid}',
 '  .sv2-lcard .sv2-wgroup{grid-template-columns:repeat(2,minmax(0,1fr))}',
-'}'
+'  .sv2-wgroup .sv2-dlab{white-space:normal;overflow-wrap:anywhere}',
+'  #sv2-vform.on{padding-bottom:var(--sv2-footh,0px)}',
+'  #sv2-vform input,#sv2-vform select{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 8px)}',
+'}',
+/* r2 P2: touch layouts — tap targets >= 44px, inputs >= 16px (no iOS zoom-on-focus); this form only */
+'@media (max-width:768px),(pointer:coarse){',
+'  #sv2-vform .sv2-in,#sv2-vform .cin,#sv2-vform .csel{font-size:16px!important;min-height:44px}',   /* !important: index.html sets 14px!important at >=768px */
+'  #sv2-vform .sv2-btn,#sv2-vform .sv2-back,#sv2-vform .lh{min-height:44px}',
+'  #sv2-vform .sv2-ib{min-height:44px;min-width:44px}',
+'}',
+/* r2 P3: <=420px the two loading dates take a full row each (no wrapped labels, no clipped mm/dd/yyyy) */
+'@media (max-width:420px){#sv2-vform .sv2-fdate{grid-column:1/-1}#sv2-vform .sv2-fdate label{white-space:nowrap}}'
 ].join('\n');
 function injectCss(){
   if(document.getElementById('sv2-css'))return;
@@ -261,10 +279,13 @@ function intakePackingWeight(cartonCount,factor){return intakeMul(cartonCount,fa
 function intakeCartonNetWarn(v){var n=intakeNum(v);return n!==null&&(n<INTAKE_WARN.cartonNetMin||n>INTAKE_WARN.cartonNetMax);}
 function intakeCartonGrossWarn(net,gross){var n=intakeNum(net),g=intakeNum(gross);if(n===null||g===null)return false;
   return g<n-1e-9||g>n+INTAKE_WARN.grossHeadroom+1e-9;}   /* 1e-9: float noise at the exact edges (0.015+0.01) */
+/* r2 P1: 1 t or more per carton is the kg habit (15 / 16.5 typed for 0.015 / 0.0165 t) */
+var INTAKE_KG_MSG='Looks like kg. Carton weights are in tons, e.g. 0.015';
+function intakeLooksKg(v){var n=intakeNum(v);return n!==null&&n>=1;}
 function intakePackingFactorWarn(v){var n=intakeNum(v);return n!==null&&(n<INTAKE_WARN.packingFactorMin||n>INTAKE_WARN.packingFactorMax);}
 function intakeCartonFooter(sumLineCartons,totalCartons){
   var t=numOf(totalCartons,1),s=numOf(sumLineCartons,1);
-  if(intakeBlank(totalCartons)||t===0)return {kind:'missing',message:'Total cartons missing — enter the container’s total cartons under Container weights.'};
+  if(intakeBlank(totalCartons)||t===0)return {kind:'missing',message:'Total cartons missing (Container weights)'};
   if(t>0&&s!==t)return {kind:'mismatch',message:'Line cartons ('+s.toLocaleString()+') don’t match Total cartons ('+t.toLocaleString()+'). Check before saving.'};
   return {kind:'ok',message:''};
 }
@@ -308,7 +329,7 @@ function createInstance(host,O){
      Pascol %  = line gross ÷ voyage gross × pascol weight;  Pascol net = Pascol % − packing;  Variance = Pascol net − net.
      PAS_LIVE: off when an existing voyage loads (keeps the sheet's stored values), on once a weight changes or for a new shipment. */
   var PAS_CALC={pascol_pct:1,pascol_net:1,weight_variance:1},PAS_IN={pascol_weight:1,packing_weight:1,gross_weight:1,net_weight:1},PAS_LIVE=true;
-  /* intake flag on: Container % = line cartons ÷ Total cartons; Pascol Actual (t) = header pascol × Container %;
+  /* intake flag on: Container % = line cartons ÷ Total cartons; Pascol share (t) = header pascol × Container %;
      Packing weight = cartons × packing factor. These inputs also switch PAS_LIVE on. */
   var INTAKE_IN={carton_count:1,packing_factor:1};
   /* new lines: Net t / Gross t are cartons × carton net/gross t, so these feed gross (and the pascol maths) */
@@ -319,6 +340,9 @@ function createInstance(host,O){
   var RENDER_STEP=200;
   var phoneMQ=window.matchMedia?window.matchMedia('(max-width:700px)'):null;
   function isPhone(){return !!(phoneMQ&&phoneMQ.matches);}
+  /* r2: the form's lines switch to cards at <=768px (the list keeps its 700px switch) */
+  var formMQ=window.matchMedia?window.matchMedia('(max-width:768px)'):null;
+  function isNarrow(){return !!(formMQ&&formMQ.matches);}
 
   /* ---------------------------------------------------------- markup */
   host.innerHTML=
@@ -367,6 +391,7 @@ function createInstance(host,O){
         :tot('Cartons','sctn')+tot('Net weight','snet'))+
      '<span class="sv2-sp"></span><button type="button" class="sv2-btn" data-act="save">Save shipment</button>'+
      (INTAKE?'<div class="sv2-ctnwarn" id="sv2-ctnwarn" role="status" aria-live="polite"></div>':'')+
+     (PT?'':'<div class="sv2-kgwarn" id="sv2-kgwarn" role="status" aria-live="polite"></div>')+
     '</div>'+
    '</div>'+
   '</div>';
@@ -374,8 +399,8 @@ function createInstance(host,O){
   function orHeaderHTML(){return ''+
      '<div class="sv2-st">Logistics <small id="sv2-lockhint" hidden>· container + date locked while editing</small></div>'+
      '<div class="sv2-grid">'+
-      fld(INTAKE?'Actual loading date':'Loading Date','ldate','date',{req:1,chg:'ldate'})+
-      (INTAKE?fld('Planned loading date','plandate','date'):'')+
+      fld(INTAKE?'Actual loading date':'Loading Date','ldate','date',{req:1,chg:'ldate',cls:'sv2-fdate'})+
+      (INTAKE?fld('Planned loading date','plandate','date',{cls:'sv2-fdate'}):'')+
       '<div class="sv2-dep"><label class="chk"><input type="checkbox" id="sv2-depdiff" data-chg="depdiff">Departure date differs from loading date</label>'+
        '<span class="hint" id="sv2-dephint"></span><div class="dd" id="sv2-depwrap" hidden>'+fld('Departure Date','depdate','date',{req:1})+(SV2_SEND_DEPARTURE_DATE?'':'<div class="hint" style="color:var(--red);font-weight:600">Preview only: departure date will not be saved yet</div>')+'</div></div>'+
       '<div class="sv2-f"><label for="sv2-status">Shipping Status <span class="req">*</span></label><select class="sv2-in" id="sv2-status" data-chg="status" data-req="1"></select></div>'+
@@ -429,7 +454,7 @@ function createInstance(host,O){
   function tot(k,id){return '<div class="sv2-tot"><span class="k">'+k+'</span><span class="v" id="sv2-'+id+'">0</span></div>';}
   function fld(label,id,type,o){o=o||{};
     var im=(type==='text'&&o.inputmode)?' inputmode="'+o.inputmode+'"':'';
-    return '<div class="sv2-f"><label for="sv2-'+id+'">'+label+(o.req?' <span class="req">*</span>':'')+'</label>'+
+    return '<div class="sv2-f'+(o.cls?' '+o.cls:'')+'"><label for="sv2-'+id+'">'+label+(o.req?' <span class="req">*</span>':'')+'</label>'+
       '<input class="sv2-in'+(o.mono?' mono':'')+'" id="sv2-'+id+'" type="'+(type||'text')+'"'+(type==='text'||!type?' dir="auto"':'')+(o.list?' list="'+o.list+'"':'')+
       (o.ph?' placeholder="'+esc(o.ph)+'"':'')+(o.req?' data-req="1"':'')+(o.chg?' data-chg="'+o.chg+'"':'')+im+' autocomplete="off"></div>';}
 
@@ -499,12 +524,18 @@ function createInstance(host,O){
   }
 
   /* ---------------------------------------------------------- lines (desktop rows / phone cards) */
-  var INTAKE_CALC_TITLE={pascol_pct:'Pascol weight (t) × Container %',packing_weight:'Cartons × packing factor',
-    pascol_net:'Pascol Actual (t) − Packing weight (t)',weight_variance:'Pascol Net (t) − Net t'};
+  var INTAKE_CALC_TITLE={pascol_pct:'Container Pascol weight (t) × line cartons ÷ Total cartons (read-only; the container value is entered once under Container weights)',packing_weight:'Cartons × packing factor',
+    pascol_net:'Pascol share (t) − Packing weight (t)',weight_variance:'Pascol Net (t) − Net t'};
+  /* r2 P1: tonne placeholders on the carton weights */
+  var PH={carton_net_weight:'0.015',carton_gross_weight:'0.0165'};
+  /* r2 P2: required marker (new orchard lines need variety, pallets, cartons, carton net: REQ_LINE) */
+  function rq(){return PT?'':' <span class="req" title="Required on new lines">*</span>';}
+  /* r2 P1: plain inline warning under a carton weight; painted by paintWarns, no data-k (never saved) */
+  function wmsg(i,k){return '<div class="sv2-wmsg" data-wmsg="'+k+'" role="status" hidden></div>';}
   function cin(v,k,cls,list){if(isCitrus()&&(PAS_CALC[k]||(INTAKE&&k==='packing_weight')))return roIn(v,k,INTAKE?INTAKE_CALC_TITLE[k]:'Calculated from the pascol weight, gross, packing and net weights');
     var im=NUMKEYS[k]?' inputmode="'+NUMKEYS[k]+'"':'';
     list=list||(k==='source_type'?'sv2-dl-source':k==='raw_source'?'sv2-dl-rawsource':'');
-    return '<input class="cin '+(cls||'')+'" data-k="'+k+'"'+im+(NUMKEYS[k]?'':' dir="auto"')+' value="'+esc(v)+'"'+(list?' list="'+list+'"':'')+'>';}
+    return '<input class="cin '+(cls||'')+'" data-k="'+k+'"'+im+(PH[k]?' placeholder="'+PH[k]+'"':'')+(NUMKEYS[k]?'':' dir="auto"')+' value="'+esc(v)+'"'+(list?' list="'+list+'"':'')+'>';}
   /* read-only computed line field (still data-k, so the computed value is what gets saved in the existing column) */
   function roIn(v,k,title){return '<input class="cin num calc" data-k="'+k+'" readonly tabindex="-1" title="'+esc(title)+'" value="'+esc(v)+'">';}
   /* Net t / Gross t: new lines are cartons × carton net/gross t (read-only); existing lines keep their stored, editable value */
@@ -521,9 +552,9 @@ function createInstance(host,O){
     var old=!!d.id;
     return '<div class="sv2-wgroup'+(phone?' full':'')+'" title="Net t = cartons × carton net t">'+
       '<div class="sv2-wgh">Weights (tonnes) <small>· Net t = cartons × carton net t</small></div>'+
-      g('Carton net t',cin(d.carton_net_weight,'carton_net_weight','num'))+
-      g('Carton gross t',cin(d.carton_gross_weight,'carton_gross_weight','num')+cgwRawHint(d))+
-      (INTAKE&&isCitrus()?g('Packing factor (t / carton)',cin(d.packing_factor,'packing_factor','num')):'')+
+      g('Carton net t'+rq(),cin(d.carton_net_weight,'carton_net_weight','num')+wmsg(i,'carton_net_weight'))+
+      g('Carton gross t',cin(d.carton_gross_weight,'carton_gross_weight','num')+cgwRawHint(d)+wmsg(i,'carton_gross_weight'))+
+      (INTAKE&&isCitrus()?g('Packing factor (t / carton)',cin(d.packing_factor,'packing_factor','num')+wmsg(i,'packing_factor')):'')+
       g(old?'Computed net t · hint':'Net t · auto',hintIn('cnet',i,old?'Cartons × carton net t. A hint only: the stored Net t is not changed':'Cartons × carton net t'))+
       g(old?'Computed gross t · hint':'Gross t · auto',hintIn('cgrs',i,old?'Cartons × carton gross t. A hint only: the stored Gross t is not changed':'Cartons × carton gross t'))+
     '</div>';
@@ -531,8 +562,8 @@ function createInstance(host,O){
   function csel(list,v,k,chg){return '<select class="csel" dir="auto" data-k="'+k+'"'+(chg?' data-chg="'+chg+'"':'')+'>'+opts(list,v)+'</select>';}
   function ncols(){return (isCitrus()?16:15)-(hasLot()?0:1);}
   function headHTML(){
-    return '<tr><th></th><th>#</th><th>Category</th><th>Variety</th>'+(hasLot()?'<th>Lot #</th>':'')+'<th>Daltex Class</th><th>Client Class</th><th>Carton Type</th><th>Brand</th><th>Packing</th>'+(isCitrus()?'<th>Caliber</th>':'')+
-      '<th class="num">Pallets</th><th class="num">Cartons</th><th class="num">Net t</th><th class="num">Gross t</th><th></th></tr>';
+    return '<tr><th></th><th>#</th><th>Category</th><th>Variety'+rq()+'</th>'+(hasLot()?'<th>Lot #</th>':'')+'<th>Daltex Class</th><th>Client Class</th><th>Carton Type</th><th>Brand</th><th>Packing</th>'+(isCitrus()?'<th>Caliber</th>':'')+
+      '<th class="num">Pallets'+rq()+'</th><th class="num">Cartons'+rq()+'</th><th class="num">Net t</th><th class="num">Gross t</th><th></th></tr>';
   }
   function rowHTML_line(d,i){
     return '<tr data-line="'+i+'">'+
@@ -559,7 +590,7 @@ function createInstance(host,O){
       '<div><div class="sv2-dlab">Container % · auto</div>'+cpct(i)+'</div>'+
       (isCitrus()?
       (INTAKE?'':'<div><div class="sv2-dlab">Pascol Weight (t) · weighbridge</div>'+cin(d.pascol_weight,'pascol_weight','num')+'</div>')+
-      '<div><div class="sv2-dlab">'+(INTAKE?'Pascol Actual (t) · auto':'Pascol Actual % · auto')+'</div>'+cin(d.pascol_pct,'pascol_pct','num')+'</div>'+
+      '<div><div class="sv2-dlab">'+(INTAKE?'Pascol share (t) · auto':'Pascol Actual % · auto')+'</div>'+cin(d.pascol_pct,'pascol_pct','num')+'</div>'+
       '<div><div class="sv2-dlab">'+(INTAKE?'Packing Weight (t) · auto':'Packing Weight (t)')+'</div>'+cin(d.packing_weight,'packing_weight','num')+'</div>'+
       '<div><div class="sv2-dlab">Pascol Net (t) · auto</div>'+cin(d.pascol_net,'pascol_net','num')+'</div>'+
       '<div><div class="sv2-dlab">Weight Variance (t) · auto</div>'+cin(d.weight_variance,'weight_variance','num')+'</div>':'')+
@@ -573,8 +604,8 @@ function createInstance(host,O){
         '<b>'+(i+1)+'. '+esc(title)+'</b><span class="sv2-sp"></span><span class="mono" style="color:var(--text3)">'+esc(d.pallet_count||0)+' plt · '+esc(d.carton_count||0)+' ctn</span>'+
       '</div>'+
       '<div class="lb">'+
-        f('Category',csel(catNames(),d.category,'category','cat'))+f('Variety',csel(varsFor(d.category),d.variety,'variety'))+
-        f('Pallets',cin(d.pallet_count,'pallet_count','num'))+f('Cartons',cin(d.carton_count,'carton_count','num'))+
+        f('Category',csel(catNames(),d.category,'category','cat'))+f('Variety'+rq(),csel(varsFor(d.category),d.variety,'variety'))+
+        f('Pallets'+rq(),cin(d.pallet_count,'pallet_count','num'))+f('Cartons'+rq(),cin(d.carton_count,'carton_count','num'))+
         f('Net t',netIn(d))+f('Gross t',grsIn(d))+
         f('Carton type',csel(REF.cartonTypes,d.carton_type,'carton_type'))+f('Brand',cin(d.brand,'brand'))+
         (hasLot()?f('Lot #',cin(d.lot,'lot','mono')):'')+f('Packing',cin(d.packaging_type,'packaging_type'))+
@@ -585,7 +616,7 @@ function createInstance(host,O){
         f('Source Type',cin(d.source_type,'source_type'))+f('Raw Source',cin(d.raw_source,'raw_source'))+
         wgroupHTML(d,i,true)+
         f('Container % · auto',cpct(i))+
-        (isCitrus()?(INTAKE?'':f('Pascol t',cin(d.pascol_weight,'pascol_weight','num')))+f(INTAKE?'Pascol Actual (t) · auto':'Pascol % · auto',cin(d.pascol_pct,'pascol_pct','num'))+
+        (isCitrus()?(INTAKE?'':f('Pascol t',cin(d.pascol_weight,'pascol_weight','num')))+f(INTAKE?'Pascol share (t) · auto':'Pascol % · auto',cin(d.pascol_pct,'pascol_pct','num'))+
           f(INTAKE?'Packing t · auto':'Packing t',cin(d.packing_weight,'packing_weight','num'))+f('Pascol net t · auto',cin(d.pascol_net,'pascol_net','num'))+
           f('Variance t · auto',cin(d.weight_variance,'weight_variance','num')):'')+
         '<div class="full"><button type="button" class="sv2-btn sec sm" data-act="rmLine" data-i="'+i+'">Remove this line</button></div>'+
@@ -639,11 +670,11 @@ function createInstance(host,O){
   function renderLines(){
     if(PT){
       el('lfoot').innerHTML='';
-      if(isPhone()){el('lhead').innerHTML='';el('lbody').innerHTML='';el('lcards').innerHTML=LINES.map(ptCardHTML).join('');}
+      if(isNarrow()){el('lhead').innerHTML='';el('lbody').innerHTML='';el('lcards').innerHTML=LINES.map(ptCardHTML).join('');}
       else{el('lcards').innerHTML='';el('lhead').innerHTML=ptHeadHTML();el('lbody').innerHTML=LINES.map(ptRowHTML).join('');}
       recompute();return;
     }
-    if(isPhone()){
+    if(isNarrow()){
       el('lhead').innerHTML='';el('lbody').innerHTML='';el('lfoot').innerHTML='';
       el('lcards').innerHTML=LINES.map(cardHTML_line).join('');
     } else {
@@ -684,6 +715,7 @@ function createInstance(host,O){
       qa('[data-cnet="'+i+'"]').forEach(function(f){f.value=n;});qa('[data-cgrs="'+i+'"]').forEach(function(f){f.value=g;});
     });
     paintWarns();
+    if(!footRO)placeFoot();
   }
   /* new (unsaved) lines: Net t / Gross t = cartons × carton net / gross t, saved in the existing net_weight / gross_weight columns.
      Existing lines (d.id) keep their stored net/gross — never silently overwritten. */
@@ -694,18 +726,27 @@ function createInstance(host,O){
     });
   }
   /* Anna's ranges: amber warn only (class "warn", never "invalid"), never blocks save */
-  function warnCell(i,k,on,msg){qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.classList.toggle('warn',on);if(!f.classList.contains('invalid'))f.title=on?msg:'';});}
+  function warnCell(i,k,on,msg){qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.classList.toggle('warn',on);if(!f.classList.contains('invalid'))f.title=on?msg:'';});
+    qa('[data-line="'+i+'"] [data-wmsg="'+k+'"]').forEach(function(m){m.hidden=!on;m.textContent=on?msg:'';});return on;}
   function paintWarns(){
     if(PT)return;var W=INTAKE_WARN;
+    var kgL=[],oddL=[];   /* r2 P1: line numbers for the footer note */
     LINES.forEach(function(d,i){
-      warnCell(i,'carton_net_weight',intakeCartonNetWarn(d.carton_net_weight),'Unusual carton net t (expected '+W.cartonNetMin+'–'+W.cartonNetMax+')');
-      warnCell(i,'carton_gross_weight',intakeCartonGrossWarn(d.carton_net_weight,d.carton_gross_weight),'Unusual carton gross t (expected carton net t to carton net t + '+W.grossHeadroom+')');
-      if(INTAKE)warnCell(i,'packing_factor',intakePackingFactorWarn(d.packing_factor),'Unusual packing factor (expected '+W.packingFactorMin+'–'+W.packingFactorMax+')');
+      var kn=intakeLooksKg(d.carton_net_weight),kg=intakeLooksKg(d.carton_gross_weight);
+      var a=warnCell(i,'carton_net_weight',intakeCartonNetWarn(d.carton_net_weight),kn?INTAKE_KG_MSG:'Unusual carton net t (expected '+W.cartonNetMin+'–'+W.cartonNetMax+')');
+      var b=warnCell(i,'carton_gross_weight',intakeCartonGrossWarn(d.carton_net_weight,d.carton_gross_weight),kg?INTAKE_KG_MSG:'Unusual carton gross t (expected carton net t to carton net t + '+W.grossHeadroom+')');
+      var c=INTAKE&&isCitrus()&&warnCell(i,'packing_factor',intakePackingFactorWarn(d.packing_factor),'Unusual packing factor (expected '+W.packingFactorMin+'–'+W.packingFactorMax+')');
+      if((a&&kn)||(b&&kg))kgL.push(i+1);else if(a||b||c)oddL.push(i+1);
     });
+    /* soft amber note in the Save bar; warn-only, the save is never blocked */
+    var fw=el('kgwarn');if(fw){var t=[];
+      if(kgL.length)t.push('Line '+kgL.join(', ')+': '+INTAKE_KG_MSG+'.');
+      if(oddL.length)t.push('Line '+oddL.join(', ')+': unusual carton weights. Check before saving.');
+      fw.textContent=t.join(' ');fw.classList.toggle('on',t.length>0);}
   }
   /* intake flag on (citrus): split the one container Pascol weight by cartons, like the sheet.
-     Pascol Actual (t) = pascol × (line cartons ÷ Total cartons); Packing = cartons × packing factor;
-     Pascol Net = Pascol Actual − Packing; Variance = Pascol Net − Net. Written into the existing line keys. */
+     Pascol share (t) = pascol × (line cartons ÷ Total cartons); Packing = cartons × packing factor;
+     Pascol Net = Pascol share − Packing; Variance = Pascol Net − Net. Written into the existing line keys. */
   function calcPascolIntake(){
     var hp=val('hpascol'),tc=val('tcartons'),p=intakeNum(hp);
     LINES.forEach(function(d,i){
@@ -828,7 +869,7 @@ function createInstance(host,O){
   /* ---------------------------------------------------------- line checks (before save) */
   function lineLabel(k){var m={variety:'Variety',pallet_count:'Pallets',net_weight:'Net t',pallets:'Pallets',standard_weight:'Standard wt',carton_count:'Cartons',
     gross_weight:'Gross t',jumbo_count:'Jumbo #',sack_count:'Sack #',pascol_weight:'Pascol t',package_weight:'Package weight',pack_size:'Pack size',
-    carton_net_weight:'Carton net t',carton_gross_weight:'Carton gross t',pascol_pct:INTAKE?'Pascol Actual t':'Pascol %',packing_weight:'Packing t',packing_factor:'Packing factor',pascol_net:'Pascol net t',weight_variance:'Variance t'};return m[k]||k;}
+    carton_net_weight:'Carton net t',carton_gross_weight:'Carton gross t',pascol_pct:INTAKE?'Pascol share t':'Pascol %',packing_weight:'Packing t',packing_factor:'Packing factor',pascol_net:'Pascol net t',weight_variance:'Variance t'};return m[k]||k;}
   /* flag on: pascol_weight is copied in from the header, so it doesn't count as the user touching a line */
   function isUntouched(d){return !d.id&&Object.keys(d).every(function(k){return k==='id'||(INTAKE&&k==='pascol_weight')||String(d[k]||'').trim()==='';});}
   /* new orchard lines: Net t is computed (cartons × carton net t, read-only), so cartons + carton net are what's required */
@@ -864,7 +905,7 @@ function createInstance(host,O){
     /* drop new lines nobody touched (the form starts with one blank line) */
     var before=LINES.length;LINES=LINES.filter(function(d){return !isUntouched(d);});
     if(LINES.length!==before){openRows={};renderLines();}
-    if(!LINES.length){LINES=[blankLine()];openRows={0:isPhone()};renderLines();showFormError('Add at least one line with a variety, pallets and weight.');return;}
+    if(!LINES.length){LINES=[blankLine()];openRows={0:isNarrow()};renderLines();showFormError(PT?'Add at least one line with a variety, pallets and weight.':'Add at least one line with a variety, pallets, cartons and carton net.');return;}
     var problems=checkLines();
     if(problems.length){showFormError('Fix these before saving:\n'+problems.join('\n'));var f=host.querySelector('.invalid[data-k]');if(f)f.focus();return;}
     var hdr=readHeader();
@@ -881,6 +922,10 @@ function createInstance(host,O){
     /* new intake columns only go to the server once the DB package is applied (flag on) */
     if(!INTAKE){delete hdr.planned_loading_date;delete hdr.total_cartons;delete hdr.pascol_weight;
       lines.forEach(function(c){delete c.packing_factor;});}
+    /* r2 P2: flag on (citrus) Pascol is one value per container. No per-line Pascol input; each line's pascol_weight
+       is the header value (the same value the server writes to every sibling's pascol_weight column), never a
+       stale per-line value from an untouched old row. */
+    if(INTAKE&&isCitrus()&&'pascol_weight' in hdr)lines.forEach(function(c){c.pascol_weight=hdr.pascol_weight;});
     setSaving(true);
     var call=(MODE==='edit')
       ?sb.rpc(PT?'edit_shipment_v2_potato_full':'edit_shipment_v2_full',{p_header:hdr,p_lines:lines,p_deleted_ids:EDIT.deletedIds})
@@ -964,10 +1009,10 @@ function createInstance(host,O){
   function openCreate(){
     formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;
     blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();
-    PAS_LIVE=true;LINES=[blankLine()];RAWCGW={};openRows={0:isPhone()};renderLines();
+    PAS_LIVE=true;LINES=[blankLine()];RAWCGW={};openRows={0:isNarrow()};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);
     el('ftitle').textContent='New shipment';el('ctxref').textContent='New';setSeasonChip();
-    showView('form');var c=el('container');if(c&&!isPhone())c.focus();
+    showView('form');var c=el('container');if(c&&!isNarrow())c.focus();
   }
   function leaveForm(){if(!confirmLeave())return;formSeq++;setDirty(false);closeModal();MODE='list';showView('list');}
 
@@ -1141,7 +1186,7 @@ function createInstance(host,O){
       case 'toggleLine':syncLines();openRows[i]=!openRows[i];renderLines();break;
       case 'rmLine':syncLines();PAS_LIVE=true;var d=LINES[i];if(d&&d.id)EDIT.deletedIds.push(d.id);LINES.splice(i,1);
         var no={};Object.keys(openRows).forEach(function(k){k=+k;if(k<i)no[k]=openRows[k];else if(k>i)no[k-1]=openRows[k];});openRows=no;renderLines();setDirty(true);break;
-      case 'addLine':syncLines();LINES.push(blankLine());openRows[LINES.length-1]=isPhone();renderLines();setDirty(true);break;
+      case 'addLine':syncLines();LINES.push(blankLine());openRows[LINES.length-1]=isNarrow();renderLines();setDirty(true);break;
       case 'dupLast':syncLines();PAS_LIVE=true;var last=LINES[LINES.length-1];var c=last?Object.assign({},last):blankLine();c.id=null;LINES.push(c);renderLines();setDirty(true);break;
     }
   }
@@ -1187,11 +1232,15 @@ function createInstance(host,O){
   /* the sticky Save bar sits above Vision's phone bottom nav when that nav is showing */
   function placeBar(){var n=document.querySelector('.mobile-nav'),h=0;
     if(n){var cs=getComputedStyle(n);if(cs.display!=='none'&&cs.position==='fixed')h=n.getBoundingClientRect().height;}
-    host.style.setProperty('--sv2-bottom',(h+8)+'px');}
+    host.style.setProperty('--sv2-bottom',(h+8)+'px');placeFoot();}
+  /* r2: --sv2-footh = the Save bar's height (bottom padding + scroll margin at <=768px); re-measured when it changes */
+  function placeFoot(){var s=q('.sv2-submit');if(s){var fh=Math.ceil(s.getBoundingClientRect().height);if(fh>0)host.style.setProperty('--sv2-footh',fh+'px');}}
+  var footRO=window.ResizeObserver?new ResizeObserver(placeFoot):null;if(footRO&&q('.sv2-submit'))footRO.observe(q('.sv2-submit'));
   placeBar();window.addEventListener('resize',placeBar);
   /* switching phone <-> desktop width re-renders in the other layout without losing input */
   function onMQ(){if(MODE!=='list')syncLines();renderLines();if(DATA.length)renderList();}
   if(phoneMQ){if(phoneMQ.addEventListener)phoneMQ.addEventListener('change',onMQ);else if(phoneMQ.addListener)phoneMQ.addListener(onMQ);}
+  if(formMQ){if(formMQ.addEventListener)formMQ.addEventListener('change',onMQ);else if(formMQ.addListener)formMQ.addListener(onMQ);}
 
   /* ---------------------------------------------------------- boot */
   if(!sb){setListBanner('Not connected. Reload the page and sign in to DalOS.');}
@@ -1208,6 +1257,8 @@ function createInstance(host,O){
     unmount:function(){
       dead=true;window.removeEventListener('beforeunload',onBeforeUnload);window.removeEventListener('resize',placeBar);
       if(phoneMQ){if(phoneMQ.removeEventListener)phoneMQ.removeEventListener('change',onMQ);else if(phoneMQ.removeListener)phoneMQ.removeListener(onMQ);}
+      if(formMQ){if(formMQ.removeEventListener)formMQ.removeEventListener('change',onMQ);else if(formMQ.removeListener)formMQ.removeListener(onMQ);}
+      if(footRO)footRO.disconnect();
       host.removeEventListener('click',onClick);host.removeEventListener('keydown',onKey);
       host.removeEventListener('change',onChange);host.removeEventListener('input',onInput);host.removeEventListener('focusout',onBlur);
       clearTimeout(searchT);clearTimeout(toastT);closeModal();if(toastEl){toastEl.remove();toastEl=null;}
@@ -1221,6 +1272,6 @@ window.ShipV2={mount:mount,version:'2026-11-16',
   intakeFieldsEnabled:intakeFieldsEnabled,INTAKE_WARN:INTAKE_WARN,
   intakeBlank:intakeBlank,intakeMul:intakeMul,intakeLineNetT:intakeLineNetT,intakeLineGrossT:intakeLineGrossT,
   intakeContainerShare:intakeContainerShare,intakePascolActual:intakePascolActual,intakePackingWeight:intakePackingWeight,
-  intakeCartonNetWarn:intakeCartonNetWarn,intakeCartonGrossWarn:intakeCartonGrossWarn,intakePackingFactorWarn:intakePackingFactorWarn,
+  intakeCartonNetWarn:intakeCartonNetWarn,intakeLooksKg:intakeLooksKg,INTAKE_KG_MSG:INTAKE_KG_MSG,intakeCartonGrossWarn:intakeCartonGrossWarn,intakePackingFactorWarn:intakePackingFactorWarn,
   intakeCartonFooter:intakeCartonFooter};
 })();
