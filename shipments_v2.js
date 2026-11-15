@@ -135,6 +135,7 @@ var CSS=[
 '.sv2-lines tfoot td{font-family:var(--font-mono);font-weight:600;text-align:right;background:var(--bg2)}',
 '.sv2-dgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px 10px;padding:4px 0}',
 '.sv2-dlab{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}',
+'.sv2-cgwraw{font-size:10.5px;color:var(--text3);margin-top:2px}',
 '.sv2-ib{border:1px solid var(--border);background:var(--card);border-radius:5px;cursor:pointer;color:var(--text3);font-size:13px;line-height:1;padding:3px 7px}',
 '.sv2-ib.open{transform:rotate(180deg)}.sv2-ib.rm:hover{color:var(--red);border-color:var(--red-border)}',
 '.sv2-lcards{display:none;gap:8px}',
@@ -300,6 +301,9 @@ function createInstance(host,O){
 
   var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{}};
   var LINES=[],openRows={},MODE='list',EDIT={container:null,loaded:null,deletedIds:[]};
+  /* old sheet carton gross text by line id (get: carton_gross_weight_raw, only when the tonnes column is empty).
+     Display hint only: never copied into LINES, never sent. */
+  var RAWCGW={};
   /* Citrus weighbridge maths (same as the sheet, matches 100% of stored net/variance rows):
      Pascol %  = line gross ÷ voyage gross × pascol weight;  Pascol net = Pascol % − packing;  Variance = Pascol net − net.
      PAS_LIVE: off when an existing voyage loads (keeps the sheet's stored values), on once a weight changes or for a new shipment. */
@@ -509,6 +513,8 @@ function createInstance(host,O){
   function cpct(i){return '<input class="cin num calc" data-cpct="'+i+'" readonly tabindex="-1" title="'+(INTAKE?'This line’s share of the container’s total cartons (line cartons ÷ Total cartons)':'This line’s share of the container’s net weight (worked out when saved)')+'" value="">';}
   /* display-only computed weight (no data-k: never written into the line) */
   function hintIn(attr,i,title){return '<input class="cin num calc" data-'+attr+'="'+i+'" readonly tabindex="-1" title="'+esc(title)+'" value="">';}
+  /* old sheet carton gross: read-only hint under the (empty) tonnes input; no data-k, so it is never saved */
+  function cgwRawHint(d){var r=d.id?RAWCGW[d.id]:null;return r!=null&&intakeBlank(d.carton_gross_weight)?'<div class="sv2-cgwraw" title="From the old sheet. Not saved: type the carton gross in tonnes to set it">old sheet value: '+esc(r)+'</div>':'';}
   /* weights block shared by the desktop detail row and the phone card */
   function wgroupHTML(d,i,phone){
     function g(lab,inner){return '<div><div class="sv2-dlab">'+lab+'</div>'+inner+'</div>';}
@@ -516,7 +522,7 @@ function createInstance(host,O){
     return '<div class="sv2-wgroup'+(phone?' full':'')+'" title="Net t = cartons × carton net t">'+
       '<div class="sv2-wgh">Weights (tonnes) <small>· Net t = cartons × carton net t</small></div>'+
       g('Carton net t',cin(d.carton_net_weight,'carton_net_weight','num'))+
-      g('Carton gross t',cin(d.carton_gross_weight,'carton_gross_weight','num'))+
+      g('Carton gross t',cin(d.carton_gross_weight,'carton_gross_weight','num')+cgwRawHint(d))+
       (INTAKE&&isCitrus()?g('Packing factor (t / carton)',cin(d.packing_factor,'packing_factor','num')):'')+
       g(old?'Computed net t · hint':'Net t · auto',hintIn('cnet',i,old?'Cartons × carton net t. A hint only: the stored Net t is not changed':'Cartons × carton net t'))+
       g(old?'Computed gross t · hint':'Gross t · auto',hintIn('cgrs',i,old?'Cartons × carton gross t. A hint only: the stored Gross t is not changed':'Cartons × carton gross t'))+
@@ -868,7 +874,7 @@ function createInstance(host,O){
       hdr.season_id=SEASON;
     }
     SEASON_OK=false;
-    var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});return c;});
+    var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});delete c.carton_gross_weight_raw;return c;});
     if(hdr.container_count)hdr.container_count=asciiDigits(hdr.container_count);
     if(hdr.total_cartons)hdr.total_cartons=asciiDigits(hdr.total_cartons);
     if(hdr.pascol_weight)hdr.pascol_weight=asciiDigits(hdr.pascol_weight);
@@ -899,7 +905,7 @@ function createInstance(host,O){
   /* ---------------------------------------------------------- edit load */
   function loadForEdit(container,loaded){
     var my=++formSeq;
-    clearFormError();blankHeader();setDep(false);LINES=[];openRows={};renderLines();
+    clearFormError();blankHeader();setDep(false);LINES=[];RAWCGW={};openRows={};renderLines();
     setVoyageLock(true);showOverlay(true);
     var getCall=PT?sb.rpc('get_shipment_v2_potato_container',{p_container:container,p_loaded:loaded})
                   :sb.rpc('get_shipment_v2_container',{p_container:container,p_loaded:loaded,p_product:PRODUCT});
@@ -938,6 +944,7 @@ function createInstance(host,O){
       }
       PAS_LIVE=false;
       /* carton weights are tonnes in the DB and on screen (no kg conversion) */
+      RAWCGW={};lines.forEach(function(l){if(l.id&&intakeBlank(l.carton_gross_weight)&&!intakeBlank(l.carton_gross_weight_raw))RAWCGW[l.id]=String(l.carton_gross_weight_raw);});
       LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
       if(!LINES.length)LINES=[blankLine()];
       openRows={};renderLines();setDirty(false);
@@ -957,7 +964,7 @@ function createInstance(host,O){
   function openCreate(){
     formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;
     blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();
-    PAS_LIVE=true;LINES=[blankLine()];openRows={0:isPhone()};renderLines();
+    PAS_LIVE=true;LINES=[blankLine()];RAWCGW={};openRows={0:isPhone()};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);
     el('ftitle').textContent='New shipment';el('ctxref').textContent='New';setSeasonChip();
     showView('form');var c=el('container');if(c&&!isPhone())c.focus();
