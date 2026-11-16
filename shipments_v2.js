@@ -279,9 +279,9 @@ function intakePackingWeight(cartonCount,factor){return intakeMul(cartonCount,fa
 function intakeCartonNetWarn(v){var n=intakeNum(v);return n!==null&&(n<INTAKE_WARN.cartonNetMin||n>INTAKE_WARN.cartonNetMax);}
 function intakeCartonGrossWarn(net,gross){var n=intakeNum(net),g=intakeNum(gross);if(n===null||g===null)return false;
   return g<n-1e-9||g>n+INTAKE_WARN.grossHeadroom+1e-9;}   /* 1e-9: float noise at the exact edges (0.015+0.01) */
-/* r2 P1: 1 t or more per carton is the kg habit (15 / 16.5 typed for 0.015 / 0.0165 t) */
+/* r2 P1 / DB v0.4 (Anna): more than 0.1 t per carton is the kg habit (15 / 16.5 / 0.5 typed for 0.015 / 0.0165 t); 0.1 itself does not warn */
 var INTAKE_KG_MSG='Looks like kg. Carton weights are in tons, e.g. 0.015';
-function intakeLooksKg(v){var n=intakeNum(v);return n!==null&&n>=1;}
+function intakeLooksKg(v){var n=intakeNum(v);return n!==null&&n>0.1;}
 function intakePackingFactorWarn(v){var n=intakeNum(v);return n!==null&&(n<INTAKE_WARN.packingFactorMin||n>INTAKE_WARN.packingFactorMax);}
 function intakeCartonFooter(sumLineCartons,totalCartons){
   var t=numOf(totalCartons,1),s=numOf(sumLineCartons,1);
@@ -524,10 +524,10 @@ function createInstance(host,O){
   }
 
   /* ---------------------------------------------------------- lines (desktop rows / phone cards) */
-  var INTAKE_CALC_TITLE={pascol_pct:'Container Pascol weight (t) × line cartons ÷ Total cartons (read-only; the container value is entered once under Container weights)',packing_weight:'Cartons × packing factor',
+  var INTAKE_CALC_TITLE={pascol_pct:'Container Pascol weight (t) × line cartons ÷ Total cartons (read-only; the container value is entered once under Container weights)',packing_weight:'Cartons × Packing Net Weight (t per carton)',
     pascol_net:'Pascol share (t) − Packing weight (t)',weight_variance:'Pascol Net (t) − Net t'};
   /* r2 P1: tonne placeholders on the carton weights */
-  var PH={carton_net_weight:'0.015',carton_gross_weight:'0.0165'};
+  var PH={carton_net_weight:'0.015',carton_gross_weight:'0.0165',packing_factor:'0.0011'};   /* DB v0.4: Packing Net Weight placeholder */
   /* r2 P2: required marker (new orchard lines need variety, pallets, cartons, carton net: REQ_LINE) */
   function rq(){return PT?'':' <span class="req" title="Required on new lines">*</span>';}
   /* r2 P1: plain inline warning under a carton weight; painted by paintWarns, no data-k (never saved) */
@@ -554,7 +554,7 @@ function createInstance(host,O){
       '<div class="sv2-wgh">Weights (tonnes) <small>· Net t = cartons × carton net t</small></div>'+
       g('Carton net t'+rq(),cin(d.carton_net_weight,'carton_net_weight','num')+wmsg(i,'carton_net_weight'))+
       g('Carton gross t',cin(d.carton_gross_weight,'carton_gross_weight','num')+cgwRawHint(d)+wmsg(i,'carton_gross_weight'))+
-      (INTAKE&&isCitrus()?g('Packing factor (t / carton)',cin(d.packing_factor,'packing_factor','num')+wmsg(i,'packing_factor')):'')+
+      (INTAKE&&isCitrus()?g('Packing Net Weight (t per carton)',cin(d.packing_factor,'packing_factor','num')+wmsg(i,'packing_factor')):'')+
       g(old?'Computed net t · hint':'Net t · auto',hintIn('cnet',i,old?'Cartons × carton net t. A hint only: the stored Net t is not changed':'Cartons × carton net t'))+
       g(old?'Computed gross t · hint':'Gross t · auto',hintIn('cgrs',i,old?'Cartons × carton gross t. A hint only: the stored Gross t is not changed':'Cartons × carton gross t'))+
     '</div>';
@@ -735,7 +735,7 @@ function createInstance(host,O){
       var kn=intakeLooksKg(d.carton_net_weight),kg=intakeLooksKg(d.carton_gross_weight);
       var a=warnCell(i,'carton_net_weight',intakeCartonNetWarn(d.carton_net_weight),kn?INTAKE_KG_MSG:'Unusual carton net t (expected '+W.cartonNetMin+'–'+W.cartonNetMax+')');
       var b=warnCell(i,'carton_gross_weight',intakeCartonGrossWarn(d.carton_net_weight,d.carton_gross_weight),kg?INTAKE_KG_MSG:'Unusual carton gross t (expected carton net t to carton net t + '+W.grossHeadroom+')');
-      var c=INTAKE&&isCitrus()&&warnCell(i,'packing_factor',intakePackingFactorWarn(d.packing_factor),'Unusual packing factor (expected '+W.packingFactorMin+'–'+W.packingFactorMax+')');
+      var c=INTAKE&&isCitrus()&&warnCell(i,'packing_factor',intakePackingFactorWarn(d.packing_factor),'Unusual Packing Net Weight (expected '+W.packingFactorMin+'–'+W.packingFactorMax+')');
       if((a&&kn)||(b&&kg))kgL.push(i+1);else if(a||b||c)oddL.push(i+1);
     });
     /* soft amber note in the Save bar; warn-only, the save is never blocked */
@@ -869,7 +869,7 @@ function createInstance(host,O){
   /* ---------------------------------------------------------- line checks (before save) */
   function lineLabel(k){var m={variety:'Variety',pallet_count:'Pallets',net_weight:'Net t',pallets:'Pallets',standard_weight:'Standard wt',carton_count:'Cartons',
     gross_weight:'Gross t',jumbo_count:'Jumbo #',sack_count:'Sack #',pascol_weight:'Pascol t',package_weight:'Package weight',pack_size:'Pack size',
-    carton_net_weight:'Carton net t',carton_gross_weight:'Carton gross t',pascol_pct:INTAKE?'Pascol share t':'Pascol %',packing_weight:'Packing t',packing_factor:'Packing factor',pascol_net:'Pascol net t',weight_variance:'Variance t'};return m[k]||k;}
+    carton_net_weight:'Carton net t',carton_gross_weight:'Carton gross t',pascol_pct:INTAKE?'Pascol share t':'Pascol %',packing_weight:'Packing t',packing_factor:'Packing Net Weight',pascol_net:'Pascol net t',weight_variance:'Variance t'};return m[k]||k;}
   /* flag on: pascol_weight is copied in from the header, so it doesn't count as the user touching a line */
   function isUntouched(d){return !d.id&&Object.keys(d).every(function(k){return k==='id'||(INTAKE&&k==='pascol_weight')||String(d[k]||'').trim()==='';});}
   /* new orchard lines: Net t is computed (cartons × carton net t, read-only), so cartons + carton net are what's required */
@@ -922,6 +922,12 @@ function createInstance(host,O){
     /* new intake columns only go to the server once the DB package is applied (flag on) */
     if(!INTAKE){delete hdr.planned_loading_date;delete hdr.total_cartons;delete hdr.pascol_weight;
       lines.forEach(function(c){delete c.packing_factor;});}
+    /* DB v0.4: Packing Net Weight goes out under the new JSON key packing_net_weight (the RPCs still accept the old key
+       packing_factor; if both are sent the new one wins). The DB column and the maths keep the name packing_factor. */
+    if(INTAKE)lines.forEach(function(c){if('packing_factor' in c){c.packing_net_weight=c.packing_factor;delete c.packing_factor;}});
+    /* DB v0.4 (Anna S5): an empty carton gross is sent as null, never '' (the RPC stores NULL either way, but '' also landed
+       in raw_data 'Carton Gross Weight' as an empty string on new rows; null is dropped there) */
+    lines.forEach(function(c){if(c.carton_gross_weight!=null&&String(c.carton_gross_weight).trim()==='')c.carton_gross_weight=null;});
     /* r2 P2: flag on (citrus) Pascol is one value per container. No per-line Pascol input; each line's pascol_weight
        is the header value (the same value the server writes to every sibling's pascol_weight column), never a
        stale per-line value from an untouched old row. */
@@ -990,6 +996,8 @@ function createInstance(host,O){
       PAS_LIVE=false;
       /* carton weights are tonnes in the DB and on screen (no kg conversion) */
       RAWCGW={};lines.forEach(function(l){if(l.id&&intakeBlank(l.carton_gross_weight)&&!intakeBlank(l.carton_gross_weight_raw))RAWCGW[l.id]=String(l.carton_gross_weight_raw);});
+      /* DB v0.4: get returns packing_net_weight (alias of packing_factor); read the new key, fall back to the old one */
+      lines.forEach(function(l){if(l.packing_net_weight!=null)l.packing_factor=l.packing_net_weight;delete l.packing_net_weight;});
       LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
       if(!LINES.length)LINES=[blankLine()];
       openRows={};renderLines();setDirty(false);
