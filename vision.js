@@ -15488,9 +15488,183 @@ var DALOS_IS_INVITE=(function(){
 })();
 
 var DALOS_SUPABASE_URL='https://sfyjvgjwvtwkrnqrvqyc.supabase.co';
+
+/* ── Sign in again without losing the page (2026-11-17) ─────────────────────
+   When the DalOS session ends underneath an open page (signed out on another
+   device, or the refresh token is gone), API calls start failing with 401.
+   Instead of failing them, this wrapper (passed to createClient as its fetch)
+   checks whether the session is really gone, opens a sign-in box over the page
+   and holds those calls. After the user signs in, each held call is sent again
+   once with the new token. The page is never reloaded, so open forms, typed
+   lines, filters and scroll stay. Saves still go through their stale checks.
+   Only calls to this project's REST/RPC, functions and storage are held; auth
+   calls (/auth/v1/) pass straight through. Nothing happens unless a user is
+   signed in to the app (setUser), so the login screen is never affected. */
+var dalosReauth=(function(){
+  var nativeFetch=window.fetch.bind(window);
+  var user=null;          /* {name,email} of the signed-in app user, or null */
+  var waiting=null;       /* {promise,resolve} while the box is open */
+  var labels=[];          /* what is waiting, e.g. "Save shipment MSKU 1234567" */
+  var box=null;
+  var RPC_LABELS={save_shipment_v2_full:'Save shipment',edit_shipment_v2_full:'Save shipment changes',
+    save_shipment_v2_potato_full:'Save shipment',edit_shipment_v2_potato_full:'Save shipment changes',
+    delete_shipment_v2_container:'Delete shipment'};
+  function isApi(url){return url.indexOf(DALOS_SUPABASE_URL+'/')===0&&url.indexOf('/auth/v1/')<0;}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function describe(url,init){
+    var m=(init&&init.method||'GET').toUpperCase();
+    if(m==='GET'||m==='HEAD')return null;           /* reads reload silently, no label */
+    var rpc=(url.match(/\/rest\/v1\/rpc\/([a-z0-9_]+)/i)||[])[1];
+    var lbl=rpc&&(RPC_LABELS[rpc]||(/^edit_.*inspection/.test(rpc)?'Save inspection changes':/^save_.*inspection/.test(rpc)?'Save inspection':null));
+    if(!lbl)return 'Save your changes';
+    try{var b=typeof init.body==='string'?JSON.parse(init.body):null;
+      var cn=b&&((b.p_header&&b.p_header.container_number)||b.p_container);
+      if(cn)lbl+=' '+String(cn).trim();}catch(e){}
+    return lbl;
+  }
+  /* Is the session behind this request really gone? (not just a permission 401) */
+  function sessionLost(h){
+    var auth=h.get('Authorization')||'',key=h.get('apikey')||'';
+    if(!auth||auth==='Bearer '+key)return Promise.resolve(true);   /* no user token at all any more */
+    return nativeFetch(DALOS_SUPABASE_URL+'/auth/v1/user',{headers:{apikey:key,Authorization:auth}})
+      .then(function(r){return r.status===401||r.status===403;},function(){return false;});
+  }
+  function css(){
+    if(document.getElementById('dra-css'))return;
+    var s=document.createElement('style');s.id='dra-css';
+    s.textContent=
+      '.dra-scrim{position:fixed;inset:0;z-index:10000;background:rgba(26,26,23,.42);display:flex;align-items:center;justify-content:center;padding:16px;font-family:var(--font-body,"Instrument Sans",sans-serif);color:var(--text,#1a1a17)}'+
+      '.dra-box{width:100%;max-width:420px;box-sizing:border-box;background:var(--card,#fff);border:1px solid var(--border,#d0cbbe);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.22);padding:24px 24px 20px;display:flex;flex-direction:column;gap:14px}'+
+      '.dra-ic{width:40px;height:40px;border-radius:10px;background:var(--green-bg,#e8f5ec);border:1px solid var(--green-border,#8ecba4);display:flex;align-items:center;justify-content:center}'+
+      '.dra-box h2{margin:0;font-family:var(--font-display,"DM Serif Display",serif);font-weight:400;font-size:22px}'+
+      '.dra-box p{margin:6px 0 0;font-size:13px;line-height:1.5;color:var(--text2,#4a4840)}'+
+      '.dra-wait{background:var(--amber-bg,#fdf3e0);border:1px solid var(--amber-border,#e8c87a);border-radius:8px;padding:9px 11px;font-size:12.5px;color:#6e4a0e}'+
+      '.dra-wait span{font-family:var(--font-mono,"DM Mono",monospace)}'+
+      '.dra-f{display:flex;flex-direction:column;gap:4px}'+
+      '.dra-f label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6b675b}'+
+      '.dra-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}'+
+      '.dra-f input{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--border2,#bcb8ae);border-radius:6px;background:#fff;color:var(--text,#1a1a17);outline:none}'+
+      '.dra-f input:focus{border-color:var(--accent,#2b5c3f)}'+
+      '.dra-f input[readonly]{background:var(--bg,#f0ede6);border-color:var(--border,#d0cbbe);color:var(--text2,#4a4840)}'+
+      '.dra-f input.bad{border-color:var(--red,#b03030);background:var(--red-bg,#faeaea)}'+
+      '.dra-err{font-size:12.5px;color:#9a2525}.dra-ok{font-size:12.5px;color:var(--green,#1e6b3a)}'+
+      '.dra-go{font:inherit;font-size:14px;font-weight:600;min-height:44px;padding:11px 14px;border:none;border-radius:8px;background:var(--accent,#2b5c3f);color:#fff;cursor:pointer}'+
+      '.dra-go:hover{background:var(--accent2,#4a8c62)}.dra-go:disabled{opacity:.6;cursor:default}'+
+      '.dra-lk{font:inherit;font-size:12px;background:none;border:none;padding:0;color:var(--accent,#2b5c3f);text-decoration:underline;cursor:pointer}'+
+      '.dra-foot{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#6b675b}'+
+      '.dra-other{font-size:12.5px;background:var(--red-bg,#faeaea);border:1px solid var(--red-border,#e8a0a0);border-radius:8px;padding:9px 11px;color:#7a2020;display:flex;gap:10px;align-items:center;justify-content:space-between}'+
+      '.dra-other button{font:inherit;font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;border:1px solid var(--red,#b03030);background:#fff;color:var(--red,#b03030);cursor:pointer;white-space:nowrap}'+
+      '.dra-toast{position:fixed;right:24px;bottom:24px;z-index:10001;max-width:360px;background:var(--sidebar,#1e2d22);color:#fff;border-radius:12px;padding:13px 16px;font-family:var(--font-body,"Instrument Sans",sans-serif);font-size:13px;line-height:1.45;box-shadow:0 12px 36px rgba(0,0,0,.25)}'+
+      '@media(max-width:700px){.dra-scrim{align-items:flex-end;padding:0}.dra-box{max-width:none;border-radius:20px 20px 0 0;padding:10px 20px 24px}'+
+      '.dra-box:before{content:"";width:36px;height:4px;border-radius:2px;background:var(--border,#d0cbbe);align-self:center}'+
+      '.dra-ic{display:none}.dra-f input{font-size:16px;padding:10px 12px}.dra-go{min-height:48px;font-size:15px}.dra-toast{left:16px;right:16px;bottom:16px;max-width:none}}';
+    document.head.appendChild(s);
+  }
+  function waitHtml(){
+    if(!labels.length)return '';
+    return '<div class="dra-wait" id="dra-wait"><b>Waiting:</b> '+labels.map(function(l){
+      var i=l.search(/ [A-Z]{4}\s*\d/);return i>0?esc(l.slice(0,i))+' <span>'+esc(l.slice(i+1))+'</span>':esc(l);
+    }).join(', ')+'. '+(labels.length>1?'They are':'It is')+' sent as soon as you sign in.</div>';
+  }
+  function render(){
+    if(!box){
+      css();
+      box=document.createElement('div');box.className='dra-scrim';
+      box.innerHTML='<div class="dra-box" role="dialog" aria-modal="true" aria-labelledby="dra-t">'+
+        '<div class="dra-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e6b3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>'+
+        '<div><h2 id="dra-t">Sign in again to keep working</h2><p>Your DalOS session ended. You were signed out on another device or after an hour without activity. Nothing on this page is lost.</p></div>'+
+        '<div id="dra-wslot"></div>'+
+        '<form class="dra-form" style="display:flex;flex-direction:column;gap:14px" novalidate>'+
+        '<div class="dra-f"><label for="dra-em">Signed in as</label><input id="dra-em" readonly></div>'+
+        '<div class="dra-f"><div class="dra-row"><label for="dra-pw">Password</label><button type="button" class="dra-lk" id="dra-forgot">Forgot password?</button></div>'+
+        '<input id="dra-pw" type="password" autocomplete="current-password" aria-describedby="dra-msg"><div id="dra-msg" aria-live="polite"></div></div>'+
+        '<button type="submit" class="dra-go" id="dra-go">Sign in and continue</button></form>'+
+        '<div id="dra-oslot"></div>'+
+        '<div class="dra-foot"><button type="button" class="dra-lk" id="dra-other">Sign in as someone else</button></div></div>';
+      document.body.appendChild(box);
+      box.querySelector('form').addEventListener('submit',function(e){e.preventDefault();signIn();});
+      box.querySelector('#dra-forgot').addEventListener('click',forgot);
+      box.querySelector('#dra-other').addEventListener('click',function(){
+        box.querySelector('#dra-oslot').innerHTML='<div class="dra-other"><span>This reloads the page. Anything not saved here is lost.</span><button type="button" id="dra-reload">Reload and sign in</button></div>';
+        box.querySelector('#dra-reload').addEventListener('click',function(){
+          user=null;var done=function(){location.reload();};
+          try{supabase.auth.signOut({scope:'local'}).then(done,done);}catch(e){done();}
+        });
+      });
+    }
+    box.querySelector('#dra-em').value=user?(user.name?user.name+' · ':'')+(user.email||''):'';
+    box.querySelector('#dra-wslot').innerHTML=waitHtml();
+    setTimeout(function(){var p=box&&box.querySelector('#dra-pw');if(p)p.focus();},30);
+  }
+  function msg(cls,text){var m=box&&box.querySelector('#dra-msg');if(m){m.className=cls;m.textContent=text;}}
+  function forgot(){
+    if(!user||!user.email)return;
+    supabase.auth.resetPasswordForEmail(user.email,{redirectTo:window.location.origin+window.location.pathname}).then(function(r){
+      if(r&&r.error)msg('dra-err','Could not send the reset email: '+r.error.message);
+      else msg('dra-ok','We sent a reset link to '+user.email+'. Open it in a NEW tab, set a password, then sign in here.');
+    });
+  }
+  function signIn(){
+    var pw=box.querySelector('#dra-pw'),go=box.querySelector('#dra-go');
+    if(!pw.value){pw.classList.add('bad');msg('dra-err','Type your password.');pw.focus();return;}
+    go.disabled=true;go.textContent='Signing in…';pw.classList.remove('bad');msg('','');
+    supabase.auth.signInWithPassword({email:user.email,password:pw.value}).then(function(r){
+      go.disabled=false;go.textContent='Sign in and continue';
+      if(r.error||!r.data||!r.data.session){
+        pw.classList.add('bad');pw.select();
+        var bad=/invalid|credentials/i.test((r.error&&r.error.message)||'');
+        msg('dra-err',(bad?'That password didn’t work. Try again.':'Could not sign in: '+((r.error&&r.error.message)||'unknown error')+'.')+(labels.length?' Your work is still waiting.':''));
+        return;
+      }
+      done(r.data.session.access_token);
+    },function(){go.disabled=false;go.textContent='Sign in and continue';msg('dra-err','No connection. Check the network and try again.');});
+  }
+  function toast(text){
+    css();var t=document.createElement('div');t.className='dra-toast';t.setAttribute('role','status');t.innerHTML=text;
+    document.body.appendChild(t);setTimeout(function(){t.remove();},6000);
+  }
+  function done(token){
+    if(!waiting)return;
+    var w=waiting,n=labels.length;waiting=null;labels=[];
+    if(box){box.remove();box=null;}
+    toast('<b>Signed in again.</b> '+(n?(n>1?'Your waiting actions were':'Your waiting action was')+' sent again.':'You can carry on where you left off.'));
+    w.resolve(token);
+  }
+  function open(label){
+    if(label&&labels.indexOf(label)<0)labels.push(label);
+    if(!waiting){var r;waiting={promise:new Promise(function(res){r=res;})};waiting.resolve=r;}
+    render();
+    return waiting.promise;
+  }
+  function fetchWrap(input,init){
+    var url=typeof input==='string'?input:(input&&input.url)||'';
+    return nativeFetch(input,init).then(function(res){
+      if(res.status!==401||!user||!isApi(url))return res;
+      var h=new Headers((init&&init.headers)||{});
+      return sessionLost(h).then(function(lost){
+        if(!lost)return res;
+        return open(describe(url,init)).then(function(token){
+          h.set('Authorization','Bearer '+token);
+          return nativeFetch(input,Object.assign({},init,{headers:h}));
+        });
+      });
+    });
+  }
+  return {
+    fetch:fetchWrap,
+    /* app tells us who is signed in; null = nobody (login screen, deliberate sign-out) */
+    setUser:function(u){user=u&&u.email?{name:u.name||'',email:u.email}:null;},
+    /* open the box with nothing held (e.g. refresh failed and the session could not be recovered) */
+    open:function(){if(user)open(null);},
+    /* signed in some other way (another tab): release anything held */
+    signedIn:function(session){if(waiting&&session&&session.access_token)done(session.access_token);}
+  };
+})();
+
 var supabase = window.supabase.createClient(
   DALOS_SUPABASE_URL,
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmeWp2Z2p3dnR3a3JucXJ2cXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzIxNjYsImV4cCI6MjA5MDQ0ODE2Nn0.FjA75XZsp0Kx5Xam_rrnYoAHX4JHKey6vEFCH_zlMuQ'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmeWp2Z2p3dnR3a3JucXJ2cXljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzIxNjYsImV4cCI6MjA5MDQ0ODE2Nn0.FjA75XZsp0Kx5Xam_rrnYoAHX4JHKey6vEFCH_zlMuQ',
+  {global:{fetch:dalosReauth.fetch}}
 );
 
 /* Shared across ALL DalOS apps (Vision / Analytics / Workspace) — they sit on one
@@ -16216,7 +16390,9 @@ function App(){
     }
     function tick(){
       if(Date.now()-lastActivity()>=IDLE_MS){
-        supabase.auth.signOut().then(function(){ setCurrentUser(null); });
+        /* scope local (2026-11-17): an idle timer must never end the user's sessions on OTHER devices */
+        dalosReauth.setUser(null);
+        supabase.auth.signOut({scope:'local'}).then(function(){ setCurrentUser(null); });
         return; /* stop polling; the effect re-runs when currentUser clears */
       }
       poll=setTimeout(tick,POLL_MS);
@@ -16799,7 +16975,7 @@ function App(){
         setShowPasswordRecovery(true);
       }
       /* Clear the session-expired banner whenever the user successfully signs back in */
-      if(event==='SIGNED_IN'){ setSessionExpired(false); try{window.dispatchEvent(new CustomEvent('dalos:auth-restored'));}catch(e){} }
+      if(event==='SIGNED_IN'){ setSessionExpired(false); dalosReauth.signedIn(session); try{window.dispatchEvent(new CustomEvent('dalos:auth-restored'));}catch(e){} }
       if((event==='SIGNED_IN'||event==='INITIAL_SESSION')&&DALOS_IS_INVITE){
         history.replaceState(null,'',window.location.pathname);
         setShowInvite(true);
@@ -16807,6 +16983,7 @@ function App(){
       /* TOKEN_REFRESHED: update the current user silently so UI stays in sync */
       if(event==='TOKEN_REFRESHED'&&session&&session.user){
         console.log('[DalOS] Token refreshed silently — session continues');
+        dalosReauth.signedIn(session);
         try{window.dispatchEvent(new CustomEvent('dalos:auth-restored'));}catch(e){}
       }
       /* SIGNED_OUT: try to recover session from localStorage before logging user out.
@@ -16837,6 +17014,7 @@ function App(){
             } else {
               console.warn('[DalOS] Session could not be recovered after '+_maxRecoveryAttempts+' attempts — showing session-expired banner');
               setSessionExpired(true);
+              dalosReauth.open();
             }
           });
         }
@@ -18061,12 +18239,14 @@ function App(){
     });
   }
   function signOut(){
+    dalosReauth.setUser(null);
     supabase.auth.signOut().then(function(){
       setCurrentUser(null);setCropId(null);setPhId(null);setView('home');
     });
   }
   /* Always read the latest user data from users state so admin edits reflect immediately */
   var liveCurrentUser=currentUser?(function(){var found=users.find(function(u){return u.id===currentUser.id;});return found?Object.assign({},found,{packhouses:currentUser.packhouses}):currentUser;}()):null;
+  dalosReauth.setUser(liveCurrentUser);
 
 
   /* Show loading spinner while checking auth session */
@@ -18220,7 +18400,8 @@ function App(){
   if(needsCropPH){
     /* Session-expired overlay — shown when recovery fails after SIGNED_OUT.
      The tab is kept alive so no form data is lost. User signs in on a new tab. */
-  var sessionExpiredOverlay=sessionExpired&&ce('div',{style:{
+  /* Replaced 2026-11-17 by the sign-in-again box (dalosReauth), which signs in on this page. */
+  var sessionExpiredOverlay=false&&sessionExpired&&ce('div',{style:{
     position:'fixed',top:0,left:0,right:0,bottom:0,
     background:'rgba(10,20,14,0.82)',zIndex:9999,
     display:'flex',alignItems:'center',justifyContent:'center',padding:24
