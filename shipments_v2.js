@@ -157,6 +157,10 @@ var CSS=[
 '.sv2-modal .box{background:var(--card,#fff);border:1px solid var(--border,#d0cbbe);border-radius:var(--r2,12px);width:100%;max-width:420px;padding:20px 22px;box-shadow:0 12px 40px rgba(26,26,23,.28);font:13px var(--font-body,sans-serif);color:var(--text2,#4a4840)}',
 '.sv2-modal h3{font-family:var(--font-display,serif);font-weight:400;font-size:19px;color:var(--text,#1a1a17);margin:0 0 10px}',
 '.sv2-modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}',
+/* Delete shipment (edit mode only) */
+'.sv2-btn.sv2-del{color:var(--red);border-color:var(--red-border)}.sv2-btn.sv2-del:hover{background:var(--red-bg)}.sv2-btn.sv2-del[hidden]{display:none}',
+'.sv2-btn.sv2-delgo{background:var(--red);border-color:var(--red);color:#fff}.sv2-btn.sv2-delgo:disabled{opacity:.45;cursor:not-allowed}',
+'.sv2-modal .sv2-delin{width:100%;margin-top:10px;padding:8px 10px;font:14px var(--font-mono,monospace);border:1px solid var(--border2,#c9c3b4);border-radius:8px;background:var(--card,#fff);color:var(--text,#1a1a17)}',
 '.sv2-toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1a1a17;color:#f0ede6;font:13px var(--font-body,sans-serif);padding:9px 16px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:90;opacity:0;transition:opacity .2s;pointer-events:none}',
 '.sv2-toast.on{opacity:1}',
 /* responsive: phones get cards */
@@ -322,6 +326,7 @@ function createInstance(host,O){
 
   var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{}};
   var LINES=[],openRows={},MODE='list',EDIT={container:null,loaded:null,deletedIds:[]};
+  var LOADED_IDS=[];   /* ids of the lines as last loaded from the server; Delete shipment sends exactly these */
   /* old sheet carton gross text by line id (get: carton_gross_weight_raw, only when the tonnes column is empty).
      Display hint only: never copied into LINES, never sent. */
   var RAWCGW={};
@@ -365,6 +370,7 @@ function createInstance(host,O){
      '<button type="button" class="sv2-back" data-act="leave">← Back to Manage</button>'+
      '<span class="sv2-ftitle" id="sv2-ftitle">New shipment</span><span class="sv2-sp"></span>'+
      '<span class="sv2-dirty" id="sv2-dirty">● Unsaved changes</span>'+
+     '<button type="button" class="sv2-btn sec sm sv2-del" data-act="delShip" id="sv2-delship" hidden>Delete shipment</button>'+
      '<button type="button" class="sv2-btn sec sm" data-act="leave">Cancel</button>'+
      '<button type="button" class="sv2-btn sm" data-act="save">Save shipment</button>'+
     '</div>'+
@@ -953,10 +959,56 @@ function createInstance(host,O){
     },function(e){if(dead)return;setSaving(false);showFormError(friendlyErr(e));});
   }
 
+  /* ---------------------------------------------------------- delete shipment (edit mode) */
+  /* Deletes the whole open shipment: every line of this product + container + loading date, as last loaded.
+     Type-to-confirm; the server refuses if the stored lines differ from LOADED_IDS (40001) and logs each row to audit_log. */
+  function syncDelBtn(){var b=el('delship');if(b)b.hidden=!(MODE==='edit'&&LOADED_IDS.length>0);}
+  var DELETING=false;
+  function askDelete(){
+    if(MODE!=='edit'||!LOADED_IDS.length||DELETING)return;
+    closeModal();
+    var cn=EDIT.container,ld=EDIT.loaded,n=LOADED_IDS.length;
+    modalEl=document.createElement('div');modalEl.className='sv2-modal';
+    modalEl.innerHTML='<div class="box" role="dialog" aria-modal="true" aria-labelledby="sv2-mt"><h3 id="sv2-mt">Delete this shipment?</h3>'+
+      '<div><b>'+esc(cn)+'</b> loaded <b>'+esc(fmtDate(ld))+'</b> · '+esc(PRODUCT_NAME)+'. All <b>'+n+'</b> line'+(n===1?'':'s')+' will be deleted. This can’t be undone here.'+
+      (DIRTY?' Your unsaved changes on this form are discarded.':'')+'</div>'+
+      '<label style="display:block;margin-top:12px">Type the container number to confirm<input class="sv2-delin" data-m="cn" autocomplete="off" spellcheck="false" aria-label="Container number"></label>'+
+      '<div class="sv2-delerr" role="alert" style="color:var(--red);margin-top:8px;white-space:pre-line"></div>'+
+      '<div class="row"><button type="button" class="sv2-btn sec" data-m="no">Cancel</button><button type="button" class="sv2-btn sv2-delgo" data-m="ok" disabled>Delete shipment</button></div></div>';
+    var inp=modalEl.querySelector('[data-m="cn"]'),go=modalEl.querySelector('[data-m="ok"]');
+    var match=function(){return normCn(inp.value)===normCn(cn);};
+    inp.addEventListener('input',function(){go.disabled=!match()||DELETING;});
+    modalEl.addEventListener('click',function(e){
+      var b=e.target.closest('[data-m]');
+      if(DELETING)return;
+      if(e.target===modalEl||(b&&b.getAttribute('data-m')==='no')){closeModal();return;}
+      if(b&&b.getAttribute('data-m')==='ok'&&match())doDelete(cn,ld,LOADED_IDS.slice());
+    });
+    modalEl.addEventListener('keydown',function(e){if(e.key==='Escape'&&!DELETING)closeModal();if(e.key==='Enter'&&e.target===inp&&match()&&!DELETING)doDelete(cn,ld,LOADED_IDS.slice());});
+    document.body.appendChild(modalEl);inp.focus();
+  }
+  function doDelete(cn,ld,ids){
+    DELETING=true;
+    var go=modalEl&&modalEl.querySelector('[data-m="ok"]'),er=modalEl&&modalEl.querySelector('.sv2-delerr');
+    if(go){go.disabled=true;go.textContent='Deleting…';}if(er)er.textContent='';
+    Promise.resolve(sb.rpc('delete_shipment_v2_container',{p_product:PRODUCT,p_container:cn,p_loaded:ld,p_ids:ids})).then(function(res){
+      DELETING=false;if(dead)return;
+      if(res.error||!res.data||res.data.ok!==true){
+        var m=res.error?friendlyErr(res.error):'The shipment was not deleted. Try again.';
+        if(res.error&&res.error.code==='40001')m+='\nClose this, reload the shipment and try again.';
+        if(er)er.textContent=m;if(go){go.textContent='Delete shipment';go.disabled=false;}return;
+      }
+      closeModal();
+      toast('Shipment deleted ('+res.data.deleted+' line'+(res.data.deleted===1?'':'s')+')');
+      formSeq++;setDirty(false);LOADED_IDS=[];MODE='list';EDIT={container:null,loaded:null,deletedIds:[]};syncDelBtn();
+      showView('list');loadList();
+    },function(e){DELETING=false;if(dead)return;if(er)er.textContent=friendlyErr(e);if(go){go.textContent='Delete shipment';go.disabled=false;}});
+  }
+
   /* ---------------------------------------------------------- edit load */
   function loadForEdit(container,loaded){
     var my=++formSeq;
-    clearFormError();blankHeader();setDep(false);LINES=[];RAWCGW={};openRows={};renderLines();
+    clearFormError();blankHeader();setDep(false);LINES=[];RAWCGW={};openRows={};LOADED_IDS=[];syncDelBtn();renderLines();
     setVoyageLock(true);showOverlay(true);
     var getCall=PT?sb.rpc('get_shipment_v2_potato_container',{p_container:container,p_loaded:loaded})
                   :sb.rpc('get_shipment_v2_container',{p_container:container,p_loaded:loaded,p_product:PRODUCT});
@@ -967,6 +1019,7 @@ function createInstance(host,O){
       var data=res.data||{},h=data.header,lines=data.lines||[];
       if(!h){showFormError('Shipment '+container+' loaded '+fmtDate(loaded)+' was not found.');return;}
       if(h.product_id&&h.product_id!==PRODUCT){showFormError('This container belongs to another product.');return;}
+      LOADED_IDS=lines.map(function(l){return l.id;}).filter(Boolean);syncDelBtn();
       var setv=function(id,v){var e=el(id);if(e)e.value=(v==null?'':v);};
       if(PT){
         setv('container',h.container_number);setv('carta',h.carta);setv('ldate',h.loading_date);setv('vessel',h.vessel);setv('ccount',h.container_count);
@@ -1015,7 +1068,7 @@ function createInstance(host,O){
     showView('form');loadForEdit(c.ref,c.hdr.loaded);
   }
   function openCreate(){
-    formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;
+    formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;LOADED_IDS=[];syncDelBtn();
     blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();
     PAS_LIVE=true;LINES=[blankLine()];RAWCGW={};openRows={0:isNarrow()};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);
@@ -1183,6 +1236,7 @@ function createInstance(host,O){
       case 'open':openContainer(i);break;
       case 'leave':leaveForm();break;
       case 'save':submitShip();break;
+      case 'delShip':askDelete();break;
       case 'retry':if(EDIT.container)loadForEdit(EDIT.container,EDIT.loaded);break;
       case 'reload':if(EDIT.container){if(DIRTY&&!window.confirm('Reload the latest version? Your changes on this form will be lost.'))break;setDirty(false);loadForEdit(EDIT.container,EDIT.loaded);}break;
       case 'openExisting':if(EXISTING_IDX>=0&&confirmLeave()){var ix=EXISTING_IDX;setDirty(false);clearFormError();openContainer(ix);}break;
