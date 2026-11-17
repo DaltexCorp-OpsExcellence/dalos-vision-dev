@@ -895,7 +895,9 @@ function createInstance(host,O){
 
   /* ---------------------------------------------------------- line checks (before save) */
   var CARTON_WT={carton_net_weight:1,carton_gross_weight:1};
-  function lineNumProblem(k,v,ct){var pr=numProblem(v,INTKEYS[k]);if(!pr&&!PT&&NONNEG_LINE[k]&&isNegNum(v))pr='can\u2019t be negative';
+  /* Tarek 2026-11-17: a Returned shipment may have negative cartons (returns are booked negative); weights stay non-negative */
+  function isReturned(){return !PT&&val('status')==='Returned';}
+  function lineNumProblem(k,v,ct){var pr=numProblem(v,INTKEYS[k]);if(!pr&&!PT&&NONNEG_LINE[k]&&isNegNum(v)&&!(k==='carton_count'&&isReturned()))pr=k==='carton_count'?'can\u2019t be negative unless the status is Returned':'can\u2019t be negative';
     if(!pr&&!PT&&CARTON_WT[k]&&cartonOverMax(v,ct))pr=isBinType(ct)?'over 1 t per bin':'over 0.1 t per carton (looks like kg)';return pr;}
   function lineCt(el){var ln=el&&el.closest&&el.closest('[data-line]');if(!ln)return '';var f=qa('[data-line="'+ln.getAttribute('data-line')+'"] [data-k="carton_type"]')[0];return f?f.value:'';}
   function lineLabel(k){var m={variety:'Variety',pallet_count:'Pallets',net_weight:'Net t',pallets:'Pallets',standard_weight:'Standard wt',carton_count:'Cartons',
@@ -1284,7 +1286,9 @@ function createInstance(host,O){
   }
   function onChange(e){
     var t=e.target,c=t.getAttribute&&t.getAttribute('data-chg');
-    if(c==='status')syncCtxStatus();
+    if(c==='status'){syncCtxStatus();
+      /* re-check carton counts: negative is fine only while the status is Returned */
+      qa('[data-line] [data-k="carton_count"]').forEach(function(f){if(!String(f.value||'').trim())return;var pr=lineNumProblem('carton_count',f.value);f.classList.toggle('invalid',!!pr);f.setAttribute('aria-invalid',pr?'true':'false');f.title=pr?lineLabel('carton_count')+' '+pr:'';});}
     else if(c==='client')fillSubclients();
     else if(c==='ldate'){deriveDate();syncDep();}
     else if(c==='depdiff')syncDep();
