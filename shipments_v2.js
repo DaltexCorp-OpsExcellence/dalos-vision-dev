@@ -266,6 +266,9 @@ function intakeR6(x){return String(Number(x.toFixed(6)));}
 /* gap 3 (2026-11-17): the save RPCs refuse negatives on these (via _sv2_intake_nonneg / the Cartons check), so refuse them inline
    before Save too. Pallets are NOT here: returned containers carry negative pallets and the RPC allows them. Not used for potatoes. */
 var NONNEG_LINE={carton_count:1,carton_net_weight:1,carton_gross_weight:1,packing_factor:1};
+/* 2026-11-17: "changed since you opened it" conflicts. The DB now raises SQLSTATE PT409 (HTTP 409); 40001 is still
+   accepted for the old functions, but 40001 makes PostgREST retry forever, so the server no longer sends it. */
+function isStaleErr(e){return !!e&&(e.code==='PT409'||e.code==='40001');}
 function isNegNum(v){var s=asciiDigits(v==null?'':v).trim();return /^-/.test(s)&&!numProblem(v,0);}
 /* 2026-11-17: a negative carton net/gross gets ONE message, blocks Save (NONNEG_LINE) and blanks that line's auto totals,
    so negative cartons (Returned) x negative weight never shows a positive Net/Gross t */
@@ -981,7 +984,7 @@ function createInstance(host,O){
       if(dead)return;
       setSaving(false);
       if(res.error){
-        var stale=res.error.code==='40001';
+        var stale=isStaleErr(res.error);
         if(res.error.code==='23505'&&MODE==='create'){checkExisting();if(EXISTING_IDX>=0)return;}
         showFormError(friendlyErr(res.error),stale&&MODE==='edit'?'reload':null);return;
       }
@@ -996,7 +999,7 @@ function createInstance(host,O){
 
   /* ---------------------------------------------------------- delete shipment (edit mode) */
   /* Deletes the whole open shipment: every line of this product + container + loading date, as last loaded.
-     Type-to-confirm; the server refuses if the stored lines differ from LOADED_IDS (40001) and logs each row to audit_log. */
+     Type-to-confirm; the server refuses if the stored lines differ from LOADED_IDS (PT409; was 40001) and logs each row to audit_log. */
   function syncDelBtn(){var b=el('delship');if(b)b.hidden=!(MODE==='edit'&&LOADED_IDS.length>0);}
   var DELETING=false;
   function askDelete(){
@@ -1030,7 +1033,7 @@ function createInstance(host,O){
       DELETING=false;if(dead)return;
       if(res.error||!res.data||res.data.ok!==true){
         var m=res.error?friendlyErr(res.error):'The shipment was not deleted. Try again.';
-        if(res.error&&res.error.code==='40001')m+='\nClose this, reload the shipment and try again.';
+        if(isStaleErr(res.error))m+='\nClose this, reload the shipment and try again.';
         if(er)er.textContent=m;if(go){go.textContent='Delete shipment';go.disabled=false;}return;
       }
       closeModal();
@@ -1369,7 +1372,7 @@ function createInstance(host,O){
 }
 
 window.ShipV2={mount:mount,version:'2026-11-16',
-  intakeFieldsEnabled:intakeFieldsEnabled,isNegNum:isNegNum,lineNegWeight:lineNegWeight,NEG_WT_MSG:NEG_WT_MSG,isBinType:isBinType,cartonOverMax:cartonOverMax,cartonMaxMsg:cartonMaxMsg,NONNEG_LINE:NONNEG_LINE,INTAKE_WARN:INTAKE_WARN,
+  intakeFieldsEnabled:intakeFieldsEnabled,isStaleErr:isStaleErr,isNegNum:isNegNum,lineNegWeight:lineNegWeight,NEG_WT_MSG:NEG_WT_MSG,isBinType:isBinType,cartonOverMax:cartonOverMax,cartonMaxMsg:cartonMaxMsg,NONNEG_LINE:NONNEG_LINE,INTAKE_WARN:INTAKE_WARN,
   intakeBlank:intakeBlank,intakeMul:intakeMul,intakeLineNetT:intakeLineNetT,intakeLineGrossT:intakeLineGrossT,
   intakeContainerShare:intakeContainerShare,intakePascolActual:intakePascolActual,intakePackingWeight:intakePackingWeight,
   intakeCartonNetWarn:intakeCartonNetWarn,intakeLooksKg:intakeLooksKg,INTAKE_KG_MSG:INTAKE_KG_MSG,intakeCartonGrossWarn:intakeCartonGrossWarn,intakePackingFactorWarn:intakePackingFactorWarn,
