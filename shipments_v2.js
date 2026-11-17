@@ -267,6 +267,15 @@ function intakeR6(x){return String(Number(x.toFixed(6)));}
    before Save too. Pallets are NOT here: returned containers carry negative pallets and the RPC allows them. Not used for potatoes. */
 var NONNEG_LINE={carton_count:1,carton_net_weight:1,carton_gross_weight:1,packing_factor:1};
 function isNegNum(v){var s=asciiDigits(v==null?'':v).trim();return /^-/.test(s)&&!numProblem(v,0);}
+/* gap 4 (2026-11-17, Tarek: bin-aware block): a carton weight above 0.1 t is refused (kg typed: 15 for 0.015), except on
+   Carton Bins lines where one bin is 0.55-0.6 t, so the limit there is 1 t. A bin line with no carton type picked is
+   treated as a carton (pick 'Carton Bins' first). 0.1 itself is allowed. Not used for potatoes. */
+var CARTON_MAX={carton:0.1,bin:1};
+function isBinType(ct){return /\bbins?\b/i.test(String(ct||''));}
+function cartonMax(ct){return isBinType(ct)?CARTON_MAX.bin:CARTON_MAX.carton;}
+function cartonOverMax(v,ct){var n=intakeNum(v);return n!==null&&n>cartonMax(ct)+1e-12;}
+var BIN_MAX_MSG='Over 1 t per bin. Bin weights are in tons, e.g. 0.6';
+function cartonMaxMsg(ct){return isBinType(ct)?BIN_MAX_MSG:INTAKE_KG_MSG+' (max 0.1 t per carton)';}
 function intakeOk(v,whole){return !intakeBlank(v)&&!numProblem(v,whole);}
 function intakeNum(v,whole){return intakeOk(v,whole)?numOf(v,whole):null;}
 /* aWhole: read a as a count ("1,664" = 1664, same rule as the server) */
@@ -740,17 +749,25 @@ function createInstance(host,O){
     qa('[data-line="'+i+'"] [data-wmsg="'+k+'"]').forEach(function(m){m.hidden=!on;m.textContent=on?msg:'';});return on;}
   function paintWarns(){
     if(PT)return;var W=INTAKE_WARN;
-    var kgL=[],oddL=[];   /* r2 P1: line numbers for the footer note */
+    var kgL=[],oddL=[];   /* r2 P1: line numbers for the footer note; gap 4: kgL = lines that can't be saved (over the max) */
     LINES.forEach(function(d,i){
-      var kn=intakeLooksKg(d.carton_net_weight),kg=intakeLooksKg(d.carton_gross_weight);
-      var a=warnCell(i,'carton_net_weight',intakeCartonNetWarn(d.carton_net_weight),kn?INTAKE_KG_MSG:'Unusual carton net t (expected '+W.cartonNetMin+'–'+W.cartonNetMax+')');
-      var b=warnCell(i,'carton_gross_weight',intakeCartonGrossWarn(d.carton_net_weight,d.carton_gross_weight),kg?INTAKE_KG_MSG:'Unusual carton gross t (expected carton net t to carton net t + '+W.grossHeadroom+')');
+      var bin=isBinType(d.carton_type);
+      var kn=cartonOverMax(d.carton_net_weight,d.carton_type),kg=cartonOverMax(d.carton_gross_weight,d.carton_type);
+      /* gap 4: over the max = hard block (red, Save refused); bins skip the per-carton range warning (a bin is 0.55-0.6 t) */
+      var a=warnCell(i,'carton_net_weight',kn||(!bin&&intakeCartonNetWarn(d.carton_net_weight)),kn?cartonMaxMsg(d.carton_type):'Unusual carton net t (expected '+W.cartonNetMin+'–'+W.cartonNetMax+')');
+      var b=warnCell(i,'carton_gross_weight',kg||intakeCartonGrossWarn(d.carton_net_weight,d.carton_gross_weight),kg?cartonMaxMsg(d.carton_type):'Unusual carton gross t (expected carton net t to carton net t + '+W.grossHeadroom+')');
       var c=INTAKE&&isCitrus()&&warnCell(i,'packing_factor',intakePackingFactorWarn(d.packing_factor),'Unusual Packing Net Weight (expected '+W.packingFactorMin+'–'+W.packingFactorMax+')');
-      if((a&&kn)||(b&&kg))kgL.push(i+1);else if(a||b||c)oddL.push(i+1);
+      [['carton_net_weight',kn],['carton_gross_weight',kg]].forEach(function(x){
+        if(x[1])markCell(i,x[0],true);
+        else if(!lineNumProblem(x[0],d[x[0]],d.carton_type))qa('[data-line="'+i+'"] [data-k="'+x[0]+'"]').forEach(function(f){if(f.classList.contains('invalid')&&String(f.value||'').trim()){f.classList.remove('invalid');f.setAttribute('aria-invalid','false');}});
+      });
+      if(kn||kg)kgL.push({n:i+1,bin:bin});else if(a||b||c)oddL.push(i+1);
     });
-    /* soft amber note in the Save bar; warn-only, the save is never blocked */
+    /* amber note in the Save bar; over-max lines are refused on Save, the rest is warn-only */
     var fw=el('kgwarn');if(fw){var t=[];
-      if(kgL.length)t.push('Line '+kgL.join(', ')+': '+INTAKE_KG_MSG+'.');
+      var kc=kgL.filter(function(x){return !x.bin;}).map(function(x){return x.n;}),kb=kgL.filter(function(x){return x.bin;}).map(function(x){return x.n;});
+      if(kc.length)t.push('Line '+kc.join(', ')+': '+INTAKE_KG_MSG+'. Over 0.1 t per carton can\u2019t be saved.');
+      if(kb.length)t.push('Line '+kb.join(', ')+': '+BIN_MAX_MSG+'. Can\u2019t be saved.');
       if(oddL.length)t.push('Line '+oddL.join(', ')+': unusual carton weights. Check before saving.');
       fw.textContent=t.join(' ');fw.classList.toggle('on',t.length>0);}
   }
@@ -877,7 +894,10 @@ function createInstance(host,O){
   }
 
   /* ---------------------------------------------------------- line checks (before save) */
-  function lineNumProblem(k,v){var pr=numProblem(v,INTKEYS[k]);if(!pr&&!PT&&NONNEG_LINE[k]&&isNegNum(v))pr='can\u2019t be negative';return pr;}
+  var CARTON_WT={carton_net_weight:1,carton_gross_weight:1};
+  function lineNumProblem(k,v,ct){var pr=numProblem(v,INTKEYS[k]);if(!pr&&!PT&&NONNEG_LINE[k]&&isNegNum(v))pr='can\u2019t be negative';
+    if(!pr&&!PT&&CARTON_WT[k]&&cartonOverMax(v,ct))pr=isBinType(ct)?'over 1 t per bin':'over 0.1 t per carton (looks like kg)';return pr;}
+  function lineCt(el){var ln=el&&el.closest&&el.closest('[data-line]');if(!ln)return '';var f=qa('[data-line="'+ln.getAttribute('data-line')+'"] [data-k="carton_type"]')[0];return f?f.value:'';}
   function lineLabel(k){var m={variety:'Variety',pallet_count:'Pallets',net_weight:'Net t',pallets:'Pallets',standard_weight:'Standard wt',carton_count:'Cartons',
     gross_weight:'Gross t',jumbo_count:'Jumbo #',sack_count:'Sack #',pascol_weight:'Pascol t',package_weight:'Package weight',pack_size:'Pack size',
     carton_net_weight:'Carton net t',carton_gross_weight:'Carton gross t',pascol_pct:INTAKE?'Pascol share t':'Pascol %',packing_weight:'Packing t',packing_factor:'Packing Net Weight',pascol_net:'Pascol net t',weight_variance:'Variance t'};return m[k]||k;}
@@ -891,7 +911,7 @@ function createInstance(host,O){
     LINES.forEach(function(d,i){
       var miss=[],bad=[];
       if(!d.id)REQ_LINE.forEach(function(k){var e=!String(d[k]||'').trim();markCell(i,k,e);if(e)miss.push(lineLabel(k));});   /* new lines: key fields required */
-      Object.keys(NUMKEYS).forEach(function(k){if(!(k in d))return;var pr=lineNumProblem(k,d[k]);if(pr){markCell(i,k,true);bad.push(lineLabel(k)+' '+pr);}else if(REQ_LINE.indexOf(k)<0||d.id)markCell(i,k,false);});
+      Object.keys(NUMKEYS).forEach(function(k){if(!(k in d))return;var pr=lineNumProblem(k,d[k],d.carton_type);if(pr){markCell(i,k,true);bad.push(lineLabel(k)+' '+pr);}else if(REQ_LINE.indexOf(k)<0||d.id)markCell(i,k,false);});
       if(miss.length)problems.push('Line '+(i+1)+': '+miss.join(', ')+' missing');
       if(bad.length)problems.push('Line '+(i+1)+': '+bad.join(', '));
     });
@@ -1268,6 +1288,7 @@ function createInstance(host,O){
     else if(c==='client')fillSubclients();
     else if(c==='ldate'){deriveDate();syncDep();}
     else if(c==='depdiff')syncDep();
+    else if(!PT&&t.getAttribute&&t.getAttribute('data-k')==='carton_type'&&t.closest('[data-line]')){syncLines();paintWarns();}   /* gap 4: bin limit follows the carton type */
     else if(c==='facet'){var fk=t.getAttribute('data-fk');if(ST.f[fk]){ST.f[fk]=t.value?[t.value]:[];ST.limit=RENDER_STEP;renderList();}return;}
     else if(!INTAKE&&isCitrus()&&t.getAttribute&&t.getAttribute('data-k')==='pascol_weight'&&String(t.value).trim()){var me=t.closest('[data-line]');
       qa('[data-line] [data-k="pascol_weight"]').forEach(function(f){if(f!==t&&f.closest('[data-line]')!==me&&!String(f.value).trim())f.value=t.value;});recompute();}
@@ -1287,7 +1308,7 @@ function createInstance(host,O){
     if(t.getAttribute('data-req'))validateField(t.id.replace('sv2-',''));
     if(t.id==='sv2-container'||t.id==='sv2-ldate')checkExisting();
     var k=t.getAttribute('data-k');
-    if(k&&NUMKEYS[k]){var pr=lineNumProblem(k,t.value);t.classList.toggle('invalid',!!pr);t.setAttribute('aria-invalid',pr?'true':'false');t.title=pr?lineLabel(k)+' '+pr:'';}
+    if(k&&NUMKEYS[k]){var pr=lineNumProblem(k,t.value,lineCt(t));t.classList.toggle('invalid',!!pr);t.setAttribute('aria-invalid',pr?'true':'false');t.title=pr?lineLabel(k)+' '+pr:'';}
     else if(k&&t.classList.contains('invalid')&&String(t.value||'').trim()){t.classList.remove('invalid');t.setAttribute('aria-invalid','false');}
     if(k&&WARN_KEYS[k]&&t.closest('[data-line]')){syncLines();paintWarns();}   /* range warn after number validation */
     if(INTAKE&&(t.id==='sv2-tcartons'||t.id==='sv2-hpascol')){var hpr=numProblem(t.value,t.id==='sv2-tcartons'?1:0)||(isNegNum(t.value)?'can\u2019t be negative':null);
@@ -1336,7 +1357,7 @@ function createInstance(host,O){
 }
 
 window.ShipV2={mount:mount,version:'2026-11-16',
-  intakeFieldsEnabled:intakeFieldsEnabled,isNegNum:isNegNum,NONNEG_LINE:NONNEG_LINE,INTAKE_WARN:INTAKE_WARN,
+  intakeFieldsEnabled:intakeFieldsEnabled,isNegNum:isNegNum,isBinType:isBinType,cartonOverMax:cartonOverMax,cartonMaxMsg:cartonMaxMsg,NONNEG_LINE:NONNEG_LINE,INTAKE_WARN:INTAKE_WARN,
   intakeBlank:intakeBlank,intakeMul:intakeMul,intakeLineNetT:intakeLineNetT,intakeLineGrossT:intakeLineGrossT,
   intakeContainerShare:intakeContainerShare,intakePascolActual:intakePascolActual,intakePackingWeight:intakePackingWeight,
   intakeCartonNetWarn:intakeCartonNetWarn,intakeLooksKg:intakeLooksKg,INTAKE_KG_MSG:INTAKE_KG_MSG,intakeCartonGrossWarn:intakeCartonGrossWarn,intakePackingFactorWarn:intakePackingFactorWarn,
