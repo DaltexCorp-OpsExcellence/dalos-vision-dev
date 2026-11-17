@@ -267,6 +267,10 @@ function intakeR6(x){return String(Number(x.toFixed(6)));}
    before Save too. Pallets are NOT here: returned containers carry negative pallets and the RPC allows them. Not used for potatoes. */
 var NONNEG_LINE={carton_count:1,carton_net_weight:1,carton_gross_weight:1,packing_factor:1};
 function isNegNum(v){var s=asciiDigits(v==null?'':v).trim();return /^-/.test(s)&&!numProblem(v,0);}
+/* 2026-11-17: a negative carton net/gross gets ONE message, blocks Save (NONNEG_LINE) and blanks that line's auto totals,
+   so negative cartons (Returned) x negative weight never shows a positive Net/Gross t */
+var NEG_WT_MSG='Carton weight can\u2019t be negative';
+function lineNegWeight(d){return !!d&&(isNegNum(d.carton_net_weight)||isNegNum(d.carton_gross_weight));}
 /* gap 4 (2026-11-17, Tarek: bin-aware block): a carton weight above 0.1 t is refused (kg typed: 15 for 0.015), except on
    Carton Bins lines where one bin is 0.55-0.6 t, so the limit there is 1 t. A bin line with no carton type picked is
    treated as a carton (pick 'Carton Bins' first). 0.1 itself is allowed. Not used for potatoes. */
@@ -730,7 +734,7 @@ function createInstance(host,O){
     else LINES.forEach(function(d,i){var n=numOf(d.net_weight),v=net>0&&String(d.net_weight||'').trim()?(Math.round(n/net*1000)/10).toFixed(1)+' %':'';qa('[data-cpct="'+i+'"]').forEach(function(f){f.value=v;});});
     /* computed net/gross display in the weights block (for existing lines a hint only — never written into the line) */
     LINES.forEach(function(d,i){
-      var n=intakeLineNetT(d.carton_count,d.carton_net_weight),g=intakeLineGrossT(d.carton_count,d.carton_gross_weight);
+      var neg=lineNegWeight(d),n=neg?'':intakeLineNetT(d.carton_count,d.carton_net_weight),g=neg?'':intakeLineGrossT(d.carton_count,d.carton_gross_weight);
       qa('[data-cnet="'+i+'"]').forEach(function(f){f.value=n;});qa('[data-cgrs="'+i+'"]').forEach(function(f){f.value=g;});
     });
     paintWarns();
@@ -740,7 +744,8 @@ function createInstance(host,O){
      Existing lines (d.id) keep their stored net/gross — never silently overwritten. */
   function calcNewLineWeights(){
     LINES.forEach(function(d,i){if(d.id)return;
-      var v={net_weight:intakeLineNetT(d.carton_count,d.carton_net_weight),gross_weight:intakeLineGrossT(d.carton_count,d.carton_gross_weight)};
+      var neg=lineNegWeight(d);
+      var v={net_weight:neg?'':intakeLineNetT(d.carton_count,d.carton_net_weight),gross_weight:neg?'':intakeLineGrossT(d.carton_count,d.carton_gross_weight)};
       Object.keys(v).forEach(function(k){d[k]=v[k];qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.value=v[k];});});
     });
   }
@@ -749,22 +754,25 @@ function createInstance(host,O){
     qa('[data-line="'+i+'"] [data-wmsg="'+k+'"]').forEach(function(m){m.hidden=!on;m.textContent=on?msg:'';});return on;}
   function paintWarns(){
     if(PT)return;var W=INTAKE_WARN;
-    var kgL=[],oddL=[];   /* r2 P1: line numbers for the footer note; gap 4: kgL = lines that can't be saved (over the max) */
+    var kgL=[],oddL=[],negL=[];   /* r2 P1: line numbers for the footer note; gap 4: kgL = lines that can't be saved (over the max); negL = negative carton weight */
     LINES.forEach(function(d,i){
       var bin=isBinType(d.carton_type);
       var kn=cartonOverMax(d.carton_net_weight,d.carton_type),kg=cartonOverMax(d.carton_gross_weight,d.carton_type);
+      var nn=isNegNum(d.carton_net_weight),ng=isNegNum(d.carton_gross_weight),anyNeg=nn||ng;
       /* gap 4: over the max = hard block (red, Save refused); bins skip the per-carton range warning (a bin is 0.55-0.6 t) */
-      var a=warnCell(i,'carton_net_weight',kn||(!bin&&intakeCartonNetWarn(d.carton_net_weight)),kn?cartonMaxMsg(d.carton_type):'Unusual carton net t (expected '+W.cartonNetMin+'–'+W.cartonNetMax+')');
-      var b=warnCell(i,'carton_gross_weight',kg||intakeCartonGrossWarn(d.carton_net_weight,d.carton_gross_weight),kg?cartonMaxMsg(d.carton_type):'Unusual carton gross t (expected carton net t to carton net t + '+W.grossHeadroom+')');
+      /* negative: only "can't be negative" under that field; the gross-vs-net range check is skipped while either is negative */
+      var a=nn?warnCell(i,'carton_net_weight',true,NEG_WT_MSG):warnCell(i,'carton_net_weight',kn||(!bin&&intakeCartonNetWarn(d.carton_net_weight)),kn?cartonMaxMsg(d.carton_type):'Unusual carton net t (expected '+W.cartonNetMin+'–'+W.cartonNetMax+')');
+      var b=ng?warnCell(i,'carton_gross_weight',true,NEG_WT_MSG):warnCell(i,'carton_gross_weight',kg||(!anyNeg&&intakeCartonGrossWarn(d.carton_net_weight,d.carton_gross_weight)),kg?cartonMaxMsg(d.carton_type):'Unusual carton gross t (expected carton net t to carton net t + '+W.grossHeadroom+')');
       var c=INTAKE&&isCitrus()&&warnCell(i,'packing_factor',intakePackingFactorWarn(d.packing_factor),'Unusual Packing Net Weight (expected '+W.packingFactorMin+'–'+W.packingFactorMax+')');
-      [['carton_net_weight',kn],['carton_gross_weight',kg]].forEach(function(x){
+      [['carton_net_weight',kn||nn],['carton_gross_weight',kg||ng]].forEach(function(x){
         if(x[1])markCell(i,x[0],true);
         else if(!lineNumProblem(x[0],d[x[0]],d.carton_type))qa('[data-line="'+i+'"] [data-k="'+x[0]+'"]').forEach(function(f){if(f.classList.contains('invalid')&&String(f.value||'').trim()){f.classList.remove('invalid');f.setAttribute('aria-invalid','false');}});
       });
-      if(kn||kg)kgL.push({n:i+1,bin:bin});else if(a||b||c)oddL.push(i+1);
+      if(anyNeg)negL.push(i+1);else if(kn||kg)kgL.push({n:i+1,bin:bin});else if(a||b||c)oddL.push(i+1);
     });
     /* amber note in the Save bar; over-max lines are refused on Save, the rest is warn-only */
     var fw=el('kgwarn');if(fw){var t=[];
+      if(negL.length)t.push('Line '+negL.join(', ')+': '+NEG_WT_MSG+'. Can\u2019t be saved.');
       var kc=kgL.filter(function(x){return !x.bin;}).map(function(x){return x.n;}),kb=kgL.filter(function(x){return x.bin;}).map(function(x){return x.n;});
       if(kc.length)t.push('Line '+kc.join(', ')+': '+INTAKE_KG_MSG+'. Over 0.1 t per carton can\u2019t be saved.');
       if(kb.length)t.push('Line '+kb.join(', ')+': '+BIN_MAX_MSG+'. Can\u2019t be saved.');
@@ -783,7 +791,7 @@ function createInstance(host,O){
       /* existing rows have no packing_factor yet: keep the stored packing weight instead of blanking it */
       if(d.id&&intakeBlank(d.packing_factor))pw=intakeBlank(d.packing_weight)?'':String(d.packing_weight);
       var pn=pa-numOf(pw);
-      var v={pascol_pct:ok?intakeR6(pa):'',packing_weight:pw,pascol_net:ok?intakeR6(pn):'',weight_variance:ok?intakeR6(pn-numOf(d.net_weight)):''};
+      var v={pascol_pct:ok?intakeR6(pa):'',packing_weight:pw,pascol_net:ok?intakeR6(pn):'',weight_variance:ok&&!lineNegWeight(d)?intakeR6(pn-numOf(d.net_weight)):''};
       Object.keys(v).forEach(function(k){d[k]=v[k];qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.value=v[k];});});
     });
   }
@@ -1361,7 +1369,7 @@ function createInstance(host,O){
 }
 
 window.ShipV2={mount:mount,version:'2026-11-16',
-  intakeFieldsEnabled:intakeFieldsEnabled,isNegNum:isNegNum,isBinType:isBinType,cartonOverMax:cartonOverMax,cartonMaxMsg:cartonMaxMsg,NONNEG_LINE:NONNEG_LINE,INTAKE_WARN:INTAKE_WARN,
+  intakeFieldsEnabled:intakeFieldsEnabled,isNegNum:isNegNum,lineNegWeight:lineNegWeight,NEG_WT_MSG:NEG_WT_MSG,isBinType:isBinType,cartonOverMax:cartonOverMax,cartonMaxMsg:cartonMaxMsg,NONNEG_LINE:NONNEG_LINE,INTAKE_WARN:INTAKE_WARN,
   intakeBlank:intakeBlank,intakeMul:intakeMul,intakeLineNetT:intakeLineNetT,intakeLineGrossT:intakeLineGrossT,
   intakeContainerShare:intakeContainerShare,intakePascolActual:intakePascolActual,intakePackingWeight:intakePackingWeight,
   intakeCartonNetWarn:intakeCartonNetWarn,intakeLooksKg:intakeLooksKg,INTAKE_KG_MSG:INTAKE_KG_MSG,intakeCartonGrossWarn:intakeCartonGrossWarn,intakePackingFactorWarn:intakePackingFactorWarn,
