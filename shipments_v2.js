@@ -263,6 +263,10 @@ var NUMKEYS={pallets:'numeric',jumbo_count:'numeric',sack_count:'numeric',standa
 var INTAKE_WARN={cartonNetMin:0.001,cartonNetMax:0.05,grossHeadroom:0.01,packingFactorMin:0,packingFactorMax:0.01};
 function intakeBlank(v){return String(v==null?'':v).trim()==='';}
 function intakeR6(x){return String(Number(x.toFixed(6)));}
+/* gap 3 (2026-11-17): the save RPCs refuse negatives on these (via _sv2_intake_nonneg / the Cartons check), so refuse them inline
+   before Save too. Pallets are NOT here: returned containers carry negative pallets and the RPC allows them. Not used for potatoes. */
+var NONNEG_LINE={carton_count:1,carton_net_weight:1,carton_gross_weight:1,packing_factor:1};
+function isNegNum(v){var s=asciiDigits(v==null?'':v).trim();return /^-/.test(s)&&!numProblem(v,0);}
 function intakeOk(v,whole){return !intakeBlank(v)&&!numProblem(v,whole);}
 function intakeNum(v,whole){return intakeOk(v,whole)?numOf(v,whole):null;}
 /* aWhole: read a as a count ("1,664" = 1664, same rule as the server) */
@@ -873,6 +877,7 @@ function createInstance(host,O){
   }
 
   /* ---------------------------------------------------------- line checks (before save) */
+  function lineNumProblem(k,v){var pr=numProblem(v,INTKEYS[k]);if(!pr&&!PT&&NONNEG_LINE[k]&&isNegNum(v))pr='can\u2019t be negative';return pr;}
   function lineLabel(k){var m={variety:'Variety',pallet_count:'Pallets',net_weight:'Net t',pallets:'Pallets',standard_weight:'Standard wt',carton_count:'Cartons',
     gross_weight:'Gross t',jumbo_count:'Jumbo #',sack_count:'Sack #',pascol_weight:'Pascol t',package_weight:'Package weight',pack_size:'Pack size',
     carton_net_weight:'Carton net t',carton_gross_weight:'Carton gross t',pascol_pct:INTAKE?'Pascol share t':'Pascol %',packing_weight:'Packing t',packing_factor:'Packing Net Weight',pascol_net:'Pascol net t',weight_variance:'Variance t'};return m[k]||k;}
@@ -886,7 +891,7 @@ function createInstance(host,O){
     LINES.forEach(function(d,i){
       var miss=[],bad=[];
       if(!d.id)REQ_LINE.forEach(function(k){var e=!String(d[k]||'').trim();markCell(i,k,e);if(e)miss.push(lineLabel(k));});   /* new lines: key fields required */
-      Object.keys(NUMKEYS).forEach(function(k){if(!(k in d))return;var pr=numProblem(d[k],INTKEYS[k]);if(pr){markCell(i,k,true);bad.push(lineLabel(k)+' '+pr);}else if(REQ_LINE.indexOf(k)<0||d.id)markCell(i,k,false);});
+      Object.keys(NUMKEYS).forEach(function(k){if(!(k in d))return;var pr=lineNumProblem(k,d[k]);if(pr){markCell(i,k,true);bad.push(lineLabel(k)+' '+pr);}else if(REQ_LINE.indexOf(k)<0||d.id)markCell(i,k,false);});
       if(miss.length)problems.push('Line '+(i+1)+': '+miss.join(', ')+' missing');
       if(bad.length)problems.push('Line '+(i+1)+': '+bad.join(', '));
     });
@@ -904,7 +909,7 @@ function createInstance(host,O){
     if(!PT&&el('depdiff')&&el('depdiff').checked){var dd=val('depdate'),dErr=!dd?'Departure date is required':(dd<val('ldate')?'Departure date can\'t be before the loading date':(!SV2_SEND_DEPARTURE_DATE?'Preview only: departure date can\'t be saved yet. Untick the box to save':''));
       el('depdate').classList.toggle('invalid',!!dErr);if(dErr){showFormError(dErr+'.');el('depdate').focus();return;}}
     if(INTAKE){var hb=[];[['tcartons',1,'Total cartons'],['hpascol',0,'Pascol weight']].forEach(function(x){var e=el(x[0]);if(!e)return;
-        var pr=numProblem(e.value,x[1]);e.classList.toggle('invalid',!!pr);e.setAttribute('aria-invalid',pr?'true':'false');if(pr)hb.push(x[2]+' '+pr);});
+        var pr=numProblem(e.value,x[1])||(isNegNum(e.value)?'can\u2019t be negative':null);e.classList.toggle('invalid',!!pr);e.setAttribute('aria-invalid',pr?'true':'false');if(pr)hb.push(x[2]+' '+pr);});
       if(hb.length){showFormError('Fix these before saving:\n'+hb.join('\n'));var hf=host.querySelector('.sv2-in.invalid');if(hf)hf.focus();return;}}
     if(checkExisting())return;
     recompute();   /* sync + computed net/gross on new lines before the checks */
@@ -1282,10 +1287,10 @@ function createInstance(host,O){
     if(t.getAttribute('data-req'))validateField(t.id.replace('sv2-',''));
     if(t.id==='sv2-container'||t.id==='sv2-ldate')checkExisting();
     var k=t.getAttribute('data-k');
-    if(k&&NUMKEYS[k]){var pr=numProblem(t.value,INTKEYS[k]);t.classList.toggle('invalid',!!pr);t.setAttribute('aria-invalid',pr?'true':'false');t.title=pr?lineLabel(k)+' '+pr:'';}
+    if(k&&NUMKEYS[k]){var pr=lineNumProblem(k,t.value);t.classList.toggle('invalid',!!pr);t.setAttribute('aria-invalid',pr?'true':'false');t.title=pr?lineLabel(k)+' '+pr:'';}
     else if(k&&t.classList.contains('invalid')&&String(t.value||'').trim()){t.classList.remove('invalid');t.setAttribute('aria-invalid','false');}
     if(k&&WARN_KEYS[k]&&t.closest('[data-line]')){syncLines();paintWarns();}   /* range warn after number validation */
-    if(INTAKE&&(t.id==='sv2-tcartons'||t.id==='sv2-hpascol')){var hpr=numProblem(t.value,t.id==='sv2-tcartons'?1:0);
+    if(INTAKE&&(t.id==='sv2-tcartons'||t.id==='sv2-hpascol')){var hpr=numProblem(t.value,t.id==='sv2-tcartons'?1:0)||(isNegNum(t.value)?'can\u2019t be negative':null);
       t.classList.toggle('invalid',!!hpr);t.setAttribute('aria-invalid',hpr?'true':'false');t.title=hpr?(t.id==='sv2-tcartons'?'Total cartons ':'Pascol weight ')+hpr:'';}
   }
   host.addEventListener('click',onClick);host.addEventListener('keydown',onKey);
@@ -1331,7 +1336,7 @@ function createInstance(host,O){
 }
 
 window.ShipV2={mount:mount,version:'2026-11-16',
-  intakeFieldsEnabled:intakeFieldsEnabled,INTAKE_WARN:INTAKE_WARN,
+  intakeFieldsEnabled:intakeFieldsEnabled,isNegNum:isNegNum,NONNEG_LINE:NONNEG_LINE,INTAKE_WARN:INTAKE_WARN,
   intakeBlank:intakeBlank,intakeMul:intakeMul,intakeLineNetT:intakeLineNetT,intakeLineGrossT:intakeLineGrossT,
   intakeContainerShare:intakeContainerShare,intakePascolActual:intakePascolActual,intakePackingWeight:intakePackingWeight,
   intakeCartonNetWarn:intakeCartonNetWarn,intakeLooksKg:intakeLooksKg,INTAKE_KG_MSG:INTAKE_KG_MSG,intakeCartonGrossWarn:intakeCartonGrossWarn,intakePackingFactorWarn:intakePackingFactorWarn,
