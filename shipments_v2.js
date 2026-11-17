@@ -347,6 +347,7 @@ function createInstance(host,O){
   var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{}};
   var LINES=[],openRows={},MODE='list',EDIT={container:null,loaded:null,deletedIds:[]};
   var LOADED_IDS=[];   /* ids of the lines as last loaded from the server; Delete shipment sends exactly these */
+  var ROW_VERSION='';  /* fixpkg: get_* row_version as last loaded; sent back on edit + delete so the server refuses (PT409) if anyone changed the lines since */
   /* old sheet carton gross text by line id (get: carton_gross_weight_raw, only when the tonnes column is empty).
      Display hint only: never copied into LINES, never sent. */
   var RAWCGW={};
@@ -953,6 +954,7 @@ function createInstance(host,O){
     var problems=checkLines();
     if(problems.length){showFormError('Fix these before saving:\n'+problems.join('\n'));var f=host.querySelector('.invalid[data-k]');if(f)f.focus();return;}
     var hdr=readHeader();
+    if(MODE==='edit'&&ROW_VERSION)hdr.row_version=ROW_VERSION;   /* fixpkg: stale check (server compares, PT409 if changed) */
     if(MODE==='create'){
       if(!SEASON){showFormError('Pick a season in the sidebar before saving.');return;}
       if(O.trueActiveSeasonId&&SEASON!==O.trueActiveSeasonId&&!SEASON_OK){askSeason(submitShip);return;}
@@ -1029,7 +1031,7 @@ function createInstance(host,O){
     DELETING=true;
     var go=modalEl&&modalEl.querySelector('[data-m="ok"]'),er=modalEl&&modalEl.querySelector('.sv2-delerr');
     if(go){go.disabled=true;go.textContent='Deleting…';}if(er)er.textContent='';
-    Promise.resolve(sb.rpc('delete_shipment_v2_container',{p_product:PRODUCT,p_container:cn,p_loaded:ld,p_ids:ids})).then(function(res){
+    Promise.resolve(sb.rpc('delete_shipment_v2_container',{p_product:PRODUCT,p_container:cn,p_loaded:ld,p_ids:ids,p_row_version:ROW_VERSION||null})).then(function(res){
       DELETING=false;if(dead)return;
       if(res.error||!res.data||res.data.ok!==true){
         var m=res.error?friendlyErr(res.error):'The shipment was not deleted. Try again.';
@@ -1038,7 +1040,7 @@ function createInstance(host,O){
       }
       closeModal();
       toast('Shipment deleted ('+res.data.deleted+' line'+(res.data.deleted===1?'':'s')+')');
-      formSeq++;setDirty(false);LOADED_IDS=[];MODE='list';EDIT={container:null,loaded:null,deletedIds:[]};syncDelBtn();
+      formSeq++;setDirty(false);LOADED_IDS=[];ROW_VERSION='';MODE='list';EDIT={container:null,loaded:null,deletedIds:[]};syncDelBtn();
       showView('list');loadList();
     },function(e){DELETING=false;if(dead)return;if(er)er.textContent=friendlyErr(e);if(go){go.textContent='Delete shipment';go.disabled=false;}});
   }
@@ -1046,7 +1048,7 @@ function createInstance(host,O){
   /* ---------------------------------------------------------- edit load */
   function loadForEdit(container,loaded){
     var my=++formSeq;
-    clearFormError();blankHeader();setDep(false);LINES=[];RAWCGW={};openRows={};LOADED_IDS=[];syncDelBtn();renderLines();
+    clearFormError();blankHeader();setDep(false);LINES=[];RAWCGW={};openRows={};LOADED_IDS=[];ROW_VERSION='';syncDelBtn();renderLines();
     setVoyageLock(true);showOverlay(true);
     var getCall=PT?sb.rpc('get_shipment_v2_potato_container',{p_container:container,p_loaded:loaded})
                   :sb.rpc('get_shipment_v2_container',{p_container:container,p_loaded:loaded,p_product:PRODUCT});
@@ -1057,7 +1059,7 @@ function createInstance(host,O){
       var data=res.data||{},h=data.header,lines=data.lines||[];
       if(!h){showFormError('Shipment '+container+' loaded '+fmtDate(loaded)+' was not found.');return;}
       if(h.product_id&&h.product_id!==PRODUCT){showFormError('This container belongs to another product.');return;}
-      LOADED_IDS=lines.map(function(l){return l.id;}).filter(Boolean);syncDelBtn();
+      LOADED_IDS=lines.map(function(l){return l.id;}).filter(Boolean);ROW_VERSION=data.row_version||'';syncDelBtn();
       var setv=function(id,v){var e=el(id);if(e)e.value=(v==null?'':v);};
       if(PT){
         setv('container',h.container_number);setv('carta',h.carta);setv('ldate',h.loading_date);setv('vessel',h.vessel);setv('ccount',h.container_count);
@@ -1106,7 +1108,7 @@ function createInstance(host,O){
     showView('form');loadForEdit(c.ref,c.hdr.loaded);
   }
   function openCreate(){
-    formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;LOADED_IDS=[];syncDelBtn();
+    formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;LOADED_IDS=[];ROW_VERSION='';syncDelBtn();
     blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();
     PAS_LIVE=true;LINES=[blankLine()];RAWCGW={};openRows={0:isNarrow()};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);

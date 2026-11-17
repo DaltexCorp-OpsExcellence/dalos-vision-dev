@@ -6,6 +6,7 @@
 // deployed 2026-10-12 from this file). If you change it, deploy it — and
 // re-sync here after any dashboard/MCP deploy — so a redeploy from the repo can
 // never silently roll back live behaviour (multi-product + potato fields).
+// 2026-11-17: + .is('deleted_at', null) (soft delete, fix package 04). Deployed as the next version after v14.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -40,7 +41,8 @@ async function fetchAll(product: string, season: string | null) {
   let from = 0;
   while (true) {
     // .order('id') — stable paging; without it Postgres may skip/duplicate rows across pages
-    let q = db.from('shipments_v2').select(COLS).eq('product_id', product);
+    // 2026-11-17 fixpkg 04: soft-deleted lines (deleted_at set) never appear in the Manage list
+    let q = db.from('shipments_v2').select(COLS).eq('product_id', product).is('deleted_at', null);
     if (season) q = q.eq('season_id', season);
     const { data, error } = await q.order('id').range(from, from + 999);
     if (error) throw new Error(error.message);
