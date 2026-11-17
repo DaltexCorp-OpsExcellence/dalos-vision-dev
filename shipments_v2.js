@@ -24,7 +24,7 @@ var STATUS_OPTS=['Loading','Shipped','On Water','Delivered','Returned'];   /* th
 var SNAPSHOT_NOTE='Copied from the live shipment records on 17 Sep 2026.';
 var SNAPSHOT_PRODUCTS={citrus:1,grapes:1,mango:1,pomegranate:1};   /* products whose rows were copied in — Potatoes start empty */
 var SV2_SEND_DEPARTURE_DATE=false; // enable only after the DB column + RPC mapping are applied (pending Anna/Ash/Tarek)
-var SV2_INTAKE_FIELDS_ENABLED=false; // enable only after the intake DB package is applied (pending Ash/Anna/Tarek)
+var SV2_INTAKE_FIELDS_ENABLED=!!window.VISION_IS_DEV; // intake DB v0.5 is applied: ON on staging (/dalos-vision-dev/ + localhost) only, OFF anywhere else
 /* testers: localStorage.setItem('SV2_INTAKE_FIELDS_ENABLED','true') then reload (read once at mount) */
 function intakeFieldsEnabled(){
   if(SV2_INTAKE_FIELDS_ENABLED)return true;
