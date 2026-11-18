@@ -255,13 +255,17 @@ function attach(host,opts){
     catch(err){clear(body);body.appendChild(mk('div','sv2-banner err','This screen could not open. Reload and try again.'));}
   }
 
-  function reload(){return loadAll(sb,product).then(function(d){if(!dead)D=d;},function(){});}
+  var loadedAt=Date.now();
+  function reload(){loadedAt=Date.now();return loadAll(sb,product).then(function(d){if(dead)return;D=d;if(cur)render();},function(){});}
+  /* lists approved/edited in another tab or by another admin: re-read when the user comes back to this tab (at most every 30 s) */
+  function onReturn(){if(dead||!D||document.visibilityState!=='visible'||Date.now()-loadedAt<30000)return;reload();}
+  document.addEventListener('visibilitychange',onReturn);window.addEventListener('focus',onReturn);
   host.addEventListener('focusin',onFocusIn);host.addEventListener('focusout',onFocusOut);
   host.addEventListener('input',onInput);host.addEventListener('keydown',onKey,true);
   window.addEventListener('scroll',onScroll,true);window.addEventListener('resize',onScroll);
 
   var ready=loadAll(sb,product).then(function(d){
-    if(dead)return;D=d;buildPop();addToolbar();
+    if(dead)return;D=d;loadedAt=Date.now();buildPop();addToolbar();
   },function(err){
     D=null;   /* fail closed: tables/RPC missing or no access -> today's form, untouched */
     try{console.info('[SV2Lists] managed lists unavailable; form keeps text fields',err&&err.code?err.code:'');}catch(_e){}
@@ -274,6 +278,7 @@ function attach(host,opts){
       host.removeEventListener('focusin',onFocusIn);host.removeEventListener('focusout',onFocusOut);
       host.removeEventListener('input',onInput);host.removeEventListener('keydown',onKey,true);
       window.removeEventListener('scroll',onScroll,true);window.removeEventListener('resize',onScroll);
+      document.removeEventListener('visibilitychange',onReturn);window.removeEventListener('focus',onReturn);
       tbBtns.forEach(function(w){w.remove();});tbBtns=[];
       Array.prototype.forEach.call(host.querySelectorAll('[data-sv2l-list]'),function(i){i.setAttribute('list',i.getAttribute('data-sv2l-list'));i.removeAttribute('data-sv2l-list');});
       if(pop){pop.remove();pop=null;}
