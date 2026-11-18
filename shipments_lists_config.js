@@ -15,7 +15,8 @@ var GROUPS=[
   {t:'Clients & markets',keys:['client_class']},
   {t:'Packing',keys:['brand','packing_type','count_size','caliber']},
   {t:'Logistics',keys:['source_type','raw_source','departure_port','agent','shipping_line','shipping_status']},
-  {t:'Spelling',keys:['@aliases']}
+  {t:'Spelling',keys:['@aliases']},
+  {t:'JDE',keys:['@jde']}
 ];
 var PRODUCTS=[['citrus','Citrus'],['grapes','Grapes'],['mango','Mango'],['pomegranate','Pomegranate']];
 var PNAME={citrus:'Citrus',grapes:'Grapes',mango:'Mango',pomegranate:'Pomegranate',potatoes:'Potatoes'};
@@ -73,7 +74,7 @@ function mount(body,ctx){
     GROUPS.forEach(function(g){
       var box=mk('div');box.appendChild(mk('div','sv2c-gt',g.t));var chips=mk('div','sv2c-chips');
       g.keys.forEach(function(k){
-        var c=mk('button','sv2c-chip',k==='@aliases'?'Spelling matches':(L[k]||k));c.type='button';
+        var c=mk('button','sv2c-chip',k==='@aliases'?'Spelling matches':k==='@jde'?'JDE codes (citrus)':(L[k]||k));c.type='button';
         c.setAttribute('aria-pressed',st.key===k?'true':'false');
         c.addEventListener('click',function(){st.key=k;st.editing=null;st.msg=null;st.q='';drawGroups();load();});
         chips.appendChild(c);
@@ -90,6 +91,7 @@ function mount(body,ctx){
   function load(){
     clear(card);card.appendChild(mk('div','sv2c-count','Loading…'));
     if(st.key==='raw_source'){loadFarms();return;}
+    if(st.key==='@jde'){loadJde();return;}
     var p=st.key==='@aliases'
       ?sb.from('shipment_list_aliases').select('id,list_key,product_id,alias,canonical,note,active').order('list_key').order('alias')
       :sb.from('shipment_list_values').select('id,list_key,product_id,value,label,sort_order,active').eq('list_key',st.key).order('product_id').order('sort_order').order('value');
@@ -122,6 +124,68 @@ function mount(body,ctx){
         row.appendChild(mk('td','sv2c-lbl',sp.length?sp.join(', '):'\u2013'));tb.appendChild(row);
       });
       if(!n){var er=mk('tr'),ed=mk('td','sv2c-count','No farms match.');ed.colSpan=3;er.appendChild(ed);tb.appendChild(er);}
+      tw.appendChild(t);
+    }
+    q.addEventListener('input',function(){st.q=q.value;tbl();});tbl();
+  }
+  /* JDE codes (citrus): the 7 lookup tables of the sheet's 'JD.E. Code Mapping' tab (public.jde_codes).
+     Admins and power users add a code, change one or turn one off; the intake form builds each line's code from them. */
+  var JDE_PART_LABEL={category:'Category',variety:'Variety',client_class:'Client class',caliber:'Caliber',packaging_type:'Packing',brand:'Brand',net:'Net / --'};
+  var JDE_LEN={category:4,variety:3,client_class:1,caliber:2,packaging_type:1,brand:2,net:1};
+  st.jpart=st.jpart||'caliber';
+  function loadJde(){
+    Promise.resolve(sb.from('jde_codes').select('id,part,value,code,note,active,sort_order').eq('product_id','citrus').order('part').order('sort_order').order('value')).then(function(r){
+      if(r.error)throw r.error;st.jrows=r.data||[];drawJde();
+    }).catch(function(e){clear(card);card.appendChild(mk('div','sv2c-msg err',e&&e.code==='42P01'?'JDE codes are not set up yet.':'The JDE codes could not load. Close and try again.'));});
+  }
+  function drawJde(){
+    clear(card);
+    card.appendChild(mk('h3',null,'JDE codes · Citrus'));
+    card.appendChild(mk('div','sv2c-count','Same tables as the sheet’s JD.E. Code Mapping tab. A line’s JDE code = Category + Variety + Client class + Caliber + Packing + Brand + Net/--. Changing a code here changes new and edited lines only; codes already saved stay.'));
+    var bar=mk('div','sv2c-bar'),ps=mk('select');ps.setAttribute('aria-label','Part');
+    Object.keys(JDE_PART_LABEL).forEach(function(k){var o=mk('option',null,JDE_PART_LABEL[k]);o.value=k;ps.appendChild(o);});ps.value=st.jpart;
+    ps.addEventListener('change',function(){st.jpart=ps.value;st.editing=null;st.msg=null;drawJde();});
+    var q=mk('input');q.type='search';q.placeholder='Search values or codes…';q.setAttribute('aria-label','Search JDE codes');q.value=st.q;
+    var add=mk('button','sv2-btn sm','+ Add code');add.type='button';add.addEventListener('click',function(){st.editing={id:null};tbl();});
+    bar.appendChild(ps);bar.appendChild(q);bar.appendChild(add);card.appendChild(bar);
+    var msg=mk('div','sv2c-msg');msg.setAttribute('role','status');card.appendChild(msg);
+    var tw=mk('div','sv2c-tw');card.appendChild(tw);
+    function form(r){
+      var row=mk('tr'),a=mk('td'),vi=mk('input');vi.maxLength=120;vi.value=r?r.value:'';vi.setAttribute('aria-label','Value');a.appendChild(vi);row.appendChild(a);
+      var b=mk('td'),ci=mk('input');ci.maxLength=JDE_LEN[st.jpart];ci.value=r?r.code:'';ci.placeholder=JDE_LEN[st.jpart]+' characters';ci.setAttribute('aria-label','JDE code');ci.style.fontFamily='var(--font-mono,monospace)';b.appendChild(ci);row.appendChild(b);
+      row.appendChild(mk('td',null,r?(r.active?'Active':'Off'):'Active'));
+      var e=mk('td'),ok=mk('button','sv2-btn sm',r?'Save':'Add');ok.type='button';var cx=mk('button','sv2c-link','Cancel');cx.type='button';
+      ok.addEventListener('click',function(){var v=vi.value.trim(),c=ci.value.trim().toUpperCase();
+        if(!v||c.length!==JDE_LEN[st.jpart]||!/^[A-Z0-9]+$/.test(c)){st.msg={ok:false,text:'Enter a value and a '+JDE_LEN[st.jpart]+'-character code (letters and digits).'};tbl();return;}
+        var call=r?sb.from('jde_codes').update({value:v,code:c}).eq('id',r.id).select('id'):sb.from('jde_codes').insert({product_id:'citrus',part:st.jpart,value:v,code:c}).select('id');
+        Promise.resolve(call).then(function(res){
+          if(res&&!res.error&&(!res.data||!res.data.length))res={error:{code:'42501'}};
+          if(res.error){st.msg={ok:false,text:res.error.code==='23505'?'That value already has a code in this part.':res.error.code==='42501'?'Only admins and power users can change JDE codes.':'Couldn’t save. Try again.'};tbl();return;}
+          st.editing=null;st.msg={ok:true,text:r?'Saved.':'Added.'};dirty=true;loadJde();
+        },function(){st.msg={ok:false,text:'Couldn’t save. Try again.'};tbl();});});
+      cx.addEventListener('click',function(){st.editing=null;tbl();});
+      e.appendChild(ok);e.appendChild(cx);row.appendChild(e);setTimeout(function(){(r?ci:vi).focus();},0);return row;
+    }
+    function tbl(){
+      clear(tw);msg.className='sv2c-msg'+(st.msg?(st.msg.ok?' ok':' err'):'');msg.textContent=st.msg?st.msg.text:'';
+      var t=mk('table','sv2c-tbl'),th=mk('thead'),tr=mk('tr');['Value','JDE code','Active','Edit'].forEach(function(h){tr.appendChild(mk('th',null,h));});th.appendChild(tr);t.appendChild(th);
+      var tb=mk('tbody'),ql=st.q.trim().toLowerCase(),n=0;t.appendChild(tb);
+      if(st.editing&&!st.editing.id)tb.appendChild(form(null));
+      (st.jrows||[]).forEach(function(r){
+        if(r.part!==st.jpart)return;
+        if(ql&&(r.value+' '+r.code).toLowerCase().indexOf(ql)<0)return;n++;
+        if(st.editing&&st.editing.id===r.id){tb.appendChild(form(r));return;}
+        var row=mk('tr',r.active?'':'off'),a=mk('td','v');a.appendChild(mk('bdi',null,r.value));if(r.note)a.appendChild(mk('div','sv2c-lbl',r.note));row.appendChild(a);
+        var b=mk('td');b.appendChild(mk('span',null,r.code));b.style.fontFamily='var(--font-mono,monospace)';row.appendChild(b);
+        var at=mk('td'),lab=mk('label','sv2c-sw'),cb=mk('input');cb.type='checkbox';cb.checked=!!r.active;cb.setAttribute('aria-label',(r.active?'Turn off ':'Turn on ')+r.value);
+        cb.addEventListener('change',function(){Promise.resolve(sb.from('jde_codes').update({active:cb.checked}).eq('id',r.id).select('id')).then(function(res){
+          if(res&&!res.error&&(!res.data||!res.data.length))res={error:{code:'42501'}};
+          st.msg=res.error?{ok:false,text:'Only admins and power users can change JDE codes.'}:{ok:true,text:'Saved.'};if(!res.error)dirty=true;loadJde();});});
+        lab.appendChild(cb);lab.appendChild(mk('span',null,r.active?'Active':'Off'));at.appendChild(lab);row.appendChild(at);
+        var et=mk('td'),eb=mk('button','sv2c-link','Edit');eb.type='button';eb.addEventListener('click',function(){st.editing={id:r.id};st.msg=null;tbl();});et.appendChild(eb);row.appendChild(et);
+        tb.appendChild(row);
+      });
+      if(!n&&!(st.editing&&!st.editing.id)){var er=mk('tr'),ed=mk('td','sv2c-count','No codes match.');ed.colSpan=4;er.appendChild(ed);tb.appendChild(er);}
       tw.appendChild(t);
     }
     q.addEventListener('input',function(){st.q=q.value;tbl();});tbl();

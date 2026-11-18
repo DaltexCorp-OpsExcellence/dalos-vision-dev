@@ -192,6 +192,9 @@ var CSS=[
 '  #sv2-vform .sv2-ib{min-height:44px;min-width:44px}',
 '}',
 /* r2 P3: <=420px the two loading dates take a full row each (no wrapped labels, no clipped mm/dd/yyyy) */
+'.sv2-jcode{font:600 16px var(--font-mono);letter-spacing:.03em;color:var(--text);padding:4px 0}.sv2-jnote{font-size:11px;color:var(--text2)}.sv2-jwarn{font-size:12.5px;color:#7a4a10;background:#fdf5e6;border:1px solid #ecd3a3;border-radius:8px;padding:6px 9px;margin:2px 0 4px;line-height:1.4}',
+'.sv2-jsegs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.sv2-jseg{display:inline-flex;flex-direction:column;align-items:center;min-width:40px;padding:3px 6px;border:1px solid var(--border,#e2ddd2);border-radius:6px;font-size:10px;color:var(--text2);background:var(--bg,#fbfaf6)}.sv2-jseg b{font:600 12.5px var(--font-mono);color:var(--text)}.sv2-jseg.miss{border-color:#c98a1c;background:#fdf5e6}.sv2-jseg.miss b{color:#7a4a10}',
+'.sv2-jdewarn{font-size:13px;color:#7a4a10;font-weight:500}',
 '@media (max-width:420px){#sv2-vform .sv2-fdate{grid-column:1/-1}#sv2-vform .sv2-fdate label{white-space:nowrap}}'
 ].join('\n');
 function injectCss(){
@@ -222,7 +225,7 @@ function numOf(v,whole){
 /* Arabic-Indic / Persian digits and the Arabic decimal sign → ASCII, so the stored text copy
    (raw_data) matches the typed number columns. Separators are left for the server to read. */
 function asciiDigits(v){return String(v==null?'':v).replace(/[\u0660-\u0669]/g,function(c){return String(c.charCodeAt(0)-0x660);}).replace(/[\u06F0-\u06F9]/g,function(c){return String(c.charCodeAt(0)-0x6F0);}).replace(/\u066B/g,'.');}
-function newLine(){return {id:null,category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pack_house:'',source_type:'',raw_source:'',pallet_count:'',carton_count:'',net_weight:'',gross_weight:'',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',packing_factor:'',pascol_net:'',weight_variance:'',traceability_code:''};}
+function newLine(){return {id:null,net_flag:'--',category:'',variety:'',lot:'',daltex_class:'',client_class:'',carton_type:'',brand:'',packaging_type:'',caliber:'',count_size:'',pack_house:'',source_type:'',raw_source:'',pallet_count:'',carton_count:'',net_weight:'',gross_weight:'',carton_net_weight:'',carton_gross_weight:'',pascol_weight:'',pascol_pct:'',packing_weight:'',packing_factor:'',pascol_net:'',weight_variance:'',traceability_code:''};}
 /* Potatoes (Pivots): lists from the الادخال entry sheet (no registry for these yet).
    Varieties are NOT here — they come from the shared varieties table (same list as potato inspections). */
 var PT_LISTS={
@@ -425,7 +428,7 @@ function createInstance(host,O){
      tot('Lines','slines')+tot('Pallets','spal')+
      (PT?tot('Jumbo bags','sjumbo')+tot('Sacks','ssack')+tot('Standard wt','snet')+tot('Pascol wt','spas')
         :tot('Cartons','sctn')+tot('Net · Gross'+u('t'),'snet')+(INTAKE&&isCitrus()?tot('Pascol · Packing'+u('t'),'spas')+tot('Container variance'+u('t'),'svar'):''))+
-     '<span class="sv2-sp"></span><button type="button" class="sv2-goprob" data-act="goProblem" id="sv2-goprob" hidden></button>'+
+     '<span class="sv2-sp"></span><span class="sv2-jdewarn" id="sv2-jdewarn" role="status" hidden></span><button type="button" class="sv2-goprob" data-act="goProblem" id="sv2-goprob" hidden></button>'+
      (PT?'':'<button type="button" class="sv2-btn sec" data-act="saveNew">Save &amp; new</button>')+
      '<button type="button" class="sv2-btn" data-act="save">Save shipment</button>'+
      (INTAKE?'<div class="sv2-ctnwarn" id="sv2-ctnwarn" role="status" aria-live="polite"></div>':'')+
@@ -493,6 +496,45 @@ function createInstance(host,O){
   function tot(k,id){return '<div class="sv2-tot" id="sv2-'+id+'-w"><span class="k">'+k+'</span><span class="v" id="sv2-'+id+'">0</span></div>';}
   function u(x){return ' <span class="sv2-u">'+x+'</span>';}
   function autoTag(){return '<span class="sv2-auto">auto</span>';}
+  /* JDE item code (citrus): Category, Variety, Client class, Caliber, Packing, Brand, Net/-- looked up in public.jde_codes,
+     the same tables as the sheet's 'JD.E. Code Mapping' tab (brand / Net left empty count as '--'). The server builds and
+     stores the code on save (trigger _sv2_jde); this is the live preview. Incomplete = amber note only, Save is not blocked. */
+  var JDE_PARTS=[['category','Category','category'],['variety','Variety','variety'],['client_class','Client class','client_class'],['caliber','Caliber','caliber'],
+                 ['packaging_type','Packing','packaging_type'],['brand','Brand','brand'],['net_flag','Net / --','net']];
+  function jdeFold(v){return String(v==null?'':v).toLowerCase().replace(/\s/g,'');}
+  function jdeVal(d,k){var v=String(d[k]==null?'':d[k]).trim();return (k==='brand'||k==='net_flag')&&!v?'--':v;}
+  function jdeKey(d){return JDE_PARTS.map(function(p){return jdeFold(jdeVal(d,p[0]));}).join('|');}
+  function jdeFor(d){
+    if(!REF.jde)return null;
+    var parts=JDE_PARTS.map(function(p){var v=jdeVal(d,p[0]),t=REF.jde[p[2]]||{};return {label:p[1],value:v,code:v?(t[jdeFold(v)]||null):null};});
+    var miss=parts.filter(function(x){return !x.code;});
+    if(d._jdeSaved&&d._jdeKey===jdeKey(d))return {code:d._jdeSaved,parts:parts,miss:[],saved:true};   /* unchanged stored line: the server keeps its code */
+    return {code:miss.length?null:parts.map(function(x){return x.code;}).join(''),parts:parts,miss:miss,saved:false};
+  }
+  function netSel(d){var v=d.net_flag==='Net'?'Net':'--';
+    return '<select class="csel" dir="auto" data-k="net_flag" aria-label="Net or --"><option value="--"'+(v==='--'?' selected':'')+'>--</option><option value="Net"'+(v==='Net'?' selected':'')+'>Net</option></select>';}
+  function paintJde(){
+    if(PT||!isCitrus())return;
+    var bad=0;
+    LINES.forEach(function(d,i){
+      var box=host.querySelector('[data-jde="'+i+'"]'),r=jdeFor(d);
+      if(!r){if(box)box.innerHTML='';return;}
+      if(!r.code&&!isUntouched(d))bad++;
+      if(!box)return;
+      var chips='<div class="sv2-jsegs">'+r.parts.map(function(p){return '<span class="sv2-jseg'+(p.code?'':' miss')+'" title="'+esc(p.label+': '+(p.value||'(empty)'))+'"><b>'+esc(p.code||'??')+'</b>'+esc(p.label)+'</span>';}).join('')+'</div>';
+      box.innerHTML=r.code
+        ?'<div class="sv2-jcode">'+esc(r.code)+'</div>'+(r.saved?'<div class="sv2-jnote">Code stored on this line</div>':chips)
+        :'<div class="sv2-jwarn">JDE code incomplete: no code for '+esc(r.miss.map(function(m){return m.label+(m.value?' \u201c'+m.value+'\u201d':' (empty)');}).join(', '))+'. You can still save. Admins add codes in Lists \u2192 JDE codes.</div>'+chips;
+    });
+    var w=el('jdewarn');if(w){w.hidden=!bad;w.textContent=bad?bad+' JDE code'+(bad===1?'':'s')+' incomplete':'';}
+  }
+  function loadJde(){
+    if(PT||!isCitrus())return Promise.resolve();
+    return Promise.resolve(sb.from('jde_codes').select('part,value,code').eq('product_id',PRODUCT).eq('active',true)).then(function(r){
+      if(!r||r.error||!(r.data||[]).length){REF.jde=null;return;}
+      var m={};(r.data||[]).forEach(function(x){(m[x.part]=m[x.part]||{})[jdeFold(x.value)]=x.code;});REF.jde=m;
+    },function(){REF.jde=null;});
+  }
   function fld(label,id,type,o){o=o||{};
     var im=(type==='text'&&o.inputmode)?' inputmode="'+o.inputmode+'"':'';
     return '<div class="sv2-f'+(o.cls?' '+o.cls:'')+'"><label for="sv2-'+id+'">'+label+(o.req?' <span class="req">*</span>':'')+'</label>'+
@@ -532,9 +574,9 @@ function createInstance(host,O){
       REF.vars=(r[3].data||[]).map(function(v){return {name:v.name,category_id:v.category_id};});
       REF.packs=(r[4].data||[]).filter(function(p){return (p.product_ids||[]).indexOf(PRODUCT)>=0;}).map(function(p){return p.name;});
       REF.cartonTypes=(r[5].data||[]).map(function(c){return c.name;});
-      return sb.rpc('get_shipment_v2_ref_options').then(function(rr){
+      return Promise.all([sb.rpc('get_shipment_v2_ref_options').then(function(rr){
         if(rr&&!rr.error&&rr.data){REF.ref=rr.data;fillAllDatalists();}
-      },function(){});
+      },function(){}),loadJde()]);
     });
   }
   /* potato suggestions = the sheet's defaults + whatever is already in this product's list */
@@ -616,6 +658,7 @@ function createInstance(host,O){
   function classFields(d,g){var cit=isCitrus();
     return (hasLot()?g('Lot #',cin(d.lot,'lot','mono')):'')+g('Daltex class',cin(d.daltex_class,'daltex_class'))+g('Client class',cin(d.client_class,'client_class'))+
       g('Brand',cin(d.brand,'brand'))+g('Packing',cin(d.packaging_type,'packaging_type'))+(cit?g('Caliber',cin(d.caliber,'caliber','mono')):'')+
+      (cit&&REF.jde?g('Net / --',netSel(d)):'')+
       g('Count',cin(d.count_size,'count_size','mono'))+g('Source type',cin(d.source_type,'source_type'))+
       g('Raw source',cin(d.raw_source,'raw_source'),1)+g('Trace code',cin(d.traceability_code,'traceability_code','mono'),1);}
   function weightFields(d,i,g,withNet){var cit=isCitrus(),old=!!d.id;
@@ -630,7 +673,8 @@ function createInstance(host,O){
       (cit?(INTAKE?g('Pascol share'+u('t')+autoTag(),cin(d.pascol_pct,'pascol_pct','num'))+g('Packing'+u('t')+autoTag(),cin(d.packing_weight,'packing_weight','num'))
               :g('Pascol actual %'+autoTag(),cin(d.pascol_pct,'pascol_pct','num')))+
         g('Pascol net'+u('t')+autoTag(),cin(d.pascol_net,'pascol_net','num'))+g('Variance'+u('t')+autoTag(),cin(d.weight_variance,'weight_variance','num'))+
-        (INTAKE?'<div class="sv2-pend" data-pend="'+i+'" hidden></div>':''):'');}
+        (INTAKE?'<div class="sv2-pend" data-pend="'+i+'" hidden></div>':'')+
+        (REF.jde?g('JDE item code'+autoTag(),'<div class="sv2-jde" data-jde="'+i+'"></div>',1):''):'');}
   function panelHTML(d,i){
     function g(lab,inner,wide){return '<div'+(wide?' class="s2"':'')+'><div class="sv2-dlab">'+lab+'</div>'+inner+'</div>';}
     return '<div class="sv2-panel">'+
@@ -757,6 +801,7 @@ function createInstance(host,O){
     LINES.forEach(function(d){pal+=numOf(d.pallet_count,1);ctn+=numOf(d.carton_count,1);net+=numOf(d.net_weight);grs+=numOf(d.gross_weight);});
     var set=function(id,v){var e=el(id);if(e)e.textContent=v;};
     set('tpal',pal.toLocaleString());set('tctn',ctn.toLocaleString());set('tnet',net.toFixed(3));set('tgrs',grs.toFixed(3));
+    paintJde();
     var html=function(id,v){var e=el(id);if(e)e.innerHTML=v;};
     set('slines',LINES.length);set('spal',pal.toLocaleString());
     html('snet',net.toFixed(3)+' <small>· '+grs.toFixed(3)+'</small>');
@@ -980,7 +1025,7 @@ function createInstance(host,O){
     gross_weight:'Gross t',jumbo_count:'Jumbo #',sack_count:'Sack #',pascol_weight:'Pascol t',package_weight:'Package weight',pack_size:'Pack size',
     carton_net_weight:'Carton net t',carton_gross_weight:'Carton gross t',pascol_pct:INTAKE?'Pascol share t':'Pascol %',packing_weight:'Packing t',packing_factor:'Packaging per carton t',pascol_net:'Pascol net t',weight_variance:'Variance t'};return m[k]||k;}
   /* flag on: pascol_weight is copied in from the header, so it doesn't count as the user touching a line */
-  function isUntouched(d){return !d.id&&Object.keys(d).every(function(k){return k==='id'||(INTAKE&&k==='pascol_weight')||String(d[k]||'').trim()==='';});}
+  function isUntouched(d){return !d.id&&Object.keys(d).every(function(k){return k==='id'||k==='net_flag'||k.charAt(0)==='_'||(INTAKE&&k==='pascol_weight')||String(d[k]||'').trim()==='';});}
   /* new orchard lines: Net t is computed (cartons × carton net t, read-only), so cartons + carton net are what's required */
   var REQ_LINE=PT?['variety','pallets','standard_weight']:['variety','pallet_count','carton_count','carton_net_weight'];
   function markCell(i,k,on){qa('[data-line="'+i+'"] [data-k="'+k+'"]').forEach(function(f){f.classList.toggle('invalid',on);f.setAttribute('aria-invalid',on?'true':'false');});}
@@ -1030,7 +1075,7 @@ function createInstance(host,O){
       hdr.season_id=SEASON;
     }
     SEASON_OK=false;
-    var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});delete c.carton_gross_weight_raw;
+    var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(c).forEach(function(k){if(k.charAt(0)==='_')delete c[k];});Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});delete c.carton_gross_weight_raw;
       /* "Packed at" left as "Same as loaded at" on a NEW line takes the header pack house (stored lines are never changed this way) */
       if(!PT&&!c.id&&!String(c.pack_house||'').trim()&&hdr.pack_house_departure)c.pack_house=hdr.pack_house_departure;
       return c;});
@@ -1164,7 +1209,8 @@ function createInstance(host,O){
       RAWCGW={};lines.forEach(function(l){if(l.id&&intakeBlank(l.carton_gross_weight)&&!intakeBlank(l.carton_gross_weight_raw))RAWCGW[l.id]=String(l.carton_gross_weight_raw);});
       /* DB v0.4: get returns packing_net_weight (alias of packing_factor); read the new key, fall back to the old one */
       lines.forEach(function(l){if(l.packing_net_weight!=null)l.packing_factor=l.packing_net_weight;delete l.packing_net_weight;});
-      LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
+      LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;
+        if(!PT&&l.jde_code){d._jdeSaved=String(l.jde_code);d._jdeKey=jdeKey(d);}return d;});
       if(!LINES.length)LINES=[blankLine()];
       openRows={};renderLines();setDirty(false);
       el('ftitle').textContent='Edit shipment';el('ctxref').textContent=h.container_number||container;setSeasonChip();
