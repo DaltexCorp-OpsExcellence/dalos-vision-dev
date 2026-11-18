@@ -43,7 +43,7 @@ var CSS=[
 '.sv2c-pill{font-size:11px;padding:1px 8px;border-radius:20px;background:#efeafd;color:#5b3cc4;border:1px solid #d8cdfa;display:inline-block}',
 '.sv2c-link{background:none;border:none;color:var(--accent,#1c5c3c);text-decoration:underline;cursor:pointer;font:500 12.5px var(--font-body,inherit);min-height:32px;padding:0 4px}',
 '.sv2c-sw{display:inline-flex;align-items:center;gap:6px;cursor:pointer;min-height:32px}',
-'.sv2c-msg{font-size:12.5px}.sv2c-msg.err{color:var(--red,#b42318)}.sv2c-msg.ok{color:var(--green,#1c7c3c)}',
+'.sv2c-msg{font-size:12.5px}.sv2c-msg.err{color:var(--red,#b42318)}.sv2c-msg.ok{color:var(--green,#1c7c3c)}.sv2c-msg.warn{color:#7a4a10;background:#fdf1dc;border:1px solid #f0d49c;border-radius:8px;padding:7px 10px}',
 '.sv2c-count{font-size:12px;color:var(--text3,#777)}',
 '.sv2c-lbl{font-size:12px;color:#6b7280}'
 ].join('\n');
@@ -162,7 +162,7 @@ function mount(body,ctx){
     var q=mk('input');q.type='search';q.placeholder='Search values or codes…';q.setAttribute('aria-label','Search JDE codes');q.value=st.q;
     var add=mk('button','sv2-btn sm','+ Add code');add.type='button';add.addEventListener('click',function(){st.editing={id:null};tbl();});
     bar.appendChild(ps);bar.appendChild(q);bar.appendChild(add);card.appendChild(bar);
-    if(totMiss){var mw=mk('div','sv2c-msg err',totMiss+(totMiss===1?' value in the intake lists has':' values in the intake lists have')+' no JDE code yet. Citrus lines using '+(totMiss===1?'it':'them')+' show \u201cJDE code incomplete\u201d. Look for \u201cNo code yet\u201d below (the Part list shows where).');mw.setAttribute('role','note');card.appendChild(mw);}
+    if(totMiss){var mw=mk('div','sv2c-msg warn',totMiss+(totMiss===1?' value in the intake lists has':' values in the intake lists have')+' no JDE code yet. Citrus lines using '+(totMiss===1?'it':'them')+' show \u201cJDE code incomplete\u201d. Look for \u201cNo code yet\u201d below (the Part list shows where).');mw.setAttribute('role','note');card.appendChild(mw);}
     var msg=mk('div','sv2c-msg');msg.setAttribute('role','status');card.appendChild(msg);
     var tw=mk('div','sv2c-tw');card.appendChild(tw);
     function form(r){

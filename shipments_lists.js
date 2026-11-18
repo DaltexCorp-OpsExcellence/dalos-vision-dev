@@ -63,7 +63,14 @@ var CSS=[
 '.sv2l-x{border:1px solid var(--border2,#ccd);background:var(--card,#fff);border-radius:8px;min-width:36px;min-height:36px;cursor:pointer;font-size:15px}',
 '@media (max-width:700px){.sv2l-scr{padding:0}.sv2l-panel{border-radius:0;max-height:100vh;min-height:100vh}}'
 ].join('\n');
-function injectCss(){if(cssDone)return;cssDone=true;var st=document.createElement('style');st.id='sv2l-css';st.textContent=CSS;document.head.appendChild(st);}
+var CHEVRON="url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23667' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")";
+function chevronCss(){
+  return FIELDS.map(function(f){
+    var sel=f.hdr?'#sv2-'+f.hdr:'input.cin[data-k="'+f.k+'"]';
+    return '.sv2l-on:not(.sv2l-no-'+f.key+') '+sel+'{background-image:'+CHEVRON+';background-repeat:no-repeat;background-position:right 8px center;background-size:12px 12px;padding-right:26px}';
+  }).join('\n');
+}
+function injectCss(){if(cssDone)return;cssDone=true;var st=document.createElement('style');st.id='sv2l-css';st.textContent=CSS+'\n'+chevronCss();document.head.appendChild(st);}
 
 /* ---------------------------------------------------------------- data */
 function loadAll(sb,product){
@@ -256,7 +263,12 @@ function attach(host,opts){
   }
 
   var loadedAt=Date.now();
-  function reload(){loadedAt=Date.now();return loadAll(sb,product).then(function(d){if(dead)return;D=d;if(cur)render();},function(){});}
+  /* dropdown arrow on every field that has a list (CSS keyed on the host class; keys with no list for this product get none) */
+  function markHost(){
+    host.classList.add('sv2l-on');
+    FIELDS.forEach(function(f){host.classList.toggle('sv2l-no-'+f.key,!listOf(f.key).length&&!(D&&D.aliases[f.key]));});
+  }
+  function reload(){loadedAt=Date.now();return loadAll(sb,product).then(function(d){if(dead)return;D=d;markHost();if(cur)render();},function(){});}
   /* lists approved/edited in another tab or by another admin: re-read when the user comes back to this tab (at most every 30 s) */
   function onReturn(){if(dead||!D||document.visibilityState!=='visible'||Date.now()-loadedAt<30000)return;reload();}
   document.addEventListener('visibilitychange',onReturn);window.addEventListener('focus',onReturn);
@@ -265,7 +277,7 @@ function attach(host,opts){
   window.addEventListener('scroll',onScroll,true);window.addEventListener('resize',onScroll);
 
   var ready=loadAll(sb,product).then(function(d){
-    if(dead)return;D=d;loadedAt=Date.now();buildPop();addToolbar();
+    if(dead)return;D=d;loadedAt=Date.now();buildPop();addToolbar();markHost();
   },function(err){
     D=null;   /* fail closed: tables/RPC missing or no access -> today's form, untouched */
     try{console.info('[SV2Lists] managed lists unavailable; form keeps text fields',err&&err.code?err.code:'');}catch(_e){}
@@ -280,6 +292,7 @@ function attach(host,opts){
       window.removeEventListener('scroll',onScroll,true);window.removeEventListener('resize',onScroll);
       document.removeEventListener('visibilitychange',onReturn);window.removeEventListener('focus',onReturn);
       tbBtns.forEach(function(w){w.remove();});tbBtns=[];
+      host.classList.remove('sv2l-on');FIELDS.forEach(function(f){host.classList.remove('sv2l-no-'+f.key);});
       Array.prototype.forEach.call(host.querySelectorAll('[data-sv2l-list]'),function(i){i.setAttribute('list',i.getAttribute('data-sv2l-list'));i.removeAttribute('data-sv2l-list');});
       if(pop){pop.remove();pop=null;}
     }
