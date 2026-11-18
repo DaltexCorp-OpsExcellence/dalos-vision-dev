@@ -106,7 +106,19 @@ function mount(body,ctx){
       if(r&&r.error){st.msg={ok:false,text:errText(r.error)};if(r.error.code==='55000')load();else draw();return;}
       dirty=true;delete st.lists[it.list_key+'|'+it.product_id];
       st.msg={ok:true,text:action==='approve'?(value?'Added to the list as “'+value+'”. The typed spelling is kept as a spelling match.':'Added to the list.'):action==='merge'?'Merged as another spelling.':'Rejected.'};load();
+      if(action==='approve')jdeNote(it,value||it.value);
     },function(e){st.msg={ok:false,text:errText(e)};draw();});
+  }
+  /* JDE (citrus): a newly approved brand / caliber / client class / packing has no JDE code until an admin adds one */
+  var JDE_PART={brand:'brand',caliber:'caliber',client_class:'client_class',packing_type:'packaging_type'};
+  function jdeFold(v){return String(v||'').replace(/\s/g,'').toLowerCase();}
+  function jdeNote(it,v){
+    var part=JDE_PART[it.list_key];if(it.product_id!=='citrus'||!part||!v)return;
+    Promise.resolve(sb.from('jde_codes').select('value').eq('product_id','citrus').eq('part',part).eq('active',true)).then(function(r){
+      if(!r||r.error)return;
+      if((r.data||[]).some(function(x){return jdeFold(x.value)===jdeFold(v);}))return;
+      if(st.msg&&st.msg.ok){st.msg={ok:true,text:st.msg.text+' No JDE code yet: add it in Lists \u2192 JDE codes (citrus), or citrus lines with it show \u201cJDE code incomplete\u201d.'};draw();}
+    },function(){});
   }
   load();
   return {destroy:function(){if(dirty&&ctx.refresh)ctx.refresh();}};

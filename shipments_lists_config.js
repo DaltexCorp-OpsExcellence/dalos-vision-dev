@@ -38,6 +38,8 @@ var CSS=[
 '.sv2c-tbl th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text3,#777);text-align:left;padding:7px 8px;border-bottom:2px solid var(--border2,#ccd)}',
 '.sv2c-tbl td{padding:7px 8px;border-bottom:1px solid var(--bg2,#eee);vertical-align:middle}',
 '.sv2c-tbl tr.off td.v{color:var(--text3,#888);text-decoration:line-through}',
+'.sv2c-nocode{font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:#fdf1dc;color:#7a4a10;border:1px solid #f0d49c;display:inline-block}',
+'.sv2c-tbl tr.miss td{background:#fffaf0}',
 '.sv2c-pill{font-size:11px;padding:1px 8px;border-radius:20px;background:#efeafd;color:#5b3cc4;border:1px solid #d8cdfa;display:inline-block}',
 '.sv2c-link{background:none;border:none;color:var(--accent,#1c5c3c);text-decoration:underline;cursor:pointer;font:500 12.5px var(--font-body,inherit);min-height:32px;padding:0 4px}',
 '.sv2c-sw{display:inline-flex;align-items:center;gap:6px;cursor:pointer;min-height:32px}',
@@ -132,10 +134,21 @@ function mount(body,ctx){
      Admins and power users add a code, change one or turn one off; the intake form builds each line's code from them. */
   var JDE_PART_LABEL={category:'Category',variety:'Variety',client_class:'Client class',caliber:'Caliber',packaging_type:'Packing',brand:'Brand',net:'Net / --'};
   var JDE_LEN={category:4,variety:3,client_class:1,caliber:2,packaging_type:1,brand:2,net:1};
+  /* dropdown lists that feed a JDE part: a value with no active code here is listed as 'No code yet' */
+  var JDE_LIST={brand:'brand',caliber:'caliber',client_class:'client_class',packaging_type:'packing_type'};
+  function jfold(v){return String(v||'').replace(/\s/g,'').toLowerCase();}
+  function jdeMissing(part){
+    var lk=JDE_LIST[part];if(!lk)return [];
+    var have={};(st.jrows||[]).forEach(function(r){if(r.part===part&&r.active)have[jfold(r.value)]=1;});
+    var seen={};return (st.jlist||[]).filter(function(v){var k=jfold(v.value);if(v.list_key!==lk||have[k]||seen[k])return false;seen[k]=1;return true;}).map(function(v){return v.value;});
+  }
   st.jpart=st.jpart||'caliber';
   function loadJde(){
-    Promise.resolve(sb.from('jde_codes').select('id,part,value,code,note,active,sort_order').eq('product_id','citrus').order('part').order('sort_order').order('value')).then(function(r){
-      if(r.error)throw r.error;st.jrows=r.data||[];drawJde();
+    Promise.all([
+      Promise.resolve(sb.from('jde_codes').select('id,part,value,code,note,active,sort_order').eq('product_id','citrus').order('part').order('sort_order').order('value')),
+      Promise.resolve(sb.from('shipment_list_values').select('list_key,value').eq('product_id','citrus').eq('active',true).in('list_key',['brand','caliber','client_class','packing_type']).order('value'))
+    ]).then(function(rs){
+      var r=rs[0];if(r.error)throw r.error;st.jrows=r.data||[];st.jlist=(rs[1]&&!rs[1].error&&rs[1].data)||[];drawJde();
     }).catch(function(e){clear(card);card.appendChild(mk('div','sv2c-msg err',e&&e.code==='42P01'?'JDE codes are not set up yet.':'The JDE codes could not load. Close and try again.'));});
   }
   function drawJde(){
@@ -143,15 +156,17 @@ function mount(body,ctx){
     card.appendChild(mk('h3',null,'JDE codes · Citrus'));
     card.appendChild(mk('div','sv2c-count','Same tables as the sheet’s JD.E. Code Mapping tab. A line’s JDE code = Category + Variety + Client class + Caliber + Packing + Brand + Net/--. Changing a code here changes new and edited lines only; codes already saved stay.'));
     var bar=mk('div','sv2c-bar'),ps=mk('select');ps.setAttribute('aria-label','Part');
-    Object.keys(JDE_PART_LABEL).forEach(function(k){var o=mk('option',null,JDE_PART_LABEL[k]);o.value=k;ps.appendChild(o);});ps.value=st.jpart;
+    var totMiss=0;
+    Object.keys(JDE_PART_LABEL).forEach(function(k){var nm=jdeMissing(k).length;totMiss+=nm;var o=mk('option',null,JDE_PART_LABEL[k]+(nm?' \u2014 '+nm+' without a code':''));o.value=k;ps.appendChild(o);});ps.value=st.jpart;
     ps.addEventListener('change',function(){st.jpart=ps.value;st.editing=null;st.msg=null;drawJde();});
     var q=mk('input');q.type='search';q.placeholder='Search values or codes…';q.setAttribute('aria-label','Search JDE codes');q.value=st.q;
     var add=mk('button','sv2-btn sm','+ Add code');add.type='button';add.addEventListener('click',function(){st.editing={id:null};tbl();});
     bar.appendChild(ps);bar.appendChild(q);bar.appendChild(add);card.appendChild(bar);
+    if(totMiss){var mw=mk('div','sv2c-msg err',totMiss+(totMiss===1?' value in the intake lists has':' values in the intake lists have')+' no JDE code yet. Citrus lines using '+(totMiss===1?'it':'them')+' show \u201cJDE code incomplete\u201d. Look for \u201cNo code yet\u201d below (the Part list shows where).');mw.setAttribute('role','note');card.appendChild(mw);}
     var msg=mk('div','sv2c-msg');msg.setAttribute('role','status');card.appendChild(msg);
     var tw=mk('div','sv2c-tw');card.appendChild(tw);
     function form(r){
-      var row=mk('tr'),a=mk('td'),vi=mk('input');vi.maxLength=120;vi.value=r?r.value:'';vi.setAttribute('aria-label','Value');a.appendChild(vi);row.appendChild(a);
+      var row=mk('tr'),a=mk('td'),vi=mk('input');vi.maxLength=120;vi.value=r?r.value:((st.editing&&st.editing.value)||'');vi.setAttribute('aria-label','Value');a.appendChild(vi);row.appendChild(a);
       var b=mk('td'),ci=mk('input');ci.maxLength=JDE_LEN[st.jpart];ci.value=r?r.code:'';ci.placeholder=JDE_LEN[st.jpart]+' characters';ci.setAttribute('aria-label','JDE code');ci.style.fontFamily='var(--font-mono,monospace)';b.appendChild(ci);row.appendChild(b);
       row.appendChild(mk('td',null,r?(r.active?'Active':'Off'):'Active'));
       var e=mk('td'),ok=mk('button','sv2-btn sm',r?'Save':'Add');ok.type='button';var cx=mk('button','sv2c-link','Cancel');cx.type='button';
@@ -164,13 +179,21 @@ function mount(body,ctx){
           st.editing=null;st.msg={ok:true,text:r?'Saved.':'Added.'};dirty=true;loadJde();
         },function(){st.msg={ok:false,text:'Couldn’t save. Try again.'};tbl();});});
       cx.addEventListener('click',function(){st.editing=null;tbl();});
-      e.appendChild(ok);e.appendChild(cx);row.appendChild(e);setTimeout(function(){(r?ci:vi).focus();},0);return row;
+      e.appendChild(ok);e.appendChild(cx);row.appendChild(e);setTimeout(function(){(r||vi.value?ci:vi).focus();},0);return row;
     }
     function tbl(){
       clear(tw);msg.className='sv2c-msg'+(st.msg?(st.msg.ok?' ok':' err'):'');msg.textContent=st.msg?st.msg.text:'';
       var t=mk('table','sv2c-tbl'),th=mk('thead'),tr=mk('tr');['Value','JDE code','Active','Edit'].forEach(function(h){tr.appendChild(mk('th',null,h));});th.appendChild(tr);t.appendChild(th);
       var tb=mk('tbody'),ql=st.q.trim().toLowerCase(),n=0;t.appendChild(tb);
       if(st.editing&&!st.editing.id)tb.appendChild(form(null));
+      jdeMissing(st.jpart).forEach(function(v){
+        if(ql&&v.toLowerCase().indexOf(ql)<0)return;if(st.editing&&!st.editing.id&&jfold(st.editing.value)===jfold(v))return;n++;
+        var row=mk('tr','miss'),a=mk('td','v');a.appendChild(mk('bdi',null,v));a.appendChild(mk('div','sv2c-lbl','In the intake '+JDE_PART_LABEL[st.jpart]+' list'));row.appendChild(a);
+        var b=mk('td');b.appendChild(mk('span','sv2c-nocode','No code yet'));row.appendChild(b);
+        row.appendChild(mk('td','sv2c-lbl','\u2013'));
+        var et=mk('td'),ab=mk('button','sv2-btn sm','Add code');ab.type='button';ab.addEventListener('click',function(){st.editing={id:null,value:v};st.msg=null;tbl();});et.appendChild(ab);row.appendChild(et);
+        tb.appendChild(row);
+      });
       (st.jrows||[]).forEach(function(r){
         if(r.part!==st.jpart)return;
         if(ql&&(r.value+' '+r.code).toLowerCase().indexOf(ql)<0)return;n++;
