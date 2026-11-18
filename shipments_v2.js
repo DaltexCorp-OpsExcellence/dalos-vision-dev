@@ -192,6 +192,7 @@ var CSS=[
 '  #sv2-vform .sv2-ib{min-height:44px;min-width:44px}',
 '}',
 /* r2 P3: <=420px the two loading dates take a full row each (no wrapped labels, no clipped mm/dd/yyyy) */
+'.sv2-jrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.sv2-jcopy{display:inline-flex;align-items:center;gap:4px;font:600 11.5px var(--font-body,inherit);color:var(--text2);background:var(--card,#fff);border:1px solid var(--border2,#ccd);border-radius:7px;padding:4px 8px;min-height:28px;cursor:pointer}.sv2-jcopy:hover{color:var(--text);border-color:var(--text3,#999)}.sv2-jcopy:focus-visible{outline:2px solid var(--accent,#1c5c3c);outline-offset:1px}.sv2-jcopy.ok{color:#1c7c3c;border-color:#9fd2ae;background:#eef8f1}'+
 '.sv2-jcode{font:600 16px var(--font-mono);letter-spacing:.03em;color:var(--text);padding:4px 0}.sv2-jnote{font-size:11px;color:var(--text2)}.sv2-jwarn{font-size:12.5px;color:#7a4a10;background:#fdf5e6;border:1px solid #ecd3a3;border-radius:8px;padding:6px 9px;margin:2px 0 4px;line-height:1.4}',
 '.sv2-jsegs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.sv2-jseg{display:inline-flex;flex-direction:column;align-items:center;min-width:40px;padding:3px 6px;border:1px solid var(--border,#e2ddd2);border-radius:6px;font-size:10px;color:var(--text2);background:var(--bg,#fbfaf6)}.sv2-jseg b{font:600 12.5px var(--font-mono);color:var(--text)}.sv2-jseg.miss{border-color:#c98a1c;background:#fdf5e6}.sv2-jseg.miss b{color:#7a4a10}',
 '.sv2-jdewarn{font-size:13px;color:#7a4a10;font-weight:500}',
@@ -513,7 +514,16 @@ function createInstance(host,O){
   }
   function netSel(d){var v=d.net_flag==='Net'?'Net':'--';
     return '<select class="csel" dir="auto" data-k="net_flag" aria-label="Net or --"><option value="--"'+(v==='--'?' selected':'')+'>--</option><option value="Net"'+(v==='Net'?' selected':'')+'>Net</option></select>';}
+  var JCOPY_SVG='<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+  /* copy the line's JDE code for pasting into JDE (clipboard API; textarea fallback for older/insecure contexts) */
+  function jdeCopy(btn){
+    var code=btn.getAttribute('data-jcopy')||'',lab=btn.querySelector('span');
+    function done(ok){btn.classList.toggle('ok',ok);if(lab)lab.textContent=ok?'Copied':'Copy failed';clearTimeout(btn._t);btn._t=setTimeout(function(){btn.classList.remove('ok');if(lab)lab.textContent='Copy';},1600);}
+    function fallback(){try{var t=document.createElement('textarea');t.value=code;t.setAttribute('readonly','');t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();var ok=document.execCommand('copy');t.remove();done(!!ok);}catch(_e){done(false);}}
+    if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(code).then(function(){done(true);},fallback);else fallback();
+  }
   function paintJde(){
+    if(host&&!host._jcopyOn){host._jcopyOn=true;host.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('.sv2-jcopy');if(b){e.preventDefault();jdeCopy(b);}});}
     if(PT||!isCitrus())return;
     var bad=0;
     LINES.forEach(function(d,i){
@@ -523,7 +533,7 @@ function createInstance(host,O){
       if(!box)return;
       var chips='<div class="sv2-jsegs">'+r.parts.map(function(p){return '<span class="sv2-jseg'+(p.code?'':' miss')+'" title="'+esc(p.label+': '+(p.value||'(empty)'))+'"><b>'+esc(p.code||'??')+'</b>'+esc(p.label)+'</span>';}).join('')+'</div>';
       box.innerHTML=r.code
-        ?'<div class="sv2-jcode">'+esc(r.code)+'</div>'+(r.saved?'<div class="sv2-jnote">Code stored on this line</div>':chips)
+        ?'<div class="sv2-jrow"><div class="sv2-jcode">'+esc(r.code)+'</div><button type="button" class="sv2-jcopy" data-jcopy="'+esc(r.code)+'" title="Copy JDE code" aria-label="Copy JDE code '+esc(r.code)+'">'+JCOPY_SVG+'<span>Copy</span></button></div>'+(r.saved?'<div class="sv2-jnote">Code stored on this line</div>':chips)
         :'<div class="sv2-jwarn">JDE code incomplete: no code for '+esc(r.miss.map(function(m){return m.label+(m.value?' \u201c'+m.value+'\u201d':' (empty)');}).join(', '))+'. You can still save. Admins add codes in Lists \u2192 JDE codes.</div>'+chips;
     });
     var w=el('jdewarn');if(w){w.hidden=!bad;w.textContent=bad?bad+' JDE code'+(bad===1?'':'s')+' incomplete':'';}
