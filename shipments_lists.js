@@ -164,7 +164,7 @@ function attach(host,opts){
         b.addEventListener('click',function(){suggest(key,typed);});}
       foot.appendChild(b);
       foot.appendChild(mk('div','sv2l-hint','Typed values stay on this shipment and wait for an admin to review. They are never added to the shared list automatically.'));
-    }else if(typed&&!exact&&FARM_KEYS[key]){
+    }else if(typed&&!exact&&FARM_KEYS[key]&&!(canon&&low(canon)!==t)){   /* a spelling match was offered: no 'not a farm' line */
       foot.appendChild(mk('div','sv2l-hint','Not a farm yet. The typed value is kept on this shipment as entered. Admins add farms in Configurations \u2192 Farms.'));
     }else if(typed&&!exact&&!QUEUE_KEYS[key]){
       foot.appendChild(mk('div','sv2l-hint','Not in the list. The typed value is kept on this shipment as entered.'));
