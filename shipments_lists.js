@@ -12,6 +12,8 @@
  *  - DOM is built with createElement + textContent only. No innerHTML with data anywhere in this file.
  *  - Extra screens (Configuration list editors, review queue) register via SV2Lists.registerScreen().
  *  v0.2: labels (value stored, label shown), product-specific spelling matches win over all-products ones, 54000/22023 messages.
+ *  2026-11-18: Raw source = Configurations > Farms (active farms, all products); each farm's raw_names are its spelling matches.
+ *    No 'Not in list?' for Raw source: new farms are added in Configurations > Farms only.
  */
 (function(){
 'use strict';
@@ -19,6 +21,7 @@
 var LIST_LABELS={brand:'Brands',packing_type:'Packing types',count_size:'Counts/Sizes',caliber:'Calibers',source_type:'Source types',
   raw_source:'Raw sources',departure_port:'Departure ports',agent:'Agents',shipping_line:'Shipping lines',client_class:'Client classes',
   shipping_status:'Shipping statuses',receiving_country:'Countries',daltex_class:'Daltex classes'};
+var FARM_KEYS={raw_source:1};   /* list comes from public.farms, not shipment_list_values */
 var QUEUE_KEYS={brand:1,packing_type:1,count_size:1,caliber:1,source_type:1,raw_source:1,departure_port:1,agent:1,shipping_line:1,client_class:1,shipping_status:1};
 /* intake field -> list. hdr = header input id (without sv2-), k = line data-k */
 var FIELDS=[
@@ -70,7 +73,8 @@ function loadAll(sb,product){
     q(sb.from('shipment_list_values').select('list_key,value,label,sort_order').eq('product_id',product).eq('active',true).order('sort_order').order('value')),
     q(sb.from('shipment_list_aliases').select('list_key,product_id,alias,canonical').eq('active',true)),
     q(sb.from('countries').select('name').eq('active',true).order('name')),
-    q(sb.from('classes').select('name').eq('active',true).order('name'))
+    q(sb.from('classes').select('name').eq('active',true).order('name')),
+    q(sb.from('farms').select('name,raw_names').eq('active',true).order('name'))
   ]).then(function(r){
     var rights=r[0]||{},lists={},aliases={},labels={};
     (r[1]||[]).forEach(function(x){(lists[x.list_key]=lists[x.list_key]||[]).push(x.value);
@@ -81,6 +85,12 @@ function loadAll(sb,product){
     function addAlias(a){(aliases[a.list_key]=aliases[a.list_key]||{})[low(a.alias)]=a.canonical;}
     (r[2]||[]).forEach(function(a){if(!a.product_id)addAlias(a);});
     (r[2]||[]).forEach(function(a){if(a.product_id&&a.product_id===product)addAlias(a);});
+    /* Raw source = active farms (same list as Configurations > Farms); the planner placeholder farm is left out */
+    var farms=(r[5]||[]).filter(function(f){return !(f.raw_names||[]).some(function(x){return x==='OUTSOURCE_BUDGET';});}),fseen={},fal={};
+    lists.raw_source=farms.map(function(f){return norm(f.name);}).filter(function(n){var k=low(n);if(!n||fseen[k])return false;fseen[k]=1;return true;})
+      .sort(function(a,b){return a.localeCompare(b);});
+    farms.forEach(function(f){(f.raw_names||[]).forEach(function(x){var k=low(x);if(!k||fseen[k]||fal[k])return;fal[k]=norm(f.name);});});
+    aliases.raw_source=fal;   /* farm spellings replace any raw_source rows in shipment_list_aliases */
     return {rights:{can_suggest:rights.can_suggest===true,can_manage:rights.can_manage===true},lists:lists,aliases:aliases,labels:labels};
   });
 }
@@ -147,13 +157,15 @@ function attach(host,opts){
       a.appendChild(mk('bdi',null,typed));a.appendChild(document.createTextNode('”'));
       a.addEventListener('click',function(){setValue(canon);close();});foot.appendChild(a);
     }
-    if(typed&&!exact&&QUEUE_KEYS[key]&&D.rights.can_suggest){
+    if(typed&&!exact&&QUEUE_KEYS[key]&&!FARM_KEYS[key]&&D.rights.can_suggest){
       var b=mk('button','sv2l-act');b.type='button';
       if(typed.length>MAXLEN){b.disabled=true;b.textContent='Too long for the list (max '+MAXLEN+' characters)';}
       else{b.appendChild(document.createTextNode('＋ Not in list? Keep “'));b.appendChild(mk('bdi',null,typed));b.appendChild(document.createTextNode('” and send for review'));
         b.addEventListener('click',function(){suggest(key,typed);});}
       foot.appendChild(b);
       foot.appendChild(mk('div','sv2l-hint','Typed values stay on this shipment and wait for an admin to review. They are never added to the shared list automatically.'));
+    }else if(typed&&!exact&&FARM_KEYS[key]){
+      foot.appendChild(mk('div','sv2l-hint','Not a farm yet. The typed value is kept on this shipment as entered. Admins add farms in Configurations \u2192 Farms.'));
     }else if(typed&&!exact&&!QUEUE_KEYS[key]){
       foot.appendChild(mk('div','sv2l-hint','Not in the list. The typed value is kept on this shipment as entered.'));
     }

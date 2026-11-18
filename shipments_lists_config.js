@@ -5,6 +5,7 @@
  * search + product filter + Add value, table Value / Applies to product / Active / Edit, plus Spelling matches.
  * createElement + textContent only. Renaming never changes values already saved on shipments.
  *  v0.2: optional label per value (shown, searchable, editable); rename notes the old spelling is kept as a spelling match; clearer 23505/23514 messages.
+ *  2026-11-18: Raw sources tab is a read-only view of Configurations > Farms (the intake Raw source list).
  */
 (function(){
 'use strict';
@@ -88,6 +89,7 @@ function mount(body,ctx){
   }
   function load(){
     clear(card);card.appendChild(mk('div','sv2c-count','Loading…'));
+    if(st.key==='raw_source'){loadFarms();return;}
     var p=st.key==='@aliases'
       ?sb.from('shipment_list_aliases').select('id,list_key,product_id,alias,canonical,note,active').order('list_key').order('alias')
       :sb.from('shipment_list_values').select('id,list_key,product_id,value,label,sort_order,active').eq('list_key',st.key).order('product_id').order('sort_order').order('value');
@@ -95,6 +97,34 @@ function mount(body,ctx){
       if(r.error)throw r.error;
       if(st.key==='@aliases')st.aliases=r.data||[];else st.rows=r.data||[];draw();
     }).catch(function(e){clear(card);card.appendChild(mk('div','sv2c-msg err',e&&e.code==='42501'?'You don’t have access to this list.':'This list could not load. Close and try again.'));});
+  }
+  function loadFarms(){
+    Promise.resolve(sb.from('farms').select('name,source_type,raw_names,active').eq('active',true).order('name')).then(function(r){
+      if(r.error)throw r.error;
+      drawFarms((r.data||[]).filter(function(f){return !(f.raw_names||[]).some(function(x){return x==='OUTSOURCE_BUDGET';});}));
+    }).catch(function(){clear(card);card.appendChild(mk('div','sv2c-msg err','The farms list could not load. Close and try again.'));});
+  }
+  function drawFarms(rows){
+    clear(card);
+    card.appendChild(mk('h3',null,'Raw sources = Farms'));
+    card.appendChild(mk('div','sv2c-count','The intake Raw source list is the farms in Configurations \u2192 Farms (Vision Settings), for every product. Add, rename or turn off a farm there and the dropdown follows. Spellings listed for a farm are matched to its name.'));
+    var bar=mk('div','sv2c-bar'),q=mk('input');q.type='search';q.placeholder='Search farms or spellings…';q.setAttribute('aria-label','Search farms');q.value=st.q;
+    bar.appendChild(q);card.appendChild(bar);var tw=mk('div','sv2c-tw');card.appendChild(tw);
+    function tbl(){
+      clear(tw);var t=mk('table','sv2c-tbl'),th=mk('thead'),tr=mk('tr');
+      ['Farm','Type','Spellings matched'].forEach(function(h){tr.appendChild(mk('th',null,h));});th.appendChild(tr);t.appendChild(th);
+      var tb=mk('tbody'),ql=st.q.trim().toLowerCase(),n=0;t.appendChild(tb);
+      rows.forEach(function(f){
+        var sp=(f.raw_names||[]).filter(function(x){return x&&x.toLowerCase()!==String(f.name).toLowerCase();});
+        if(ql&&(f.name+' '+sp.join(' ')).toLowerCase().indexOf(ql)<0)return;n++;
+        var row=mk('tr'),a=mk('td','v'),bd=mk('bdi',null,f.name);bd.setAttribute('dir','auto');a.appendChild(bd);row.appendChild(a);
+        var b=mk('td');b.appendChild(mk('span','sv2c-pill',f.source_type||'\u2013'));row.appendChild(b);
+        row.appendChild(mk('td','sv2c-lbl',sp.length?sp.join(', '):'\u2013'));tb.appendChild(row);
+      });
+      if(!n){var er=mk('tr'),ed=mk('td','sv2c-count','No farms match.');ed.colSpan=3;er.appendChild(ed);tb.appendChild(er);}
+      tw.appendChild(t);
+    }
+    q.addEventListener('input',function(){st.q=q.value;tbl();});tbl();
   }
   function draw(){
     clear(card);
