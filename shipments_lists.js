@@ -40,7 +40,7 @@ function mk(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=c
 function clear(n){while(n&&n.firstChild)n.removeChild(n.firstChild);}
 
 var CSS=[
-'.sv2l-pop{position:fixed;z-index:2147482000;background:var(--card,#fff);border:1px solid var(--border2,#ccd);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);display:none;flex-direction:column;max-height:320px;min-width:220px;font:13px var(--font-body,inherit);color:var(--text,#222)}',
+'.sv2l-pop{position:fixed;z-index:2147482000;background:#fff;border:1px solid var(--border2,#ccd);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);display:none;flex-direction:column;max-height:320px;min-width:220px;font:13px var(--font-body,inherit);color:var(--text,#222)}',
 '.sv2l-pop.on{display:flex}',
 '.sv2l-opts{overflow:auto;padding:4px 0;flex:1 1 auto;min-height:0}',
 '.sv2l-opt{padding:7px 12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
@@ -53,7 +53,7 @@ var CSS=[
 '.sv2l-msg{font-size:12px;padding:2px 4px}.sv2l-msg.ok{color:var(--green,#1c7c3c)}.sv2l-msg.err{color:var(--red,#b42318)}',
 '.sv2l-tb{display:inline-flex;gap:6px}',
 '.sv2l-scr{position:fixed;inset:0;z-index:2147481000;background:rgba(10,20,15,.35);display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto}',
-'.sv2l-panel{background:var(--bg,#f7f7f4);color:var(--text,#222);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.25);width:min(1100px,100%);max-height:92vh;display:flex;flex-direction:column;font:13px var(--font-body,inherit)}',
+'.sv2l-panel{background:#f7f7f4;color:var(--text,#222);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.25);width:min(1100px,100%);max-height:92vh;display:flex;flex-direction:column;font:13px var(--font-body,inherit)}',
 '.sv2l-ph{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border,#e2e2dc)}',
 '.sv2l-ph h2{font:600 18px var(--font-display,inherit);margin:0;flex:1}',
 '.sv2l-pb{padding:14px 18px;overflow:auto;display:grid;gap:12px}',
