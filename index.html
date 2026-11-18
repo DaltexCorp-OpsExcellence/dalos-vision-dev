@@ -919,6 +919,9 @@ input[type=date],input[type=time]{min-width:0;max-width:100%;box-sizing:border-b
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
 <!-- Pivots line (Potatoes) lives in pivots.js so potato fixes never touch this file -->
 <script src="pivots.js?v=b3ac275641"></script>
+<script src="shipments_lists.js?v=1bad0b6ece"></script>
+<script src="shipments_lists_config.js?v=602105f3b5"></script>
+<script src="shipments_lists_queue.js?v=8f5d42fcab"></script>
 
 <script>
 /* Config that differs between staging and prod lives HERE, not in vision.js (vision.js is identical on both). */
@@ -929,8 +932,11 @@ var DALOS_BUILD='v1.7'/*BUILD*/;var DALOS_BUILD_INFO=''/*BUILD_INFO*/; /* stampe
    for this browser and then removed from the address, so the in-app toggle is never pinned by an old link. */
 var VISION_IS_DEV=/\/dalos-vision-dev\//.test(location.pathname)||/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 var VISION_DEFAULT_ON=VISION_IS_DEV;
+/* Managed dropdown lists in Shipments > Manage (shipments_lists*.js). OFF by default on staging and prod. Turn on only after
+   the 01 schema package is applied with Tarek's yes. Staging browsers can opt in with localStorage dalos_sv2_lists='1'. */
+var SV2_LISTS_ENABLED=false;
 </script>
-<script src="vision.js?v=d8bdbc1435"></script>
+<script src="vision.js?v=c5fb4dd857"></script>
 <script>
 /* Fade the entry splash once the app shell first paints (React commits to #root),
    with a hard fallback so it can never stick. */

@@ -24,10 +24,20 @@ for f in ('vision.js', 'pivots.js'):
     if not re.search(pat, out):
         sys.exit('stamp-assets: no <script src="%s?v=..."> in index.html' % f)
     out = re.sub(pat, r'\g<1>' + h + r'\g<2>', out)
+# Optional managed-lists files: stamped only when the file exists AND index.html has its <script src="...?v="> tag.
+stamped = []
+for f in ('shipments_lists.js', 'shipments_lists_config.js', 'shipments_lists_queue.js'):
+    pat = r'(src="' + re.escape(f) + r'\?v=)[^"]*(")'
+    if not os.path.isfile(f) or not re.search(pat, out):
+        continue
+    h = hashlib.sha256(open(f, 'rb').read()).hexdigest()[:10]
+    out = re.sub(pat, r'\g<1>' + h + r'\g<2>', out)
+    stamped.append(f)
 if '--check' in sys.argv:
     if out != html:
         sys.exit('stamp-assets: index.html versions are STALE - run python3 tools/stamp-assets.py')
     print('stamp-assets: versions up to date')
 else:
     open('index.html', 'w', encoding='utf-8').write(out)
-    print('stamp-assets: shipments_v2.js?v=' + sh + ', ' + ', '.join(re.findall(r'src="((?:vision|pivots)\.js\?v=[^"]*)"', out)))
+    names = ['vision.js', 'pivots.js'] + stamped
+    print('stamp-assets: shipments_v2.js?v=' + sh + ', ' + ', '.join(m for n in names for m in re.findall(r'src="(' + re.escape(n) + r'\?v=[^"]*)"', out)))

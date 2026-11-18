@@ -370,6 +370,7 @@ function createInstance(host,O){
   var CARTON_SRC={carton_count:1,carton_net_weight:1,carton_gross_weight:1};
   var WARN_KEYS={carton_net_weight:1,carton_gross_weight:1,packing_factor:1};
   var DATA=[],DIRTY=false,SAVING=false,SEASON_OK=false,listSeq=0,formSeq=0;
+  var LISTS=null;
   var ST={q:'',sortKey:'loaded',dir:'desc',limit:200,f:{cls:[],region:[],client:[],status:[],qc:[]}};
   var RENDER_STEP=200;
   var phoneMQ=window.matchMedia?window.matchMedia('(max-width:700px)'):null;
@@ -505,6 +506,11 @@ function createInstance(host,O){
   }
   function fillSelect(id,list,cur){var e=el(id);if(e)e.innerHTML=opts(list,cur);}
   function fillDatalist(id,list){var e=host.querySelector('#'+id);if(e)e.innerHTML=uniq(list||[]).map(function(o){return '<option value="'+esc(o)+'">';}).join('');}
+  /* managed dropdown lists (shipments_lists.js): flag-gated, fails closed — never blocks the form */
+  function attachLists(){
+    if(PT||dead||LISTS||!window.SV2Lists||typeof window.SV2Lists.attach!=='function')return;
+    try{LISTS=window.SV2Lists.attach(host,{sb:sb,product:PRODUCT,productName:PRODUCT_NAME,container:function(){return val('container');}});}catch(_e){LISTS=null;}
+  }
   function loadRefs(){
     if(PT){ /* varieties from the shared registry (same list as potato inspections); the rest from the entry sheet */
       return Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','potatoes').order('name')).then(function(r){
@@ -1434,8 +1440,8 @@ function createInstance(host,O){
   if(!sb){setListBanner('Not connected. Reload the page and sign in to DalOS.');}
   else{
     loadList();
-    loadRefs().then(function(){if(dead)return;fillHeaderSelects({status:''});renderLines();},
-      function(){if(dead)return;showFormError('Lists for this form didn’t load (clients, varieties). Reload to try again.');fillHeaderSelects({status:''});});
+    loadRefs().then(function(){if(dead)return;fillHeaderSelects({status:''});renderLines();attachLists();},
+      function(){if(dead)return;showFormError('Lists for this form didn’t load (clients, varieties). Reload to try again.');fillHeaderSelects({status:''});attachLists();});
   }
 
   var api={
@@ -1450,6 +1456,7 @@ function createInstance(host,O){
       host.removeEventListener('click',onClick);host.removeEventListener('keydown',onKey);
       host.removeEventListener('change',onChange);host.removeEventListener('input',onInput);host.removeEventListener('focusout',onBlur);
       clearTimeout(searchT);clearTimeout(toastT);clearTimeout(undoT);closeModal();if(toastEl){toastEl.remove();toastEl=null;}if(undoEl){undoEl.remove();undoEl=null;}
+      if(LISTS&&LISTS.detach){try{LISTS.detach();}catch(_e){}}LISTS=null;
       host.innerHTML='';if(CUR&&CUR.api===api)CUR=null;
     }
   };
