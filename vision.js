@@ -3530,7 +3530,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                       showPackDate&&ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',background:'var(--card)'},type:'date',value:(row.extraFields||{}).packDate||'',onChange:function(i,id){return function(e){updateRowExtra(i,id,'packDate',e.target.value);};}(pIdx,row.id)}),
                       ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',textAlign:'right',background:'var(--card)'},type:'number',min:'0',step:'1',value:row.sampleSize||'',placeholder:'#',onChange:function(i,id){return function(e){updateRowField(i,id,'sampleSize',e.target.value);};}(pIdx,row.id)}),
                       cropId==='citrus'
-                        ?ce('select',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',background:'var(--card)'},value:row.size||'',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)},[ce('option',{key:'_none',value:''},'—')].concat(CITRUS_SIZES.map(function(s){return ce('option',{key:s,value:s},s);})))
+                        ?ce('select',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',background:'var(--card)'},value:row.size||'',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)},[ce('option',{key:'_none',value:''},'—')].concat((config.citrusSizes&&config.citrusSizes.length?config.citrusSizes:CITRUS_SIZES).map(function(s){return ce('option',{key:s,value:s},s);})))
                         :ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',textAlign:'right',background:'var(--card)'},type:'number',min:'0',step:'1',value:row.size||'',placeholder:'size',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)}),
                       ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',textAlign:'right',background:'var(--card)'},type:'number',step:'0.1',value:row.cartonWt,placeholder:'kg',onChange:function(i,id){return function(e){updateRowField(i,id,'cartonWt',e.target.value);};}(pIdx,row.id)}),
                       ce('input',{style:{padding:'4px 5px',border:'1px solid var(--border2)',borderRadius:4,fontSize:12,fontFamily:'var(--font-mono)',width:'100%',textAlign:'right',background:'var(--card)'},type:'number',step:'0.1',value:row.brix,placeholder:'°Bx',onChange:function(i,id){return function(e){updateRowField(i,id,'brix',e.target.value);};}(pIdx,row.id)}),
@@ -3993,7 +3993,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                     ),
                     ce('div',null,
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Size'),
-                      cropId==='citrus'?ce('select',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,background:'var(--card)',minHeight:40},value:row.size||'',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)},[ce('option',{key:'_none',value:''},'—')].concat(CITRUS_SIZES.map(function(s){return ce('option',{key:s,value:s},s);}))):ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',textAlign:'right',background:'var(--card)',minHeight:40},type:'number',min:'0',step:'1',value:row.size||'',placeholder:'count',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)})
+                      cropId==='citrus'?ce('select',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,background:'var(--card)',minHeight:40},value:row.size||'',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)},[ce('option',{key:'_none',value:''},'—')].concat((config.citrusSizes&&config.citrusSizes.length?config.citrusSizes:CITRUS_SIZES).map(function(s){return ce('option',{key:s,value:s},s);}))):ce('input',{style:{width:'100%',padding:'8px 10px',border:'1px solid var(--border2)',borderRadius:6,fontSize:15,fontFamily:'var(--font-mono)',textAlign:'right',background:'var(--card)',minHeight:40},type:'number',min:'0',step:'1',value:row.size||'',placeholder:'count',onChange:function(i,id){return function(e){updateRowField(i,id,'size',e.target.value);};}(pIdx,row.id)})
                     ),
                     ce('div',null,
                       ce('div',{style:{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',marginBottom:4}},'Net Weight'),
@@ -8532,7 +8532,7 @@ function AdminCenter(props){
   var sNewSeason=useState(''); var newSeasonName=sNewSeason[0]; var setNewSeasonName=sNewSeason[1];
 
   /* Map config field names to DB table names */
-  var fieldToTable={clients:'clients',subClients:'sub_clients',countries:'countries',farms:'farms',classes:'classes',cartonTypes:'carton_types'};
+  var fieldToTable={clients:'clients',subClients:'sub_clients',countries:'countries',farms:'farms',classes:'classes',cartonTypes:'carton_types',citrusSizes:'citrus_sizes'};
   function addToList(field){
     if(!newVal.trim()) return;
     var n=Object.assign({},config);
@@ -9033,6 +9033,7 @@ function AdminCenter(props){
           {k:'countries',   label:'Countries'},
           {k:'farms',       label:'Farms'},
           {k:'cartonTypes', label:'Carton types'},
+          {k:'citrusSizes', label:'Citrus sizes'},
           {k:'seasons',     label:'Seasons'},
           {k:'inspection',  label:'\uD83D\uDD27 Inspection form'},
           {k:'clientqc',    label:'\uD83D\uDD27 Client QC form'},
@@ -9399,6 +9400,7 @@ function AdminCenter(props){
       cfgTab==='countries'&&ce(ListEditor,{items:config.countries||[],field:'countries',label:'Destination countries',val:newVal,setVal:setNewVal,onAdd:addToList,onRemove:removeFromList}),
       cfgTab==='farms'&&ce(ListEditor,{items:config.farms||[],field:'farms',label:'Farm names',val:newVal,setVal:setNewVal,onAdd:addToList,onRemove:removeFromList}),
       cfgTab==='cartonTypes'&&ce(ListEditor,{items:config.cartonTypes||[],field:'cartonTypes',label:'Carton types / net weights',val:newVal,setVal:setNewVal,onAdd:addToList,onRemove:removeFromList}),
+      cfgTab==='citrusSizes'&&ce(ListEditor,{items:config.citrusSizes||[],field:'citrusSizes',label:'Citrus sizes / calibers (count per carton)',val:newVal,setVal:setNewVal,onAdd:addToList,onRemove:removeFromList}),
 
       /* Seasons */
       cfgTab==='seasons'&&ce('div',null,
@@ -16408,6 +16410,7 @@ function App(){
         supabase.from('cqc_defect_sections').select('*, cqc_defects(*)').eq('active',true).order('display_order'),
         supabase.from('categories').select('*').eq('active',true).order('name'),
         supabase.from('cqc_score_options').select('value,sort_order,active').eq('active',true).order('sort_order'),
+        supabase.from('citrus_sizes').select('name,active').eq('active',true),
       ]).then(function(results){
         console.log('[DalOS] DB results:', results.map(function(r){return {data:r.data?r.data.length:'null',error:r.error?r.error.message:'none'};}));
         var phs=results[0].data||[];
@@ -16423,6 +16426,7 @@ function App(){
         var defSections=results[10].data||[];
         var cqcSectionsRaw=results[11]?results[11].data||[]:[]; var categories=results[12]?results[12].data||[]:[];
         var cqcScoreOpts=results[13]?results[13].data||[]:[]; /* DB-driven CQC score list; falls back to CQC_SCORE_OPTIONS constant if empty/errored */
+        var citrusSizesRows=results[14]?results[14].data||[]:[]; /* DB-driven citrus size list (citrus_sizes table); the form falls back to the CITRUS_SIZES constant if this is empty/errored */
 
         /* Build categories map per product */
         console.log('[DalOS] Raw categories from DB:', categories.length, categories.map(function(c){return c.product_id+':'+c.name;}));
@@ -16564,6 +16568,7 @@ function App(){
           farms:farms.filter(function(f){return f.active!==false;}).map(function(f){return f.name;}),
           classes:activeClasses.map(function(c){return c.name;}),
           cartonTypes:activeCartonTypes.map(function(c){return c.name;}),
+          citrusSizes:citrusSizesRows.map(function(r){return r.name;}).sort(function(a,b){return (parseFloat(a)||0)-(parseFloat(b)||0);}),
           seasons:seasons.map(function(s){return {id:s.id,name:s.name,active:s.active};}),
           activeSeason:displaySeason?displaySeason.name:'2025/26',
           activeSeasonId:displaySeason?displaySeason.id:null,
