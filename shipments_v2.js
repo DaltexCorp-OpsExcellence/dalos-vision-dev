@@ -31,7 +31,7 @@ var SV2_INTAKE_FIELDS_ENABLED=!!window.VISION_IS_DEV; // intake DB v0.5 is appli
    Saving is hard-disabled in this build (OC_WRITES below): staging and prod share the one live database. */
 /* v0.2 (Ash): no Other crops write of any kind in this build: Save, Save & new, Delete and the list editor only show
    OC_PENDING. Turned on by a later commit, after the OC DB package is applied with Tarek's yes. Not a runtime switch. */
-var OC_WRITES=false;
+var OC_WRITES=true;
 var OC_PENDING='Preview: saving turns on after the database step';   /* v0.2 P3 (Pixel): neutral wording, not an error */
 function otherCropsEnabled(){
   /* v0.2 (Ash): ON only when index.html's config says so AND this is the staging host (VISION_IS_DEV, set in index.html from
