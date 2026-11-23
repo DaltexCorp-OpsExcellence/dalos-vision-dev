@@ -3213,7 +3213,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           popup.style.top=Math.max(4,(rect.top-ph-8<4)?rect.bottom+8:rect.top-ph-8)+'px';
                           popup.style.left=Math.max(4,Math.min(window.innerWidth-240-4,rect.left-80))+'px';
                           popup.style.display='block';
-                          setTimeout(function(){var ta=popup.querySelector('textarea');if(ta)ta.focus({preventScroll:true});},0);
+                          setTimeout(function(){var ta=popup.querySelector('textarea');if(ta){ta.focus({preventScroll:true});var n=ta.value.length;try{ta.setSelectionRange(n,n);}catch(_e){}ta.scrollTop=ta.scrollHeight;}},0);
                         }
                       },
                         ce('div',{style:{padding:'3px 6px',borderRadius:4,border:'1px solid '+(row.notes?'var(--accent)':'var(--border2)'),background:row.notes?'#edf5e9':'var(--card)',cursor:'pointer',fontSize:11,color:row.notes?'var(--accent)':'var(--text3)',minHeight:26,display:'flex',alignItems:'center',gap:4,overflow:'hidden'}},
@@ -3551,7 +3551,7 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                             popup.style.top=Math.max(4,(rect.top-ph-8<4)?rect.bottom+8:rect.top-ph-8)+'px';
                             popup.style.left=Math.max(4,Math.min(window.innerWidth-240-4,rect.left-80))+'px';
                             popup.style.display='block';
-                            setTimeout(function(){var ta=popup.querySelector('textarea');if(ta)ta.focus({preventScroll:true});},0);
+                            setTimeout(function(){var ta=popup.querySelector('textarea');if(ta){ta.focus({preventScroll:true});var n=ta.value.length;try{ta.setSelectionRange(n,n);}catch(_e){}ta.scrollTop=ta.scrollHeight;}},0);
                           }
                         },
                           ce('div',{style:{padding:'3px 6px',borderRadius:4,border:'1px solid '+(row.notes?'var(--accent)':'var(--border2)'),background:row.notes?'#edf5e9':'var(--card)',cursor:'pointer',fontSize:11,color:row.notes?'var(--accent)':'var(--text3)',minHeight:26,display:'flex',alignItems:'center',gap:4,overflow:'hidden'}},
