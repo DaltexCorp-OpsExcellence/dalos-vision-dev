@@ -14409,7 +14409,7 @@ function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?v=a9638eef6a';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
+    s.src='shipments_v2.js?v=8160f5a995';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});
@@ -14507,6 +14507,8 @@ function ShipmentsMgmt(props){
   React.useEffect(function(){
     if(!config.activeSeasonId) return;
     var prods=(config.products||[]).filter(function(p){return p.active!==false;});
+    /* v0.2 P3 (Pixel): Other crops (staging only) has no rows before the DB step: show 'no data', not 'loading…' forever */
+    if(otherCropsOn()&&!prods.some(function(p){return p.id==='other_crops';}))setProdCounts(function(prev){return Object.assign({},prev,{other_crops:0});});
     if(!prods.length) return;
     prods.forEach(function(p){
       /* Fetch container_number+carta to count unique voyages (matches By Container aggregation key) */

@@ -32,7 +32,7 @@ var SV2_INTAKE_FIELDS_ENABLED=!!window.VISION_IS_DEV; // intake DB v0.5 is appli
 /* v0.2 (Ash): no Other crops write of any kind in this build: Save, Save & new, Delete and the list editor only show
    OC_PENDING. Turned on by a later commit, after the OC DB package is applied with Tarek's yes. Not a runtime switch. */
 var OC_WRITES=false;
-var OC_PENDING='Not available yet: database step pending';
+var OC_PENDING='Preview: saving turns on after the database step';   /* v0.2 P3 (Pixel): neutral wording, not an error */
 function otherCropsEnabled(){
   /* v0.2 (Ash): ON only when index.html's config says so AND this is the staging host (VISION_IS_DEV, set in index.html from
      the address: path /dalos-vision-dev/ or localhost). The prod address always resolves OFF, whatever its config says. */
@@ -53,6 +53,7 @@ var CSS=[
 '.sv2-view{display:none;gap:12px}.sv2-view.on{display:grid}',
 '.sv2 .mono{font-family:var(--font-mono)}',
 '.sv2-banner{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.5;background:var(--amber-bg);border:1px solid var(--amber-border);color:#7a4a10}',
+'.sv2-banner.info{background:var(--bg2,#f1efe9);border-color:var(--border,#d0cbbe);color:var(--text2,#4a4a44)}.sv2-banner.info b{color:var(--text,#222)}',
 '.sv2-banner b{color:#5c360a}.sv2-banner.err{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}.sv2-banner.err b{color:var(--red)}',
 '.sv2-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}',
 '.sv2-sp{flex:1}',
@@ -160,6 +161,7 @@ var CSS=[
 '.sv2-lcard .lb{display:none;padding:2px 11px 11px;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}',
 '.sv2-lcard.open .lb{display:grid}',
 '.sv2-lcard .lb .full{grid-column:1/-1}',
+'.sv2-oc .sv2-lcard .lb>div:not(.full){display:flex;flex-direction:column;justify-content:flex-end}',   /* v0.2 P3 (Pixel): line-card inputs line up when a label wraps to 2 lines */
 '.sv2-submit{position:sticky;bottom:var(--sv2-bottom,8px);z-index:6;box-shadow:0 -2px 18px rgba(26,26,23,.10);display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;background:var(--card);border:1px solid var(--border2);border-radius:var(--r2);padding:10px 14px}',
 '.sv2-tot{display:grid}.sv2-tot .k{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text2)}.sv2-tot .v{font:500 18px var(--font-mono);font-variant-numeric:tabular-nums}',
 '.sv2-ferr .sv2-banner{align-items:center}',
@@ -195,8 +197,10 @@ var CSS=[
 '.sv2-oc #sv2-vform.on{padding-bottom:calc(var(--sv2-footh,0px) + 16px)!important}',
 '.sv2-oc #sv2-vform input,.sv2-oc #sv2-vform select,.sv2-oc #sv2-vform .sv2-btn{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 16px)}',
 '.sv2-totrow{display:contents}',
+'.sv2-oc #sv2-lhead th.oc-var,.sv2-oc #sv2-lbody td.oc-var{min-width:190px}',   /* v0.2 P3 (Pixel): wider Variety column on desktop */
 '@media (max-width:700px){',
-'  .sv2-oc .sv2-submit{flex-wrap:nowrap;gap:10px;padding:7px 10px;min-height:0}',
+'  .sv2-oc .sv2-submit{flex-wrap:nowrap;gap:10px;padding:7px 10px;min-height:0;background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}',   /* v0.2 P3: solid, labels never show through */
+'  .sv2-oc .sv2-ocg>.sv2-f{display:flex;flex-direction:column;justify-content:flex-end}',   /* v0.2 P3: inputs line up when a label wraps to 2 lines */
 '  .sv2-oc .sv2-totrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 10px;flex:1 1 auto;min-width:0}',
 '  .sv2-oc .sv2-tot{display:flex;align-items:baseline;gap:4px}',
 '  .sv2-oc .sv2-tot .k{font-size:11px;letter-spacing:0;text-transform:none;font-weight:500}',
@@ -392,7 +396,7 @@ function createInstance(host,O){
   function blankLine(){return OC?newLineOC():PT?newLinePT():newLine();}
   function snapNote(){return SNAPSHOT_PRODUCTS[PRODUCT]?SNAPSHOT_NOTE:'';}
   function bannerInner(){
-    if(OC&&!OC_WRITES)return '<span aria-hidden="true">✎</span><span><b>Preview.</b> '+OC_PENDING+'. You can fill in the form to try it; nothing is saved.</span>';
+    if(OC&&!OC_WRITES)return '<span aria-hidden="true">✎</span><span>'+OC_PENDING+'.</span>';
     return '<span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+snapNote()+'</span>';}
   function q(sel){return host.querySelector(sel);}
   function qa(sel){return Array.prototype.slice.call(host.querySelectorAll(sel));}
@@ -425,6 +429,7 @@ function createInstance(host,O){
   /* r2: the form's lines switch to cards at <=768px (the list keeps its 700px switch) */
   var formMQ=window.matchMedia?window.matchMedia('(max-width:768px)'):null;
   function isNarrow(){return !!(formMQ&&formMQ.matches);}
+  function isTouch(){try{return !!(window.matchMedia&&window.matchMedia('(hover:none) and (pointer:coarse)').matches)||(navigator.maxTouchPoints>0&&!window.matchMedia('(hover:hover)').matches);}catch(e){return false;}}
 
   /* ---------------------------------------------------------- markup */
   host.innerHTML=
@@ -635,7 +640,8 @@ function createInstance(host,O){
   function ocSetRefs(rows){var bl={},bc={};PACK_BULK={};
     (rows||[]).forEach(function(o){(bl[o.list_key]=bl[o.list_key]||[]).push(o);bc[o.code]=o;if(o.list_key==='packing_type')PACK_BULK[o.code]=!!o.is_bulk;});
     REF.oc={byList:bl,byCode:bc};}
-  function ocText(o,list){if(!o)return '';var ar=o.label_ar||o.code;return list==='crop'&&o.label_en?o.label_en+' · '+ar:ar;}
+  /* v0.2 P3 (Pixel): one pattern for every list, as on the Potatoes screen: the option's own (sheet) label, no mixed 'English · Arabic' */
+  function ocText(o,list){if(!o)return '';return o.label_ar||o.code;}
   function ocLabel(code,list){if(code==null||code==='')return '';var o=REF.oc.byCode[code];return o?ocText(o,list||o.list_key):String(code)+' (not in list)';}
   /* active options only; the current value is kept (marked "off") when it was turned off or is unknown, so old rows still show it */
   function ocOpts(list,cur){var arr=(REF.oc.byList[list]||[]).filter(function(o){return o.active;}),h='<option value=""></option>',seen=false;
@@ -869,14 +875,14 @@ function createInstance(host,O){
   /* ---- Other crops lines: the potato line + Cartons # and Benz # next to Jumbo # / Sack #; Farm and Packaging are codes.
      Card = 12 main + 11 detail = 23 fields. ---- */
   var OC_CARTONS_AR='عدد الكراتين',OC_BENZ_AR='بنز كرتون';   /* long-tail sheet headers (cols 17/18); Pixel's placeholders were عدد الكراتين / عدد البنز */
-  function ocHeadHTML(){return '<tr><th></th><th>#</th><th>Variety</th><th>Pivot</th><th>Farm</th><th>Grade</th><th>Packaging</th><th class="num">Pallets</th><th class="num">Jumbo #</th><th class="num">Sack #</th>'+
+  function ocHeadHTML(){return '<tr><th></th><th>#</th><th class="oc-var">Variety</th><th>Pivot</th><th>Farm</th><th>Grade</th><th>Packaging</th><th class="num">Pallets</th><th class="num">Jumbo #</th><th class="num">Sack #</th>'+
     '<th class="num">Cartons #'+newTag()+'</th><th class="num">Benz #'+newTag()+'</th><th class="num">Std wt t</th><th class="num">Pascol t</th><th></th></tr>';}
   function ocRowHTML(d,i){
     var L=PT_LISTS;
     return '<tr data-line="'+i+'">'+
       '<td><button type="button" class="sv2-ib'+(openRows[i]?' open':'')+'" data-act="toggleLine" data-i="'+i+'" aria-label="Lot, sizing, packaging and handling">⌄</button></td>'+
       '<td class="idx">'+(i+1)+'</td>'+
-      '<td>'+cin(d.variety,'variety','','sv2-dl-variety')+'</td>'+
+      '<td class="oc-var">'+cin(d.variety,'variety','','sv2-dl-variety')+'</td>'+
       '<td>'+cin(d.pivot,'pivot','','sv2-dl-pivot')+'</td><td>'+ocSel('farm',d.farm,'farm')+'</td>'+
       '<td>'+csel(L.grades,d.grade,'grade')+'</td><td>'+ocSel('packing_type',d.packaging,'packaging')+'</td>'+
       '<td>'+cin(d.pallets,'pallets','num')+'</td><td>'+cin(d.jumbo_count,'jumbo_count','num')+'</td><td>'+cin(d.sack_count,'sack_count','num')+'</td>'+
@@ -1075,7 +1081,7 @@ function createInstance(host,O){
   function setVoyageLock(on){['container','ldate'].forEach(function(id){var e=el(id);if(e){e.readOnly=on;}});var h=el('lockhint');if(h)h.hidden=!on;}
   var HDR_IDS=PT?['container','carta','ldate','vessel','ccount','client','country','country2','port','invoice','permit','workorder']:['container','carta','ldate','vessel','line','booking','invoice','po','etd','eta','arrival','depport','country','port','agent','shipper'];
   if(INTAKE)HDR_IDS=HDR_IDS.concat(['plandate','tcartons','hpascol']);
-  function blankHeader(){HDR_IDS.forEach(function(id){var e=el(id);if(e){e.value='';e.classList.remove('invalid');}});}
+  function blankHeader(){HDR_IDS.forEach(function(id){var e=el(id);if(e){e.value='';e.classList.remove('invalid');}});qa('#sv2-vform [data-touched]').forEach(function(e){e.removeAttribute('data-touched');e.classList.remove('invalid');});}
   function readHeader(){
     if(OC)return {container_number:asciiDigits(val('container')),carta:asciiDigits(val('carta')),loading_date:val('ldate'),crop:val('crop'),station:val('station'),sector:val('sector'),
       season:val('pseason'),container_count:val('ccount'),client:val('client'),receiving_country:val('country'),country2:val('country2'),
@@ -1115,6 +1121,8 @@ function createInstance(host,O){
     if(e.getBoundingClientRect().top<0)e.scrollIntoView({block:'center'});
   }
   function clearFormError(){var e=el('ferr');if(e)e.innerHTML='';}
+  /* v0.2 P3: neutral note (Other crops preview), not an error */
+  function showFormNote(msg){var e=el('ferr');if(!e)return;e.innerHTML='<div class="sv2-banner info" role="status"><span aria-hidden="true">i</span><span style="flex:1;white-space:pre-line">'+esc(msg)+'</span></div>';}
   function showOverlay(on){var o=el('overlay');if(o)o.classList.toggle('on',on);}
   function friendlyErr(err){
     if(!err)return 'Something went wrong.';
@@ -1194,12 +1202,13 @@ function createInstance(host,O){
   function restoreHeader(k){fillHeaderSelects({status:k.status,client:k.client,subclient:k.subclient,pack_house_departure:k.pack_house_departure});
     KEEP_TEXT.forEach(function(id){var e=el(id);if(e)e.value=k[id]||'';});syncCtxStatus();setDirty(false);}
   function submitShip(){
-    if(OC&&!OC_WRITES){SAVE_NEW=false;showFormError(OC_PENDING+'. Nothing was saved.');return;}   /* v0.2 (Ash): no RPC, no edge function, no write */
     if(SAVING)return;
     clearFormError();TRIED=true;
     var okR=!OC||validateField('crop'),okC=validateField('container'),okL=validateField('ldate'),okS=PT||validateField('status');
     var missH=[];if(!okR)missH.push('Crop');if(!okC)missH.push('Container No.');if(!okL)missH.push(INTAKE?'Actual loading date':'Loading Date');if(!okS)missH.push('Shipping Status');
-    if(missH.length){showFormError(missH.join(', ')+(missH.length>1?' are':' is')+' required.');el(!okR?'crop':!okC?'container':!okL?'ldate':'status').focus();return;}
+    if(missH.length){SAVE_NEW=false;showFormError(missH.join(', ')+(missH.length>1?' are':' is')+' required.');el(!okR?'crop':!okC?'container':!okL?'ldate':'status').focus();return;}
+    /* v0.2 (Ash): no RPC, no edge function, no write. v0.2 P3: the required checks above still run, then a neutral note */
+    if(OC&&!OC_WRITES){SAVE_NEW=false;showFormNote(OC_PENDING+'. Nothing was saved.');return;}
     if(!PT&&el('depdiff')&&el('depdiff').checked){var dd=val('depdate'),dErr=!dd?'Departure date is required':(dd<val('ldate')?'Departure date can\'t be before the loading date':(!SV2_SEND_DEPARTURE_DATE?'Preview only: departure date can\'t be saved yet. Untick the box to save':''));
       el('depdate').classList.toggle('invalid',!!dErr);if(dErr){showFormError(dErr+'.');el('depdate').focus();return;}}
     if(INTAKE){var hb=[];[['tcartons',1,'Total cartons'],['hpascol',0,'Pascol weight']].forEach(function(x){var e=el(x[0]);if(!e)return;
@@ -1292,7 +1301,7 @@ function createInstance(host,O){
     document.body.appendChild(modalEl);inp.focus();
   }
   function doDelete(cn,ld,ids){
-    if(OC&&!OC_WRITES){var er0=modalEl&&modalEl.querySelector('.sv2-delerr');if(er0)er0.textContent=OC_PENDING+'. Nothing was deleted.';return;}
+    if(OC&&!OC_WRITES){var er0=modalEl&&modalEl.querySelector('.sv2-delerr');if(er0)er0.textContent='Preview: deleting turns on after the database step. Nothing was deleted.';return;}
     DELETING=true;
     var go=modalEl&&modalEl.querySelector('[data-m="ok"]'),er=modalEl&&modalEl.querySelector('.sv2-delerr');
     if(go){go.disabled=true;go.textContent='Deleting…';}if(er)er.textContent='';
@@ -1314,7 +1323,7 @@ function createInstance(host,O){
   function loadForEdit(container,loaded){
     var my=++formSeq;
     clearFormError();blankHeader();setDep(false);LINES=[];RAWCGW={};openRows={};LOADED_IDS=[];ROW_VERSION='';syncDelBtn();renderLines();
-    if(OC&&!OC_WRITES){showFormError(OC_PENDING+'. Saved Other crops shipments can\u2019t be opened yet.');return Promise.resolve();}
+    if(OC&&!OC_WRITES){showFormNote('Preview: opening saved Other crops shipments turns on after the database step.');return Promise.resolve();}
     setVoyageLock(true);showOverlay(true);
     var getCall=OC?sb.rpc('get_shipment_v2_othercrops_container',{p_container:container,p_loaded:loaded})
                   :PT?sb.rpc('get_shipment_v2_potato_container',{p_container:container,p_loaded:loaded})
@@ -1381,7 +1390,7 @@ function createInstance(host,O){
     PAS_LIVE=true;TRIED=false;LINES=[blankLine()];RAWCGW={};openRows={0:PT?isNarrow():true};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);
     el('ftitle').textContent='New shipment';el('ctxref').textContent='New';setSeasonChip();
-    showView('form');var c=el('container');if(c&&!isNarrow())c.focus();
+    showView('form');var c=el('container');if(c&&!isNarrow()&&!(OC&&isTouch()))c.focus();   /* v0.2 P3: no keyboard pop-up on touch devices */
   }
   function leaveForm(){if(!confirmLeave())return;formSeq++;setDirty(false);closeModal();MODE='list';showView('list');}
 
@@ -1553,7 +1562,7 @@ function createInstance(host,O){
     var path='citrus-shipments?product='+encodeURIComponent(PRODUCT)+(SEASON?'&season='+encodeURIComponent(SEASON):'');
     return Promise.resolve(sb.functions.invoke(path,{method:'GET'})).then(function(res){
       if(dead||my!==listSeq)return;
-      if(res.error&&OC){DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='No Other crops shipments yet. '+OC_PENDING+'.';return;}
+      if(res.error&&OC){DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='No Other crops shipments yet. '+OC_PENDING+'.';return;}   /* neutral, from OC_PENDING */
       if(res.error){
         var st=res.error.context&&res.error.context.status;
         var msg=st===401?'Your session expired. Reload the page and sign in to DalOS.':st===403?'You don’t have access to '+PRODUCT_NAME.toLowerCase()+' shipments.':'Shipments didn’t load. Check the connection and try again.';
@@ -1641,6 +1650,7 @@ function createInstance(host,O){
   }
   function onInput(e){
     var t=e.target;
+    if(OC&&t.getAttribute&&t.getAttribute('data-req'))t.setAttribute('data-touched','1');
     if(t.id==='sv2-q'){ST.q=t.value.trim().toLowerCase();ST.limit=RENDER_STEP;el('searchwrap').classList.toggle('has',!!t.value);clearTimeout(searchT);searchT=setTimeout(renderList,150);return;}
     if(INTAKE&&(t.id==='sv2-tcartons'||t.id==='sv2-hpascol')){PAS_LIVE=true;recompute();}
     var ln=t.closest('[data-line]');
@@ -1649,7 +1659,8 @@ function createInstance(host,O){
     if(el('vform').classList.contains('on')&&t.closest('#sv2-vform'))setDirty(true);
   }
   function onBlur(e){var t=e.target;if(!t.getAttribute)return;
-    if(t.getAttribute('data-req'))validateField(t.id.replace('sv2-',''));
+    if(OC&&t.id==='sv2-container'&&/[\u0660-\u0669\u06f0-\u06f9]/.test(t.value)){t.value=t.value.replace(/[\u0660-\u0669]/g,function(c){return String(c.charCodeAt(0)-0x0660);}).replace(/[\u06f0-\u06f9]/g,function(c){return String(c.charCodeAt(0)-0x06f0);});}   /* v0.2 P3 (Pixel): Arabic-Indic digits -> 0-9 */
+    if(t.getAttribute('data-req')&&(!OC||TRIED||t.getAttribute('data-touched')==='1'))validateField(t.id.replace('sv2-',''));
     if(t.id==='sv2-container'||t.id==='sv2-ldate')checkExisting();
     var k=t.getAttribute('data-k');
     if(k&&NUMKEYS[k]){var pr=lineNumProblem(k,t.value,lineCt(t));t.classList.toggle('invalid',!!pr);t.setAttribute('aria-invalid',pr?'true':'false');t.title=pr?lineLabel(k)+' '+pr:'';}
