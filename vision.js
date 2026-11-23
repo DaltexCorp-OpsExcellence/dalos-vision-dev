@@ -293,12 +293,13 @@ function normTC(arr){
 function vnpEnsureCss(){
   if(document.getElementById('vnp-css')) return;
   var s=document.createElement('style');s.id='vnp-css';
-  s.textContent='.vnp-ta::placeholder{color:#6b7280;opacity:1}.vnp-ta:focus{outline:2px solid var(--accent,#2e7d4f);outline-offset:1px}';
+  s.textContent='.vnp-cell{min-height:32px;height:32px;box-sizing:border-box}.vnp-ta::placeholder{color:#6b7280;opacity:1}.vnp-ta:focus{outline:2px solid var(--accent,#2e7d4f);outline-offset:1px}';
   document.head.appendChild(s);
 }
 function vnpOpen(popup,cell){
   if(!popup||!cell) return;
   vnpEnsureCss();
+  popup._vnpOpener=cell;
   /* measure without flashing */
   popup.style.visibility='hidden';popup.style.display='block';
   var ph=popup.offsetHeight||130;
@@ -318,6 +319,9 @@ function vnpClose(popup){
   popup.style.display='none';
   var ta=popup.querySelector('textarea');
   if(ta&&document.activeElement===ta) ta.blur();
+  /* return focus to the opening cell (Escape / × only; the blur-elsewhere path never calls vnpClose) */
+  var op=popup._vnpOpener;
+  if(op&&op.isConnected&&typeof op.focus==='function'){try{op.focus({preventScroll:true});}catch(_e){}}
 }
 /* Cell keyboard: Enter/Space opens. Guard target — keydowns from the portal textarea bubble here through the React tree. */
 function vnpCellKey(prefix,id){
@@ -3243,19 +3247,19 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                           ce('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,fontWeight:700,color:crit?'var(--red)':tot>10?'var(--amber)':tot>0?'var(--text2)':'var(--text3)'}},tot>0?tot.toFixed(1)+'%':'—')
                         );
                       })(),
-                      ce('div',{style:{position:'relative',width:'100%',cursor:'pointer',minHeight:32,minWidth:32,display:'flex',alignItems:'stretch'},
+                      ce('div',{className:'vnp-cell',style:{position:'relative',width:'100%',cursor:'pointer',height:32,minHeight:32,minWidth:32,boxSizing:'border-box',display:'flex',alignItems:'stretch'},
                         tabIndex:0,role:'button','aria-label':'Edit sample notes',
                         onKeyDown:vnpCellKey('np-',row.id),
                         onClick:function(e){vnpOpen(document.getElementById('np-'+row.id),e.currentTarget);}
                       },
-                        ce('div',{style:{flex:1,padding:'3px 6px',borderRadius:4,border:'1px solid '+(row.notes?'var(--accent)':'var(--border2)'),background:row.notes?'#edf5e9':'var(--card)',cursor:'pointer',fontSize:11,color:row.notes?'var(--accent)':'var(--text3)',minHeight:32,display:'flex',alignItems:'center',gap:4,overflow:'hidden'}},
+                        ce('div',{style:{flex:1,padding:'3px 6px',borderRadius:4,border:'1px solid '+(row.notes?'var(--accent)':'var(--border2)'),background:row.notes?'#edf5e9':'var(--card)',cursor:'pointer',fontSize:11,color:row.notes?'var(--accent)':'var(--text3)',height:'100%',minHeight:32,boxSizing:'border-box',display:'flex',alignItems:'center',gap:4,overflow:'hidden'}},
                           ce('span',{style:{flexShrink:0,fontSize:12}},'✏︎'),
                           row.notes&&ce('span',{style:{fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}},row.notes)
                         ),
                         ReactDOM.createPortal(ce('div',{id:'np-'+row.id,onClick:function(e){e.stopPropagation();},style:{display:'none',position:'fixed',zIndex:99999,background:'var(--card)',border:'1.5px solid var(--border2)',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,.22)',padding:10,width:240,pointerEvents:'all',cursor:'auto'}},
                           ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}},
                             ce('div',{style:{fontSize:12,fontWeight:700,color:'#4b5563',textTransform:'uppercase',letterSpacing:'.05em'}},'Sample notes'),
-                            ce('button',{type:'button','aria-label':'Close notes',title:'Close',style:{minWidth:32,minHeight:32,background:'none',border:'none',cursor:'pointer',fontSize:20,lineHeight:1,color:'#4b5563',padding:0},
+                            ce('button',{type:'button','aria-label':'Close notes',title:'Close',style:{width:32,height:32,minWidth:32,minHeight:32,boxSizing:'border-box',border:'1px solid var(--border2)',borderRadius:6,background:'var(--card)',color:'#4b5563',fontSize:20,lineHeight:1,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,cursor:'pointer',flexShrink:0},
                               onMouseDown:function(e){e.preventDefault();},
                               onClick:function(id){return function(){vnpClose(document.getElementById('np-'+id));};}(row.id)},'×')
                           ),
@@ -3579,19 +3583,19 @@ null /* GGN, PH code, Farm code, Net weight moved to header — removed from sti
                         );
                       }),
                       (isMangoTbl||cropId==='citrus')
-                      ?ce('div',{style:{cursor:'pointer',minHeight:32,minWidth:32,width:'100%',display:'flex',alignItems:'stretch'},
+                      ?ce('div',{className:'vnp-cell',style:{cursor:'pointer',height:32,minHeight:32,minWidth:32,boxSizing:'border-box',width:'100%',display:'flex',alignItems:'stretch'},
                           tabIndex:0,role:'button','aria-label':'Edit sample notes',
                           onKeyDown:vnpCellKey('mnp-',row.id),
                           onClick:function(e){vnpOpen(document.getElementById('mnp-'+row.id),e.currentTarget);}
                         },
-                          ce('div',{style:{flex:1,padding:'3px 6px',borderRadius:4,border:'1px solid '+(row.notes?'var(--accent)':'var(--border2)'),background:row.notes?'#edf5e9':'var(--card)',cursor:'pointer',fontSize:11,color:row.notes?'var(--accent)':'var(--text3)',minHeight:32,display:'flex',alignItems:'center',gap:4,overflow:'hidden'}},
+                          ce('div',{style:{flex:1,padding:'3px 6px',borderRadius:4,border:'1px solid '+(row.notes?'var(--accent)':'var(--border2)'),background:row.notes?'#edf5e9':'var(--card)',cursor:'pointer',fontSize:11,color:row.notes?'var(--accent)':'var(--text3)',height:'100%',minHeight:32,boxSizing:'border-box',display:'flex',alignItems:'center',gap:4,overflow:'hidden'}},
                             ce('span',{style:{flexShrink:0,fontSize:12}},'✏︎'),
                             row.notes&&ce('span',{style:{fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}},row.notes)
                           ),
                           ReactDOM.createPortal(ce('div',{id:'mnp-'+row.id,onClick:function(e){e.stopPropagation();},style:{display:'none',position:'fixed',zIndex:99999,background:'var(--card)',border:'1.5px solid var(--border2)',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,.22)',padding:10,width:240,pointerEvents:'all',cursor:'auto'}},
                             ce('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}},
                               ce('div',{style:{fontSize:12,fontWeight:700,color:'#4b5563',textTransform:'uppercase',letterSpacing:'.05em'}},'Sample notes'),
-                              ce('button',{type:'button','aria-label':'Close notes',title:'Close',style:{minWidth:32,minHeight:32,background:'none',border:'none',cursor:'pointer',fontSize:20,lineHeight:1,color:'#4b5563',padding:0},
+                              ce('button',{type:'button','aria-label':'Close notes',title:'Close',style:{width:32,height:32,minWidth:32,minHeight:32,boxSizing:'border-box',border:'1px solid var(--border2)',borderRadius:6,background:'var(--card)',color:'#4b5563',fontSize:20,lineHeight:1,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,cursor:'pointer',flexShrink:0},
                                 onMouseDown:function(e){e.preventDefault();},
                                 onClick:function(id){return function(){vnpClose(document.getElementById('mnp-'+id));};}(row.id)},'×')
                             ),
