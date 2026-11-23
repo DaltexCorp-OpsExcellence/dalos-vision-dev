@@ -26,6 +26,18 @@ var SNAPSHOT_PRODUCTS={citrus:1,grapes:1,mango:1,pomegranate:1};   /* products w
 var SV2_SEND_DEPARTURE_DATE=false; // enable only after the DB column + RPC mapping are applied (pending Anna/Ash/Tarek)
 var SV2_INTAKE_FIELDS_ENABLED=!!window.VISION_IS_DEV; // intake DB v0.5 is applied: ON on staging (/dalos-vision-dev/ + localhost) only, OFF anywhere else
 /* testers: localStorage.setItem('SV2_INTAKE_FIELDS_ENABLED','true') then reload (read once at mount) */
+/* Other crops (Vera 2026-11-23): product 'other_crops' = the Potatoes (Pivots) intake + Crop, Cartons # and Benz #.
+   v0.2: ON on the staging host only (index.html SV2_OTHER_CROPS_ENABLED=VISION_IS_DEV, and checked again here). Same check in vision.js.
+   Saving is hard-disabled in this build (OC_WRITES below): staging and prod share the one live database. */
+/* v0.2 (Ash): no Other crops write of any kind in this build: Save, Save & new, Delete and the list editor only show
+   OC_PENDING. Turned on by a later commit, after the OC DB package is applied with Tarek's yes. Not a runtime switch. */
+var OC_WRITES=false;
+var OC_PENDING='Not available yet: database step pending';
+function otherCropsEnabled(){
+  /* v0.2 (Ash): ON only when index.html's config says so AND this is the staging host (VISION_IS_DEV, set in index.html from
+     the address: path /dalos-vision-dev/ or localhost). The prod address always resolves OFF, whatever its config says. */
+  return window.SV2_OTHER_CROPS_ENABLED===true&&window.VISION_IS_DEV===true;
+}
 function intakeFieldsEnabled(){
   if(SV2_INTAKE_FIELDS_ENABLED)return true;
   try{
@@ -178,6 +190,21 @@ var CSS=[
 '}',
 /* r2 P2 (Pixel): <=768px the form lines are cards (no sideways scroll), weights wrap to 2 columns, and the
    form keeps room for the sticky Save bar (--sv2-footh = its measured height, set by placeFoot) */
+/* v0.2 P2 (Pixel), Other crops only: the form keeps room under the sticky Save bar (its measured height + 16px) at every width,
+   and at <=700px the bar is one compact row (~60px): totals on the left, Save on the right */
+'.sv2-oc #sv2-vform.on{padding-bottom:calc(var(--sv2-footh,0px) + 16px)!important}',
+'.sv2-oc #sv2-vform input,.sv2-oc #sv2-vform select,.sv2-oc #sv2-vform .sv2-btn{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 16px)}',
+'.sv2-totrow{display:contents}',
+'@media (max-width:700px){',
+'  .sv2-oc .sv2-submit{flex-wrap:nowrap;gap:10px;padding:7px 10px;min-height:0}',
+'  .sv2-oc .sv2-totrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 10px;flex:1 1 auto;min-width:0}',
+'  .sv2-oc .sv2-tot{display:flex;align-items:baseline;gap:4px}',
+'  .sv2-oc .sv2-tot .k{font-size:11px;letter-spacing:0;text-transform:none;font-weight:500}',
+'  .sv2-oc .sv2-tot .v{font-size:13.5px;font-weight:600}',
+'  .sv2-oc .sv2-submit .sv2-sp{display:none}',
+'  .sv2-oc .sv2-submit .sv2-btn{flex:0 0 auto;flex-basis:auto;white-space:nowrap;min-height:44px}',
+'  .sv2-oc .sv2-submit .sv2-ctnwarn:empty,.sv2-oc .sv2-submit .sv2-kgwarn:empty{display:none}',
+'}',
 '@media (max-width:768px){',
 '  #sv2-vform .sv2-desk{display:none!important}#sv2-vform .sv2-lcards{display:grid}',
 '  .sv2-lcard .sv2-wgroup{grid-template-columns:repeat(2,minmax(0,1fr))}',
@@ -197,6 +224,9 @@ var CSS=[
 '.sv2-jsegs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.sv2-jseg{display:inline-flex;flex-direction:column;align-items:center;min-width:40px;padding:3px 6px;border:1px solid var(--border,#e2ddd2);border-radius:6px;font-size:10px;color:var(--text2);background:var(--bg,#fbfaf6)}.sv2-jseg b{font:600 12.5px var(--font-mono);color:var(--text)}.sv2-jseg.miss{border-color:#c98a1c;background:#fdf5e6}.sv2-jseg.miss b{color:#7a4a10}',
 '.sv2-jdewarn{font-size:13px;color:#7a4a10;font-weight:500}',
 '@media (max-width:420px){#sv2-vform .sv2-fdate{grid-column:1/-1}#sv2-vform .sv2-fdate label{white-space:nowrap}}'
+,/* Other crops: amber "new" tag on the 3 additions (as in Pixel's mock-up); phone field order + full-width fields as in form-v3-390 */
+'.sv2-new{display:inline-block;font:700 9.5px var(--font-body);letter-spacing:.05em;text-transform:uppercase;color:#7a4a10;background:#fdf1dc;border:1px solid #f0d49c;border-radius:4px;padding:0 4px;margin-left:5px;vertical-align:1px}',
+'@media (max-width:700px){.sv2-ocg .oc-full{grid-column:1/-1}.sv2-ocg .oc-o1{order:1}.sv2-ocg .oc-o2{order:2}.sv2-ocg .oc-o3{order:3}.sv2-ocg .oc-o4{order:4}.sv2-ocg .oc-o5{order:5}.sv2-ocg .oc-o6{order:6}.sv2-ocg .oc-o7{order:7}.sv2-ocg .oc-o8{order:8}.sv2-ocg .oc-o9{order:9}}'
 ].join('\n');
 function injectCss(){
   if(document.getElementById('sv2-css'))return;
@@ -245,8 +275,10 @@ var PT_LISTS={
   ports:['شرق التفريعة','دمياط'],pivots:['التيسير','31','4','70','58','65','57'],farms:['التيسير','الاوقاف']
 };
 function newLinePT(){return {id:null,variety:'',pivot:'',farm:'',lot:'',size1:'',size2:'',crop_type:'',grade:'',packaging:'',package_weight:'',pack_size:'',pallets:'',brand:'',jumbo_colour:'',jumbo_count:'',sack_colour:'',sack_count:'',standard_weight:'',pascol_weight:'',op_type:'',condition:''};}
-/* whole-number fields (server: _shipments_v2_int) — everything else in NUMKEYS is a decimal */
-var INTKEYS={pallet_count:1,carton_count:1,punnet_count:1,pallets:1,jumbo_count:1,sack_count:1};
+/* Other crops line = the potato line + Cartons # and Benz # (codes in farm / packaging) */
+function newLineOC(){var d=newLinePT();d.cartons_count='';d.benz_count='';return d;}
+/* whole-number fields (server: _shipments_v2_int) — everything else in NUMKEYS is a decimal. Other crops pallets are decimal (20.5). */
+var INTKEYS={pallet_count:1,carton_count:1,punnet_count:1,pallets:1,jumbo_count:1,sack_count:1,cartons_count:1,benz_count:1};
 /* same rule as the server (_shipments_v2_num/_int): null = OK or empty, else a short reason */
 function numProblem(v,whole){
   var s=asciiDigits(v).trim();if(!s)return null;
@@ -261,7 +293,7 @@ function numProblem(v,whole){
 function tidyNum(v){var s=String(v);if(!/^-?\d+(\.\d+)?$/.test(s))return s;
   var n=Number(s),r=Number(n.toFixed(6));   /* float noise from sheet maths (13.216000000000001) → 13.216; real decimals kept */
   return String(Math.abs(n-r)<1e-9?r:n);}
-var NUMKEYS={pallets:'numeric',jumbo_count:'numeric',sack_count:'numeric',standard_weight:'decimal',package_weight:'decimal',pack_size:'decimal',pallet_count:'numeric',carton_count:'numeric',net_weight:'decimal',gross_weight:'decimal',carton_net_weight:'decimal',carton_gross_weight:'decimal',pascol_weight:'decimal',pascol_pct:'decimal',packing_weight:'decimal',packing_factor:'decimal',pascol_net:'decimal',weight_variance:'decimal'};
+var NUMKEYS={pallets:'numeric',jumbo_count:'numeric',sack_count:'numeric',cartons_count:'numeric',benz_count:'numeric',standard_weight:'decimal',package_weight:'decimal',pack_size:'decimal',pallet_count:'numeric',carton_count:'numeric',net_weight:'decimal',gross_weight:'decimal',carton_net_weight:'decimal',carton_gross_weight:'decimal',pascol_weight:'decimal',pascol_pct:'decimal',packing_weight:'decimal',packing_factor:'decimal',pascol_net:'decimal',weight_variance:'decimal'};
 
 /* ---------------------------------------------------------------- intake maths (all weights in tonnes, never ÷1000)
    Strings in, strings out ('' = blank), same 6-decimal tidy as calcPascol. Invalid numbers count as blank here
@@ -284,7 +316,9 @@ function lineNegWeight(d){return !!d&&(isNegNum(d.carton_net_weight)||isNegNum(d
    Carton Bins lines where one bin is 0.55-0.6 t, so the limit there is 1 t. A bin line with no carton type picked is
    treated as a carton (pick 'Carton Bins' first). 0.1 itself is allowed. Not used for potatoes. */
 var CARTON_MAX={carton:0.1,bin:1};
-function isBinType(ct){return /\bbins?\b/i.test(String(ct||''));}
+/* Other crops: packing types are codes; a code's is_bulk (ref_options) decides, like the server. Other values: the old name rule. */
+var PACK_BULK={};
+function isBinType(ct){if(ct!=null&&Object.prototype.hasOwnProperty.call(PACK_BULK,ct))return PACK_BULK[ct];return /\bbins?\b/i.test(String(ct||''));}
 function cartonMax(ct){return isBinType(ct)?CARTON_MAX.bin:CARTON_MAX.carton;}
 function cartonOverMax(v,ct){var n=intakeNum(v);return n!==null&&n>cartonMax(ct)+1e-12;}
 var BIN_MAX_MSG='Over 1 t per bin. Bin weights are in tonnes, e.g. 0.6';
@@ -346,17 +380,26 @@ function createInstance(host,O){
   var dead=false;
   function isCitrus(){return PRODUCT==='citrus';}
   function hasLot(){return PRODUCT!=='grapes';}   /* Tarek 2026-10-13: Lot # everywhere except Grapes */
-  var PT=(PRODUCT==='potatoes');           /* Pivots line: own fields, totals and RPCs; everything else shared */
+  var OC=(PRODUCT==='other_crops');        /* Other crops: the Pivots form + Crop, Cartons #, Benz #; lists are ref_options codes */
+  var PT=(PRODUCT==='potatoes')||OC;       /* Pivots line: own fields, totals and RPCs; everything else shared */
+  if(OC&&!otherCropsEnabled()){   /* flag off: never mount the form */
+    host.innerHTML='<div class="sv2"><div class="sv2-banner err"><span aria-hidden="true">!</span><span>Other crops isn\u2019t switched on yet.</span></div></div>';
+    var offApi={isDirty:function(){return false;},confirmLeave:function(){return true;},unmount:function(){host.innerHTML='';if(CUR&&CUR.api===offApi)CUR=null;}};
+    return {api:offApi,unmount:offApi.unmount};
+  }
   /* new-column intake fields (planned date, total cartons, header pascol, packing factor). Read once at mount. Never potatoes. */
   var INTAKE=!PT&&intakeFieldsEnabled();
-  function blankLine(){return PT?newLinePT():newLine();}
+  function blankLine(){return OC?newLineOC():PT?newLinePT():newLine();}
   function snapNote(){return SNAPSHOT_PRODUCTS[PRODUCT]?SNAPSHOT_NOTE:'';}
+  function bannerInner(){
+    if(OC&&!OC_WRITES)return '<span aria-hidden="true">✎</span><span><b>Preview.</b> '+OC_PENDING+'. You can fill in the form to try it; nothing is saved.</span>';
+    return '<span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+snapNote()+'</span>';}
   function q(sel){return host.querySelector(sel);}
   function qa(sel){return Array.prototype.slice.call(host.querySelectorAll(sel));}
   function el(id){return host.querySelector('#sv2-'+id);}
   function val(id){var e=el(id);return e?String(e.value||'').trim():'';}
 
-  var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{}};
+  var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{},oc:{byList:{},byCode:{}}};
   var LINES=[],openRows={},MODE='list',EDIT={container:null,loaded:null,deletedIds:[]};
   var LOADED_IDS=[];   /* ids of the lines as last loaded from the server; Delete shipment sends exactly these */
   var ROW_VERSION='';  /* fixpkg: get_* row_version as last loaded; sent back on edit + delete so the server refuses (PT409) if anyone changed the lines since */
@@ -385,14 +428,16 @@ function createInstance(host,O){
 
   /* ---------------------------------------------------------- markup */
   host.innerHTML=
-  '<div class="sv2">'+
+  '<div class="sv2'+(OC?' sv2-oc':'')+'">'+
    '<div class="sv2-view on" id="sv2-vlist">'+
-    '<div class="sv2-banner" id="sv2-banner"><span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+snapNote()+'</span></div>'+
+    '<div class="sv2-banner" id="sv2-banner">'+bannerInner()+'</div>'+
     '<div class="sv2-toolbar">'+
-     '<div class="sv2-search" id="sv2-searchwrap"><input id="sv2-q" type="search" placeholder="'+(PT?'Search container, client, station, variety, pivot, farm, lot, grade…':'Search container, client, vessel, booking, invoice, lot, port…')+'" autocomplete="off" aria-label="Search shipments"><button type="button" class="sv2-clr" data-act="clearQ" aria-label="Clear search">✕</button></div>'+
+     '<div class="sv2-search" id="sv2-searchwrap"><input id="sv2-q" type="search" placeholder="'+(OC?'Search container, crop, client, station, variety, farm, grade…':PT?'Search container, client, station, variety, pivot, farm, lot, grade…':'Search container, client, vessel, booking, invoice, lot, port…')+'" autocomplete="off" aria-label="Search shipments"><button type="button" class="sv2-clr" data-act="clearQ" aria-label="Clear search">✕</button></div>'+
      '<span class="sv2-fsels" id="sv2-facets"></span>'+
      '<button type="button" class="sv2-reset" id="sv2-resetbtn" data-act="resetAll">Reset filters</button>'+
      '<span class="sv2-sp"></span>'+
+     (OC?'<button type="button" class="sv2-btn sec" data-act="ocCsv" title="Download the shown shipments as a CSV file (UTF-8, opens in Excel)">Export CSV</button>':'')+
+     (OC&&O.canConfigure&&window.SV2Ref?'<button type="button" class="sv2-btn sec" data-act="ocConfig">Configurations</button>':'')+
      '<button type="button" class="sv2-btn" data-act="openCreate">+ New shipment</button>'+
     '</div>'+
     '<div class="sv2-tw sv2-desk"><table class="sv2-tbl"><thead><tr id="sv2-thead"></tr></thead><tbody id="sv2-listbody"></tbody></table></div>'+
@@ -417,7 +462,7 @@ function createInstance(host,O){
     '<div id="sv2-ferr" class="sv2-ferr"></div>'+
     '<div class="sv2-box">'+
      '<div class="sv2-overlay" id="sv2-overlay"><span class="sv2-spin"></span>Loading container…</div>'+
-     (PT?ptHeaderHTML():orHeaderHTML())+
+     (OC?ocHeaderHTML():PT?ptHeaderHTML():orHeaderHTML())+
     '</div>'+
     '<div class="sv2-box">'+
      '<div class="sv2-st" id="sv2-lhint">'+esc(PRODUCT_NAME)+' lines <small>· at least one line'+(PT?'':' · <span class="req">*</span> required')+'</small></div>'+
@@ -426,8 +471,8 @@ function createInstance(host,O){
      '<div class="sv2-toolbar"><button type="button" class="sv2-btn sec sm" data-act="addLine">+ Add line</button><button type="button" class="sv2-btn sec sm" data-act="dupLast">'+(PT?'Duplicate last line':'Duplicate line (same pack)')+'</button></div>'+
     '</div>'+
     '<div class="sv2-submit">'+
-     tot('Lines','slines')+tot('Pallets','spal')+
-     (PT?tot('Jumbo bags','sjumbo')+tot('Sacks','ssack')+tot('Standard wt','snet')+tot('Pascol wt','spas')
+     (OC?'<div class="sv2-totrow">':'')+tot('Lines','slines')+tot('Pallets','spal')+
+     (OC?tot('Packs','spacks')+tot('Std weight','snet')+'</div>':PT?tot('Jumbo bags','sjumbo')+tot('Sacks','ssack')+tot('Standard wt','snet')+tot('Pascol wt','spas')
         :tot('Cartons','sctn')+tot('Net · Gross'+u('t'),'snet')+(INTAKE&&isCitrus()?tot('Pascol · Packing'+u('t'),'spas')+tot('Container variance'+u('t'),'svar'):''))+
      '<span class="sv2-sp"></span><span class="sv2-jdewarn" id="sv2-jdewarn" role="status" hidden></span><button type="button" class="sv2-goprob" data-act="goProblem" id="sv2-goprob" hidden></button>'+
      (PT?'':'<button type="button" class="sv2-btn sec" data-act="saveNew">Save &amp; new</button>')+
@@ -493,6 +538,29 @@ function createInstance(host,O){
      '</div>'+
      '<datalist id="sv2-dl-client"></datalist><datalist id="sv2-dl-country"></datalist><datalist id="sv2-dl-port"></datalist>'+
      '<datalist id="sv2-dl-pivot"></datalist><datalist id="sv2-dl-farm"></datalist>';
+  }
+  /* Other crops header: the Pivots header with Crop first; Crop, Packing Station, Vessel, Client and Shipping Port pick ref_options codes */
+  function newTag(){return '<span class="sv2-new">new</span>';}
+  function selO(label,id,o){o=o||{};return '<div class="sv2-f'+(o.cls?' '+o.cls:'')+'"><label for="sv2-'+id+'">'+label+(o.req?' <span class="req">*</span>':'')+(o.tag?newTag():'')+'</label>'+
+    '<select class="sv2-in" id="sv2-'+id+'" dir="auto"'+(o.req?' data-req="1"':'')+'></select></div>';}
+  function ocHeaderHTML(){return ''+
+     '<div class="sv2-st">Voyage <small id="sv2-lockhint" hidden>· container + date locked while editing</small></div>'+
+     '<div class="sv2-grid sv2-ocg">'+
+      selO(ar('Crop','المحصول'),'crop',{req:1,tag:1,cls:'oc-full oc-o1'})+
+      fld(ar('Loading Date','التاريخ'),'ldate','date',{req:1,chg:'ldate',cls:'oc-o2'})+selO(ar('Packing Station','محطه التعبئه'),'station',{cls:'oc-full oc-o4'})+
+      selO(ar('Sector','القطاع'),'sector',{cls:'oc-o5'})+selO(ar('Crop season','الموسم'),'pseason',{cls:'oc-o3'})+
+      fld(ar('Container No.','رقم الحاويه'),'container','text',{req:1,mono:1,ph:'e.g. MNBU 9188741',cls:'oc-full oc-o7'})+fld(ar('Carta','كارته شحن'),'carta','text',{mono:1,cls:'oc-o8'})+
+      selO(ar('Vessel','اسم المركب'),'vessel',{cls:'oc-o9'})+fld(ar('Container Count','عدد الحاويات'),'ccount','text',{mono:1,inputmode:'numeric',cls:'oc-o6'})+
+     '</div>'+
+     '<div class="sv2-derived">Auto · Month <b id="sv2-dmonth">—</b> · Week <b id="sv2-dweek">—</b></div>'+
+     '<div class="sv2-st">Destination &amp; documents</div>'+
+     '<div class="sv2-grid sv2-ocg">'+
+      selO(ar('Client','العميل'),'client',{cls:'oc-full'})+fld(ar('Country','الدولة'),'country','text',{list:'sv2-dl-country'})+
+      fld(ar('Country 2','الدوله 2'),'country2','text',{list:'sv2-dl-country'})+selO(ar('Shipping Port','ميناء الشحن'),'port',{cls:'oc-full'})+
+      fld(ar('Invoice No.','رقم الفاتوره'),'invoice','text',{mono:1})+fld(ar('Permit No.','رقم الاذن'),'permit','text',{mono:1})+
+      fld(ar('Work Order','امر الشغل'),'workorder','text',{mono:1,cls:'oc-full'})+
+     '</div>'+
+     '<datalist id="sv2-dl-country"></datalist><datalist id="sv2-dl-pivot"></datalist><datalist id="sv2-dl-variety"></datalist>';
   }
   function tot(k,id){return '<div class="sv2-tot" id="sv2-'+id+'-w"><span class="k">'+k+'</span><span class="v" id="sv2-'+id+'">0</span></div>';}
   function u(x){return ' <span class="sv2-u">'+x+'</span>';}
@@ -563,7 +631,26 @@ function createInstance(host,O){
     if(PT||dead||LISTS||!window.SV2Lists||typeof window.SV2Lists.attach!=='function')return;
     try{LISTS=window.SV2Lists.attach(host,{sb:sb,product:PRODUCT,productName:PRODUCT_NAME,container:function(){return val('container');}});}catch(_e){LISTS=null;}
   }
+  /* Other crops: option rows by list and by code; labels come from the code, never stored */
+  function ocSetRefs(rows){var bl={},bc={};PACK_BULK={};
+    (rows||[]).forEach(function(o){(bl[o.list_key]=bl[o.list_key]||[]).push(o);bc[o.code]=o;if(o.list_key==='packing_type')PACK_BULK[o.code]=!!o.is_bulk;});
+    REF.oc={byList:bl,byCode:bc};}
+  function ocText(o,list){if(!o)return '';var ar=o.label_ar||o.code;return list==='crop'&&o.label_en?o.label_en+' · '+ar:ar;}
+  function ocLabel(code,list){if(code==null||code==='')return '';var o=REF.oc.byCode[code];return o?ocText(o,list||o.list_key):String(code)+' (not in list)';}
+  /* active options only; the current value is kept (marked "off") when it was turned off or is unknown, so old rows still show it */
+  function ocOpts(list,cur){var arr=(REF.oc.byList[list]||[]).filter(function(o){return o.active;}),h='<option value=""></option>',seen=false;
+    arr.forEach(function(o){var on=o.code===cur;if(on)seen=true;h+='<option value="'+esc(o.code)+'"'+(on?' selected':'')+'>'+esc(ocText(o,list))+'</option>';});
+    if(cur&&!seen){var o=REF.oc.byCode[cur];h+='<option value="'+esc(cur)+'" selected data-nil="'+(o?'off':'1')+'">'+esc(o?ocText(o,list)+' (off)':cur+' (not in list)')+'</option>';}
+    return h;}
+  function ocSel(list,v,k){return '<select class="csel" dir="auto" data-k="'+k+'">'+ocOpts(list,v)+'</select>';}
+  function fillOc(id,list,cur){var e=el(id);if(e)e.innerHTML=ocOpts(list,cur||'');}
   function loadRefs(){
+    if(OC){
+      return Promise.all([
+        window.SV2Ref?window.SV2Ref.load(sb):Promise.resolve(sb.from('ref_options').select('code,list_key,label_ar,label_en,active,is_bulk,sort_order').eq('product_id','other_crops').order('sort_order')).then(function(r){if(r.error)throw r.error;return {rows:r.data||[]};}),
+        Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','other_crops').order('name')).then(function(r){return r&&!r.error?r.data||[]:[];},function(){return [];})
+      ]).then(function(r){ocSetRefs(r[0].rows);REF.ocSeed=!!r[0].seed;REF.vars=r[1].map(function(v){return {name:v.name};});ptFillDatalists();});
+    }
     if(PT){ /* varieties from the shared registry (same list as potato inspections); the rest from the entry sheet */
       return Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','potatoes').order('name')).then(function(r){
         if(r.error)throw r.error;REF.vars=(r.data||[]).map(function(v){return {name:v.name};});ptFillDatalists();});
@@ -594,6 +681,7 @@ function createInstance(host,O){
     var L=PT_LISTS,hd=function(k){return DATA.map(function(c){return c.hdr[k];});},ln=function(k){return [].concat.apply([],DATA.map(function(c){return c.lines.map(function(l){return l[k];});}));};
     fillDatalist('sv2-dl-client',L.clients.concat(hd('client')));fillDatalist('sv2-dl-country',L.countries.concat(hd('region'),hd('country2')));
     fillDatalist('sv2-dl-port',L.ports.concat(hd('port')));fillDatalist('sv2-dl-pivot',L.pivots.concat(ln('pivot')));fillDatalist('sv2-dl-farm',L.farms.concat(ln('farm')));
+    if(OC)fillDatalist('sv2-dl-variety',varNames().concat(ln('v')));
   }
   function fillAllDatalists(){var o=REF.ref||{};
     fillDatalist('sv2-dl-line',o.lines);fillDatalist('sv2-dl-depport',o.dep_ports);fillDatalist('sv2-dl-country',o.countries);
@@ -610,6 +698,9 @@ function createInstance(host,O){
   }
   function fillHeaderSelects(cur){cur=cur||{};
     if(!('status' in cur))cur.status='';
+    if(OC){fillOc('crop','crop',cur.crop);fillOc('station','packing_station',cur.station);fillOc('vessel','transport',cur.vessel);
+      fillOc('client','client',cur.client);fillOc('port','port',cur.receiving_port);
+      fillSelect('sector',PT_LISTS.sectors,cur.sector||'');fillSelect('pseason',PT_LISTS.cropSeasons,cur.season||'');return;}
     if(PT){fillSelect('station',PT_LISTS.stations,cur.station||'');fillSelect('sector',PT_LISTS.sectors,cur.sector||'');fillSelect('pseason',PT_LISTS.cropSeasons,cur.season||'');return;}
     fillSelect('status',STATUS_OPTS,cur.status||'');
     fillSelect('client',REF.clients,cur.client||'');
@@ -631,7 +722,7 @@ function createInstance(host,O){
   /* r2 P1: plain inline warning under a carton weight; painted by paintWarns, no data-k (never saved) */
   function wmsg(i,k){return '<div class="sv2-wmsg" data-wmsg="'+k+'" role="status" hidden></div>';}
   function cin(v,k,cls,list){if(isCitrus()&&(PAS_CALC[k]||(INTAKE&&k==='packing_weight')))return roIn(v,k,INTAKE?INTAKE_CALC_TITLE[k]:'Calculated from the pascol weight, gross, packing and net weights');
-    var im=NUMKEYS[k]?' inputmode="'+NUMKEYS[k]+'"':'';
+    var im=NUMKEYS[k]?' inputmode="'+(OC&&k==='pallets'?'decimal':NUMKEYS[k])+'"':'';
     list=list||(k==='source_type'?'sv2-dl-source':k==='raw_source'?'sv2-dl-rawsource':'');
     return '<input class="cin '+(cls||'')+'" data-k="'+k+'"'+im+(PH[k]?' placeholder="'+PH[k]+'"':'')+(NUMKEYS[k]?'':' dir="auto"')+' value="'+esc(v)+'"'+(list?' list="'+list+'"':'')+'>';}
   /* read-only computed line field (still data-k, so the computed value is what gets saved in the existing column) */
@@ -775,11 +866,49 @@ function createInstance(host,O){
       '</div>'+
     '</div>';
   }
+  /* ---- Other crops lines: the potato line + Cartons # and Benz # next to Jumbo # / Sack #; Farm and Packaging are codes.
+     Card = 12 main + 11 detail = 23 fields. ---- */
+  var OC_CARTONS_AR='عدد الكراتين',OC_BENZ_AR='بنز كرتون';   /* long-tail sheet headers (cols 17/18); Pixel's placeholders were عدد الكراتين / عدد البنز */
+  function ocHeadHTML(){return '<tr><th></th><th>#</th><th>Variety</th><th>Pivot</th><th>Farm</th><th>Grade</th><th>Packaging</th><th class="num">Pallets</th><th class="num">Jumbo #</th><th class="num">Sack #</th>'+
+    '<th class="num">Cartons #'+newTag()+'</th><th class="num">Benz #'+newTag()+'</th><th class="num">Std wt t</th><th class="num">Pascol t</th><th></th></tr>';}
+  function ocRowHTML(d,i){
+    var L=PT_LISTS;
+    return '<tr data-line="'+i+'">'+
+      '<td><button type="button" class="sv2-ib'+(openRows[i]?' open':'')+'" data-act="toggleLine" data-i="'+i+'" aria-label="Lot, sizing, packaging and handling">⌄</button></td>'+
+      '<td class="idx">'+(i+1)+'</td>'+
+      '<td>'+cin(d.variety,'variety','','sv2-dl-variety')+'</td>'+
+      '<td>'+cin(d.pivot,'pivot','','sv2-dl-pivot')+'</td><td>'+ocSel('farm',d.farm,'farm')+'</td>'+
+      '<td>'+csel(L.grades,d.grade,'grade')+'</td><td>'+ocSel('packing_type',d.packaging,'packaging')+'</td>'+
+      '<td>'+cin(d.pallets,'pallets','num')+'</td><td>'+cin(d.jumbo_count,'jumbo_count','num')+'</td><td>'+cin(d.sack_count,'sack_count','num')+'</td>'+
+      '<td>'+cin(d.cartons_count,'cartons_count','num')+'</td><td>'+cin(d.benz_count,'benz_count','num')+'</td>'+
+      '<td>'+cin(d.standard_weight,'standard_weight','num')+'</td><td>'+cin(d.pascol_weight,'pascol_weight','num')+'</td>'+
+      '<td><button type="button" class="sv2-ib rm" data-act="rmLine" data-i="'+i+'" aria-label="Remove line '+(i+1)+'">×</button></td>'+
+    '</tr>'+
+    '<tr class="det'+(openRows[i]?' open':'')+'" data-line="'+i+'"><td></td><td colspan="14"><div class="sv2-dgrid">'+ptDetail(d)+'</div></td></tr>';
+  }
+  function ocCardHTML(d,i){
+    var L=PT_LISTS;
+    return '<div class="sv2-lcard'+(openRows[i]?' open':'')+'" data-line="'+i+'">'+
+      '<div class="lh" data-act="toggleLine" data-i="'+i+'" role="button" tabindex="0" aria-expanded="'+(openRows[i]?'true':'false')+'">'+
+        '<b>'+(i+1)+'. '+esc(d.variety||'New line')+'</b><span class="sv2-sp"></span><span class="mono" style="color:var(--text3)">'+esc(d.pallets||0)+' plt · '+esc(d.standard_weight||0)+' t</span>'+
+      '</div>'+
+      '<div class="lb">'+
+        dl(ar('Variety','الصنف'),cin(d.variety,'variety','','sv2-dl-variety'))+dl(ar('Grade','التصنيف'),csel(L.grades,d.grade,'grade'))+
+        dl(ar('Pivot','البيفوت'),cin(d.pivot,'pivot','','sv2-dl-pivot'))+dl(ar('Farm','المزرعه'),ocSel('farm',d.farm,'farm'))+
+        dl(ar('Packaging','التعبئه'),ocSel('packing_type',d.packaging,'packaging'))+dl(ar('Pallets','بالته'),cin(d.pallets,'pallets','num'))+
+        dl(ar('Jumbo #','عدد الجامب'),cin(d.jumbo_count,'jumbo_count','num'))+dl(ar('Sack #','عدد الشكاير'),cin(d.sack_count,'sack_count','num'))+
+        dl(ar('Cartons #'+newTag(),OC_CARTONS_AR),cin(d.cartons_count,'cartons_count','num'))+dl(ar('Benz #'+newTag(),OC_BENZ_AR),cin(d.benz_count,'benz_count','num'))+
+        dl(ar('Standard wt t','الوزن القياسي'),cin(d.standard_weight,'standard_weight','num'))+dl(ar('Pascol t','وزن الباسكول'),cin(d.pascol_weight,'pascol_weight','num'))+
+        ptDetail(d)+
+        '<div class="full"><button type="button" class="sv2-btn sec sm" data-act="rmLine" data-i="'+i+'">Remove this line</button></div>'+
+      '</div>'+
+    '</div>';
+  }
   function renderLines(){
     if(PT){
       el('lfoot').innerHTML='';
-      if(isNarrow()){el('lhead').innerHTML='';el('lbody').innerHTML='';el('lcards').innerHTML=LINES.map(ptCardHTML).join('');}
-      else{el('lcards').innerHTML='';el('lhead').innerHTML=ptHeadHTML();el('lbody').innerHTML=LINES.map(ptRowHTML).join('');}
+      if(isNarrow()){el('lhead').innerHTML='';el('lbody').innerHTML='';el('lcards').innerHTML=LINES.map(OC?ocCardHTML:ptCardHTML).join('');}
+      else{el('lcards').innerHTML='';el('lhead').innerHTML=OC?ocHeadHTML():ptHeadHTML();el('lbody').innerHTML=LINES.map(OC?ocRowHTML:ptRowHTML).join('');}
       recompute();return;
     }
     if(isNarrow()){
@@ -802,6 +931,9 @@ function createInstance(host,O){
   function syncLines(){LINES=LINES.map(function(d,i){return readLineDom(i)||d;});}
   function recompute(){
     syncLines();
+    if(OC){var opp=0,opk=0,osw=0;LINES.forEach(function(d){opp+=numOf(d.pallets);opk+=numOf(d.jumbo_count,1)+numOf(d.sack_count,1)+numOf(d.cartons_count,1)+numOf(d.benz_count,1);osw+=numOf(d.standard_weight);});
+      var ost=function(id,v){var e=el(id);if(e)e.textContent=v;};
+      ost('slines',LINES.length);ost('spal',(Math.round(opp*1000)/1000).toLocaleString());ost('spacks',opk.toLocaleString());ost('snet',osw.toFixed(2)+' t');return;}
     if(PT){var jn=0,sk=0,pp=0,sw=0,ps=0;LINES.forEach(function(d){jn+=numOf(d.jumbo_count,1);sk+=numOf(d.sack_count,1);pp+=numOf(d.pallets,1);sw+=numOf(d.standard_weight);ps+=numOf(d.pascol_weight);});
       var st=function(id,v){var e=el(id);if(e)e.textContent=v;};
       st('slines',LINES.length);st('spal',pp.toLocaleString());st('sjumbo',jn.toLocaleString());st('ssack',sk.toLocaleString());st('snet',sw.toFixed(2)+' t');st('spas',ps.toFixed(2)+' t');return;}
@@ -945,6 +1077,9 @@ function createInstance(host,O){
   if(INTAKE)HDR_IDS=HDR_IDS.concat(['plandate','tcartons','hpascol']);
   function blankHeader(){HDR_IDS.forEach(function(id){var e=el(id);if(e){e.value='';e.classList.remove('invalid');}});}
   function readHeader(){
+    if(OC)return {container_number:asciiDigits(val('container')),carta:asciiDigits(val('carta')),loading_date:val('ldate'),crop:val('crop'),station:val('station'),sector:val('sector'),
+      season:val('pseason'),container_count:val('ccount'),client:val('client'),receiving_country:val('country'),country2:val('country2'),
+      receiving_port:val('port'),vessel:val('vessel'),invoice_no:val('invoice'),permit_no:val('permit'),work_order:val('workorder')};
     if(PT)return {container_number:val('container'),carta:val('carta'),loading_date:val('ldate'),station:val('station'),sector:val('sector'),
       season:val('pseason'),container_count:val('ccount'),client:val('client'),receiving_country:val('country'),country2:val('country2'),
       receiving_port:val('port'),vessel:val('vessel'),invoice_no:val('invoice'),permit_no:val('permit'),work_order:val('workorder')};
@@ -1027,7 +1162,7 @@ function createInstance(host,O){
   var CARTON_WT={carton_net_weight:1,carton_gross_weight:1};
   /* Tarek 2026-11-17: a Returned shipment may have negative cartons (returns are booked negative); weights stay non-negative */
   function isReturned(){return !PT&&val('status')==='Returned';}
-  function lineNumProblem(k,v,ct){var pr=numProblem(v,INTKEYS[k]);if(!pr&&!PT&&NONNEG_LINE[k]&&isNegNum(v)&&!(k==='carton_count'&&isReturned()))pr=k==='carton_count'?'can\u2019t be negative unless the status is Returned':'can\u2019t be negative';
+  function lineNumProblem(k,v,ct){var pr=numProblem(v,INTKEYS[k]&&!(OC&&k==='pallets'));if(!pr&&OC&&NUMKEYS[k]&&isNegNum(v))pr='can\u2019t be negative';if(!pr&&!PT&&NONNEG_LINE[k]&&isNegNum(v)&&!(k==='carton_count'&&isReturned()))pr=k==='carton_count'?'can\u2019t be negative unless the status is Returned':'can\u2019t be negative';
     if(!pr&&!PT&&CARTON_WT[k]&&cartonOverMax(v,ct))pr=isBinType(ct)?'over 1 t per bin':'over 0.1 t per carton (looks like kg)';
     if(!pr&&!PT&&k==='packing_factor'&&packOverMax(v,ct))pr='over '+packMax(ct)+' t per carton (looks like kg)';return pr;}
   function lineCt(el){var ln=el&&el.closest&&el.closest('[data-line]');if(!ln)return '';var f=qa('[data-line="'+ln.getAttribute('data-line')+'"] [data-k="carton_type"]')[0];return f?f.value:'';}
@@ -1059,11 +1194,12 @@ function createInstance(host,O){
   function restoreHeader(k){fillHeaderSelects({status:k.status,client:k.client,subclient:k.subclient,pack_house_departure:k.pack_house_departure});
     KEEP_TEXT.forEach(function(id){var e=el(id);if(e)e.value=k[id]||'';});syncCtxStatus();setDirty(false);}
   function submitShip(){
+    if(OC&&!OC_WRITES){SAVE_NEW=false;showFormError(OC_PENDING+'. Nothing was saved.');return;}   /* v0.2 (Ash): no RPC, no edge function, no write */
     if(SAVING)return;
     clearFormError();TRIED=true;
-    var okC=validateField('container'),okL=validateField('ldate'),okS=PT||validateField('status');
-    var missH=[];if(!okC)missH.push('Container No.');if(!okL)missH.push(INTAKE?'Actual loading date':'Loading Date');if(!okS)missH.push('Shipping Status');
-    if(missH.length){showFormError(missH.join(', ')+(missH.length>1?' are':' is')+' required.');el(!okC?'container':!okL?'ldate':'status').focus();return;}
+    var okR=!OC||validateField('crop'),okC=validateField('container'),okL=validateField('ldate'),okS=PT||validateField('status');
+    var missH=[];if(!okR)missH.push('Crop');if(!okC)missH.push('Container No.');if(!okL)missH.push(INTAKE?'Actual loading date':'Loading Date');if(!okS)missH.push('Shipping Status');
+    if(missH.length){showFormError(missH.join(', ')+(missH.length>1?' are':' is')+' required.');el(!okR?'crop':!okC?'container':!okL?'ldate':'status').focus();return;}
     if(!PT&&el('depdiff')&&el('depdiff').checked){var dd=val('depdate'),dErr=!dd?'Departure date is required':(dd<val('ldate')?'Departure date can\'t be before the loading date':(!SV2_SEND_DEPARTURE_DATE?'Preview only: departure date can\'t be saved yet. Untick the box to save':''));
       el('depdate').classList.toggle('invalid',!!dErr);if(dErr){showFormError(dErr+'.');el('depdate').focus();return;}}
     if(INTAKE){var hb=[];[['tcartons',1,'Total cartons'],['hpascol',0,'Pascol weight']].forEach(function(x){var e=el(x[0]);if(!e)return;
@@ -1107,8 +1243,8 @@ function createInstance(host,O){
     if(INTAKE&&isCitrus()&&'pascol_weight' in hdr)lines.forEach(function(c){c.pascol_weight=hdr.pascol_weight;});
     setSaving(true);
     var call=(MODE==='edit')
-      ?sb.rpc(PT?'edit_shipment_v2_potato_full':'edit_shipment_v2_full',{p_header:hdr,p_lines:lines,p_deleted_ids:EDIT.deletedIds})
-      :sb.rpc(PT?'save_shipment_v2_potato_full':'save_shipment_v2_full',{p_header:hdr,p_lines:lines});
+      ?sb.rpc(OC?'edit_shipment_v2_othercrops_full':PT?'edit_shipment_v2_potato_full':'edit_shipment_v2_full',{p_header:hdr,p_lines:lines,p_deleted_ids:EDIT.deletedIds})
+      :sb.rpc(OC?'save_shipment_v2_othercrops_full':PT?'save_shipment_v2_potato_full':'save_shipment_v2_full',{p_header:hdr,p_lines:lines});
     Promise.resolve(call).then(function(res){
       if(dead)return;
       setSaving(false);
@@ -1156,6 +1292,7 @@ function createInstance(host,O){
     document.body.appendChild(modalEl);inp.focus();
   }
   function doDelete(cn,ld,ids){
+    if(OC&&!OC_WRITES){var er0=modalEl&&modalEl.querySelector('.sv2-delerr');if(er0)er0.textContent=OC_PENDING+'. Nothing was deleted.';return;}
     DELETING=true;
     var go=modalEl&&modalEl.querySelector('[data-m="ok"]'),er=modalEl&&modalEl.querySelector('.sv2-delerr');
     if(go){go.disabled=true;go.textContent='Deleting…';}if(er)er.textContent='';
@@ -1177,8 +1314,10 @@ function createInstance(host,O){
   function loadForEdit(container,loaded){
     var my=++formSeq;
     clearFormError();blankHeader();setDep(false);LINES=[];RAWCGW={};openRows={};LOADED_IDS=[];ROW_VERSION='';syncDelBtn();renderLines();
+    if(OC&&!OC_WRITES){showFormError(OC_PENDING+'. Saved Other crops shipments can\u2019t be opened yet.');return Promise.resolve();}
     setVoyageLock(true);showOverlay(true);
-    var getCall=PT?sb.rpc('get_shipment_v2_potato_container',{p_container:container,p_loaded:loaded})
+    var getCall=OC?sb.rpc('get_shipment_v2_othercrops_container',{p_container:container,p_loaded:loaded})
+                  :PT?sb.rpc('get_shipment_v2_potato_container',{p_container:container,p_loaded:loaded})
                   :sb.rpc('get_shipment_v2_container',{p_container:container,p_loaded:loaded,p_product:PRODUCT});
     return Promise.resolve(getCall).then(function(res){
       if(dead||my!==formSeq)return;
@@ -1193,9 +1332,9 @@ function createInstance(host,O){
         setv('container',h.container_number);setv('carta',h.carta);setv('ldate',h.loading_date);setv('vessel',h.vessel);setv('ccount',h.container_count);
         setv('client',h.client);setv('country',h.receiving_country);setv('country2',h.country2);setv('port',h.receiving_port);
         setv('invoice',h.invoice_no);setv('permit',h.permit_no);setv('workorder',h.work_order);
-        fillHeaderSelects({station:h.station,sector:h.sector,season:h.season});deriveDate();
-        LINES=lines.map(function(l){var d=newLinePT();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
-        if(!LINES.length)LINES=[newLinePT()];
+        fillHeaderSelects({station:h.station,sector:h.sector,season:h.season,crop:h.crop,vessel:h.vessel,client:h.client,receiving_port:h.receiving_port});deriveDate();
+        LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
+        if(!LINES.length)LINES=[blankLine()];
         openRows={};renderLines();setDirty(false);
         el('ftitle').textContent='Edit shipment';el('ctxref').textContent=h.container_number||container;setSeasonChip();return;
       }
@@ -1247,7 +1386,12 @@ function createInstance(host,O){
   function leaveForm(){if(!confirmLeave())return;formSeq++;setDirty(false);closeModal();MODE='list';showView('list');}
 
   /* ---------------------------------------------------------- list */
-  var FACETS=PT?[
+  var FACETS=OC?[
+    {key:'crop',label:'Crop',vals:[],match:function(c,v){return c.hdr.cropL===v;}},
+    {key:'station',label:'Packing station',vals:[],match:function(c,v){return c.hdr.stationL===v;}},
+    {key:'region',label:'Country',vals:[],match:function(c,v){return c.hdr.region===v;}},
+    {key:'grade',label:'Grade',vals:[],match:function(c,v){return c._grade.indexOf(v)>=0;}}
+  ]:PT?[
     {key:'station',label:'Packing station',vals:[],match:function(c,v){return c.hdr.station===v;}},
     {key:'sector',label:'Sector',vals:[],match:function(c,v){return c.hdr.sector===v;}},
     {key:'region',label:'Country',vals:[],match:function(c,v){return c.hdr.region===v;}},
@@ -1261,6 +1405,8 @@ function createInstance(host,O){
   function emptyF(){var f={};FACETS.forEach(function(x){f[x.key]=[];});return f;}
   ST.f=emptyF();
   function HEADS(){
+    if(OC)return [{t:'Container',s:'ref'},{t:'Crop',s:'crop'},{t:'Station',s:'station'},{t:'Client',s:'client'},{t:'Country',s:'region'},{t:'Loaded',s:'loaded'},
+      {t:'Lines',s:'lines',n:1},{t:'Pallets',s:'pal',n:1},{t:'Packs',s:'pkg',n:1,tip:'Jumbo bags + sacks + cartons + benz'},{t:'Standard t',s:'net',n:1},{t:'Grade'}];
     if(PT)return [{t:'Container',s:'ref'},{t:'Station',s:'station'},{t:'Client',s:'client'},{t:'Country',s:'region'},{t:'Loaded',s:'loaded'},
       {t:'Lines',s:'lines',n:1},{t:'Pallets',s:'pal',n:1},{t:'Packages',s:'pkg',n:1,tip:'Jumbo bags + sacks'},{t:'Standard t',s:'net',n:1},{t:'Grade'}];
     var h=[{t:'Container',s:'ref'},{t:'Client',s:'client'},{t:'Destination',s:'region'},{t:'Packing / class'},
@@ -1271,13 +1417,21 @@ function createInstance(host,O){
   var GET={ref:function(c){return c.ref;},client:function(c){return c.hdr.client||'';},region:function(c){return c.hdr.region||'';},
     loaded:function(c){return c._t;},lines:function(c){return c.lines.length;},pal:function(c){return c._pal;},ctn:function(c){return c._ctn;},
     net:function(c){return c._net;},grs:function(c){return c._grs;},vr:function(c){return c._pending?-Infinity:c._vr;},status:function(c){return c.hdr.status||'';},
-    station:function(c){return c.hdr.station||'';},pkg:function(c){return c._ctn;}};
-  var TEXTSORT={ref:1,client:1,region:1,status:1,station:1};
+    station:function(c){return OC?c.hdr.stationL||'':c.hdr.station||'';},pkg:function(c){return c._ctn;},crop:function(c){return c.hdr.cropL||'';}};
+  if(OC)GET.client=function(c){return c.hdr.clientL||'';};
+  var TEXTSORT={ref:1,client:1,region:1,status:1,station:1,crop:1};
   function deriveAll(){DATA.forEach(function(c){
     c._pal=sum(c.lines,'pal');c._ctn=sum(c.lines,'ctn');c._net=sum(c.lines,'net');c._grs=sum(c.lines,'grs');
     c._cls=uniq(c.lines.map(function(l){return l.cc;}));c._pack=uniq(c.lines.map(function(l){return packShort(l.pk);}));
     c._t=+new Date(c.hdr.loaded+'T00:00');
     c._pending=c.lines.every(function(l){return l.pas==='—'||l.pas==null||l.pas==='';});c._vr=sum(c.lines,'vr');
+    if(OC){c.hdr.cropL=ocLabel(c.hdr.crop,'crop');c.hdr.stationL=ocLabel(c.hdr.station,'packing_station');c.hdr.clientL=ocLabel(c.hdr.client,'client');
+      c.hdr.portL=ocLabel(c.hdr.port,'port');c.hdr.vesselL=ocLabel(c.hdr.vessel,'transport');
+      c.lines.forEach(function(l){l.farmL=ocLabel(l.farm,'farm');l.ptL=ocLabel(l.pt,'packing_type');});}
+    if(OC){c._grade=uniq(c.lines.map(function(l){return l.grade;}));
+      var op=[c.ref,c.hdr.crop,c.hdr.cropL,c.hdr.vesselL,c.hdr.carta,c.hdr.invoice,c.hdr.clientL,c.hdr.region,c.hdr.portL,c.hdr.stationL,c.hdr.sector,c.hdr.season];
+      c.lines.forEach(function(l){op.push(l.v,l.pivot,l.farmL,l.grade,l.ptL,l.size2,l.crop,l.brand,l.op,l.lot);});
+      c._search=op.join('  ').toLowerCase();return;}
     if(PT){c._grade=uniq(c.lines.map(function(l){return l.grade;}));
       var pp=[c.ref,c.hdr.vessel,c.hdr.carta,c.hdr.invoice,c.hdr.client,c.hdr.region,c.hdr.port,c.hdr.station,c.hdr.sector,c.hdr.season];
       c.lines.forEach(function(l){pp.push(l.v,l.pivot,l.farm,l.grade,l.ct,l.size2,l.crop,l.brand,l.op,l.lot);});
@@ -1287,6 +1441,8 @@ function createInstance(host,O){
     c._search=parts.join('  ').toLowerCase();
   });}
   function rebuildFacetVals(){
+    if(OC){FACETS[0].vals=uniq(DATA.map(function(c){return c.hdr.cropL;}));FACETS[1].vals=uniq(DATA.map(function(c){return c.hdr.stationL;}));
+      FACETS[2].vals=uniq(DATA.map(function(c){return c.hdr.region;}));FACETS[3].vals=uniq([].concat.apply([],DATA.map(function(c){return c._grade;})));return;}
     if(PT){FACETS[0].vals=uniq(DATA.map(function(c){return c.hdr.station;}));FACETS[1].vals=uniq(DATA.map(function(c){return c.hdr.sector;}));
       FACETS[2].vals=uniq(DATA.map(function(c){return c.hdr.region;}));FACETS[3].vals=uniq([].concat.apply([],DATA.map(function(c){return c._grade;})));return;}
     FACETS[0].vals=uniq([].concat.apply([],DATA.map(function(c){return c._cls;})));
@@ -1302,7 +1458,7 @@ function createInstance(host,O){
   function anyFilter(){return !!ST.q||FACETS.some(function(f){return ST.f[f.key].length>0;});}
   function hl(s){s=String(s==null?'':s);var t=(ST.q||'').trim();if(!t)return esc(s);var i=s.toLowerCase().indexOf(t);if(i<0)return esc(s);
     return esc(s.slice(0,i))+'<span class="sv2-hl">'+esc(s.slice(i,i+t.length))+'</span>'+esc(s.slice(i+t.length));}
-  var ALL_LABEL=PT?{station:'All stations',sector:'All sectors',region:'All countries',grade:'All grades'}
+  var ALL_LABEL=OC?{crop:'All crops',station:'All stations',region:'All countries',grade:'All grades'}:PT?{station:'All stations',sector:'All sectors',region:'All countries',grade:'All grades'}
                  :{cls:'All client classes',region:'All destinations',client:'All clients',status:'All statuses'};
   function renderFacets(){
     el('facets').innerHTML=FACETS.filter(function(f){return f.vals.length>1;}).map(function(f){
@@ -1323,6 +1479,14 @@ function createInstance(host,O){
   function weighChip(c){if(c._pending)return '<span class="sv2-w pend">Pending</span>';var ok=Math.abs(c._vr)<=0.5;return '<span class="sv2-w '+(ok?'ok':'off')+'">'+(c._vr>0?'+':'')+fmtT(c._vr)+' t</span>';}
   function rowHTML(c){
     var i=DATA.indexOf(c);
+    if(OC)return '<tr tabindex="0" data-act="open" data-i="'+i+'">'+
+      '<td><span class="sv2-ref">'+hl(c.ref)+'</span><span class="sv2-sub">'+hl(c.hdr.vesselL||'')+(c.hdr.carta?' · '+hl(c.hdr.carta):'')+'</span></td>'+
+      '<td>'+hl(c.hdr.cropL||'—')+'</td>'+
+      '<td>'+hl(c.hdr.stationL||'—')+'<span class="sv2-sub">'+hl(c.hdr.sector||'')+(c.hdr.season?' · '+hl(c.hdr.season):'')+'</span></td>'+
+      '<td>'+hl(c.hdr.clientL||'—')+'</td><td>'+hl(c.hdr.region||'—')+'<span class="sv2-sub">'+hl(c.hdr.portL||'')+'</span></td>'+
+      '<td>'+fmtDate(c.hdr.loaded)+'</td><td class="num">'+c.lines.length+'</td><td class="num">'+(Math.round(c._pal*1000)/1000).toLocaleString()+'</td>'+
+      '<td class="num">'+c._ctn.toLocaleString()+'</td><td class="num">'+fmtT(c._net)+'</td>'+
+      '<td><div class="sv2-tags">'+c._grade.map(function(g){return '<span class="sv2-tg">'+hl(g)+'</span>';}).join('')+'</div></td></tr>';
     if(PT)return '<tr tabindex="0" data-act="open" data-i="'+i+'">'+
       '<td><span class="sv2-ref">'+hl(c.ref)+'</span><span class="sv2-sub">'+hl(c.hdr.vessel||'')+(c.hdr.carta?' · '+hl(c.hdr.carta):'')+'</span></td>'+
       '<td>'+hl(c.hdr.station||'—')+'<span class="sv2-sub">'+hl(c.hdr.sector||'')+(c.hdr.season?' · '+hl(c.hdr.season):'')+'</span></td>'+
@@ -1344,6 +1508,10 @@ function createInstance(host,O){
   }
   function cardHTML(c){
     var i=DATA.indexOf(c);
+    if(OC)return '<div class="sv2-card" tabindex="0" role="button" data-act="open" data-i="'+i+'">'+
+      '<div class="t"><span class="sv2-ref">'+hl(c.ref)+'</span><span class="sv2-sub">'+hl(c.hdr.cropL||'')+'</span></div>'+
+      '<div><b>'+hl(c.hdr.clientL||'—')+'</b> · '+hl(c.hdr.region||c.hdr.portL||'—')+'</div>'+
+      '<div class="sv2-sub">Loaded '+fmtDate(c.hdr.loaded)+' · '+(Math.round(c._pal*1000)/1000)+' plt · '+c._ctn.toLocaleString()+' packs · '+fmtT(c._net)+' t</div></div>';
     if(PT)return '<div class="sv2-card" tabindex="0" role="button" data-act="open" data-i="'+i+'">'+
       '<div class="t"><span class="sv2-ref">'+hl(c.ref)+'</span><span class="sv2-sub">'+hl(c.hdr.station||'')+'</span></div>'+
       '<div><b>'+hl(c.hdr.client||'—')+'</b> · '+hl(c.hdr.region||c.hdr.port||'—')+'</div>'+
@@ -1375,7 +1543,7 @@ function createInstance(host,O){
   }
   function setListBanner(err){
     var b=el('banner');if(!b)return;
-    if(!err){b.className='sv2-banner';b.innerHTML='<span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+snapNote()+'</span>';return;}
+    if(!err){b.className='sv2-banner';b.removeAttribute('role');b.innerHTML=bannerInner();return;}
     b.className='sv2-banner err';b.setAttribute('role','alert');
     b.innerHTML='<span aria-hidden="true">!</span><span style="flex:1">'+esc(err)+'</span><button type="button" class="sv2-btn sec sm" data-act="reloadList">Retry</button>';
   }
@@ -1385,6 +1553,7 @@ function createInstance(host,O){
     var path='citrus-shipments?product='+encodeURIComponent(PRODUCT)+(SEASON?'&season='+encodeURIComponent(SEASON):'');
     return Promise.resolve(sb.functions.invoke(path,{method:'GET'})).then(function(res){
       if(dead||my!==listSeq)return;
+      if(res.error&&OC){DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='No Other crops shipments yet. '+OC_PENDING+'.';return;}
       if(res.error){
         var st=res.error.context&&res.error.context.status;
         var msg=st===401?'Your session expired. Reload the page and sign in to DalOS.':st===403?'You don’t have access to '+PRODUCT_NAME.toLowerCase()+' shipments.':'Shipments didn’t load. Check the connection and try again.';
@@ -1392,8 +1561,21 @@ function createInstance(host,O){
       }
       var d=res.data||{};DATA=(d.containers||[]).slice();
       deriveAll();rebuildFacetVals();renderList();if(PT)ptFillDatalists();
-    },function(){if(dead||my!==listSeq)return;setListBanner('Shipments didn’t load. Check the connection and try again.');el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='';});
+    },function(){if(dead||my!==listSeq)return;if(OC){DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='No Other crops shipments yet. '+OC_PENDING+'.';return;}setListBanner('Shipments didn’t load. Check the connection and try again.');el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='';});
   }
+
+  /* ---------------------------------------------------------- CSV export (Other crops): the shown shipments, one row per line */
+  function ocCsvRows(){var rows=[['Container','Loading date','Crop','Packing station','Sector','Client','Country','Shipping port','Vessel','Carta',
+      'Variety','Pivot','Farm','Grade','Packaging','Pallets','Jumbo #','Sack #','Cartons #','Benz #','Standard t']];
+    sortRows(filtered()).forEach(function(c){c.lines.forEach(function(l){rows.push([c.ref,c.hdr.loaded,c.hdr.cropL,c.hdr.stationL,c.hdr.sector,c.hdr.clientL,c.hdr.region,c.hdr.portL,c.hdr.vesselL,c.hdr.carta,
+      l.v,l.pivot,l.farmL,l.grade,l.ptL,l.pal,l.jumboN,l.sackN,l.cartonsN,l.benzN,l.net]);});});
+    return rows;}
+  function ocCsv(){var txt=csvText(ocCsvRows());
+    var name='other-crops-shipments-'+(SEASON_NAME||'season').replace(/[^0-9A-Za-z]+/g,'-')+'.csv';
+    try{var b=new Blob([txt],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);toast('CSV downloaded');}catch(e){showFormError('The CSV could not be made in this browser.');}}
+  function ocConfig(){if(!window.SV2Ref)return;window.SV2Ref.openPanel({sb:sb,onClose:function(){if(dead)return;
+    loadRefs().then(function(){if(dead)return;if(MODE==='list'){if(DATA.length){deriveAll();rebuildFacetVals();renderList();}}},function(){});}});}
 
   /* ---------------------------------------------------------- one delegated handler per event type */
   var searchT=null;
@@ -1402,6 +1584,8 @@ function createInstance(host,O){
     var a=t.getAttribute('data-act'),i=+t.getAttribute('data-i');
     switch(a){
       case 'openCreate':openCreate();break;
+      case 'ocCsv':if(OC)ocCsv();break;
+      case 'ocConfig':if(OC)ocConfig();break;
       case 'open':openContainer(i);break;
       case 'leave':leaveForm();break;
       case 'save':SAVE_NEW=false;submitShip();break;
@@ -1416,7 +1600,7 @@ function createInstance(host,O){
       case 'resetAll':ST.q='';ST.f=emptyF();ST.limit=RENDER_STEP;el('q').value='';el('searchwrap').classList.remove('has');renderList();break;
       case 'showMore':ST.limit+=RENDER_STEP;renderList();break;
       case 'sort':{var sk=t.getAttribute('data-sk');if(ST.sortKey===sk)ST.dir=ST.dir==='asc'?'desc':'asc';else{ST.sortKey=sk;ST.dir=TEXTSORT[sk]?'asc':'desc';}renderList();break;}
-      case 'toggleLine':syncLines();openRows[i]=!openRows[i];renderLines();break;
+      case 'toggleLine':syncLines();if(OC&&isNarrow()&&!openRows[i])openRows={};openRows[i]=!openRows[i];renderLines();break;
       case 'rmLine':{syncLines();var d=LINES[i];if(!d)break;
         /* a stored line is deleted on the server when the shipment is saved: ask first */
         if(d.id&&!window.confirm('Remove line '+(i+1)+'? It is deleted from this shipment when you save.'))break;
@@ -1424,14 +1608,14 @@ function createInstance(host,O){
         var no={};Object.keys(openRows).forEach(function(k){k=+k;if(k<i)no[k]=openRows[k];else if(k>i)no[k-1]=openRows[k];});openRows=no;renderLines();setDirty(true);
         undoToast('Line '+(i+1)+' removed',function(){syncLines();var ix=Math.min(i,LINES.length);LINES.splice(ix,0,d);
           if(d.id){var di=EDIT.deletedIds.indexOf(d.id);if(di>=0)EDIT.deletedIds.splice(di,1);}
-          var nr={};Object.keys(openRows).forEach(function(k){k=+k;nr[k>=ix?k+1:k]=openRows[k];});nr[ix]=true;openRows=nr;PAS_LIVE=true;renderLines();setDirty(true);});
+          var nr={};if(!(OC&&isNarrow()))Object.keys(openRows).forEach(function(k){k=+k;nr[k>=ix?k+1:k]=openRows[k];});nr[ix]=true;openRows=nr;PAS_LIVE=true;renderLines();setDirty(true);});
         break;}
-      case 'addLine':syncLines();LINES.push(blankLine());openRows[LINES.length-1]=PT?isNarrow():true;renderLines();setDirty(true);break;
+      case 'addLine':syncLines();LINES.push(blankLine());if(OC&&isNarrow())openRows={};openRows[LINES.length-1]=PT?isNarrow():true;renderLines();setDirty(true);break;
       case 'dupLast':{syncLines();PAS_LIVE=true;var last=LINES[LINES.length-1];var c=last?Object.assign({},last):blankLine();c.id=null;
         /* same pack, new lot: the fields that differ from line to line start empty */
-        (PT?['lot','pallets','jumbo_count','sack_count','standard_weight','pascol_weight']
+        (PT?['lot','pallets','jumbo_count','sack_count','cartons_count','benz_count','standard_weight','pascol_weight']
            :['lot','traceability_code','pallet_count','carton_count','net_weight','gross_weight','pascol_pct','packing_weight','pascol_net','weight_variance']).forEach(function(k){if(k in c)c[k]='';});
-        LINES.push(c);var ni=LINES.length-1;openRows[ni]=PT?isNarrow():true;renderLines();setDirty(true);
+        LINES.push(c);var ni=LINES.length-1;if(OC&&isNarrow())openRows={};openRows[ni]=PT?isNarrow():true;renderLines();setDirty(true);
         var nf=q('[data-line="'+ni+'"] [data-k="'+(PT?'pallets':'pallet_count')+'"]');if(nf)nf.focus();break;}
     }
   }
@@ -1496,7 +1680,7 @@ function createInstance(host,O){
   if(!sb){setListBanner('Not connected. Reload the page and sign in to DalOS.');}
   else{
     loadList();
-    loadRefs().then(function(){if(dead)return;fillHeaderSelects({status:''});renderLines();attachLists();},
+    loadRefs().then(function(){if(dead)return;fillHeaderSelects({status:''});renderLines();attachLists();if(OC&&DATA.length){deriveAll();rebuildFacetVals();renderList();}},
       function(){if(dead)return;showFormError('Lists for this form didn’t load (clients, varieties). Reload to try again.');fillHeaderSelects({status:''});attachLists();});
   }
 
@@ -1519,7 +1703,10 @@ function createInstance(host,O){
   return {api:api,unmount:api.unmount};
 }
 
-window.ShipV2={mount:mount,version:'2026-11-16',
+/* CSV text for Excel: UTF-8 BOM, CRLF, every cell quoted; a text cell starting with = + - @ gets a leading ' (no formulas) */
+function csvCell(v){if(v==null)return '""';var s=String(v);if(typeof v!=='number'&&/^[=+\-@\t\r]/.test(s)&&!/^-?\d+(\.\d+)?$/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
+function csvText(rows){return '\ufeff'+rows.map(function(r){return r.map(csvCell).join(',');}).join('\r\n')+'\r\n';}
+window.ShipV2={mount:mount,version:'2026-11-23',otherCropsEnabled:otherCropsEnabled,newLineOC:newLineOC,csvText:csvText,asciiDigits:asciiDigits,numProblem:numProblem,PACK_BULK_SET:function(m){PACK_BULK=m||{};},
   intakeFieldsEnabled:intakeFieldsEnabled,isStaleErr:isStaleErr,isNegNum:isNegNum,lineNegWeight:lineNegWeight,NEG_WT_MSG:NEG_WT_MSG,isBinType:isBinType,cartonOverMax:cartonOverMax,cartonMaxMsg:cartonMaxMsg,NONNEG_LINE:NONNEG_LINE,INTAKE_WARN:INTAKE_WARN,
   intakeBlank:intakeBlank,intakeMul:intakeMul,intakeLineNetT:intakeLineNetT,intakeLineGrossT:intakeLineGrossT,
   intakeContainerShare:intakeContainerShare,intakePascolActual:intakePascolActual,intakePackingWeight:intakePackingWeight,

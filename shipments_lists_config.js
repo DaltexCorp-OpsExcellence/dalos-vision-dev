@@ -18,6 +18,8 @@ var GROUPS=[
   {t:'Spelling',keys:['@aliases']},
   {t:'JDE',keys:['@jde']}
 ];
+/* 2026-11-23: Other crops lists (ref_options, codes + Arabic/English labels, RPC writes only) live on this same page; shipments_ref_options.js draws them */
+if(window.SV2Ref&&typeof window.SV2Ref.mountEditor==='function')GROUPS.push({t:'Other crops',keys:['@oc']});
 var PRODUCTS=[['citrus','Citrus'],['grapes','Grapes'],['mango','Mango'],['pomegranate','Pomegranate']];
 var PNAME={citrus:'Citrus',grapes:'Grapes',mango:'Mango',pomegranate:'Pomegranate',potatoes:'Potatoes'};
 var CSS=[
@@ -76,7 +78,7 @@ function mount(body,ctx){
     GROUPS.forEach(function(g){
       var box=mk('div');box.appendChild(mk('div','sv2c-gt',g.t));var chips=mk('div','sv2c-chips');
       g.keys.forEach(function(k){
-        var c=mk('button','sv2c-chip',k==='@aliases'?'Spelling matches':k==='@jde'?'JDE codes (citrus)':(L[k]||k));c.type='button';
+        var c=mk('button','sv2c-chip',k==='@aliases'?'Spelling matches':k==='@jde'?'JDE codes (citrus)':k==='@oc'?'Other crops lists':(L[k]||k));c.type='button';
         c.setAttribute('aria-pressed',st.key===k?'true':'false');
         c.addEventListener('click',function(){st.key=k;st.editing=null;st.msg=null;st.q='';drawGroups();load();});
         chips.appendChild(c);
@@ -94,6 +96,7 @@ function mount(body,ctx){
     clear(card);card.appendChild(mk('div','sv2c-count','Loading…'));
     if(st.key==='raw_source'){loadFarms();return;}
     if(st.key==='@jde'){loadJde();return;}
+    if(st.key==='@oc'){clear(card);window.SV2Ref.mountEditor(card,{sb:sb});return;}
     var p=st.key==='@aliases'
       ?sb.from('shipment_list_aliases').select('id,list_key,product_id,alias,canonical,note,active').order('list_key').order('alias')
       :sb.from('shipment_list_values').select('id,list_key,product_id,value,label,sort_order,active').eq('list_key',st.key).order('product_id').order('sort_order').order('value');

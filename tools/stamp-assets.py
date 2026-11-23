@@ -26,7 +26,7 @@ for f in ('vision.js', 'pivots.js'):
     out = re.sub(pat, r'\g<1>' + h + r'\g<2>', out)
 # Optional managed-lists files: stamped only when the file exists AND index.html has its <script src="...?v="> tag.
 stamped = []
-for f in ('shipments_lists.js', 'shipments_lists_config.js', 'shipments_lists_queue.js'):
+for f in ('shipments_lists.js', 'shipments_lists_config.js', 'shipments_lists_queue.js', 'shipments_ref_options.js'):
     pat = r'(src="' + re.escape(f) + r'\?v=)[^"]*(")'
     if not os.path.isfile(f) or not re.search(pat, out):
         continue

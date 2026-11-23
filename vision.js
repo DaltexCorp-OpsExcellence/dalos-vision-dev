@@ -14399,12 +14399,17 @@ function CqcPreviewModal(props){
 /* Shipments "Manage" — the entry sandbox on public.shipments_v2 lives in shipments_v2.js
    (window.ShipV2), loaded on first use so nobody else pays for it. It uses this app's own
    supabase client and registers visionCrumbGuard so leaving with unsaved changes asks first. */
+/* Other crops (Vera 2026-11-23): flag-gated Shipments product. ON only when index.html sets SV2_OTHER_CROPS_ENABLED=true AND this is
+   the staging host (VISION_IS_DEV); the prod address resolves OFF. Same check as shipments_v2.js.
+   The products row is inactive (active=false) until a separate yes, so config.products never lists it: it is added here. */
+var OC_PRODUCT={id:'other_crops',name:'Other crops',color:'#b5651d',active:true};
+function otherCropsOn(){return window.SV2_OTHER_CROPS_ENABLED===true&&window.VISION_IS_DEV===true;}
 var _shipV2Load=null;
 function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?v=e1791b230f';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
+    s.src='shipments_v2.js?v=a9638eef6a';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});
@@ -14419,7 +14424,8 @@ function ShipV2Host(props){
     loadShipV2().then(function(SV){
       if(!alive||!ref.current)return;
       api.current=SV.mount(ref.current,{sb:supabase,product:props.product,productName:props.productName,productColor:props.productColor,
-        seasonId:props.seasonId,seasonName:props.seasonName,trueActiveSeasonId:props.trueActiveSeasonId,trueActiveSeasonName:props.trueActiveSeasonName});
+        seasonId:props.seasonId,seasonName:props.seasonName,trueActiveSeasonId:props.trueActiveSeasonId,trueActiveSeasonName:props.trueActiveSeasonName,
+        canConfigure:!!props.canConfigure});
       if(props.apiRef)props.apiRef.current=api.current;
     },function(e){if(alive)setErr((e&&e.message)||'Could not load the Manage tool.');});
     var g=function(){return !api.current||api.current.confirmLeave();};visionCrumbGuard=g;
@@ -14463,8 +14469,8 @@ function ShipmentsMgmt(props){
   var sAggMode=useState(true); var aggMode=sAggMode[0]; var setAggMode=sAggMode[1];
   /* Manage = shipment entry sandbox (shipments_v2.js), editors only; never writes public.shipments */
   /* only products the entry tool supports (orchards + potatoes); Berries/Olives have no form yet */
-  var shipPT=selProd==='potatoes';
-  var canManage=!!(props.perms&&props.perms.editShipments)&&['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0;
+  var shipPT=selProd==='potatoes'||selProd==='other_crops';   /* Other crops shows the Pivots columns */
+  var canManage=!!(props.perms&&props.perms.editShipments)&&(['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0||(selProd==='other_crops'&&otherCropsOn()));
   var sManage=useState(false); var manage=sManage[0]&&canManage; var setManage=sManage[1];
   var shipV2Api=React.useRef(null);
   function leaveManageOk(){var a=shipV2Api.current;return !manage||!a||a.confirmLeave();}
@@ -14736,6 +14742,7 @@ function ShipmentsMgmt(props){
   /* ── Hero product selector ── */
   if(!selProd){
     var prodList=(config.products||[]).filter(function(p){return p.active!==false;});
+    if(otherCropsOn()&&!prodList.some(function(p){return p.id==='other_crops';}))prodList=prodList.concat([OC_PRODUCT]);   /* Shipments only */
     var greeting=(function(){var h=new Date().getHours();return h<12?'Good morning':h<18?'Good afternoon':'Good evening';})();
     var firstName=currentUser.name?currentUser.name.split(' ')[0]:'';
     return ce('div',{className:'landing',style:{paddingTop:0}},
@@ -14873,7 +14880,7 @@ function ShipmentsMgmt(props){
   var filteredRows=shipments.filter(matchesFilters);
   var filteredContainers=containers.filter(containerMatchesFilters);
 
-  var selProdObj=(config.products||[]).find(function(p){return p.id===selProd;})||{name:selProd,color:'var(--accent)'};
+  var selProdObj=(config.products||[]).find(function(p){return p.id===selProd;})||(selProd==='other_crops'?OC_PRODUCT:{name:selProd,color:'var(--accent)'});
   var totalClaims=grades.filter(function(g){return g.has_claim;}).length;
   var totalGraded=grades.filter(function(g){return g.grade;}).length;
 
@@ -15169,7 +15176,8 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       /* Table — or the Manage sandbox */
       manage?ce(ShipV2Host,{apiRef:shipV2Api,product:selProd,productName:selProdObj.name,productColor:selProdObj.color,
         seasonId:config.activeSeasonId,seasonName:((config.seasons||[]).find(function(x){return x.id===config.activeSeasonId;})||{}).name||'',
-        trueActiveSeasonId:config.trueActiveSeasonId,trueActiveSeasonName:((config.seasons||[]).find(function(x){return x.id===config.trueActiveSeasonId;})||{}).name||''}):
+        trueActiveSeasonId:config.trueActiveSeasonId,trueActiveSeasonName:((config.seasons||[]).find(function(x){return x.id===config.trueActiveSeasonId;})||{}).name||'',
+        canConfigure:currentUser.role==='admin'}):
       shipErr&&!loading?ce(VisionLoadError,{title:'Shipments didn\u2019t load',detail:shipErr,pad:60,onRetry:function(){setShipTick(function(t){return t+1;});}}):
       loading?ce(VisionLoader,{pad:60}):
       aggMode
