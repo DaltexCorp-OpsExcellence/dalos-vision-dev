@@ -745,7 +745,9 @@ function createInstance(host,O){
   }
   function fillAllDatalists(){var o=REF.ref||{};
     fillDatalist('sv2-dl-line',o.lines);fillDatalist('sv2-dl-depport',o.dep_ports);fillDatalist('sv2-dl-country',o.countries);
-    fillDatalist('sv2-dl-port',o.rec_ports);fillDatalist('sv2-dl-agent',o.agents);fillDatalist('sv2-dl-shipper',o.shippers);
+    /* 2026-11-25: with the managed lists on, Receiving Port / Shipper get no raw all-products suggestions (shipments_lists.js shows the list) */
+    var lon=!!(window.SV2Lists&&typeof window.SV2Lists.enabled==='function'&&window.SV2Lists.enabled());
+    fillDatalist('sv2-dl-port',lon?[]:o.rec_ports);fillDatalist('sv2-dl-agent',o.agents);fillDatalist('sv2-dl-shipper',lon?[]:o.shippers);
     fillDatalist('sv2-dl-source',o.source_types);fillDatalist('sv2-dl-rawsource',o.raw_sources);}
   function catNames(){return REF.cats.map(function(c){return c.name;});}
   function varsFor(catName){
@@ -1405,7 +1407,7 @@ function createInstance(host,O){
       setv('vessel',h.vessel);setv('line',h.shipping_line);setv('booking',h.booking_no);setv('invoice',h.invoice_no);
       setv('po',h.po_number);setv('etd',h.etd);setv('eta',h.eta);setv('arrival',h.arrival_date);
       setv('depport',h.departure_port);setv('country',h.receiving_country);setv('port',h.receiving_port);
-      setv('agent',h.agent);setv('shipper',h.shipper);
+      setv('agent',h.agent);setv('shipper',h.shipper);if(LISTS&&LISTS.marks)LISTS.marks();
       setDep(!!h.departure_date&&h.departure_date!==h.loading_date,h.departure_date);
       fillHeaderSelects({status:h.shipping_status,client:h.client,subclient:h.subclient,pack_house_departure:h.pack_house_departure});
       deriveDate();syncCtxStatus();
@@ -1440,7 +1442,7 @@ function createInstance(host,O){
   }
   function openCreate(){
     formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;LOADED_IDS=[];ROW_VERSION='';syncDelBtn();
-    blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();
+    blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();if(LISTS&&LISTS.marks)LISTS.marks();
     PAS_LIVE=true;TRIED=false;LINES=[blankLine()];RAWCGW={};openRows={0:PT?isNarrow():true};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);
     el('ftitle').textContent='New shipment';el('ctxref').textContent='New';setSeasonChip();

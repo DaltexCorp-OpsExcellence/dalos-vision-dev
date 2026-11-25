@@ -62,6 +62,7 @@ var CSS=[
 '.sv2l-ph{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border,#e2e2dc)}',
 '.sv2l-ph h2{font:600 18px var(--font-display,inherit);margin:0;flex:1}',
 '.sv2l-pb{padding:14px 18px;overflow:auto;display:grid;gap:12px}',
+'.sv2l-offm{display:inline-block;margin-top:3px;font-size:11px;line-height:1.3;color:var(--amber,#9a6700);background:var(--amber-bg,#fff4d6);border-radius:4px;padding:1px 6px}',
 '.sv2l-x{border:1px solid var(--border2,#ccd);background:var(--card,#fff);border-radius:8px;min-width:36px;min-height:36px;cursor:pointer;font-size:15px}',
 '@media (max-width:700px){.sv2l-scr{padding:0}.sv2l-panel{border-radius:0;max-height:100vh;min-height:100vh}}'
 ].join('\n');
@@ -77,13 +78,16 @@ function injectCss(){if(cssDone)return;cssDone=true;var st=document.createElemen
 /* ---------------------------------------------------------------- data */
 function loadAll(sb,product){
   function q(p){return Promise.resolve(p).then(function(r){if(!r||r.error)throw (r&&r.error)||new Error('read failed');return r.data;});}
+  /* 2026-11-25: only the list values are required. Any other read that fails counts as empty (no rights, no spelling
+     matches, no countries / classes / farms) instead of switching every list off. */
+  function soft(p){try{return q(p).then(function(d){return d;},function(){return null;});}catch(_e){return Promise.resolve(null);}}
   return Promise.all([
-    q(sb.rpc('get_shipment_list_rights')),
+    soft(sb.rpc('get_shipment_list_rights')),
     q(sb.from('shipment_list_values').select('list_key,value,label,sort_order').eq('product_id',product).eq('active',true).order('sort_order').order('value')),
-    q(sb.from('shipment_list_aliases').select('list_key,product_id,alias,canonical').eq('active',true)),
-    q(sb.from('countries').select('name').eq('active',true).order('name')),
-    q(sb.from('classes').select('name').eq('active',true).order('name')),
-    q(sb.from('farms').select('name,raw_names').eq('active',true).order('name'))
+    soft(sb.from('shipment_list_aliases').select('list_key,product_id,alias,canonical').eq('active',true)),
+    soft(sb.from('countries').select('name').eq('active',true).order('name')),
+    soft(sb.from('classes').select('name').eq('active',true).order('name')),
+    soft(sb.from('farms').select('name,raw_names').eq('active',true).order('name'))
   ]).then(function(r){
     var rights=r[0]||{},lists={},aliases={},labels={};
     (r[1]||[]).forEach(function(x){(lists[x.list_key]=lists[x.list_key]||[]).push(x.value);
@@ -264,33 +268,55 @@ function attach(host,opts){
     catch(err){clear(body);body.appendChild(mk('div','sv2-banner err','This screen could not open. Reload and try again.'));}
   }
 
+  /* 2026-11-25: a saved Receiving Port / Shipper that is not in this product's list (case-insensitive) gets a small
+     'not in list' mark next to the field. The value itself is never changed; it is saved exactly as it is. */
+  var MARK_KEYS={receiving_port:1,shipper:1};
+  function marks(){
+    if(dead)return;
+    FIELDS.forEach(function(f){
+      if(!f.hdr||!MARK_KEYS[f.key])return;var inp=host.querySelector('#sv2-'+f.hdr);if(!inp||!inp.parentNode)return;
+      var v=low(inp.value),l=listOf(f.key),off=!!(D&&v&&l.length&&!l.some(function(x){return low(x)===v;}));
+      var m=inp.parentNode.querySelector('.sv2l-offm[data-for="'+f.hdr+'"]');
+      if(off&&!m){m=mk('span','sv2l-offm','not in list');m.setAttribute('data-for',f.hdr);m.title='This value is not in the list. It is kept and saved as it is.';inp.parentNode.appendChild(m);}
+      if(!off&&m)m.remove();
+      inp.classList.toggle('sv2l-off',off);
+    });
+  }
+  function onChangeMark(e){var f=fieldFor(e.target);if(f&&f.hdr&&MARK_KEYS[f.key])marks();}
+
   var loadedAt=Date.now();
   /* dropdown arrow on every field that has a list (CSS keyed on the host class; keys with no list for this product get none) */
   function markHost(){
     host.classList.add('sv2l-on');
     FIELDS.forEach(function(f){host.classList.toggle('sv2l-no-'+f.key,!listOf(f.key).length&&!(D&&D.aliases[f.key]));});
   }
-  function reload(){loadedAt=Date.now();return loadAll(sb,product).then(function(d){if(dead)return;D=d;markHost();if(cur)render();},function(){});}
+  function reload(){loadedAt=Date.now();return loadAll(sb,product).then(function(d){if(dead)return;D=d;markHost();marks();if(cur)render();},function(){});}
   /* lists approved/edited in another tab or by another admin: re-read when the user comes back to this tab (at most every 30 s) */
   function onReturn(){if(dead||!D||document.visibilityState!=='visible'||Date.now()-loadedAt<30000)return;reload();}
   document.addEventListener('visibilitychange',onReturn);window.addEventListener('focus',onReturn);
   host.addEventListener('focusin',onFocusIn);host.addEventListener('focusout',onFocusOut);
   host.addEventListener('input',onInput);host.addEventListener('keydown',onKey,true);
+  host.addEventListener('change',onChangeMark);host.addEventListener('focusout',onChangeMark);
   window.addEventListener('scroll',onScroll,true);window.addEventListener('resize',onScroll);
 
   var ready=loadAll(sb,product).then(function(d){
-    if(dead)return;D=d;loadedAt=Date.now();buildPop();addToolbar();markHost();
+    if(dead)return;D=d;loadedAt=Date.now();buildPop();addToolbar();markHost();marks();
+    /* 2026-11-25: a list field that got focus while the lists were loading opens its dropdown now */
+    var a=document.activeElement,af=a&&host.contains(a)?fieldFor(a):null;if(af)open(a,af);
   },function(err){
     D=null;   /* fail closed: tables/RPC missing or no access -> today's form, untouched */
     try{console.info('[SV2Lists] managed lists unavailable; form keeps text fields',err&&err.code?err.code:'');}catch(_e){}
   });
 
   return {
-    active:true,ready:ready,reload:reload,openScreen:openScreen,
+    active:true,ready:ready,reload:reload,openScreen:openScreen,marks:marks,
     detach:function(){
       dead=true;close();closeScreen();
       host.removeEventListener('focusin',onFocusIn);host.removeEventListener('focusout',onFocusOut);
       host.removeEventListener('input',onInput);host.removeEventListener('keydown',onKey,true);
+      host.removeEventListener('change',onChangeMark);host.removeEventListener('focusout',onChangeMark);
+      Array.prototype.forEach.call(host.querySelectorAll('.sv2l-offm'),function(m){m.remove();});
+      Array.prototype.forEach.call(host.querySelectorAll('.sv2l-off'),function(i){i.classList.remove('sv2l-off');});
       window.removeEventListener('scroll',onScroll,true);window.removeEventListener('resize',onScroll);
       document.removeEventListener('visibilitychange',onReturn);window.removeEventListener('focus',onReturn);
       tbBtns.forEach(function(w){w.remove();});tbBtns=[];
