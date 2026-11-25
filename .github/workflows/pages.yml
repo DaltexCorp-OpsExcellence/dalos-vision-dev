@@ -14,11 +14,10 @@ concurrency:
   group: pages
   cancel-in-progress: false
 jobs:
-  deploy:
+  # Upload and deploy are separate jobs: in one job deploy-pages can list artifacts before the upload is visible
+  # ("No artifacts named github-pages", actions/deploy-pages#451). Same steps as before, only split.
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Stamp script versions (vision.js / pivots.js ?v=<content hash>)
@@ -34,5 +33,12 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v4
