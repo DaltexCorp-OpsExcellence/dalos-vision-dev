@@ -640,6 +640,15 @@ function createInstance(host,O){
   function ocSetRefs(rows){var bl={},bc={};PACK_BULK={};
     (rows||[]).forEach(function(o){(bl[o.list_key]=bl[o.list_key]||[]).push(o);bc[o.code]=o;if(o.list_key==='packing_type')PACK_BULK[o.code]=!!o.is_bulk;});
     REF.oc={byList:bl,byCode:bc};}
+  /* sv2dd (Claudia 2026-11-25, Tarek "goo all"): Other crops' own lists for the 11 fields that borrowed the potato lists.
+     ref_options keys sector, season, country, pivot, grade, size, crop_type, brand, colour (jumbo + sack), operation, condition.
+     Saved value = the option's Arabic label (free text on the server, as before). A key with no active option (DB step not
+     applied yet) keeps the potato list, so nothing changes until then. */
+  var OC_PT_KEYS={sectors:'sector',cropSeasons:'season',countries:'country',pivots:'pivot',grades:'grade',size2:'size',cropTypes:'crop_type',brands:'brand',colours:'colour',ops:'operation',conditions:'condition'};
+  function ocLists(){var out={},k;for(k in PT_LISTS)out[k]=PT_LISTS[k];
+    var bl=(REF.oc&&REF.oc.byList)||{};
+    Object.keys(OC_PT_KEYS).forEach(function(pk){var arr=(bl[OC_PT_KEYS[pk]]||[]).filter(function(o){return o.active&&o.label_ar;}).map(function(o){return o.label_ar;});if(arr.length)out[pk]=arr;});
+    return out;}
   /* v0.2 P3 (Pixel): one pattern for every list, as on the Potatoes screen: the option's own (sheet) label, no mixed 'English · Arabic' */
   function ocText(o,list){if(!o)return '';return o.label_ar||o.code;}
   /* follow-ups P3 (Pixel): in the form, Crop / Packing Station / Shipping Port options read 'English · Arabic' (one label when
@@ -689,7 +698,7 @@ function createInstance(host,O){
   }
   /* potato suggestions = the sheet's defaults + whatever is already in this product's list */
   function ptFillDatalists(){
-    var L=PT_LISTS,hd=function(k){return DATA.map(function(c){return c.hdr[k];});},ln=function(k){return [].concat.apply([],DATA.map(function(c){return c.lines.map(function(l){return l[k];});}));};
+    var L=OC?ocLists():PT_LISTS,hd=function(k){return DATA.map(function(c){return c.hdr[k];});},ln=function(k){return [].concat.apply([],DATA.map(function(c){return c.lines.map(function(l){return l[k];});}));};
     fillDatalist('sv2-dl-client',L.clients.concat(hd('client')));fillDatalist('sv2-dl-country',L.countries.concat(hd('region'),hd('country2')));
     fillDatalist('sv2-dl-port',L.ports.concat(hd('port')));fillDatalist('sv2-dl-pivot',L.pivots.concat(ln('pivot')));fillDatalist('sv2-dl-farm',L.farms.concat(ln('farm')));
     if(OC)fillDatalist('sv2-dl-variety',varNames().concat(ln('v')));
@@ -711,7 +720,7 @@ function createInstance(host,O){
     if(!('status' in cur))cur.status='';
     if(OC){fillOc('crop','crop',cur.crop);fillOc('station','packing_station',cur.station);fillOc('vessel','transport',cur.vessel);
       fillOc('client','client',cur.client);fillOc('port','port',cur.receiving_port);
-      fillSelect('sector',PT_LISTS.sectors,cur.sector||'');fillSelect('pseason',PT_LISTS.cropSeasons,cur.season||'');return;}
+      var OL=ocLists();fillSelect('sector',OL.sectors,cur.sector||'');fillSelect('pseason',OL.cropSeasons,cur.season||'');return;}
     if(PT){fillSelect('station',PT_LISTS.stations,cur.station||'');fillSelect('sector',PT_LISTS.sectors,cur.sector||'');fillSelect('pseason',PT_LISTS.cropSeasons,cur.season||'');return;}
     fillSelect('status',STATUS_OPTS,cur.status||'');
     fillSelect('client',REF.clients,cur.client||'');
@@ -837,8 +846,8 @@ function createInstance(host,O){
   function varNames(){return REF.vars.map(function(v){return v.name;});}
   function ptHeadHTML(){return '<tr><th></th><th>#</th><th>Variety</th><th>Pivot</th><th>Farm</th><th>Grade</th><th>Packaging</th><th class="num">Pallets</th><th class="num">Jumbo #</th><th class="num">Sack #</th><th class="num">Std wt t</th><th class="num">Pascol t</th><th></th></tr>';}
   function dl(lab,inner){return '<div><div class="sv2-dlab">'+lab+'</div>'+inner+'</div>';}
-  function ptDetail(d){
-    var L=PT_LISTS;
+  function ptDetail(d,L){
+    L=L||PT_LISTS;
     return dl(ar('Lot No','رقم اللوط'),cin(d.lot,'lot','mono'))+dl(ar('Size 1','الحجم1'),cin(d.size1,'size1'))+
       dl(ar('Size 2','الحجم2'),csel(L.size2,d.size2,'size2'))+dl(ar('Crop type','محصول'),csel(L.cropTypes,d.crop_type,'crop_type'))+
       dl(ar('Package weight','وزن العبوه'),cin(d.package_weight,'package_weight','num'))+dl(ar('Pack size','عبوه1'),cin(d.pack_size,'pack_size','num'))+
@@ -883,7 +892,7 @@ function createInstance(host,O){
   function ocHeadHTML(){return '<tr><th></th><th>#</th><th class="oc-var">Variety</th><th>Pivot</th><th>Farm</th><th>Grade</th><th>Packaging</th><th class="num">Pallets</th><th class="num">Jumbo #</th><th class="num">Sack #</th>'+
     '<th class="num">Cartons #</th><th class="num">Benz #</th><th class="num">Std wt t</th><th class="num">Pascol t</th><th></th></tr>';}
   function ocRowHTML(d,i){
-    var L=PT_LISTS;
+    var L=ocLists();
     return '<tr data-line="'+i+'">'+
       '<td><button type="button" class="sv2-ib'+(openRows[i]?' open':'')+'" data-act="toggleLine" data-i="'+i+'" aria-label="Lot, sizing, packaging and handling">⌄</button></td>'+
       '<td class="idx">'+(i+1)+'</td>'+
@@ -895,10 +904,10 @@ function createInstance(host,O){
       '<td>'+cin(d.standard_weight,'standard_weight','num')+'</td><td>'+cin(d.pascol_weight,'pascol_weight','num')+'</td>'+
       '<td><button type="button" class="sv2-ib rm" data-act="rmLine" data-i="'+i+'" aria-label="Remove line '+(i+1)+'">×</button></td>'+
     '</tr>'+
-    '<tr class="det'+(openRows[i]?' open':'')+'" data-line="'+i+'"><td></td><td colspan="14"><div class="sv2-dgrid">'+ptDetail(d)+'</div></td></tr>';
+    '<tr class="det'+(openRows[i]?' open':'')+'" data-line="'+i+'"><td></td><td colspan="14"><div class="sv2-dgrid">'+ptDetail(d,L)+'</div></td></tr>';
   }
   function ocCardHTML(d,i){
-    var L=PT_LISTS;
+    var L=ocLists();
     return '<div class="sv2-lcard'+(openRows[i]?' open':'')+'" data-line="'+i+'">'+
       '<div class="lh" data-act="toggleLine" data-i="'+i+'" role="button" tabindex="0" aria-expanded="'+(openRows[i]?'true':'false')+'">'+
         '<b>'+(i+1)+'. '+esc(d.variety||'New line')+'</b><span class="sv2-sp"></span><span class="mono" style="color:var(--text3)">'+esc(d.pallets||0)+' plt · '+esc(d.standard_weight||0)+' t</span>'+
@@ -910,7 +919,7 @@ function createInstance(host,O){
         dl(ar('Jumbo #','عدد الجامب'),cin(d.jumbo_count,'jumbo_count','num'))+dl(ar('Sack #','عدد الشكاير'),cin(d.sack_count,'sack_count','num'))+
         dl(ar('Cartons #',OC_CARTONS_AR),cin(d.cartons_count,'cartons_count','num'))+dl(ar('Benz #',OC_BENZ_AR),cin(d.benz_count,'benz_count','num'))+
         dl(ar('Standard wt t','الوزن القياسي'),cin(d.standard_weight,'standard_weight','num'))+dl(ar('Pascol t','وزن الباسكول'),cin(d.pascol_weight,'pascol_weight','num'))+
-        ptDetail(d)+
+        ptDetail(d,L)+
         '<div class="full"><button type="button" class="sv2-btn sec sm" data-act="rmLine" data-i="'+i+'">Remove this line</button></div>'+
       '</div>'+
     '</div>';

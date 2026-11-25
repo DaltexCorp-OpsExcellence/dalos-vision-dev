@@ -20,12 +20,15 @@
 
 var LIST_LABELS={brand:'Brands',packing_type:'Packing types',count_size:'Counts/Sizes',caliber:'Calibers',source_type:'Source types',
   raw_source:'Raw sources',departure_port:'Departure ports',agent:'Agents',shipping_line:'Shipping lines',client_class:'Client classes',
-  shipping_status:'Shipping statuses',receiving_country:'Countries',daltex_class:'Daltex classes'};
+  shipping_status:'Shipping statuses',receiving_country:'Countries',daltex_class:'Daltex classes',
+  receiving_port:'Receiving ports',shipper:'Shippers'};
 var FARM_KEYS={raw_source:1};   /* list comes from public.farms, not shipment_list_values */
 var QUEUE_KEYS={brand:1,packing_type:1,count_size:1,caliber:1,source_type:1,raw_source:1,departure_port:1,agent:1,shipping_line:1,client_class:1,shipping_status:1};
+/* receiving_port / shipper join QUEUE_KEYS after the DB step 02 (Ash) is applied (server suggestion allowlist) */
 /* intake field -> list. hdr = header input id (without sv2-), k = line data-k */
 var FIELDS=[
   {hdr:'line',key:'shipping_line'},{hdr:'depport',key:'departure_port'},{hdr:'agent',key:'agent'},{hdr:'country',key:'receiving_country'},
+  {hdr:'port',key:'receiving_port'},{hdr:'shipper',key:'shipper'},
   {k:'brand',key:'brand'},{k:'packaging_type',key:'packing_type'},{k:'count_size',key:'count_size'},{k:'caliber',key:'caliber'},
   {k:'source_type',key:'source_type'},{k:'raw_source',key:'raw_source'},{k:'client_class',key:'client_class'},{k:'daltex_class',key:'daltex_class'}
 ];
