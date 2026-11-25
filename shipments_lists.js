@@ -66,6 +66,7 @@ var CSS=[
 '.sv2l-ph h2{font:600 18px var(--font-display,inherit);margin:0;flex:1}',
 '.sv2l-pb{padding:14px 18px;overflow:auto;display:grid;gap:12px}',
 '.sv2l-offm{display:inline-block;margin-top:3px;font-size:11px;line-height:1.3;color:var(--amber,#9a6700);background:var(--amber-bg,#fff4d6);border-radius:4px;padding:1px 6px}',
+'.sv2l-cnt{font-weight:400;text-transform:none;letter-spacing:0;color:var(--text3,#777);font-size:11px;margin-left:4px;white-space:nowrap}',
 '.sv2l-x{border:1px solid var(--border2,#ccd);background:var(--card,#fff);border-radius:8px;min-width:36px;min-height:36px;cursor:pointer;font-size:15px}',
 '@media (max-width:700px){.sv2l-scr{padding:0}.sv2l-panel{border-radius:0;max-height:100vh;min-height:100vh}}'
 ].join('\n');
@@ -226,6 +227,7 @@ function attach(host,opts){
     render();
   }
   function onFocusIn(e){if(!D)return;var f=fieldFor(e.target);if(f)open(e.target,f);else if(cur&&e.target!==cur.input&&!pop.contains(e.target))close();}
+  function onClickOpen(e){if(!D||dead)return;var f=fieldFor(e.target);if(f&&(!cur||cur.input!==e.target))open(e.target,f);}   /* after Escape, a tap opens it again */
   function onFocusOut(e){if(cur&&e.target===cur.input){setTimeout(function(){if(cur&&document.activeElement!==cur.input)close();},0);}}
   function onInput(e){if(cur&&e.target===cur.input){cur.msg=null;active=-1;render();}else if(D&&!cur){var f=fieldFor(e.target);if(f&&document.activeElement===e.target)open(e.target,f);}}
   function onKey(e){
@@ -296,12 +298,25 @@ function attach(host,opts){
   function markHost(){
     host.classList.add('sv2l-on');
     FIELDS.forEach(function(f){host.classList.toggle('sv2l-no-'+f.key,!listOf(f.key).length&&!(D&&D.aliases[f.key]));});
+    counts();
+  }
+  /* 2026-11-25 P2 (Pixel): Receiving Port / Shipper are comboboxes (no <datalist>): the label shows how many values the list has,
+     e.g. 'Receiving Port · 60 in list'. The list is this product's whole list; it does not depend on the country. */
+  var COUNT_KEYS={receiving_port:1,shipper:1};
+  function counts(){
+    FIELDS.forEach(function(f){
+      if(!f.hdr||!COUNT_KEYS[f.key])return;var lab=host.querySelector('label[for="sv2-'+f.hdr+'"]');if(!lab)return;
+      var c=lab.querySelector('.sv2l-cnt'),n=listOf(f.key).length;
+      if(!n||dead){if(c)c.remove();return;}
+      if(!c){c=mk('span','sv2l-cnt');c.setAttribute('data-for',f.hdr);lab.appendChild(c);}
+      c.textContent='· '+n+' in list';c.title=n+' in the list · '+n+' في القائمة. Tap the field to pick.';
+    });
   }
   function reload(){loadedAt=Date.now();return loadAll(sb,product).then(function(d){if(dead)return;D=d;markHost();marks();if(cur)render();},function(){});}
   /* lists approved/edited in another tab or by another admin: re-read when the user comes back to this tab (at most every 30 s) */
   function onReturn(){if(dead||!D||document.visibilityState!=='visible'||Date.now()-loadedAt<30000)return;reload();}
   document.addEventListener('visibilitychange',onReturn);window.addEventListener('focus',onReturn);
-  host.addEventListener('focusin',onFocusIn);host.addEventListener('focusout',onFocusOut);
+  host.addEventListener('focusin',onFocusIn);host.addEventListener('focusout',onFocusOut);host.addEventListener('click',onClickOpen);
   host.addEventListener('input',onInput);host.addEventListener('keydown',onKey,true);
   host.addEventListener('change',onChangeMark);host.addEventListener('focusout',onChangeMark);
   window.addEventListener('scroll',onScroll,true);window.addEventListener('resize',onScroll);
@@ -309,6 +324,7 @@ function attach(host,opts){
   /* 2026-11-25: loading / 'Couldn’t load list' + Retry in the form's #sv2-lstat (shipments_v2.js), instead of blank lists with no message */
   var booted=false,startSeq=0,loadNoteT=0;
   function lstat(state){
+    if(typeof opts.onStatus==='function'){try{opts.onStatus(state||null);}catch(_e){}return;}   /* 2026-11-25: the form shows one combined status line */
     var box=host.querySelector('#sv2-lstat');if(!box)return;var s=box.querySelector('[data-src="lists"]');
     if(!state){if(s)s.remove();return;}
     if(!s){s=mk('div');s.setAttribute('data-src','lists');box.appendChild(s);}
@@ -343,7 +359,8 @@ function attach(host,opts){
     active:true,ready:ready,reload:reload,retry:start,openScreen:openScreen,marks:marks,
     detach:function(){
       dead=true;close();closeScreen();clearTimeout(loadNoteT);lstat(null);
-      host.removeEventListener('focusin',onFocusIn);host.removeEventListener('focusout',onFocusOut);
+      host.removeEventListener('focusin',onFocusIn);host.removeEventListener('focusout',onFocusOut);host.removeEventListener('click',onClickOpen);
+      Array.prototype.forEach.call(host.querySelectorAll('.sv2l-cnt'),function(c){c.remove();});
       host.removeEventListener('input',onInput);host.removeEventListener('keydown',onKey,true);
       host.removeEventListener('change',onChangeMark);host.removeEventListener('focusout',onChangeMark);
       Array.prototype.forEach.call(host.querySelectorAll('.sv2l-offm'),function(m){m.remove();});
@@ -362,5 +379,5 @@ function registerScreen(name,def){if(name&&def&&typeof def.mount==='function')SC
 
 /* 2026-11-25 (Vera, notinlist): the Potatoes / Other crops form (shipments_pt_suggest.js) opens the review queue screen itself */
 function screen(name){return Object.prototype.hasOwnProperty.call(SCREENS,name)?SCREENS[name]:null;}
-window.SV2Lists={attach:attach,registerScreen:registerScreen,screen:screen,enabled:enabled,labels:LIST_LABELS,version:'2026-11-25-retry-v0.3'};
+window.SV2Lists={attach:attach,registerScreen:registerScreen,screen:screen,enabled:enabled,labels:LIST_LABELS,version:'2026-11-25-retry-v0.4'};
 })();

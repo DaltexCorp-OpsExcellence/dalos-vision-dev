@@ -195,7 +195,8 @@ var CSS=[
    form keeps room for the sticky Save bar (--sv2-footh = its measured height, set by placeFoot) */
 /* v0.2 P2 (Pixel), Other crops only: the form keeps room under the sticky Save bar (its measured height + 16px) at every width,
    and at <=700px the bar is one compact row (~60px): totals on the left, Save on the right */
-'.sv2-oc #sv2-vform.on{padding-bottom:calc(var(--sv2-footh,0px) + 16px)!important}',
+'.sv2-oc #sv2-vform.on{padding-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 16px)!important}',   /* 2026-11-25 P3: + the bar’s offset above the phone nav */
+'.sv2-ocvhint{font-size:12px;color:var(--text3);margin:-4px 0 8px}',
 '.sv2-oc #sv2-vform input,.sv2-oc #sv2-vform select,.sv2-oc #sv2-vform .sv2-btn{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 16px)}',
 '.sv2-totrow{display:contents}',
 '.sv2-oc #sv2-lhead th.oc-var,.sv2-oc #sv2-lbody td.oc-var{min-width:190px}',   /* v0.2 P3 (Pixel): wider Variety column on desktop */
@@ -214,7 +215,7 @@ var CSS=[
 '  #sv2-vform .sv2-desk{display:none!important}#sv2-vform .sv2-lcards{display:grid}',
 '  .sv2-lcard .sv2-wgroup{grid-template-columns:repeat(2,minmax(0,1fr))}',
 '  .sv2-wgroup .sv2-dlab{white-space:normal;overflow-wrap:anywhere}',
-'  #sv2-vform.on{padding-bottom:var(--sv2-footh,0px)}',
+'  #sv2-vform.on{padding-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 8px)}',   /* 2026-11-25 P3 (Pixel): room for the whole Save bar, incl. its offset above the phone nav */
 '  #sv2-vform input,#sv2-vform select{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 8px)}',
 '}',
 /* r2 P2: touch layouts — tap targets >= 44px, inputs >= 16px (no iOS zoom-on-focus); this form only */
@@ -664,7 +665,8 @@ function createInstance(host,O){
   /* managed dropdown lists (shipments_lists.js): flag-gated, fails closed — never blocks the form */
   function attachLists(){
     if(PT||dead||LISTS||!window.SV2Lists||typeof window.SV2Lists.attach!=='function')return;
-    try{LISTS=window.SV2Lists.attach(host,{sb:sb,product:PRODUCT,productName:PRODUCT_NAME,container:function(){return val('container');}});}catch(_e){LISTS=null;}
+    try{LISTS=window.SV2Lists.attach(host,{sb:sb,product:PRODUCT,productName:PRODUCT_NAME,container:function(){return val('container');},
+      onStatus:function(st){listsState=st;paintStat();}});}catch(_e){LISTS=null;}
   }
   /* "Not in list?" for the Potatoes + Other crops lists (shipments_pt_suggest.js, Vera 2026-11-25): staging only (its own switch +
      VISION_IS_DEV), Potatoes only with the managed lists on (PTM); fails closed, never blocks the form */
@@ -709,7 +711,7 @@ function createInstance(host,O){
       return Promise.all([
         window.SV2Ref?window.SV2Ref.load(sb):Promise.resolve(sb.from('ref_options').select('code,list_key,label_ar,label_en,active,is_bulk,sort_order').eq('product_id','other_crops').order('sort_order')).then(function(r){if(r.error)throw r.error;return {rows:r.data||[]};}),
         Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','other_crops').order('name')).then(function(r){if(r&&!r.error)return r.data||[];REF.part=true;return [];},function(){REF.part=true;return [];})
-      ]).then(function(r){ocSetRefs(r[0].rows);REF.ocSeed=!!r[0].seed;REF.vars=r[1].map(function(v){return {name:v.name};});ptFillDatalists();});
+      ]).then(function(r){ocSetRefs(r[0].rows);REF.ocSeed=!!r[0].seed;REF.vars=r[1].map(function(v){return {name:v.name};});REF.varsLoaded=true;ptFillDatalists();});
     }
     if(PT){ /* varieties from the shared registry (same list as potato inspections); the rest from the entry sheet,
                or (PTM, staging) from ref_options + the linked masters, each list falling back to the sheet's on its own */
@@ -981,7 +983,7 @@ function createInstance(host,O){
       el('lfoot').innerHTML='';
       if(isNarrow()){el('lhead').innerHTML='';el('lbody').innerHTML='';el('lcards').innerHTML=LINES.map(OC?ocCardHTML:ptCardHTML).join('');}
       else{el('lcards').innerHTML='';el('lhead').innerHTML=OC?ocHeadHTML():ptHeadHTML();el('lbody').innerHTML=LINES.map(OC?ocRowHTML:ptRowHTML).join('');}
-      recompute();return;
+      recompute();ocVarHint();return;
     }
     if(isNarrow()){
       el('lhead').innerHTML='';el('lbody').innerHTML='';el('lfoot').innerHTML='';
@@ -1668,7 +1670,7 @@ function createInstance(host,O){
       case 'goProblem':goProblem();break;
       case 'delShip':askDelete();break;
       case 'retry':if(EDIT.container)loadForEdit(EDIT.container,EDIT.loaded);break;
-      case 'refsRetry':bootRefs(true);break;
+      case 'refsRetry':retryLists();break;
       case 'reload':if(EDIT.container){if(DIRTY&&!window.confirm('Reload the latest version? Your changes on this form will be lost.'))break;setDirty(false);loadForEdit(EDIT.container,EDIT.loaded);}break;
       case 'openExisting':if(EXISTING_IDX>=0&&confirmLeave()){var ix=EXISTING_IDX;setDirty(false);clearFormError();openContainer(ix);}break;
       case 'reloadList':loadList();break;
@@ -1702,6 +1704,7 @@ function createInstance(host,O){
   }
   function onChange(e){
     var t=e.target,c=t.getAttribute&&t.getAttribute('data-chg');
+    if(OC&&t.id==='sv2-crop')ocVarHint();
     if(c==='status'){syncCtxStatus();
       /* re-check carton counts: negative is fine only while the status is Returned */
       qa('[data-line] [data-k="carton_count"]').forEach(function(f){if(!String(f.value||'').trim())return;var pr=lineNumProblem('carton_count',f.value);f.classList.toggle('invalid',!!pr);f.setAttribute('aria-invalid',pr?'true':'false');f.title=pr?lineLabel('carton_count')+' '+pr:'';});}
@@ -1760,14 +1763,43 @@ function createInstance(host,O){
   var REFS_TIMEOUT_MS=20000,refsSeq=0,refsLoadT=0;
   function withTimeout(p,ms){return new Promise(function(res,rej){var t=setTimeout(function(){rej(new Error('timeout'));},ms);
     Promise.resolve(p).then(function(v){clearTimeout(t);res(v);},function(e){clearTimeout(t);rej(e);});});}
-  function refStatus(state){
-    var box=el('lstat');if(!box)return;var s=box.querySelector('[data-src="refs"]');
+  /* 2026-11-25 P3 (Pixel): ONE status line for the form's lists (ref lists + managed lists, shipments_lists.js onStatus):
+     'Couldn’t load list' if either failed, else 'Loading lists…' if either is loading. One Retry reloads whatever failed. */
+  var refsState=null,listsState=null;
+  function refStatus(state){refsState=state;paintStat();if(state!=='loading')ocVarHint();}
+  function paintStat(){
+    var box=el('lstat');if(!box)return;var s=box.querySelector('[data-src="lists"]');
+    var state=refsState==='failed'||listsState==='failed'?'failed':refsState==='loading'||listsState==='loading'?'loading':null;
     if(!state){if(s)s.remove();return;}
-    if(!s){s=document.createElement('div');s.setAttribute('data-src','refs');box.appendChild(s);}
+    if(!s){s=document.createElement('div');s.setAttribute('data-src','lists');box.appendChild(s);}
+    if(s.getAttribute('data-state')===state)return;s.setAttribute('data-state',state);
     s.innerHTML=state==='loading'
       ?'<div class="sv2-banner info" role="status"><span aria-hidden="true">i</span><span style="flex:1">Loading lists… · <bdi lang="ar" dir="rtl">جارٍ تحميل القوائم</bdi></span></div>'
       :'<div class="sv2-banner err" role="alert"><span aria-hidden="true">!</span><span style="flex:1">Couldn’t load list · <bdi lang="ar" dir="rtl">تعذر تحميل القائمة</bdi></span><button type="button" class="sv2-btn sec sm" data-act="refsRetry">Retry · <bdi lang="ar" dir="rtl">إعادة المحاولة</bdi></button></div>';
   }
+  function retryLists(){
+    var rf=refsState==='failed',lf=listsState==='failed';
+    if(rf||!lf)bootRefs(true);
+    if(lf&&LISTS&&typeof LISTS.retry==='function'){listsState=null;LISTS.retry();}
+    paintStat();
+  }
+  /* 2026-11-25 P3 (Pixel): Other crops — a crop is picked but the Variety list has nothing to offer (no other_crops rows in
+     varieties): say so instead of an empty suggestion list. Not shown while the lists are loading or failed. */
+  function ocVarHint(){
+    if(!OC||dead)return;var h=el('lhint');if(!h||!h.parentNode)return;var x=el('ocvhint');
+    var show=!!val('crop')&&!!REF.varsLoaded&&refsState!=='failed'&&refsState!=='loading'&&!varNames().length;
+    if(!show){if(x)x.remove();return;}
+    if(!x){x=document.createElement('div');x.id='sv2-ocvhint';x.className='sv2-ocvhint';x.setAttribute('role','note');
+      x.innerHTML='No varieties for this crop · <bdi lang="ar" dir="rtl">لا توجد أصناف لهذا المحصول</bdi>';h.parentNode.insertBefore(x,h.nextSibling);}
+  }
+  /* 2026-11-25 P3 (Pixel): phones — a focused field under the sticky Save bar scrolls up above it (scroll-margin-bottom = bar + offset) */
+  function onFormFocus(e){
+    var t=e.target;if(!isNarrow()||!t||!/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)||!t.closest('#sv2-vform')||t.closest('.sv2-submit'))return;
+    setTimeout(function(){var b=q('.sv2-submit');if(dead||!b||document.activeElement!==t)return;
+      var r=t.getBoundingClientRect(),br=b.getBoundingClientRect();
+      if(r.bottom>br.top-4&&r.top<br.bottom&&t.scrollIntoView){try{t.scrollIntoView({block:'nearest'});}catch(_e){}}},60);
+  }
+  host.addEventListener('focusin',onFormFocus);
   function headerNow(){return {crop:val('crop'),station:val('station'),vessel:val('vessel'),client:val('client'),receiving_port:val('port'),sector:val('sector'),
     season:val('pseason'),status:val('status'),subclient:val('subclient'),pack_house_departure:val('packdep')};}
   function bootRefs(retry){
@@ -1795,7 +1827,7 @@ function createInstance(host,O){
       if(formMQ){if(formMQ.removeEventListener)formMQ.removeEventListener('change',onMQ);else if(formMQ.removeListener)formMQ.removeListener(onMQ);}
       if(footRO)footRO.disconnect();
       host.removeEventListener('click',onClick);host.removeEventListener('keydown',onKey);
-      host.removeEventListener('change',onChange);host.removeEventListener('input',onInput);host.removeEventListener('focusout',onBlur);
+      host.removeEventListener('change',onChange);host.removeEventListener('input',onInput);host.removeEventListener('focusout',onBlur);host.removeEventListener('focusin',onFormFocus);
       clearTimeout(searchT);clearTimeout(toastT);clearTimeout(undoT);closeModal();if(toastEl){toastEl.remove();toastEl=null;}if(undoEl){undoEl.remove();undoEl=null;}
       if(LISTS&&LISTS.detach){try{LISTS.detach();}catch(_e){}}LISTS=null;
       if(PTS&&PTS.detach){try{PTS.detach();}catch(_e){}}PTS=null;
