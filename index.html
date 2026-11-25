@@ -940,8 +940,11 @@ var SV2_LISTS_ENABLED=VISION_IS_DEV;
    (VISION_IS_DEV); vision.js and shipments_v2.js also require VISION_IS_DEV, so the prod address resolves OFF. The OC DB
    package is applied; saving is ON on staging (shipments_v2.js OC_WRITES=true, Tarek 2026-11-23 21:30). */
 var SV2_OTHER_CROPS_ENABLED=VISION_IS_DEV;
+/* Potatoes Shipments dropdowns from managed lists (ref_options + the linked masters), each falling back to the built-in list
+   (Vera 2026-11-25). ON on the staging host only; shipments_v2.js checks VISION_IS_DEV again. */
+var SV2_PT_LISTS_ENABLED=VISION_IS_DEV;
 </script>
-<script src="vision.js?v=8b301043b6"></script>
+<script src="vision.js?v=acb2fd951e"></script>
 <script>
 /* Fade the entry splash once the app shell first paints (React commits to #root),
    with a hard fallback so it can never stick. */

@@ -280,6 +280,33 @@ var PT_LISTS={
   ports:['شرق التفريعة','دمياط'],pivots:['التيسير','31','4','70','58','65','57'],farms:['التيسير','الاوقاف']
 };
 function newLinePT(){return {id:null,variety:'',pivot:'',farm:'',lot:'',size1:'',size2:'',crop_type:'',grade:'',packaging:'',package_weight:'',pack_size:'',pallets:'',brand:'',jumbo_colour:'',jumbo_count:'',sack_colour:'',sack_count:'',standard_weight:'',pascol_weight:'',op_type:'',condition:''};}
+/* Potatoes managed lists (Vera 2026-11-25, branch vera/potato-dropdowns). ON on the staging host only (index.html
+   SV2_PT_LISTS_ENABLED=VISION_IS_DEV, checked again here); the prod address always resolves OFF and keeps PT_LISTS exactly.
+   One source per field:
+   - the 10 lists with no master: public.ref_options, product 'potatoes', on the shared keys of potato-lists A (OC_PT_KEYS,
+     the same map Other crops uses for its own *_OC_* options).
+   - the 6 lists mc v0.4 links to masters for Potatoes: config_list_values('potatoes', key) (PT_MASTER_KEYS).
+   Each list on its own keeps its PT_LISTS values when it is missing, has no active option, or its read fails.
+   Saved value = the option's text, as before (no codes, no data change). */
+var PT_MASTER_KEYS={stations:'packing_station',clients:'client',countries:'country',ports:'port',farms:'farm',packs:'packing_type'};
+var PT_MASTER_EN={clients:1,countries:1};   /* English in the sheet: master name first, then name_ar */
+function ptListsEnabled(){return window.SV2_PT_LISTS_ENABLED===true&&window.VISION_IS_DEV===true;}
+/* refRows = ref_options rows (null = read failed); refKeys = {PT_LISTS name: list_key}; masters = {PT_LISTS name: config_list_values
+   result, or null}. Returns {lists:{name:[active labels by sort_order]}, src:{name:'ref'|'master'}}; a list left out falls back. */
+function ptBuildLists(refRows,refKeys,masters){
+  var acc={},src={},byKey={},out={lists:{},src:{}};
+  Object.keys(refKeys||{}).forEach(function(n){byKey[refKeys[n]]=n;});
+  (Array.isArray(refRows)?refRows:[]).forEach(function(o){var n=o&&byKey[o.list_key];if(!n||!o.label_ar)return;
+    (acc[n]=acc[n]||[]).push({label:String(o.label_ar),active:o.active!==false,sort:+o.sort_order||0});src[n]='ref';});
+  Object.keys(PT_MASTER_KEYS).forEach(function(n){var arr=masters&&masters[n];if(!Array.isArray(arr))return;var l=[];
+    arr.forEach(function(x){if(!x)return;var lab=PT_MASTER_EN[n]?(x.name||x.name_ar):(x.name_ar||x.name);if(!lab)return;
+      l.push({label:String(lab),active:x.tag_active!==false&&x.master_active!==false&&!x.merged_into,sort:+x.sort_order||0});});
+    if(l.length){acc[n]=l;src[n]='master';}});
+  Object.keys(acc).forEach(function(n){var l=acc[n].slice().sort(function(a,b){return a.sort-b.sort;}).filter(function(o){return o.active;}).map(function(o){return o.label;});
+    if(l.length){out.lists[n]=l;out.src[n]=src[n];}});
+  return out;}
+/* PT_LISTS with the managed lists laid over it (same shape as ocLists()); no model = PT_LISTS itself (prod, switch off) */
+function ptListsFrom(m){if(!m)return PT_LISTS;var out={},k;for(k in PT_LISTS)out[k]=(m.lists&&m.lists[k])||PT_LISTS[k];return out;}
 /* Other crops line = the potato line + Cartons # and Benz # (codes in farm / packaging) */
 function newLineOC(){var d=newLinePT();d.cartons_count='';d.benz_count='';return d;}
 /* whole-number fields (server: _shipments_v2_int) — everything else in NUMKEYS is a decimal. Other crops pallets are decimal (20.5). */
@@ -387,6 +414,7 @@ function createInstance(host,O){
   function hasLot(){return PRODUCT!=='grapes';}   /* Tarek 2026-10-13: Lot # everywhere except Grapes */
   var OC=(PRODUCT==='other_crops');        /* Other crops: the Pivots form + Crop, Cartons #, Benz #; lists are ref_options codes */
   var PT=(PRODUCT==='potatoes')||OC;       /* Pivots line: own fields, totals and RPCs; everything else shared */
+  var PTM=PT&&!OC&&ptListsEnabled();      /* Potatoes managed lists (staging only); off = PT_LISTS as before */
   if(OC&&!otherCropsEnabled()){   /* flag off: never mount the form */
     host.innerHTML='<div class="sv2"><div class="sv2-banner err"><span aria-hidden="true">!</span><span>Other crops isn\u2019t switched on yet.</span></div></div>';
     var offApi={isDirty:function(){return false;},confirmLeave:function(){return true;},unmount:function(){host.innerHTML='';if(CUR&&CUR.api===offApi)CUR=null;}};
@@ -404,7 +432,7 @@ function createInstance(host,O){
   function el(id){return host.querySelector('#sv2-'+id);}
   function val(id){var e=el(id);return e?String(e.value||'').trim():'';}
 
-  var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{},oc:{byList:{},byCode:{}}};
+  var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{},oc:{byList:{},byCode:{}},pt:null};
   var LINES=[],openRows={},MODE='list',EDIT={container:null,loaded:null,deletedIds:[]};
   var LOADED_IDS=[];   /* ids of the lines as last loaded from the server; Delete shipment sends exactly these */
   var ROW_VERSION='';  /* fixpkg: get_* row_version as last loaded; sent back on edit + delete so the server refuses (PT409) if anyone changed the lines since */
@@ -673,9 +701,10 @@ function createInstance(host,O){
         Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','other_crops').order('name')).then(function(r){return r&&!r.error?r.data||[]:[];},function(){return [];})
       ]).then(function(r){ocSetRefs(r[0].rows);REF.ocSeed=!!r[0].seed;REF.vars=r[1].map(function(v){return {name:v.name};});ptFillDatalists();});
     }
-    if(PT){ /* varieties from the shared registry (same list as potato inspections); the rest from the entry sheet */
-      return Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','potatoes').order('name')).then(function(r){
-        if(r.error)throw r.error;REF.vars=(r.data||[]).map(function(v){return {name:v.name};});ptFillDatalists();});
+    if(PT){ /* varieties from the shared registry (same list as potato inspections); the rest from the entry sheet,
+               or (PTM, staging) from ref_options + the linked masters, each list falling back to the sheet's on its own */
+      return Promise.all([Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','potatoes').order('name')).then(function(r){
+        if(r.error)throw r.error;REF.vars=(r.data||[]).map(function(v){return {name:v.name};});}),PTM?ptLoadManaged():null]).then(function(){ptFillDatalists();});
     }
     return Promise.all([
       sb.from('clients').select('id,name,active').eq('active',true).order('name'),
@@ -698,9 +727,18 @@ function createInstance(host,O){
       },function(){}),loadJde()]);
     });
   }
+  /* Potatoes managed lists (PTM). Never rejects: a failed read just leaves that list on PT_LISTS. */
+  function ptSafe(q){try{return Promise.resolve(q).then(function(r){return r&&!r.error?(r.data||[]):null;},function(){return null;});}catch(e){return Promise.resolve(null);}}
+  function ptLoadManaged(){
+    var keys=Object.keys(OC_PT_KEYS).map(function(n){return OC_PT_KEYS[n];}),names=Object.keys(PT_MASTER_KEYS);
+    return Promise.all([ptSafe(sb.from('ref_options').select('code,list_key,label_ar,label_en,active,sort_order').eq('product_id','potatoes').in('list_key',keys).order('sort_order'))]
+      .concat(names.map(function(n){return ptSafe(sb.rpc('config_list_values',{p_product:'potatoes',p_list:PT_MASTER_KEYS[n]}));})))
+      .then(function(r){var ms={};names.forEach(function(n,i){ms[n]=r[i+1];});REF.pt=ptBuildLists(r[0],OC_PT_KEYS,ms);},function(){REF.pt=null;});}
+  /* Potatoes' counterpart of ocLists(): PT_LISTS itself unless the managed lists are on and loaded */
+  function ptLists(){return ptListsFrom(PTM?REF.pt:null);}
   /* potato suggestions = the sheet's defaults + whatever is already in this product's list */
   function ptFillDatalists(){
-    var L=OC?ocLists():PT_LISTS,hd=function(k){return DATA.map(function(c){return c.hdr[k];});},ln=function(k){return [].concat.apply([],DATA.map(function(c){return c.lines.map(function(l){return l[k];});}));};
+    var L=OC?ocLists():ptLists(),hd=function(k){return DATA.map(function(c){return c.hdr[k];});},ln=function(k){return [].concat.apply([],DATA.map(function(c){return c.lines.map(function(l){return l[k];});}));};
     fillDatalist('sv2-dl-client',L.clients.concat(hd('client')));fillDatalist('sv2-dl-country',L.countries.concat(hd('region'),hd('country2')));
     fillDatalist('sv2-dl-port',L.ports.concat(hd('port')));fillDatalist('sv2-dl-pivot',L.pivots.concat(ln('pivot')));fillDatalist('sv2-dl-farm',L.farms.concat(ln('farm')));
     if(OC)fillDatalist('sv2-dl-variety',varNames().concat(ln('v')));
@@ -723,7 +761,7 @@ function createInstance(host,O){
     if(OC){fillOc('crop','crop',cur.crop);fillOc('station','packing_station',cur.station);fillOc('vessel','transport',cur.vessel);
       fillOc('client','client',cur.client);fillOc('port','port',cur.receiving_port);
       var OL=ocLists();fillSelect('sector',OL.sectors,cur.sector||'');fillSelect('pseason',OL.cropSeasons,cur.season||'');return;}
-    if(PT){fillSelect('station',PT_LISTS.stations,cur.station||'');fillSelect('sector',PT_LISTS.sectors,cur.sector||'');fillSelect('pseason',PT_LISTS.cropSeasons,cur.season||'');return;}
+    if(PT){var PL=ptLists();fillSelect('station',PL.stations,cur.station||'');fillSelect('sector',PL.sectors,cur.sector||'');fillSelect('pseason',PL.cropSeasons,cur.season||'');return;}
     fillSelect('status',STATUS_OPTS,cur.status||'');
     fillSelect('client',REF.clients,cur.client||'');
     fillSubclients(cur.subclient||'');
@@ -858,7 +896,7 @@ function createInstance(host,O){
       dl(ar('Condition','الحاله'),csel(L.conditions,d.condition,'condition'));
   }
   function ptRowHTML(d,i){
-    var L=PT_LISTS;
+    var L=ptLists();
     return '<tr data-line="'+i+'">'+
       '<td><button type="button" class="sv2-ib'+(openRows[i]?' open':'')+'" data-act="toggleLine" data-i="'+i+'" aria-label="Lot, sizing, packaging and handling">⌄</button></td>'+
       '<td class="idx">'+(i+1)+'</td>'+
@@ -869,10 +907,10 @@ function createInstance(host,O){
       '<td>'+cin(d.standard_weight,'standard_weight','num')+'</td><td>'+cin(d.pascol_weight,'pascol_weight','num')+'</td>'+
       '<td><button type="button" class="sv2-ib rm" data-act="rmLine" data-i="'+i+'" aria-label="Remove line '+(i+1)+'">×</button></td>'+
     '</tr>'+
-    '<tr class="det'+(openRows[i]?' open':'')+'" data-line="'+i+'"><td></td><td colspan="12"><div class="sv2-dgrid">'+ptDetail(d)+'</div></td></tr>';
+    '<tr class="det'+(openRows[i]?' open':'')+'" data-line="'+i+'"><td></td><td colspan="12"><div class="sv2-dgrid">'+ptDetail(d,L)+'</div></td></tr>';
   }
   function ptCardHTML(d,i){
-    var L=PT_LISTS;
+    var L=ptLists();
     return '<div class="sv2-lcard'+(openRows[i]?' open':'')+'" data-line="'+i+'">'+
       '<div class="lh" data-act="toggleLine" data-i="'+i+'" role="button" tabindex="0" aria-expanded="'+(openRows[i]?'true':'false')+'">'+
         '<b>'+(i+1)+'. '+esc(d.variety||'New line')+'</b><span class="sv2-sp"></span><span class="mono" style="color:var(--text3)">'+esc(d.pallets||0)+' plt · '+esc(d.standard_weight||0)+' t</span>'+
@@ -883,7 +921,7 @@ function createInstance(host,O){
         dl(ar('Packaging','التعبئه'),csel(L.packs,d.packaging,'packaging'))+dl(ar('Pallets','بالته'),cin(d.pallets,'pallets','num'))+
         dl(ar('Jumbo #','عدد الجامب'),cin(d.jumbo_count,'jumbo_count','num'))+dl(ar('Sack #','عدد الشكاير'),cin(d.sack_count,'sack_count','num'))+
         dl(ar('Standard wt t','الوزن القياسي'),cin(d.standard_weight,'standard_weight','num'))+dl(ar('Pascol t','وزن الباسكول'),cin(d.pascol_weight,'pascol_weight','num'))+
-        ptDetail(d)+
+        ptDetail(d,L)+
         '<div class="full"><button type="button" class="sv2-btn sec sm" data-act="rmLine" data-i="'+i+'">Remove this line</button></div>'+
       '</div>'+
     '</div>';
@@ -1733,7 +1771,7 @@ function createInstance(host,O){
 /* CSV text for Excel: UTF-8 BOM, CRLF, every cell quoted; a text cell starting with = + - @ gets a leading ' (no formulas) */
 function csvCell(v){if(v==null)return '""';var s=String(v);if(typeof v!=='number'&&/^[=+\-@\t\r]/.test(s)&&!/^-?\d+(\.\d+)?$/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
 function csvText(rows){return '\ufeff'+rows.map(function(r){return r.map(csvCell).join(',');}).join('\r\n')+'\r\n';}
-window.ShipV2={mount:mount,version:'2026-11-23',otherCropsEnabled:otherCropsEnabled,newLineOC:newLineOC,csvText:csvText,asciiDigits:asciiDigits,numProblem:numProblem,PACK_BULK_SET:function(m){PACK_BULK=m||{};},
+window.ShipV2={mount:mount,version:'2026-11-23',otherCropsEnabled:otherCropsEnabled,ptListsEnabled:ptListsEnabled,ptBuildLists:ptBuildLists,ptListsFrom:ptListsFrom,PT_MASTER_KEYS:PT_MASTER_KEYS,PT_LISTS:PT_LISTS,newLineOC:newLineOC,csvText:csvText,asciiDigits:asciiDigits,numProblem:numProblem,PACK_BULK_SET:function(m){PACK_BULK=m||{};},
   intakeFieldsEnabled:intakeFieldsEnabled,isStaleErr:isStaleErr,isNegNum:isNegNum,lineNegWeight:lineNegWeight,NEG_WT_MSG:NEG_WT_MSG,isBinType:isBinType,cartonOverMax:cartonOverMax,cartonMaxMsg:cartonMaxMsg,NONNEG_LINE:NONNEG_LINE,INTAKE_WARN:INTAKE_WARN,
   intakeBlank:intakeBlank,intakeMul:intakeMul,intakeLineNetT:intakeLineNetT,intakeLineGrossT:intakeLineGrossT,
   intakeContainerShare:intakeContainerShare,intakePascolActual:intakePascolActual,intakePackingWeight:intakePackingWeight,
