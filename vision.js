@@ -18409,7 +18409,7 @@ function App(){
             ce('div',{className:'side-av',style:{width:26,height:26,borderRadius:'50%',background:role.badge,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0}},
               liveCurrentUser.name.split(' ').map(function(n){return n[0];}).slice(0,2).join('')),
             ce('div',{style:{overflow:'hidden',flex:1,minWidth:0}},
-              ce('div',{style:{fontSize:12,color:'var(--sidebar-text)',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},currentUser.name),
+              ce('div',{style:{fontSize:12,color:'var(--sidebar-text)',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},liveCurrentUser.name),
               ce('div',{style:{fontSize:10,color:'var(--sidebar-muted)',display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}},role.label,
                 VISION_GLASS&&ce('span',{'aria-hidden':'true',style:{opacity:.5}},'\u00b7'),
                 VISION_GLASS&&ce('button',{type:'button',className:'side-look',title:'Switch between the new Glass look and the classic look (this browser only)',onClick:visionGlassToggle},
