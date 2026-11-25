@@ -24,7 +24,12 @@ var STATUS_OPTS=['Loading','Shipped','On Water','Delivered','Returned'];   /* th
 var SNAPSHOT_NOTE='Copied from the live shipment records on 17 Sep 2026.';
 var SNAPSHOT_PRODUCTS={citrus:1,grapes:1,mango:1,pomegranate:1};   /* products whose rows were copied in — Potatoes start empty */
 var SV2_SEND_DEPARTURE_DATE=false; // enable only after the DB column + RPC mapping are applied (pending Anna/Ash/Tarek)
-var SV2_INTAKE_FIELDS_ENABLED=!!window.VISION_IS_DEV; // intake DB v0.5 is applied: ON on staging (/dalos-vision-dev/ + localhost) only, OFF anywhere else
+var SV2_INTAKE_FIELDS_ENABLED=!!window.VISION_IS_DEV;
+/* 2026-11-26 (Tarek): Citrus sales Region (sheet column U, the 1st 'Region'; e.g. Daltex LLC, RU & LA, Western Europe, UK) on the
+   header. Staging only: index.html SV2_SALES_REGION_ENABLED=VISION_IS_DEV, checked again here. The field stays hidden until the
+   managed list 'sales_region' has citrus values (DB step B01 in ~/dalos-script-backups/variety-region-config), so nothing is
+   typed that the server would drop. Sent as header key sales_region. */
+function salesRegionFlag(){return window.SV2_SALES_REGION_ENABLED===true&&window.VISION_IS_DEV===true;} // intake DB v0.5 is applied: ON on staging (/dalos-vision-dev/ + localhost) only, OFF anywhere else
 /* testers: localStorage.setItem('SV2_INTAKE_FIELDS_ENABLED','true') then reload (read once at mount) */
 /* Other crops (Vera 2026-11-23): product 'other_crops' = the Potatoes (Pivots) intake + Crop, Cartons # and Benz #.
    ON on the staging host only (index.html SV2_OTHER_CROPS_ENABLED=VISION_IS_DEV, and checked again here). Same check in vision.js.
@@ -234,6 +239,7 @@ var CSS=[
 'html.sv2-bar-on .vas-bar{bottom:var(--sv2-pill,14px)}',
 '.sv2 .sv2-submit{margin-top:var(--sv2-pillpad,0px)}',   /* 2026-11-25 follow-up: room for the raised pill between the last field and the Save bar (only while the pill exists and the form is open; 0 otherwise) */   /* 2026-11-25 P2b (Pixel): the admin "View Vision as" pill sits above the Save bar while the bar is on screen (offset set by placePill; viewas.js unchanged) */
 '.sv2-oc #sv2-lhead th.oc-var,.sv2-oc #sv2-lbody td.oc-var{min-width:190px}',   /* v0.2 P3 (Pixel): wider Variety column on desktop */
+'.sv2 .sv2-f.sv2-sregion:not(.on){display:none}',   /* 2026-11-26: Region (sales) shows once its list has values */
 '@media (max-width:700px){',
 '  .sv2-oc .sv2-submit{flex-wrap:nowrap;gap:10px;padding:7px 10px;min-height:0;background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}',   /* v0.2 P3: solid, labels never show through */
 '  .sv2-oc .sv2-ocg>.sv2-f{display:flex;flex-direction:column;justify-content:flex-end}',   /* v0.2 P3: inputs line up when a label wraps to 2 lines */
@@ -459,6 +465,8 @@ function createInstance(host,O){
   var SEASON_NAME=O.seasonName||'';
   var dead=false;
   function isCitrus(){return PRODUCT==='citrus';}
+  function regionOn(){return isCitrus()&&salesRegionFlag();}
+  function regionLive(){return regionOn()&&REF.sregions.length>0;}   /* the DB step is applied: the list has values */
   function hasLot(){return PRODUCT!=='grapes';}   /* Tarek 2026-10-13: Lot # everywhere except Grapes */
   var OC=(PRODUCT==='other_crops');        /* Other crops: the Pivots form + Crop, Cartons #, Benz #; lists are ref_options codes */
   var PT=(PRODUCT==='potatoes')||OC;       /* Pivots line: own fields, totals and RPCs; everything else shared */
@@ -480,7 +488,7 @@ function createInstance(host,O){
   function el(id){return host.querySelector('#sv2-'+id);}
   function val(id){var e=el(id);return e?String(e.value||'').trim():'';}
 
-  var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{},oc:{byList:{},byCode:{}},pt:null};
+  var REF={clients:[],clientIdByName:{},subByClientId:{},cats:[],vars:[],packs:[],cartonTypes:[],ref:{},oc:{byList:{},byCode:{}},pt:null,sregions:[],ocCats:{}};
   var LINES=[],openRows={},MODE='list',EDIT={container:null,loaded:null,deletedIds:[]};
   var LOADED_IDS=[];   /* ids of the lines as last loaded from the server; Delete shipment sends exactly these */
   var ROW_VERSION='';  /* fixpkg: get_* row_version as last loaded; sent back on edit + delete so the server refuses (PT409) if anyone changed the lines since */
@@ -594,6 +602,7 @@ function createInstance(host,O){
       '<div class="sv2-f"><label for="sv2-client">Client</label><select class="sv2-in" id="sv2-client" data-chg="client"></select></div>'+
       '<div class="sv2-f"><label for="sv2-subclient">Subclient</label><select class="sv2-in" id="sv2-subclient"></select></div>'+
       fld('Agent','agent','text',{list:'sv2-dl-agent'})+fld('Shipper','shipper','text',{list:'sv2-dl-shipper'})+
+      (regionOn()?fld('Region (sales)','sregion','text',{cls:'sv2-sregion'}):'')+
      '</div>'+
      (INTAKE?'':'<div class="sv2-st">Handling</div>'+
      '<div class="sv2-grid"><div class="sv2-f"><label for="sv2-packdep">Pack House (Departure)</label><select class="sv2-in" id="sv2-packdep"></select></div></div>')+
@@ -756,8 +765,11 @@ function createInstance(host,O){
     if(OC){
       return Promise.all([
         window.SV2Ref?window.SV2Ref.load(sb):Promise.resolve(sb.from('ref_options').select('code,list_key,label_ar,label_en,active,is_bulk,sort_order').eq('product_id','other_crops').order('sort_order')).then(function(r){if(r.error)throw r.error;return {rows:r.data||[]};}),
-        Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','other_crops').order('name')).then(function(r){if(r&&!r.error)return r.data||[];REF.part=true;return [];},function(){REF.part=true;return [];})
-      ]).then(function(r){ocSetRefs(r[0].rows);REF.ocSeed=!!r[0].seed;REF.vars=r[1].map(function(v){return {name:v.name};});REF.varsLoaded=true;ptFillDatalists();});
+        Promise.resolve(sb.from('varieties').select('name,active,category_id').eq('active',true).eq('product_id','other_crops').order('name')).then(function(r){if(r&&!r.error)return r.data||[];REF.part=true;return [];},function(){REF.part=true;return [];}),
+        /* 2026-11-26: the 7 crops are categories of other_crops (Configurations > Varieties files each variety under its crop) */
+        Promise.resolve(sb.from('categories').select('id,name').eq('product_id','other_crops')).then(function(r){return r&&!r.error?(r.data||[]):[];},function(){return [];})
+      ]).then(function(r){ocSetRefs(r[0].rows);REF.ocSeed=!!r[0].seed;REF.vars=r[1].map(function(v){return {name:v.name,category_id:v.category_id||null};});
+        REF.ocCats={};r[2].forEach(function(c){REF.ocCats[String(c.name||'').trim().toLowerCase()]=c.id;});REF.varsLoaded=true;ptFillDatalists();});
     }
     if(PT){ /* varieties from the shared registry (same list as potato inspections); the rest from the entry sheet,
                or (PTM, staging) from ref_options + the linked masters, each list falling back to the sheet's on its own */
@@ -780,7 +792,9 @@ function createInstance(host,O){
       REF.vars=(r[3].data||[]).map(function(v){return {name:v.name,category_id:v.category_id};});
       REF.packs=(r[4].data||[]).filter(function(p){return (p.product_ids||[]).indexOf(PRODUCT)>=0;}).map(function(p){return p.name;});
       REF.cartonTypes=(r[5].data||[]).map(function(c){return c.name;});
-      return Promise.all([sb.rpc('get_shipment_v2_ref_options').then(function(rr){
+      var sr=regionOn()?Promise.resolve(sb.from('shipment_list_values').select('value').eq('list_key','sales_region').eq('product_id','citrus').eq('active',true).order('sort_order').order('value'))
+        .then(function(x){REF.sregions=(x&&!x.error&&x.data)?x.data.map(function(v){return v.value;}):[];},function(){REF.sregions=[];}).then(showRegion):null;
+      return Promise.all([sr,sb.rpc('get_shipment_v2_ref_options').then(function(rr){
         if(rr&&!rr.error&&rr.data){REF.ref=rr.data;fillAllDatalists();}else REF.part=true;
       },function(){REF.part=true;}),loadJde()]);
     });
@@ -808,6 +822,7 @@ function createInstance(host,O){
     fillDatalist('sv2-dl-port',lon?[]:o.rec_ports);fillDatalist('sv2-dl-agent',o.agents);fillDatalist('sv2-dl-shipper',lon?[]:o.shippers);
     fillDatalist('sv2-dl-source',o.source_types);fillDatalist('sv2-dl-rawsource',o.raw_sources);}
   function catNames(){return REF.cats.map(function(c){return c.name;});}
+  function showRegion(){var e=el('sregion'),w=e&&e.closest('.sv2-f');if(w)w.classList.toggle('on',regionLive());}
   function varsFor(catName){
     var all=REF.vars;var names;
     if(catName){var c=REF.cats.find(function(x){return x.name===catName;});var cid=c?c.id:null;
@@ -943,7 +958,10 @@ function createInstance(host,O){
     '</div>';
   }
   /* ---- potato lines: main row = what's scanned; detail = the rest of the 21 sheet fields ---- */
-  function varNames(){return REF.vars.map(function(v){return v.name;});}
+  function varNames(){var vs=REF.vars;
+    if(OC){var o=REF.oc.byCode[val('crop')],cid=o&&o.label_en?REF.ocCats[String(o.label_en).trim().toLowerCase()]:null;
+      if(cid)vs=vs.filter(function(v){return !v.category_id||v.category_id===cid;});}
+    return vs.map(function(v){return v.name;});}
   function ptHeadHTML(){return '<tr><th></th><th>#</th><th>Variety</th><th>Pivot</th><th>Farm</th><th>Grade</th><th>Packaging</th><th class="num">Pallets</th><th class="num">Jumbo #</th><th class="num">Sack #</th><th class="num">Std wt t</th><th class="num">Pascol t</th><th></th></tr>';}
   function dl(lab,inner){return '<div><div class="sv2-dlab">'+lab+'</div>'+inner+'</div>';}
   function ptDetail(d,L){
@@ -1196,6 +1214,7 @@ function createInstance(host,O){
   function setVoyageLock(on){['container','ldate'].forEach(function(id){var e=el(id);if(e){e.readOnly=on;}});var h=el('lockhint');if(h)h.hidden=!on;}
   var HDR_IDS=PT?['container','carta','ldate','vessel','ccount','client','country','country2','port','invoice','permit','workorder']:['container','carta','ldate','vessel','line','booking','invoice','po','etd','eta','arrival','depport','country','port','agent','shipper'];
   if(INTAKE)HDR_IDS=HDR_IDS.concat(['plandate','tcartons','hpascol']);
+  if(regionOn())HDR_IDS=HDR_IDS.concat(['sregion']);
   function blankHeader(){HDR_IDS.forEach(function(id){var e=el(id);if(e){e.value='';e.classList.remove('invalid');}});qa('#sv2-vform [data-touched]').forEach(function(e){e.removeAttribute('data-touched');e.classList.remove('invalid');});}
   function readHeader(){
     if(OC)return {container_number:asciiDigits(val('container')),carta:asciiDigits(val('carta')),loading_date:val('ldate'),crop:val('crop'),station:val('station'),sector:val('sector'),
@@ -1211,6 +1230,7 @@ function createInstance(host,O){
       subclient:val('subclient'),agent:val('agent'),shipper:val('shipper'),pack_house_departure:val('packdep')};
     if(SV2_SEND_DEPARTURE_DATE){var cb=el('depdiff');h.departure_date=(cb&&cb.checked)?val('depdate'):val('ldate');}
     if(INTAKE){h.planned_loading_date=val('plandate');h.total_cartons=val('tcartons');if(el('hpascol'))h.pascol_weight=val('hpascol');}
+    if(regionLive()&&el('sregion'))h.sales_region=val('sregion');
     return h;
   }
   function setSeasonChip(){var c=el('ctxseason');if(c)c.textContent=MODE==='create'?('Season '+(SEASON_NAME||'—')+' · from the sidebar'):'Season kept from the record';}
@@ -1312,7 +1332,7 @@ function createInstance(host,O){
   /* ---------------------------------------------------------- save */
   function setSaving(on){SAVING=on;qa('[data-act="save"]').forEach(function(b){b.disabled=on;b.textContent=on?'Saving…':'Save shipment';});qa('[data-act="saveNew"]').forEach(function(b){b.disabled=on;});}
   /* Save & new: the next container usually shares these, so they carry over (lines, container, dates and weights don't) */
-  var SAVE_NEW=false,KEEP_TEXT=['vessel','line','depport','country','port','agent','shipper'];
+  var SAVE_NEW=false,KEEP_TEXT=['vessel','line','depport','country','port','agent','shipper'].concat(regionOn()?['sregion']:[]);
   function keepHeader(){var k={status:val('status'),client:val('client'),subclient:val('subclient'),pack_house_departure:val('packdep')};KEEP_TEXT.forEach(function(id){k[id]=val(id);});return k;}
   function restoreHeader(k){fillHeaderSelects({status:k.status,client:k.client,subclient:k.subclient,pack_house_departure:k.pack_house_departure});
     KEEP_TEXT.forEach(function(id){var e=el(id);if(e)e.value=k[id]||'';});syncCtxStatus();setDirty(false);}
@@ -1476,6 +1496,7 @@ function createInstance(host,O){
         var hp=h.pascol_weight;
         if(hp==null||String(hp).trim()===''){var fl=lines.find(function(l){return l.pascol_weight!=null&&String(l.pascol_weight).trim()!=='';});hp=fl?fl.pascol_weight:'';}
         setv('hpascol',hp!=null&&String(hp).trim()!==''?tidyNum(hp):'');
+        if(regionOn())setv('sregion',h.sales_region!=null?String(h.sales_region):'');
       }
       /* 2026-11-26: sheet rows keep their stored Pascol figures; Manage rows have none stored (the save/edit RPCs strip
          pascol_pct/packing_weight/pascol_net/weight_variance), so citrus intake recalculates them for display on open */
@@ -1755,7 +1776,7 @@ function createInstance(host,O){
   }
   function onChange(e){
     var t=e.target,c=t.getAttribute&&t.getAttribute('data-chg');
-    if(OC&&t.id==='sv2-crop')ocVarHint();
+    if(OC&&t.id==='sv2-crop'){ptFillDatalists();ocVarHint();}
     if(c==='status'){syncCtxStatus();
       /* re-check carton counts: negative is fine only while the status is Returned */
       qa('[data-line] [data-k="carton_count"]').forEach(function(f){if(!String(f.value||'').trim())return;var pr=lineNumProblem('carton_count',f.value);f.classList.toggle('invalid',!!pr);f.setAttribute('aria-invalid',pr?'true':'false');f.title=pr?lineLabel('carton_count')+' '+pr:'';});}

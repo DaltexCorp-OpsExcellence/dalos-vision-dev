@@ -21,7 +21,7 @@
 var LIST_LABELS={brand:'Brands',packing_type:'Packing types',count_size:'Counts/Sizes',caliber:'Calibers',source_type:'Source types',
   raw_source:'Raw sources',departure_port:'Departure ports',agent:'Agents',shipping_line:'Shipping lines',client_class:'Client classes',
   shipping_status:'Shipping statuses',receiving_country:'Countries',daltex_class:'Daltex classes',
-  receiving_port:'Receiving ports',shipper:'Shippers',
+  receiving_port:'Receiving ports',shipper:'Shippers',sales_region:'Regions (sales)',
   /* Potatoes + Other crops (ref_options, shared keys of potato-lists A; 'brand' above is shared): queue labels only */
   sector:'Sectors',crop_season:'Crop seasons',pivot:'Pivots',grade:'Grades',size:'Sizes (Size 2)',crop_type:'Crop types',
   bag_colour:'Jumbo / sack colours',operation:'Operations',condition:'Conditions'};
@@ -30,7 +30,7 @@ var QUEUE_KEYS={brand:1,packing_type:1,count_size:1,caliber:1,source_type:1,raw_
 /* intake field -> list. hdr = header input id (without sv2-), k = line data-k */
 var FIELDS=[
   {hdr:'line',key:'shipping_line'},{hdr:'depport',key:'departure_port'},{hdr:'agent',key:'agent'},{hdr:'country',key:'receiving_country'},
-  {hdr:'port',key:'receiving_port'},{hdr:'shipper',key:'shipper'},
+  {hdr:'port',key:'receiving_port'},{hdr:'shipper',key:'shipper'},{hdr:'sregion',key:'sales_region'},   /* 2026-11-26: citrus, staging flag */
   {k:'brand',key:'brand'},{k:'packaging_type',key:'packing_type'},{k:'count_size',key:'count_size'},{k:'caliber',key:'caliber'},
   {k:'source_type',key:'source_type'},{k:'raw_source',key:'raw_source'},{k:'client_class',key:'client_class'},{k:'daltex_class',key:'daltex_class'}
 ];

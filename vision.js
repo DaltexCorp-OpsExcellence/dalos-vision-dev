@@ -8621,6 +8621,10 @@ function AdminCenter(props){
         }
       });
   }
+  /* 2026-11-26 (Tarek): Other crops is an inactive product (Shipments only, staging), so config.products leaves it out; on staging
+     the Varieties tab lists it too, with its 7 crops as categories, so admins add Other crops varieties here like any product. */
+  function cfgVarietyProducts(){var ps=config.products||[];
+    return (typeof otherCropsOn==='function'&&otherCropsOn()&&!ps.some(function(p){return p.id==='other_crops';}))?ps.concat([OC_PRODUCT]):ps;}
   function addVariety(){
     if(!newVal.trim()) return;
     var categoryId=newVal2Arr[0]||null;
@@ -9286,7 +9290,7 @@ function AdminCenter(props){
             ce('div',{style:{flex:'0 0 150px'}},
               ce('label',{className:'form-label'},'Product'),
               ce('select',{className:'form-select',value:selProd,onChange:function(e){setSelProd(e.target.value);}},
-                (config.products||[]).map(function(p){return ce('option',{key:p.id,value:p.id},p.name);})
+                cfgVarietyProducts().map(function(p){return ce('option',{key:p.id,value:p.id},p.name);})
               )
             ),
             ce('div',{style:{flex:'0 0 150px'}},
@@ -9301,7 +9305,7 @@ function AdminCenter(props){
           )
         ),
         /* All products with their varieties grouped by category */
-        (config.products||[]).map(function(prod){
+        cfgVarietyProducts().map(function(prod){
           var fullVars=(config.varietiesFull||{})[prod.id]||[];
           var simpleVars=(config.varieties||{})[prod.id]||[];
           var cats=(config.categories||{})[prod.id]||[];
@@ -14409,7 +14413,7 @@ function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?v=4f4570231d';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
+    s.src='shipments_v2.js?v=ba3c4378c2';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});

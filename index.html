@@ -919,8 +919,8 @@ input[type=date],input[type=time]{min-width:0;max-width:100%;box-sizing:border-b
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
 <!-- Pivots line (Potatoes) lives in pivots.js so potato fixes never touch this file -->
 <script src="pivots.js?v=b3ac275641"></script>
-<script src="shipments_lists.js?v=6beecbdf5f"></script>
-<script src="shipments_lists_config.js?v=7f0588e4ac"></script>
+<script src="shipments_lists.js?v=f0765b5414"></script>
+<script src="shipments_lists_config.js?v=5f9f715025"></script>
 <script src="shipments_lists_queue.js?v=471fe1a01e"></script>
 <script src="shipments_pt_suggest.js?v=08b8bc5b8b"></script>
 <script src="shipments_ref_options.js?v=ced4fd185a"></script>
@@ -947,9 +947,12 @@ var SV2_PT_LISTS_ENABLED=VISION_IS_DEV;
 /* "Not in list?" on the Potatoes + Other crops lists (shipments_pt_suggest.js, Vera 2026-11-25). Needs DB package nil v0.1 (Ash,
    then Tarek's yes) before suggestions can be sent. ON on the staging host only; shipments_pt_suggest.js checks VISION_IS_DEV again. */
 var SV2_PT_SUGGEST_ENABLED=VISION_IS_DEV;
+/* Citrus sales Region on the Shipments header (shipments_v2.js + the 'sales_region' managed list, Tarek 2026-11-26). ON on the
+   staging host only; shipments_v2.js checks VISION_IS_DEV again and keeps the field hidden until DB step B01 adds the list values. */
+var SV2_SALES_REGION_ENABLED=VISION_IS_DEV;
 </script>
 <script src="viewas.js?v=a7b9e342df"></script><!-- staging-only View Vision as… (inert unless VISION_IS_DEV); must load before vision.js -->
-<script src="vision.js?v=a5a1151356"></script>
+<script src="vision.js?v=73f431b6a9"></script>
 <script>
 /* Fade the entry splash once the app shell first paints (React commits to #root),
    with a hard fallback so it can never stick. */
