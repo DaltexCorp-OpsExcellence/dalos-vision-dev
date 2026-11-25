@@ -48,9 +48,9 @@ function intakeFieldsEnabled(){
 
 /* ---------------------------------------------------------------- styles */
 var CSS=[
-'.sv2{--sv2-glass:color-mix(in srgb,var(--card) 82%,transparent);display:grid;gap:12px;font-size:13px;color:var(--text)}',
+'.sv2{--sv2-glass:color-mix(in srgb,var(--card) 82%,transparent);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;font-size:13px;color:var(--text)}',
 '.sv2 *,.sv2 *::before,.sv2 *::after{box-sizing:border-box}',
-'.sv2-view{display:none;gap:12px}.sv2-view.on{display:grid}',
+'.sv2-view{display:none;gap:12px}.sv2-view.on{display:grid;grid-template-columns:minmax(0,1fr)}',
 '.sv2 .mono{font-family:var(--font-mono)}',
 '.sv2-banner{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.5;background:var(--amber-bg);border:1px solid var(--amber-border);color:#7a4a10}',
 '.sv2-banner.info{background:var(--bg2,#f1efe9);border-color:var(--border,#d0cbbe);color:var(--text2,#4a4a44)}.sv2-banner.info b{color:var(--text,#222)}',
@@ -185,7 +185,8 @@ var CSS=[
 '@media (max-width:700px){',
 '  .sv2-desk{display:none!important}.sv2-cards,.sv2-lcards{display:grid}',
 '  .sv2-grid{grid-template-columns:repeat(2,minmax(0,1fr))}',
-'  .sv2-fsels{width:100%}.sv2 .sv2-fsel{flex:1 1 140px;width:auto;max-width:none}',
+'  .sv2-fsels{width:100%}.sv2 .sv2-fsel{flex:1 1 140px;width:0;min-width:0;max-width:100%}',   /* 2026-11-25 P2: a long client/region option no longer widens the list past the screen */
+'  .sv2-cards{grid-template-columns:minmax(0,1fr)}.sv2-card{min-width:0;overflow-wrap:anywhere}',
 '  .sv2-search{flex-basis:100%;max-width:none}',
 '  .sv2-in,.sv2-search input{font-size:16px}',  /* no iOS zoom-on-focus */
 '  .sv2-btn,.sv2-back{min-height:40px}',
@@ -196,7 +197,11 @@ var CSS=[
 /* 2026-11-25 P3b (Pixel): compact Save bar on phones (was 170-212px): totals on small inline rows, the two buttons side by side,
    empty warnings take no space, a warning is one line (full text on tap/hover via title). --sv2-footh follows the new height. */
 '  .sv2:not(.sv2-oc) .sv2-submit{gap:4px 10px;padding:7px 10px;background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}',   /* solid: fields never show through */
-'  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot{display:flex;align-items:baseline;gap:4px}',
+'  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot{display:flex;align-items:baseline;gap:4px;flex:0 0 auto;white-space:nowrap}',
+/* 2026-11-25 P3 (Pixel, live 375px with the real fonts: Citrus 172.5px, Grapes/Mango 129.5px): totals on ONE line that scrolls sideways, so the bar
+   is the same height at every phone width (totals line + buttons) */
+'  .sv2:not(.sv2-oc) .sv2-totrow{display:flex;flex:1 1 100%;min-width:0;flex-wrap:nowrap;gap:0 12px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}',
+'  .sv2:not(.sv2-oc) .sv2-totrow::-webkit-scrollbar{display:none}',
 '  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot .k{font-size:11px;letter-spacing:0;text-transform:none;font-weight:500}',
 '  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot .v{font-size:13.5px;font-weight:600}',
 '  .sv2:not(.sv2-oc) .sv2-submit .sv2-sp{display:none}',
@@ -525,9 +530,9 @@ function createInstance(host,O){
      '<div class="sv2-toolbar"><button type="button" class="sv2-btn sec sm" data-act="addLine">+ Add line</button><button type="button" class="sv2-btn sec sm" data-act="dupLast">'+(PT?'Duplicate last line':'Duplicate line (same pack)')+'</button></div>'+
     '</div>'+
     '<div class="sv2-submit">'+
-     (OC?'<div class="sv2-totrow">':'')+tot('Lines','slines')+tot('Pallets','spal')+
-     (OC?tot('Packs','spacks')+tot('Std weight','snet')+'</div>':PT?tot('Jumbo bags','sjumbo')+tot('Sacks','ssack')+tot('Standard wt','snet')+tot('Pascol wt','spas')
-        :tot('Cartons','sctn')+tot('Net · Gross'+u('t'),'snet')+(INTAKE&&isCitrus()?tot('Pascol · Packing'+u('t'),'spas')+tot('Container variance'+u('t'),'svar'):''))+
+     '<div class="sv2-totrow">'+tot('Lines','slines')+tot('Pallets','spal')+   /* 2026-11-25 P3: every product (phones: one scrollable line) */
+     (OC?tot('Packs','spacks')+tot('Std weight','snet'):PT?tot('Jumbo bags','sjumbo')+tot('Sacks','ssack')+tot('Standard wt','snet')+tot('Pascol wt','spas')
+        :tot('Cartons','sctn')+tot('Net · Gross'+u('t'),'snet')+(INTAKE&&isCitrus()?tot('Pascol · Packing'+u('t'),'spas')+tot('Container variance'+u('t'),'svar'):''))+'</div>'+
      '<span class="sv2-sp"></span><span class="sv2-jdewarn" id="sv2-jdewarn" role="status" hidden></span><button type="button" class="sv2-goprob" data-act="goProblem" id="sv2-goprob" hidden></button>'+
      (PT?'':'<button type="button" class="sv2-btn sec" data-act="saveNew">Save &amp; new</button>')+
      '<button type="button" class="sv2-btn" data-act="save">Save shipment</button>'+
