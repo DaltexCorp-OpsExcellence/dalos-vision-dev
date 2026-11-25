@@ -210,7 +210,8 @@ var CSS=[
 '  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot .k{font-size:10px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
 '  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot .v{font-size:12.5px;line-height:1.15}',
 '  .sv2-totrow.wrap .sv2-kl{display:none}.sv2-totrow.wrap .sv2-ks{display:inline}',
-'  .sv2:not(.sv2-oc) .sv2-totrow.more{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}',
+/* 2026-11-25 P3a (Pixel, 320px): clearer right-edge fade + a small › while totals are out of view (pinned to the visible edge, takes no extra width) */
+'  .sv2 .sv2-totrow.more::after{content:"›";position:sticky;right:0;flex:0 0 auto;align-self:stretch;display:flex;align-items:center;justify-content:flex-end;width:44px;margin-left:-56px;padding-right:1px;background:linear-gradient(to right,rgba(255,255,255,0),#fff 55%);color:var(--text2,#4a4840);font:700 17px/1 var(--font-body,system-ui,sans-serif);pointer-events:none}',
 '  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot .k{font-size:11px;letter-spacing:0;text-transform:none;font-weight:500}',
 '  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot .v{font-size:13.5px;font-weight:600}',
 '  .sv2:not(.sv2-oc) .sv2-submit .sv2-sp{display:none}',
@@ -229,13 +230,15 @@ var CSS=[
 '.sv2-ocvhint{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:var(--text2,#4a4840);margin:-4px 0 8px}',   /* 2026-11-25 P3c: AA contrast + info icon */
 '.sv2-ocvhint .ic{flex:0 0 auto;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;font:700 10px/1 var(--font-body);font-style:normal}',
 '.sv2-oc #sv2-vform input,.sv2-oc #sv2-vform select,.sv2-oc #sv2-vform .sv2-btn{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 16px)}',
-'.sv2-totrow{display:contents}.sv2-ks{display:none}',
+'.sv2-totrow{display:contents}.sv2-ks{display:none}.sv2-kn{display:none}',
+'html.sv2-bar-on .vas-bar{bottom:var(--sv2-pill,14px)}',   /* 2026-11-25 P2b (Pixel): the admin "View Vision as" pill sits above the Save bar while the bar is on screen (offset set by placePill; viewas.js unchanged) */
 '.sv2-oc #sv2-lhead th.oc-var,.sv2-oc #sv2-lbody td.oc-var{min-width:190px}',   /* v0.2 P3 (Pixel): wider Variety column on desktop */
 '@media (max-width:700px){',
 '  .sv2-oc .sv2-submit{flex-wrap:nowrap;gap:10px;padding:7px 10px;min-height:0;background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}',   /* v0.2 P3: solid, labels never show through */
 '  .sv2-oc .sv2-ocg>.sv2-f{display:flex;flex-direction:column;justify-content:flex-end}',   /* v0.2 P3: inputs line up when a label wraps to 2 lines */
-'  .sv2-oc .sv2-totrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 10px;flex:1 1 auto;min-width:0}',
-'  .sv2-oc .sv2-tot{display:flex;align-items:baseline;gap:4px}',
+'  .sv2-oc .sv2-totrow{display:flex;flex-wrap:nowrap;align-items:baseline;gap:0 12px;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}',   /* 2026-11-25 P3c (Pixel, 375px): one line, swipe + fade like Grapes */
+'  .sv2-oc .sv2-totrow::-webkit-scrollbar{display:none}',
+'  .sv2-oc .sv2-tot{display:flex;align-items:baseline;gap:4px;flex:0 0 auto;white-space:nowrap}',
 '  .sv2-oc .sv2-tot .k{font-size:11px;letter-spacing:0;text-transform:none;font-weight:500}',
 '  .sv2-oc .sv2-tot .v{font-size:13.5px;font-weight:600}',
 '  .sv2-oc .sv2-submit .sv2-sp{display:none}',
@@ -264,6 +267,17 @@ var CSS=[
 ,/* Other crops: phone field order + full-width fields as in form-v3-390 (follow-ups P3: the amber "new" tags are gone) */
 '@media (max-width:700px){.sv2-ocg .oc-full{grid-column:1/-1}.sv2-ocg .oc-o1{order:1}.sv2-ocg .oc-o2{order:2}.sv2-ocg .oc-o3{order:3}.sv2-ocg .oc-o4{order:4}.sv2-ocg .oc-o5{order:5}.sv2-ocg .oc-o6{order:6}.sv2-ocg .oc-o7{order:7}.sv2-ocg .oc-o8{order:8}.sv2-ocg .oc-o9{order:9}}',
 /* follow-ups P3 (Pixel): <=420px (390px phones) Other crops is one column: header fields and line-card fields each take a full row */
+/* 2026-11-25 P2a (Pixel, 320px: 'Pascol · Packing t' cut, Net · Gross value on 2 lines, bar 127px): at <=360px Citrus totals are
+   row 1 = Lines, Pallets, Cartons (label and value on one line), row 2 = Net · Gross, Pascol, Variance (label over value, second figure under the first) */
+'@media (max-width:360px){',
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:0 8px}',
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap::after{content:"";flex:0 0 100%;order:1;height:0}',
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot:nth-child(-n+3){display:flex;align-items:baseline;gap:4px;white-space:nowrap}',
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot:nth-child(n+4){order:2;margin-top:3px}',
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot:nth-child(n+4) .v{white-space:nowrap}',
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot:nth-child(n+4) .v small{display:block;font-size:11px;line-height:1.1}',
+'  .sv2-totrow.wrap .sv2-kp{display:none}.sv2-totrow.wrap .sv2-kn{display:inline}',
+'}',
 '@media (max-width:420px){.sv2-oc .sv2-ocg{grid-template-columns:minmax(0,1fr)}.sv2-oc .sv2-ocg>.sv2-f{grid-column:1/-1}.sv2-oc .sv2-lcard .lb{grid-template-columns:minmax(0,1fr)}}'
 ].join('\n');
 function injectCss(){
@@ -541,7 +555,7 @@ function createInstance(host,O){
     '<div class="sv2-submit">'+
      '<div class="sv2-totrow'+(isCitrus()?' wrap':'')+'">'+tot('Lines','slines')+tot('Pallets','spal')+   /* 2026-11-25 P3: every product (phones: one scrollable line) */
      (OC?tot('Packs','spacks')+tot('Std weight','snet'):PT?tot('Jumbo bags','sjumbo')+tot('Sacks','ssack')+tot('Standard wt','snet')+tot('Pascol wt','spas')
-        :tot('Cartons','sctn')+tot('Net · Gross'+u('t'),'snet')+(INTAKE&&isCitrus()?tot('Pascol · Packing'+u('t'),'spas')+tot('<span class="sv2-kl">Container variance</span><span class="sv2-ks">Variance</span>'+u('t'),'svar'):''))+'</div>'+
+        :tot('Cartons','sctn')+tot('Net · Gross'+u('t'),'snet')+(INTAKE&&isCitrus()?tot('<span class="sv2-kp">Pascol · Packing</span><span class="sv2-kn">Pascol</span>'+u('t'),'spas')+tot('<span class="sv2-kl">Container variance</span><span class="sv2-ks">Variance</span>'+u('t'),'svar'):''))+'</div>'+
      '<span class="sv2-sp"></span><span class="sv2-jdewarn" id="sv2-jdewarn" role="status" hidden></span><button type="button" class="sv2-goprob" data-act="goProblem" id="sv2-goprob" hidden></button>'+
      (PT?'':'<button type="button" class="sv2-btn sec" data-act="saveNew">Save &amp; new</button>')+
      '<button type="button" class="sv2-btn" data-act="save">Save shipment</button>'+
@@ -1477,7 +1491,8 @@ function createInstance(host,O){
 
   /* ---------------------------------------------------------- views */
   function scrollTop(){var r=host.getBoundingClientRect();if(r.top<0)host.scrollIntoView({block:'start'});}
-  function showView(v){el('vlist').classList.toggle('on',v==='list');el('vform').classList.toggle('on',v==='form');scrollTop();}
+  function showView(v){el('vlist').classList.toggle('on',v==='list');el('vform').classList.toggle('on',v==='form');scrollTop();
+    if(v==='form'){var tr=q('.sv2-totrow');if(tr)tr.scrollLeft=0;}totFade();schedPill();}   /* 2026-11-25 P3b: totals line starts at the left on every open */
   function openContainer(i){
     var c=DATA[i];if(!c)return;
     MODE='edit';EDIT={container:c.ref,loaded:c.hdr.loaded,deletedIds:[]};
@@ -1785,7 +1800,17 @@ function createInstance(host,O){
   /* right-edge fade on the phone totals line only while some totals are out of view (not Citrus: it wraps) */
   function totFade(){var r=q('.sv2-totrow');if(!r||dead)return;var m=r.scrollWidth-r.clientWidth;r.classList.toggle('more',!r.classList.contains('wrap')&&m>1&&r.scrollLeft<m-1);}
   (function(){var r=q('.sv2-totrow');if(r)r.addEventListener('scroll',totFade,{passive:true});})();
-  function placeFoot(){totFade();var s=q('.sv2-submit');if(s){var fh=Math.ceil(s.getBoundingClientRect().height);if(fh>0)host.style.setProperty('--sv2-footh',fh+'px');}}
+  /* 2026-11-25 P2b (Pixel): while the Save bar is on screen and would sit under Vision's floating "View Vision as" pill (admin only),
+     lift the pill above the bar: <html class="sv2-bar-on"> + --sv2-pill (CSS above). Position only; viewas.js is not touched. */
+  var pillRaf=0;
+  function placePill(){var d=document.documentElement,s=q('.sv2-submit'),off=0;
+    if(!dead&&s){var r=s.getBoundingClientRect(),vh=window.innerHeight||d.clientHeight,pb=document.querySelector('.vas-bar'),ph=pb&&pb.offsetHeight?pb.offsetHeight:44;
+      if(r.height>0&&r.top<vh&&r.bottom>vh-14-ph-8)off=Math.max(14,Math.ceil(vh-r.top)+8);}
+    if(off){d.classList.add('sv2-bar-on');d.style.setProperty('--sv2-pill',off+'px');}
+    else if(d.classList.contains('sv2-bar-on')){d.classList.remove('sv2-bar-on');d.style.removeProperty('--sv2-pill');}}
+  function schedPill(){if(!pillRaf&&!dead)pillRaf=requestAnimationFrame(function(){pillRaf=0;placePill();});}
+  document.addEventListener('scroll',schedPill,{passive:true,capture:true});
+  function placeFoot(){totFade();schedPill();var s=q('.sv2-submit');if(s){var fh=Math.ceil(s.getBoundingClientRect().height);if(fh>0)host.style.setProperty('--sv2-footh',fh+'px');}}
   var footRO=window.ResizeObserver?new ResizeObserver(placeFoot):null;if(footRO&&q('.sv2-submit'))footRO.observe(q('.sv2-submit'));
   placeBar();window.addEventListener('resize',placeBar);
   /* switching phone <-> desktop width re-renders in the other layout without losing input */
@@ -1864,6 +1889,7 @@ function createInstance(host,O){
     confirmLeave:confirmLeave,
     unmount:function(){
       dead=true;window.removeEventListener('beforeunload',onBeforeUnload);window.removeEventListener('resize',placeBar);
+      document.removeEventListener('scroll',schedPill,{passive:true,capture:true});if(pillRaf)cancelAnimationFrame(pillRaf);placePill();
       if(phoneMQ){if(phoneMQ.removeEventListener)phoneMQ.removeEventListener('change',onMQ);else if(phoneMQ.removeListener)phoneMQ.removeListener(onMQ);}
       if(formMQ){if(formMQ.removeEventListener)formMQ.removeEventListener('change',onMQ);else if(formMQ.removeListener)formMQ.removeListener(onMQ);}
       if(footRO)footRO.disconnect();
