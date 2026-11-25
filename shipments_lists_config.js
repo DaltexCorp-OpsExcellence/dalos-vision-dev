@@ -14,7 +14,7 @@ if(!window.SV2Lists||typeof window.SV2Lists.registerScreen!=='function')return;
 var GROUPS=[
   {t:'Clients & markets',keys:['client_class']},
   {t:'Packing',keys:['brand','packing_type','count_size','caliber']},
-  {t:'Logistics',keys:['source_type','raw_source','departure_port','agent','shipping_line','shipping_status']},
+  {t:'Logistics',keys:['source_type','raw_source','departure_port','receiving_port','shipper','agent','shipping_line','shipping_status']},
   {t:'Spelling',keys:['@aliases']},
   {t:'JDE',keys:['@jde']}
 ];

@@ -1,5 +1,6 @@
 /* DalOS Vision — Configurations: Other crops lists (draft, Vera 2026-11-23)
- * window.SV2Ref: the 7 Other crops dropdown lists (crop, packing station, client, port, farm, transport/vessel, packing type)
+ * window.SV2Ref: the 17 Other crops dropdown lists: the 7 code lists (crop, packing station, client, port, farm, transport/vessel,
+ * packing type) + the 10 label lists on the shared keys of potato-lists A, options seeded by sv2dd 01 (saved as the Arabic label)
  * kept in public.ref_options (OC DB package oc_01). Every option has a code (fixed, what shipments store), an Arabic label
  * and an English label. Admins add, rename and turn options off/on ONLY through the RPCs ref_option_add / ref_option_update /
  * ref_option_set_active (SECURITY DEFINER, admin-checked on the server); there are no direct table writes. Renaming never
@@ -16,7 +17,10 @@ var LISTS=[
   ['port','Shipping port','ميناء الشحن'],
   ['farm','Farm','المزرعه'],
   ['transport','Vessel / transport','اسم المركب'],
-  ['packing_type','Packing type','العبوة']
+  ['packing_type','Packing type','العبوة'],
+  ['sector','Sector','القطاع'],['crop_season','Crop season','الموسم'],['pivot','Pivot','البيفوت'],['grade','Grade','التصنيف'],
+  ['size','Size 2','الحجم2'],['crop_type','Crop type','محصول'],['brand','Brand','براند'],['bag_colour','Jumbo / sack colour','لون الجامب / الشيكاره'],
+  ['operation','Operation','نوع تشغيل'],['condition','Condition','الحاله']
 ];
 var PRODUCT='other_crops';
 /* v0.2 (Ash): no writes in this build. Add / rename / turn off only show PENDING (no RPC is called). A later commit turns
