@@ -641,10 +641,12 @@ function createInstance(host,O){
     (rows||[]).forEach(function(o){(bl[o.list_key]=bl[o.list_key]||[]).push(o);bc[o.code]=o;if(o.list_key==='packing_type')PACK_BULK[o.code]=!!o.is_bulk;});
     REF.oc={byList:bl,byCode:bc};}
   /* sv2dd (Claudia 2026-11-25, Tarek "goo all"): Other crops' own lists for the 11 fields that borrowed the potato lists.
-     ref_options keys sector, season, country, pivot, grade, size, crop_type, brand, colour (jumbo + sack), operation, condition.
+     ref_options keys = the 10 shared keys of Vera's potato-lists A (sector, crop_season, pivot, grade, size, crop_type, brand,
+     bag_colour (jumbo + sack), operation, condition); Other crops has its own *_OC_* options on them. Country / Country 2 has no
+     ref_options key (masters, as on Potatoes) and keeps the potato list.
      Saved value = the option's Arabic label (free text on the server, as before). A key with no active option (DB step not
      applied yet) keeps the potato list, so nothing changes until then. */
-  var OC_PT_KEYS={sectors:'sector',cropSeasons:'season',countries:'country',pivots:'pivot',grades:'grade',size2:'size',cropTypes:'crop_type',brands:'brand',colours:'colour',ops:'operation',conditions:'condition'};
+  var OC_PT_KEYS={sectors:'sector',cropSeasons:'crop_season',pivots:'pivot',grades:'grade',size2:'size',cropTypes:'crop_type',brands:'brand',colours:'bag_colour',ops:'operation',conditions:'condition'};
   function ocLists(){var out={},k;for(k in PT_LISTS)out[k]=PT_LISTS[k];
     var bl=(REF.oc&&REF.oc.byList)||{};
     Object.keys(OC_PT_KEYS).forEach(function(pk){var arr=(bl[OC_PT_KEYS[pk]]||[]).filter(function(o){return o.active&&o.label_ar;}).map(function(o){return o.label_ar;});if(arr.length)out[pk]=arr;});
