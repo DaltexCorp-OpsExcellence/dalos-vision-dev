@@ -59,7 +59,7 @@ var CSS=[
 '.sv2l-act:hover,.sv2l-act:focus-visible{background:var(--bg2,#f2f2f2);outline:none}',
 '.sv2l-hint{font-size:11.5px;color:var(--text3,#777);padding:0 4px;line-height:1.4}',
 '.sv2l-msg{font-size:12px;padding:2px 4px}.sv2l-msg.ok{color:var(--green,#1c7c3c)}.sv2l-msg.err{color:var(--red,#b42318)}',
-'.sv2l-tb{display:inline-flex;gap:6px}',
+'.sv2l-tb{display:inline-flex;flex-wrap:wrap;gap:6px;max-width:100%}',
 '.sv2l-scr{position:fixed;inset:0;z-index:2147481000;background:rgba(10,20,15,.35);display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto}',
 '.sv2l-panel{background:#f7f7f4;color:var(--text,#222);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.25);width:min(1100px,100%);max-height:92vh;display:flex;flex-direction:column;font:13px var(--font-body,inherit)}',
 '.sv2l-ph{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border,#e2e2dc)}',
@@ -143,10 +143,13 @@ function attach(host,opts){
     host.appendChild(pop);
   }
   function place(){
-    if(!pop||!cur)return;if(!document.body.contains(cur.input)){close();return;}var r=cur.input.getBoundingClientRect(),vh=window.innerHeight||800,below=vh-r.bottom-8,above=r.top-8;
+    if(!pop||!cur)return;if(!document.body.contains(cur.input)){close();return;}var r=cur.input.getBoundingClientRect(),vh=window.innerHeight||800,lim=vh;
+    /* 2026-11-25 P3a (Pixel): the list stops above the sticky Save bar (or opens upward when there is no room below it) */
+    var bar=host.querySelector('.sv2-submit'),bb=bar&&bar.getClientRects().length?bar.getBoundingClientRect():null;if(bb&&bb.top>r.bottom&&bb.top<vh)lim=bb.top;
+    var below=lim-r.bottom-8,above=r.top-8;
     pop.style.left=Math.max(4,Math.min(r.left,(window.innerWidth||1000)-Math.max(r.width,240)-4))+'px';
     pop.style.width=Math.max(r.width,240)+'px';
-    var up=below<200&&above>below,h=Math.max(140,Math.min(320,up?above:below));
+    var up=below<200&&above>below,h=Math.max(Math.min(100,up?above:below),Math.min(320,up?above:below));
     pop.style.maxHeight=h+'px';
     if(up){pop.style.top='';pop.style.bottom=(vh-r.top+4)+'px';}else{pop.style.bottom='';pop.style.top=(r.bottom+4)+'px';}
   }
@@ -323,6 +326,8 @@ function attach(host,opts){
 
   /* 2026-11-25: loading / 'Couldn’t load list' + Retry in the form's #sv2-lstat (shipments_v2.js), instead of blank lists with no message */
   var booted=false,startSeq=0,loadNoteT=0;
+  /* test only (staging): ?sv2failLists=1 -> the first managed-list load fails; Retry loads normally */
+  var forced=(function(){try{return window.VISION_IS_DEV===true&&/(?:^|[?&#])sv2failLists=1(?:&|$)/.test(String(location.search)+'&'+String(location.hash));}catch(_e){return false;}})();
   function lstat(state){
     if(typeof opts.onStatus==='function'){try{opts.onStatus(state||null);}catch(_e){}return;}   /* 2026-11-25: the form shows one combined status line */
     var box=host.querySelector('#sv2-lstat');if(!box)return;var s=box.querySelector('[data-src="lists"]');
@@ -340,7 +345,8 @@ function attach(host,opts){
   }
   function start(){
     var seq=++startSeq;clearTimeout(loadNoteT);loadNoteT=setTimeout(function(){if(!dead&&seq===startSeq&&!D)lstat('loading');},700);
-    return loadAll(sb,product).then(function(d){
+    var lp=forced?Promise.reject(new Error('sv2failLists=1 (test)')):loadAll(sb,product);forced=false;
+    return lp.then(function(d){
       if(dead||seq!==startSeq)return;clearTimeout(loadNoteT);lstat(null);D=d;loadedAt=Date.now();
       if(!booted){booted=true;buildPop();addToolbar();}
       markHost();marks();
@@ -379,5 +385,5 @@ function registerScreen(name,def){if(name&&def&&typeof def.mount==='function')SC
 
 /* 2026-11-25 (Vera, notinlist): the Potatoes / Other crops form (shipments_pt_suggest.js) opens the review queue screen itself */
 function screen(name){return Object.prototype.hasOwnProperty.call(SCREENS,name)?SCREENS[name]:null;}
-window.SV2Lists={attach:attach,registerScreen:registerScreen,screen:screen,enabled:enabled,labels:LIST_LABELS,version:'2026-11-25-retry-v0.4'};
+window.SV2Lists={attach:attach,registerScreen:registerScreen,screen:screen,enabled:enabled,labels:LIST_LABELS,version:'2026-11-25-retry-v0.5'};
 })();

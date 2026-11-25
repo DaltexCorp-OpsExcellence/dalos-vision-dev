@@ -190,13 +190,30 @@ var CSS=[
 '  .sv2-in,.sv2-search input{font-size:16px}',  /* no iOS zoom-on-focus */
 '  .sv2-btn,.sv2-back{min-height:40px}',
 '  .sv2-submit .sv2-btn{flex-basis:100%}',
+/* 2026-11-25 P2 (Pixel, ~389px): the Manage toolbar wraps and '+ New shipment' comes first, full width, every product */
+'  #sv2-vlist>.sv2-toolbar>[data-act="openCreate"]{order:-1;flex:1 1 100%}',
+'  #sv2-vlist>.sv2-toolbar>.sv2-sp{display:none}',
+/* 2026-11-25 P3b (Pixel): compact Save bar on phones (was 170-212px): totals on small inline rows, the two buttons side by side,
+   empty warnings take no space, a warning is one line (full text on tap/hover via title). --sv2-footh follows the new height. */
+'  .sv2:not(.sv2-oc) .sv2-submit{gap:4px 10px;padding:7px 10px;background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}',   /* solid: fields never show through */
+'  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot{display:flex;align-items:baseline;gap:4px}',
+'  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot .k{font-size:11px;letter-spacing:0;text-transform:none;font-weight:500}',
+'  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot .v{font-size:13.5px;font-weight:600}',
+'  .sv2:not(.sv2-oc) .sv2-submit .sv2-sp{display:none}',
+'  .sv2:not(.sv2-oc) .sv2-submit .sv2-btn{flex:1 1 40%;flex-basis:40%;min-height:44px;white-space:nowrap}',
+'  .sv2-submit .sv2-ctnwarn,.sv2-submit .sv2-kgwarn,.sv2-submit .sv2-jdewarn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;padding-top:4px;padding-bottom:4px}',
+'  .sv2-submit .sv2-ctnwarn:empty,.sv2-submit .sv2-kgwarn:empty{display:none!important}',
+'  .sv2-submit .sv2-ctnwarn.open,.sv2-submit .sv2-kgwarn.open{white-space:normal}.sv2-submit .sv2-ctnwarn,.sv2-submit .sv2-kgwarn{cursor:pointer}',
+'  .sv2-submit .sv2-jdewarn{flex-basis:100%;order:-1}',
 '}',
+'.sv2-toolbar>*{min-width:0;max-width:100%}',
 /* r2 P2 (Pixel): <=768px the form lines are cards (no sideways scroll), weights wrap to 2 columns, and the
    form keeps room for the sticky Save bar (--sv2-footh = its measured height, set by placeFoot) */
 /* v0.2 P2 (Pixel), Other crops only: the form keeps room under the sticky Save bar (its measured height + 16px) at every width,
    and at <=700px the bar is one compact row (~60px): totals on the left, Save on the right */
 '.sv2-oc #sv2-vform.on{padding-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 16px)!important}',   /* 2026-11-25 P3: + the bar’s offset above the phone nav */
-'.sv2-ocvhint{font-size:12px;color:var(--text3);margin:-4px 0 8px}',
+'.sv2-ocvhint{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:var(--text2,#4a4840);margin:-4px 0 8px}',   /* 2026-11-25 P3c: AA contrast + info icon */
+'.sv2-ocvhint .ic{flex:0 0 auto;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;font:700 10px/1 var(--font-body);font-style:normal}',
 '.sv2-oc #sv2-vform input,.sv2-oc #sv2-vform select,.sv2-oc #sv2-vform .sv2-btn{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 16px)}',
 '.sv2-totrow{display:contents}',
 '.sv2-oc #sv2-lhead th.oc-var,.sv2-oc #sv2-lbody td.oc-var{min-width:190px}',   /* v0.2 P3 (Pixel): wider Variety column on desktop */
@@ -1036,7 +1053,7 @@ function createInstance(host,O){
         html('spas',(hp===null?'—':hp.toFixed(3))+' <small>· '+pk.toFixed(3)+'</small>');
         var vr=hp!==null&&match?hp-pk-net:null;
         html('svar',vr===null?'<small>Pending</small>':(vr>=0?'+':'')+vr.toFixed(3)+(hp>0?' <small>'+(vr/hp*100).toFixed(1)+' %</small>':''));}
-      var fw=el('ctnwarn');if(fw){var r=intakeCartonFooter(ctn,tc),show=r.kind!=='ok'&&!(r.kind==='missing'&&ctn===0&&!TRIED);fw.classList.toggle('on',show);fw.textContent=show?r.message:'';}
+      var fw=el('ctnwarn');if(fw){var r=intakeCartonFooter(ctn,tc),show=r.kind!=='ok'&&!(r.kind==='missing'&&ctn===0&&!TRIED);fw.classList.toggle('on',show);fw.textContent=show?r.message:'';fw.title=fw.textContent;}
     }
     else {html('sctn',ctn.toLocaleString());
       LINES.forEach(function(d,i){var n=numOf(d.net_weight),v=net>0&&String(d.net_weight||'').trim()?(Math.round(n/net*1000)/10).toFixed(1)+' %':'';qa('[data-cpct="'+i+'"]').forEach(function(f){f.value=v;});});}
@@ -1097,7 +1114,7 @@ function createInstance(host,O){
       if(kb.length)t.push('Line '+kb.join(', ')+': '+BIN_MAX_MSG+'. Can\u2019t be saved.');
       if(pkL.length)t.push('Line '+pkL.join(', ')+': '+PACK_KG_MSG+'. Can not be saved.');
       if(oddL.length)t.push('Line '+oddL.join(', ')+': unusual carton weights. Check before saving.');
-      fw.textContent=t.join(' ');fw.classList.toggle('on',t.length>0);}
+      fw.textContent=t.join(' ');fw.title=fw.textContent;fw.classList.toggle('on',t.length>0);}
   }
   /* intake flag on (citrus): split the one container Pascol weight by cartons, like the sheet.
      Pascol share (t) = pascol × (line cartons ÷ Total cartons); Packing = cartons × packing factor;
@@ -1657,6 +1674,7 @@ function createInstance(host,O){
   /* ---------------------------------------------------------- one delegated handler per event type */
   var searchT=null;
   function onClick(e){
+    var wn=e.target.closest&&e.target.closest('.sv2-submit .sv2-ctnwarn,.sv2-submit .sv2-kgwarn');if(wn&&host.contains(wn))wn.classList.toggle('open');   /* P3b: a one-line warning opens on tap */
     var t=e.target.closest('[data-act]');if(!t||!host.contains(t))return;
     var a=t.getAttribute('data-act'),i=+t.getAttribute('data-i');
     switch(a){
@@ -1790,7 +1808,7 @@ function createInstance(host,O){
     var show=!!val('crop')&&!!REF.varsLoaded&&refsState!=='failed'&&refsState!=='loading'&&!varNames().length;
     if(!show){if(x)x.remove();return;}
     if(!x){x=document.createElement('div');x.id='sv2-ocvhint';x.className='sv2-ocvhint';x.setAttribute('role','note');
-      x.innerHTML='No varieties for this crop · <bdi lang="ar" dir="rtl">لا توجد أصناف لهذا المحصول</bdi>';h.parentNode.insertBefore(x,h.nextSibling);}
+      x.innerHTML='<i class="ic" aria-hidden="true">i</i><span>No varieties for this crop · <bdi lang="ar" dir="rtl">لا توجد أصناف لهذا المحصول</bdi></span>';h.parentNode.insertBefore(x,h.nextSibling);}
   }
   /* 2026-11-25 P3 (Pixel): phones — a focused field under the sticky Save bar scrolls up above it (scroll-margin-bottom = bar + offset) */
   function onFormFocus(e){
@@ -1802,10 +1820,15 @@ function createInstance(host,O){
   host.addEventListener('focusin',onFormFocus);
   function headerNow(){return {crop:val('crop'),station:val('station'),vessel:val('vessel'),client:val('client'),receiving_port:val('port'),sector:val('sector'),
     season:val('pseason'),status:val('status'),subclient:val('subclient'),pack_house_departure:val('packdep')};}
+  /* 2026-11-25 (test only, staging only): ?sv2failLists=1 makes the FIRST load of the form's lists fail, so the single
+     'Couldn’t load list' line and one Retry can be checked without going offline. Ignored unless VISION_IS_DEV. */
+  function forceListFail(){try{return window.VISION_IS_DEV===true&&/(?:^|[?&#])sv2failLists=1(?:&|$)/.test(String(location.search)+'&'+String(location.hash));}catch(_e){return false;}}
+  var FORCE_FAIL=forceListFail();
   function bootRefs(retry){
     var seq=++refsSeq;clearTimeout(refsLoadT);refsLoadT=setTimeout(function(){if(!dead&&seq===refsSeq)refStatus('loading');},700);
     var cur=retry?headerNow():{status:''};if(retry)syncLines();
-    withTimeout(loadRefs(),REFS_TIMEOUT_MS).then(function(){if(dead||seq!==refsSeq)return;clearTimeout(refsLoadT);refStatus(REF.part?'failed':null);
+    var lp=FORCE_FAIL&&!retry?Promise.reject(new Error('sv2failLists=1 (test)')):loadRefs();
+    withTimeout(lp,REFS_TIMEOUT_MS).then(function(){if(dead||seq!==refsSeq)return;clearTimeout(refsLoadT);refStatus(REF.part?'failed':null);
       fillHeaderSelects(cur);renderLines();attachLists();attachPtSuggest();if(OC&&DATA.length){deriveAll();rebuildFacetVals();renderList();}},
       function(){if(dead||seq!==refsSeq)return;clearTimeout(refsLoadT);refStatus('failed');fillHeaderSelects(cur);if(retry)renderLines();attachLists();attachPtSuggest();});
   }
