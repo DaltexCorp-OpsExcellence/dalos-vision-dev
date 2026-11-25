@@ -18292,6 +18292,8 @@ function App(){
   /* Always read the latest user data from users state so admin edits reflect immediately */
   var liveCurrentUser=currentUser?(function(){var found=users.find(function(u){return u.id===currentUser.id;});return found?Object.assign({},found,{packhouses:currentUser.packhouses}):currentUser;}()):null;
   dalosReauth.setUser(liveCurrentUser);
+  /* staging-only "View Vision as…" (viewas.js, admins): draw the app as the previewed user; null/absent on prod */
+  if(window.VisionViewAs){var _vas=window.VisionViewAs.userFor(liveCurrentUser);if(_vas)liveCurrentUser=_vas;}
 
 
   /* Show loading spinner while checking auth session */
