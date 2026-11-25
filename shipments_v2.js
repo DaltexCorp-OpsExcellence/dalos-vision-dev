@@ -231,7 +231,8 @@ var CSS=[
 '.sv2-ocvhint .ic{flex:0 0 auto;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;font:700 10px/1 var(--font-body);font-style:normal}',
 '.sv2-oc #sv2-vform input,.sv2-oc #sv2-vform select,.sv2-oc #sv2-vform .sv2-btn{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 16px)}',
 '.sv2-totrow{display:contents}.sv2-ks{display:none}.sv2-kn{display:none}',
-'html.sv2-bar-on .vas-bar{bottom:var(--sv2-pill,14px)}',   /* 2026-11-25 P2b (Pixel): the admin "View Vision as" pill sits above the Save bar while the bar is on screen (offset set by placePill; viewas.js unchanged) */
+'html.sv2-bar-on .vas-bar{bottom:var(--sv2-pill,14px)}',
+'.sv2 .sv2-submit{margin-top:var(--sv2-pillpad,0px)}',   /* 2026-11-25 follow-up: room for the raised pill between the last field and the Save bar (only while the pill exists and the form is open; 0 otherwise) */   /* 2026-11-25 P2b (Pixel): the admin "View Vision as" pill sits above the Save bar while the bar is on screen (offset set by placePill; viewas.js unchanged) */
 '.sv2-oc #sv2-lhead th.oc-var,.sv2-oc #sv2-lbody td.oc-var{min-width:190px}',   /* v0.2 P3 (Pixel): wider Variety column on desktop */
 '@media (max-width:700px){',
 '  .sv2-oc .sv2-submit{flex-wrap:nowrap;gap:10px;padding:7px 10px;min-height:0;background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}',   /* v0.2 P3: solid, labels never show through */
@@ -269,15 +270,15 @@ var CSS=[
 /* follow-ups P3 (Pixel): <=420px (390px phones) Other crops is one column: header fields and line-card fields each take a full row */
 /* 2026-11-25 P2a (Pixel, 320px: 'Pascol · Packing t' cut, Net · Gross value on 2 lines, bar 127px): at <=360px Citrus totals are
    row 1 = Lines, Pallets, Cartons (label and value on one line), row 2 = Net · Gross, Pascol, Variance (label over value, second figure under the first) */
-'@media (max-width:360px){',
+'@media (max-width:700px){',   /* 2026-11-25 follow-up (Tarek): every phone width, so real container numbers stay on ~114px at 375/430 too */
 '  .sv2:not(.sv2-oc) .sv2-totrow.wrap{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:0 8px}',
 '  .sv2:not(.sv2-oc) .sv2-totrow.wrap::after{content:"";flex:0 0 100%;order:1;height:0}',
 '  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot:nth-child(-n+3){display:flex;align-items:baseline;gap:4px;white-space:nowrap}',
 '  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot:nth-child(n+4){order:2;margin-top:3px}',
 '  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot:nth-child(n+4) .v{white-space:nowrap}',
 '  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot:nth-child(n+4) .v small{display:block;font-size:11px;line-height:1.1}',
-'  .sv2-totrow.wrap .sv2-kp{display:none}.sv2-totrow.wrap .sv2-kn{display:inline}',
 '}',
+'@media (max-width:360px){.sv2-totrow.wrap .sv2-kp{display:none}.sv2-totrow.wrap .sv2-kn{display:inline}}',
 '@media (max-width:420px){.sv2-oc .sv2-ocg{grid-template-columns:minmax(0,1fr)}.sv2-oc .sv2-ocg>.sv2-f{grid-column:1/-1}.sv2-oc .sv2-lcard .lb{grid-template-columns:minmax(0,1fr)}}'
 ].join('\n');
 function injectCss(){
@@ -1804,6 +1805,8 @@ function createInstance(host,O){
      lift the pill above the bar: <html class="sv2-bar-on"> + --sv2-pill (CSS above). Position only; viewas.js is not touched. */
   var pillRaf=0;
   function placePill(){var d=document.documentElement,s=q('.sv2-submit'),off=0;
+    var pp=0;if(!dead&&s&&el('vform')&&el('vform').classList.contains('on')){var pe=document.querySelector('.vas-bar');if(pe&&pe.offsetHeight)pp=pe.offsetHeight+8;}
+    if(pp){if(host.style.getPropertyValue('--sv2-pillpad')!==pp+'px')host.style.setProperty('--sv2-pillpad',pp+'px');}else host.style.removeProperty('--sv2-pillpad');
     if(!dead&&s){var r=s.getBoundingClientRect(),vh=window.innerHeight||d.clientHeight,pb=document.querySelector('.vas-bar'),ph=pb&&pb.offsetHeight?pb.offsetHeight:44;
       if(r.height>0&&r.top<vh&&r.bottom>vh-14-ph-8)off=Math.max(14,Math.ceil(vh-r.top)+8);}
     if(off){d.classList.add('sv2-bar-on');d.style.setProperty('--sv2-pill',off+'px');}
