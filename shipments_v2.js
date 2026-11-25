@@ -27,16 +27,12 @@ var SV2_SEND_DEPARTURE_DATE=false; // enable only after the DB column + RPC mapp
 var SV2_INTAKE_FIELDS_ENABLED=!!window.VISION_IS_DEV; // intake DB v0.5 is applied: ON on staging (/dalos-vision-dev/ + localhost) only, OFF anywhere else
 /* testers: localStorage.setItem('SV2_INTAKE_FIELDS_ENABLED','true') then reload (read once at mount) */
 /* Other crops (Vera 2026-11-23): product 'other_crops' = the Potatoes (Pivots) intake + Crop, Cartons # and Benz #.
-   v0.2: ON on the staging host only (index.html SV2_OTHER_CROPS_ENABLED=VISION_IS_DEV, and checked again here). Same check in vision.js.
-   Saving is hard-disabled in this build (OC_WRITES below): staging and prod share the one live database. */
-/* v0.2 (Ash): no Other crops write of any kind in this build: Save, Save & new, Delete and the list editor only show
-   OC_PENDING. Turned on by a later commit, after the OC DB package is applied with Tarek's yes. Not a runtime switch. */
+   ON on the staging host only (index.html SV2_OTHER_CROPS_ENABLED=VISION_IS_DEV, and checked again here). Same check in vision.js.
+   The prod address always resolves OFF (otherCropsEnabled). Staging and prod share the one live database. */
+/* Saving is ON on staging (OC_WRITES=true, Tarek 2026-11-23 21:30) because the OC DB package is applied. If OC_WRITES is set
+   back to false, Save, Save & new, Delete and the list editor only show OC_PENDING. Not a runtime switch. */
 var OC_WRITES=true;
 var OC_PENDING='Preview: saving turns on after the database step';   /* v0.2 P3 (Pixel): neutral wording, not an error */
-/* TEMP (Vera 2026-11-25, Tarek/Claudia: Other crops is being entered now): after a successful Other crops save the list only
-   shows the shipment after the next update, so say so. REMOVE once edge fn v16 is live: set OC_SAVED_TOAST='' (one line)
-   or delete this constant and its one use in save(). Other products keep 'Shipment saved' / 'Shipment updated'. */
-var OC_SAVED_TOAST='Saved. It will appear in the list after the next update.';   /* TEMP: remove once edge fn v16 is live */
 function otherCropsEnabled(){
   /* v0.2 (Ash): ON only when index.html's config says so AND this is the staging host (VISION_IS_DEV, set in index.html from
      the address: path /dalos-vision-dev/ or localhost). The prod address always resolves OFF, whatever its config says. */
@@ -1272,7 +1268,7 @@ function createInstance(host,O){
         showFormError(friendlyErr(res.error),stale&&MODE==='edit'?'reload':null);return;
       }
       if(!res.data||res.data.ok!==true){showFormError('The shipment was not saved. Try again.');return;}
-      toast(OC&&OC_SAVED_TOAST?OC_SAVED_TOAST:(MODE==='edit'?'Shipment updated':'Shipment saved'));   /* TEMP OC_SAVED_TOAST: remove once edge fn v16 is live */
+      toast(MODE==='edit'?'Shipment updated':'Shipment saved');
       setDirty(false);
       if(SAVE_NEW&&!PT){SAVE_NEW=false;var keep=keepHeader();openCreate();restoreHeader(keep);loadList();return;}
       var c=(res.data.container_number)||hdr.container_number,l=(res.data.loading_date)||hdr.loading_date;

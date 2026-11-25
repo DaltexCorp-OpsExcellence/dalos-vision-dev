@@ -937,11 +937,11 @@ var VISION_DEFAULT_ON=VISION_IS_DEV;
    OFF on prod (VISION_IS_DEV is false there). Prod browsers cannot opt in; staging no longer needs localStorage dalos_sv2_lists. */
 var SV2_LISTS_ENABLED=VISION_IS_DEV;
 /* Other crops in Shipments (product other_crops, shipments_v2.js + shipments_ref_options.js). ON on the staging host only
-   (VISION_IS_DEV); vision.js and shipments_v2.js also require VISION_IS_DEV, so the prod address resolves OFF. Saving is
-   hard-disabled in this build until the OC DB package (oc_01) is applied with Tarek's yes. */
+   (VISION_IS_DEV); vision.js and shipments_v2.js also require VISION_IS_DEV, so the prod address resolves OFF. The OC DB
+   package is applied; saving is ON on staging (shipments_v2.js OC_WRITES=true, Tarek 2026-11-23 21:30). */
 var SV2_OTHER_CROPS_ENABLED=VISION_IS_DEV;
 </script>
-<script src="vision.js?v=eb6fc160b3"></script>
+<script src="vision.js?v=4c9b99e57e"></script>
 <script>
 /* Fade the entry splash once the app shell first paints (React commits to #root),
    with a hard fallback so it can never stick. */
