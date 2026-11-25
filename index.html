@@ -933,9 +933,9 @@ var DALOS_BUILD='v1.7'/*BUILD*/;var DALOS_BUILD_INFO=''/*BUILD_INFO*/; /* stampe
    for this browser and then removed from the address, so the in-app toggle is never pinned by an old link. */
 var VISION_IS_DEV=/\/dalos-vision-dev\//.test(location.pathname)||/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 var VISION_DEFAULT_ON=VISION_IS_DEV;
-/* Managed dropdown lists in Shipments > Manage (shipments_lists*.js). OFF by default on staging and prod. Turn on only after
-   the 01 schema package is applied with Tarek's yes. Staging browsers can opt in with localStorage dalos_sv2_lists='1'. */
-var SV2_LISTS_ENABLED=false;
+/* Managed dropdown lists in Shipments > Manage (shipments_lists*.js). ON on the staging host for everyone (Tarek 2026-11-25),
+   OFF on prod (VISION_IS_DEV is false there). Prod browsers cannot opt in; staging no longer needs localStorage dalos_sv2_lists. */
+var SV2_LISTS_ENABLED=VISION_IS_DEV;
 /* Other crops in Shipments (product other_crops, shipments_v2.js + shipments_ref_options.js). ON on the staging host only
    (VISION_IS_DEV); vision.js and shipments_v2.js also require VISION_IS_DEV, so the prod address resolves OFF. Saving is
    hard-disabled in this build until the OC DB package (oc_01) is applied with Tarek's yes. */
