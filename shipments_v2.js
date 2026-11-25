@@ -202,6 +202,15 @@ var CSS=[
    is the same height at every phone width (totals line + buttons) */
 '  .sv2:not(.sv2-oc) .sv2-totrow{display:flex;flex:1 1 100%;min-width:0;flex-wrap:nowrap;gap:0 12px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}',
 '  .sv2:not(.sv2-oc) .sv2-totrow::-webkit-scrollbar{display:none}',
+/* 2026-11-25 P2 (Pixel, QC): Citrus totals are never behind a swipe on phones: they sit in a 3 x 2 grid (label over value) at every phone width,
+   smaller type, 'Variance' for 'Container variance'. Other products keep the one swipe line, with a right-edge fade while more is hidden. */
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap{display:grid;grid-template-columns:repeat(3,minmax(0,auto));justify-content:space-between;gap:2px 10px;overflow:visible}',
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot{display:grid;gap:0;white-space:normal;min-width:0}',
+'  .sv2:not(.sv2-oc) .sv2-submit:has(.sv2-totrow.wrap){padding-top:5px;padding-bottom:5px;row-gap:3px}',
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot .k{font-size:10px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+'  .sv2:not(.sv2-oc) .sv2-totrow.wrap .sv2-tot .v{font-size:12.5px;line-height:1.15}',
+'  .sv2-totrow.wrap .sv2-kl{display:none}.sv2-totrow.wrap .sv2-ks{display:inline}',
+'  .sv2:not(.sv2-oc) .sv2-totrow.more{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}',
 '  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot .k{font-size:11px;letter-spacing:0;text-transform:none;font-weight:500}',
 '  .sv2:not(.sv2-oc) .sv2-submit .sv2-tot .v{font-size:13.5px;font-weight:600}',
 '  .sv2:not(.sv2-oc) .sv2-submit .sv2-sp{display:none}',
@@ -220,7 +229,7 @@ var CSS=[
 '.sv2-ocvhint{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:var(--text2,#4a4840);margin:-4px 0 8px}',   /* 2026-11-25 P3c: AA contrast + info icon */
 '.sv2-ocvhint .ic{flex:0 0 auto;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;font:700 10px/1 var(--font-body);font-style:normal}',
 '.sv2-oc #sv2-vform input,.sv2-oc #sv2-vform select,.sv2-oc #sv2-vform .sv2-btn{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 16px)}',
-'.sv2-totrow{display:contents}',
+'.sv2-totrow{display:contents}.sv2-ks{display:none}',
 '.sv2-oc #sv2-lhead th.oc-var,.sv2-oc #sv2-lbody td.oc-var{min-width:190px}',   /* v0.2 P3 (Pixel): wider Variety column on desktop */
 '@media (max-width:700px){',
 '  .sv2-oc .sv2-submit{flex-wrap:nowrap;gap:10px;padding:7px 10px;min-height:0;background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}',   /* v0.2 P3: solid, labels never show through */
@@ -530,9 +539,9 @@ function createInstance(host,O){
      '<div class="sv2-toolbar"><button type="button" class="sv2-btn sec sm" data-act="addLine">+ Add line</button><button type="button" class="sv2-btn sec sm" data-act="dupLast">'+(PT?'Duplicate last line':'Duplicate line (same pack)')+'</button></div>'+
     '</div>'+
     '<div class="sv2-submit">'+
-     '<div class="sv2-totrow">'+tot('Lines','slines')+tot('Pallets','spal')+   /* 2026-11-25 P3: every product (phones: one scrollable line) */
+     '<div class="sv2-totrow'+(isCitrus()?' wrap':'')+'">'+tot('Lines','slines')+tot('Pallets','spal')+   /* 2026-11-25 P3: every product (phones: one scrollable line) */
      (OC?tot('Packs','spacks')+tot('Std weight','snet'):PT?tot('Jumbo bags','sjumbo')+tot('Sacks','ssack')+tot('Standard wt','snet')+tot('Pascol wt','spas')
-        :tot('Cartons','sctn')+tot('Net · Gross'+u('t'),'snet')+(INTAKE&&isCitrus()?tot('Pascol · Packing'+u('t'),'spas')+tot('Container variance'+u('t'),'svar'):''))+'</div>'+
+        :tot('Cartons','sctn')+tot('Net · Gross'+u('t'),'snet')+(INTAKE&&isCitrus()?tot('Pascol · Packing'+u('t'),'spas')+tot('<span class="sv2-kl">Container variance</span><span class="sv2-ks">Variance</span>'+u('t'),'svar'):''))+'</div>'+
      '<span class="sv2-sp"></span><span class="sv2-jdewarn" id="sv2-jdewarn" role="status" hidden></span><button type="button" class="sv2-goprob" data-act="goProblem" id="sv2-goprob" hidden></button>'+
      (PT?'':'<button type="button" class="sv2-btn sec" data-act="saveNew">Save &amp; new</button>')+
      '<button type="button" class="sv2-btn" data-act="save">Save shipment</button>'+
@@ -1026,6 +1035,7 @@ function createInstance(host,O){
   }
   function syncLines(){LINES=LINES.map(function(d,i){return readLineDom(i)||d;});}
   function recompute(){
+    setTimeout(totFade,0);
     syncLines();
     if(OC){var opp=0,opk=0,osw=0;LINES.forEach(function(d){opp+=numOf(d.pallets);opk+=numOf(d.jumbo_count,1)+numOf(d.sack_count,1)+numOf(d.cartons_count,1)+numOf(d.benz_count,1);osw+=numOf(d.standard_weight);});
       var ost=function(id,v){var e=el(id);if(e)e.textContent=v;};
@@ -1772,7 +1782,10 @@ function createInstance(host,O){
     if(n){var cs=getComputedStyle(n);if(cs.display!=='none'&&cs.position==='fixed')h=n.getBoundingClientRect().height;}
     host.style.setProperty('--sv2-bottom',(h+8)+'px');placeFoot();}
   /* r2: --sv2-footh = the Save bar's height (bottom padding + scroll margin at <=768px); re-measured when it changes */
-  function placeFoot(){var s=q('.sv2-submit');if(s){var fh=Math.ceil(s.getBoundingClientRect().height);if(fh>0)host.style.setProperty('--sv2-footh',fh+'px');}}
+  /* right-edge fade on the phone totals line only while some totals are out of view (not Citrus: it wraps) */
+  function totFade(){var r=q('.sv2-totrow');if(!r||dead)return;var m=r.scrollWidth-r.clientWidth;r.classList.toggle('more',!r.classList.contains('wrap')&&m>1&&r.scrollLeft<m-1);}
+  (function(){var r=q('.sv2-totrow');if(r)r.addEventListener('scroll',totFade,{passive:true});})();
+  function placeFoot(){totFade();var s=q('.sv2-submit');if(s){var fh=Math.ceil(s.getBoundingClientRect().height);if(fh>0)host.style.setProperty('--sv2-footh',fh+'px');}}
   var footRO=window.ResizeObserver?new ResizeObserver(placeFoot):null;if(footRO&&q('.sv2-submit'))footRO.observe(q('.sv2-submit'));
   placeBar();window.addEventListener('resize',placeBar);
   /* switching phone <-> desktop width re-renders in the other layout without losing input */
