@@ -2,7 +2,9 @@
  * Registers the 'queue' screen with window.SV2Lists. Admin + power_user only: the queue table is readable only
  * through the is_power_user_or_admin() SELECT policy, and every action goes through the SECURITY DEFINER RPC
  * resolve_shipment_list_suggestion (role check first, 42501). Approve = add to the list; Merge = record the typed
- * spelling as an alias of an existing value; Reject. None of them renames values already saved on shipments.
+ * spelling as an alias of an existing value; Reject. Since 2026-11-26 (DB sv2_list_approve_updates_container_20261126)
+ * Approve-as-another-name and Merge also rename that field on the container that sent the suggestion (orchards only;
+ * only lines still holding the typed text). Other shipments keep their saved spelling.
  * Layout follows the mockup's "New values typed in intake" panel. createElement + textContent only.
  *  v0.2: optional "Approve as…" edited value (sent as p_value; typed spelling kept as a spelling match); 23505 message for conflicting spellings.
  *  2026-11-25 (Vera, notinlist): Potatoes + Other crops rows. Their lists are ref_options: merge targets are the active options
@@ -116,7 +118,9 @@ function mount(body,ctx){
       if(r&&r.error){st.msg={ok:false,text:errText(r.error,it)};if(r.error.code==='55000')load();else draw();return;}
       dirty=true;delete st.lists[it.list_key+'|'+it.product_id];
       if(action==='approve'&&REFP[it.product_id]){st.msg={ok:true,text:'Added to the '+(PNAME[it.product_id]||it.product_id)+' list'+(r&&r.data&&r.data.value?' as “'+r.data.value+'”':'')+'.'};load();return;}
-      st.msg={ok:true,text:action==='approve'?(value?'Added to the list as “'+value+'”. The typed spelling is kept as a spelling match.':'Added to the list.'):action==='merge'?'Merged as another spelling.':'Rejected.'};load();
+      var d=(r&&r.data)||{},n=+d.lines_updated||0,cn=d.container||it.container_number||'';
+      var upd=n>0?' Updated '+n+' line'+(n===1?'':'s')+' on container '+cn+'.':'';
+      st.msg={ok:true,text:(action==='approve'?(value?'Added to the list as “'+value+'”. The typed spelling is kept as a spelling match.':'Added to the list.'):action==='merge'?'Merged as another spelling.':'Rejected.')+upd};load();
       if(action==='approve')jdeNote(it,value||it.value);
     },function(e){st.msg={ok:false,text:errText(e,it)};draw();});
   }
