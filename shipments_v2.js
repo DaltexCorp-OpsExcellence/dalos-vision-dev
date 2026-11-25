@@ -1477,7 +1477,9 @@ function createInstance(host,O){
         if(hp==null||String(hp).trim()===''){var fl=lines.find(function(l){return l.pascol_weight!=null&&String(l.pascol_weight).trim()!=='';});hp=fl?fl.pascol_weight:'';}
         setv('hpascol',hp!=null&&String(hp).trim()!==''?tidyNum(hp):'');
       }
-      PAS_LIVE=false;
+      /* 2026-11-26: sheet rows keep their stored Pascol figures; Manage rows have none stored (the save/edit RPCs strip
+         pascol_pct/packing_weight/pascol_net/weight_variance), so citrus intake recalculates them for display on open */
+      PAS_LIVE=INTAKE&&isCitrus()&&lines.every(function(l){return l.pascol_pct==null||String(l.pascol_pct).trim()==='';});
       /* carton weights are tonnes in the DB and on screen (no kg conversion) */
       RAWCGW={};lines.forEach(function(l){if(l.id&&intakeBlank(l.carton_gross_weight)&&!intakeBlank(l.carton_gross_weight_raw))RAWCGW[l.id]=String(l.carton_gross_weight_raw);});
       /* DB v0.4: get returns packing_net_weight (alias of packing_factor); read the new key, fall back to the old one */
