@@ -232,9 +232,10 @@ var CSS=[
 '.sv2-jsegs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.sv2-jseg{display:inline-flex;flex-direction:column;align-items:center;min-width:40px;padding:3px 6px;border:1px solid var(--border,#e2ddd2);border-radius:6px;font-size:10px;color:var(--text2);background:var(--bg,#fbfaf6)}.sv2-jseg b{font:600 12.5px var(--font-mono);color:var(--text)}.sv2-jseg.miss{border-color:#c98a1c;background:#fdf5e6}.sv2-jseg.miss b{color:#7a4a10}',
 '.sv2-jdewarn{font-size:13px;color:#7a4a10;font-weight:500}',
 '@media (max-width:420px){#sv2-vform .sv2-fdate{grid-column:1/-1}#sv2-vform .sv2-fdate label{white-space:nowrap}}'
-,/* Other crops: amber "new" tag on the 3 additions (as in Pixel's mock-up); phone field order + full-width fields as in form-v3-390 */
-'.sv2-new{display:inline-block;font:700 9.5px var(--font-body);letter-spacing:.05em;text-transform:uppercase;color:#7a4a10;background:#fdf1dc;border:1px solid #f0d49c;border-radius:4px;padding:0 4px;margin-left:5px;vertical-align:1px}',
-'@media (max-width:700px){.sv2-ocg .oc-full{grid-column:1/-1}.sv2-ocg .oc-o1{order:1}.sv2-ocg .oc-o2{order:2}.sv2-ocg .oc-o3{order:3}.sv2-ocg .oc-o4{order:4}.sv2-ocg .oc-o5{order:5}.sv2-ocg .oc-o6{order:6}.sv2-ocg .oc-o7{order:7}.sv2-ocg .oc-o8{order:8}.sv2-ocg .oc-o9{order:9}}'
+,/* Other crops: phone field order + full-width fields as in form-v3-390 (follow-ups P3: the amber "new" tags are gone) */
+'@media (max-width:700px){.sv2-ocg .oc-full{grid-column:1/-1}.sv2-ocg .oc-o1{order:1}.sv2-ocg .oc-o2{order:2}.sv2-ocg .oc-o3{order:3}.sv2-ocg .oc-o4{order:4}.sv2-ocg .oc-o5{order:5}.sv2-ocg .oc-o6{order:6}.sv2-ocg .oc-o7{order:7}.sv2-ocg .oc-o8{order:8}.sv2-ocg .oc-o9{order:9}}',
+/* follow-ups P3 (Pixel): <=420px (390px phones) Other crops is one column: header fields and line-card fields each take a full row */
+'@media (max-width:420px){.sv2-oc .sv2-ocg{grid-template-columns:minmax(0,1fr)}.sv2-oc .sv2-ocg>.sv2-f{grid-column:1/-1}.sv2-oc .sv2-lcard .lb{grid-template-columns:minmax(0,1fr)}}'
 ].join('\n');
 function injectCss(){
   if(document.getElementById('sv2-css'))return;
@@ -549,13 +550,12 @@ function createInstance(host,O){
      '<datalist id="sv2-dl-pivot"></datalist><datalist id="sv2-dl-farm"></datalist>';
   }
   /* Other crops header: the Pivots header with Crop first; Crop, Packing Station, Vessel, Client and Shipping Port pick ref_options codes */
-  function newTag(){return '<span class="sv2-new">new</span>';}
-  function selO(label,id,o){o=o||{};return '<div class="sv2-f'+(o.cls?' '+o.cls:'')+'"><label for="sv2-'+id+'">'+label+(o.req?' <span class="req">*</span>':'')+(o.tag?newTag():'')+'</label>'+
+  function selO(label,id,o){o=o||{};return '<div class="sv2-f'+(o.cls?' '+o.cls:'')+'"><label for="sv2-'+id+'">'+label+(o.req?' <span class="req">*</span>':'')+'</label>'+
     '<select class="sv2-in" id="sv2-'+id+'" dir="auto"'+(o.req?' data-req="1"':'')+'></select></div>';}
   function ocHeaderHTML(){return ''+
      '<div class="sv2-st">Voyage <small id="sv2-lockhint" hidden>· container + date locked while editing</small></div>'+
      '<div class="sv2-grid sv2-ocg">'+
-      selO(ar('Crop','المحصول'),'crop',{req:1,tag:1,cls:'oc-full oc-o1'})+
+      selO(ar('Crop','المحصول'),'crop',{req:1,cls:'oc-full oc-o1'})+
       fld(ar('Loading Date','التاريخ'),'ldate','date',{req:1,chg:'ldate',cls:'oc-o2'})+selO(ar('Packing Station','محطه التعبئه'),'station',{cls:'oc-full oc-o4'})+
       selO(ar('Sector','القطاع'),'sector',{cls:'oc-o5'})+selO(ar('Crop season','الموسم'),'pseason',{cls:'oc-o3'})+
       fld(ar('Container No.','رقم الحاويه'),'container','text',{req:1,mono:1,ph:'e.g. MNBU 9188741',cls:'oc-full oc-o7'})+fld(ar('Carta','كارته شحن'),'carta','text',{mono:1,cls:'oc-o8'})+
@@ -646,11 +646,16 @@ function createInstance(host,O){
     REF.oc={byList:bl,byCode:bc};}
   /* v0.2 P3 (Pixel): one pattern for every list, as on the Potatoes screen: the option's own (sheet) label, no mixed 'English · Arabic' */
   function ocText(o,list){if(!o)return '';return o.label_ar||o.code;}
+  /* follow-ups P3 (Pixel): in the form, Crop / Packing Station / Shipping Port options read 'English · Arabic' (one label when
+     label_en is empty or equals label_ar); every other list, the shipments list, cards and CSV keep the single sheet label */
+  var OC_BILINGUAL={crop:1,packing_station:1,port:1};
+  function ocOptText(o,list){if(!o)return '';var a=o.label_ar||'',e=o.label_en||'';
+    if(!OC_BILINGUAL[list]||!e||!a||e===a)return ocText(o,list);return e+' · '+a;}
   function ocLabel(code,list){if(code==null||code==='')return '';var o=REF.oc.byCode[code];return o?ocText(o,list||o.list_key):String(code)+' (not in list)';}
   /* active options only; the current value is kept (marked "off") when it was turned off or is unknown, so old rows still show it */
   function ocOpts(list,cur){var arr=(REF.oc.byList[list]||[]).filter(function(o){return o.active;}),h='<option value=""></option>',seen=false;
-    arr.forEach(function(o){var on=o.code===cur;if(on)seen=true;h+='<option value="'+esc(o.code)+'"'+(on?' selected':'')+'>'+esc(ocText(o,list))+'</option>';});
-    if(cur&&!seen){var o=REF.oc.byCode[cur];h+='<option value="'+esc(cur)+'" selected data-nil="'+(o?'off':'1')+'">'+esc(o?ocText(o,list)+' (off)':cur+' (not in list)')+'</option>';}
+    arr.forEach(function(o){var on=o.code===cur;if(on)seen=true;h+='<option value="'+esc(o.code)+'"'+(on?' selected':'')+'>'+esc(ocOptText(o,list))+'</option>';});
+    if(cur&&!seen){var o=REF.oc.byCode[cur];h+='<option value="'+esc(cur)+'" selected data-nil="'+(o?'off':'1')+'">'+esc(o?ocOptText(o,list)+' (off)':cur+' (not in list)')+'</option>';}
     return h;}
   function ocSel(list,v,k){return '<select class="csel" dir="auto" data-k="'+k+'">'+ocOpts(list,v)+'</select>';}
   function fillOc(id,list,cur){var e=el(id);if(e)e.innerHTML=ocOpts(list,cur||'');}
@@ -880,7 +885,7 @@ function createInstance(host,O){
      Card = 12 main + 11 detail = 23 fields. ---- */
   var OC_CARTONS_AR='عدد الكراتين',OC_BENZ_AR='بنز كرتون';   /* long-tail sheet headers (cols 17/18); Pixel's placeholders were عدد الكراتين / عدد البنز */
   function ocHeadHTML(){return '<tr><th></th><th>#</th><th class="oc-var">Variety</th><th>Pivot</th><th>Farm</th><th>Grade</th><th>Packaging</th><th class="num">Pallets</th><th class="num">Jumbo #</th><th class="num">Sack #</th>'+
-    '<th class="num">Cartons #'+newTag()+'</th><th class="num">Benz #'+newTag()+'</th><th class="num">Std wt t</th><th class="num">Pascol t</th><th></th></tr>';}
+    '<th class="num">Cartons #</th><th class="num">Benz #</th><th class="num">Std wt t</th><th class="num">Pascol t</th><th></th></tr>';}
   function ocRowHTML(d,i){
     var L=PT_LISTS;
     return '<tr data-line="'+i+'">'+
@@ -907,7 +912,7 @@ function createInstance(host,O){
         dl(ar('Pivot','البيفوت'),cin(d.pivot,'pivot','','sv2-dl-pivot'))+dl(ar('Farm','المزرعه'),ocSel('farm',d.farm,'farm'))+
         dl(ar('Packaging','التعبئه'),ocSel('packing_type',d.packaging,'packaging'))+dl(ar('Pallets','بالته'),cin(d.pallets,'pallets','num'))+
         dl(ar('Jumbo #','عدد الجامب'),cin(d.jumbo_count,'jumbo_count','num'))+dl(ar('Sack #','عدد الشكاير'),cin(d.sack_count,'sack_count','num'))+
-        dl(ar('Cartons #'+newTag(),OC_CARTONS_AR),cin(d.cartons_count,'cartons_count','num'))+dl(ar('Benz #'+newTag(),OC_BENZ_AR),cin(d.benz_count,'benz_count','num'))+
+        dl(ar('Cartons #',OC_CARTONS_AR),cin(d.cartons_count,'cartons_count','num'))+dl(ar('Benz #',OC_BENZ_AR),cin(d.benz_count,'benz_count','num'))+
         dl(ar('Standard wt t','الوزن القياسي'),cin(d.standard_weight,'standard_weight','num'))+dl(ar('Pascol t','وزن الباسكول'),cin(d.pascol_weight,'pascol_weight','num'))+
         ptDetail(d)+
         '<div class="full"><button type="button" class="sv2-btn sec sm" data-act="rmLine" data-i="'+i+'">Remove this line</button></div>'+
