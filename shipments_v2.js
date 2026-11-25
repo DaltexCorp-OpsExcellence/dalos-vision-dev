@@ -765,11 +765,14 @@ function createInstance(host,O){
     if(OC){
       return Promise.all([
         window.SV2Ref?window.SV2Ref.load(sb):Promise.resolve(sb.from('ref_options').select('code,list_key,label_ar,label_en,active,is_bulk,sort_order').eq('product_id','other_crops').order('sort_order')).then(function(r){if(r.error)throw r.error;return {rows:r.data||[]};}),
-        Promise.resolve(sb.from('varieties').select('name,active,category_id').eq('active',true).eq('product_id','other_crops').order('name')).then(function(r){if(r&&!r.error)return r.data||[];REF.part=true;return [];},function(){REF.part=true;return [];}),
+        Promise.resolve(sb.from('varieties').select('name,active,category_id,raw_names').eq('active',true).eq('product_id','other_crops').order('name')).then(function(r){if(r&&!r.error)return r.data||[];REF.part=true;return [];},function(){REF.part=true;return [];}),
         /* 2026-11-26: the 7 crops are categories of other_crops (Configurations > Varieties files each variety under its crop) */
         Promise.resolve(sb.from('categories').select('id,name').eq('product_id','other_crops')).then(function(r){return r&&!r.error?(r.data||[]):[];},function(){return [];})
-      ]).then(function(r){ocSetRefs(r[0].rows);REF.ocSeed=!!r[0].seed;REF.vars=r[1].map(function(v){return {name:v.name,category_id:v.category_id||null};});
-        REF.ocCats={};r[2].forEach(function(c){REF.ocCats[String(c.name||'').trim().toLowerCase()]=c.id;});REF.varsLoaded=true;ptFillDatalists();});
+      ]).then(function(r){ocSetRefs(r[0].rows);REF.ocSeed=!!r[0].seed;REF.vars=r[1].map(function(v){var a=(v.raw_names||[]).filter(function(x){return /[\u0600-\u06FF]/.test(String(x||''));})[0];return {name:v.name,category_id:v.category_id||null,ar:a?String(a).trim():null};});
+        REF.ocCats={};r[2].forEach(function(c){REF.ocCats[String(c.name||'').trim().toLowerCase()]=c.id;});REF.varsLoaded=true;
+        /* lines opened before the list arrived show the English name: switch them to the Arabic (display only, not a change) */
+        if(LINES.some(function(d){return d.variety&&ocVarShow(d.variety)!==d.variety;})){LINES.forEach(function(d){d.variety=ocVarShow(d.variety);});if(!dead)renderLines();}
+        ptFillDatalists();});
     }
     if(PT){ /* varieties from the shared registry (same list as potato inspections); the rest from the entry sheet,
                or (PTM, staging) from ref_options + the linked masters, each list falling back to the sheet's on its own */
@@ -813,7 +816,7 @@ function createInstance(host,O){
     var L=OC?ocLists():ptLists(),hd=function(k){return DATA.map(function(c){return c.hdr[k];});},ln=function(k){return [].concat.apply([],DATA.map(function(c){return c.lines.map(function(l){return l[k];});}));};
     fillDatalist('sv2-dl-client',L.clients.concat(hd('client')));fillDatalist('sv2-dl-country',L.countries.concat(hd('region'),hd('country2')));
     fillDatalist('sv2-dl-port',L.ports.concat(hd('port')));fillDatalist('sv2-dl-pivot',L.pivots.concat(ln('pivot')));fillDatalist('sv2-dl-farm',L.farms.concat(ln('farm')));
-    if(OC)fillDatalist('sv2-dl-variety',varNames().concat(ln('v')));
+    if(OC)fillDatalist('sv2-dl-variety',varNames().concat(ln('v').map(ocVarShow)));
   }
   function fillAllDatalists(){var o=REF.ref||{};
     fillDatalist('sv2-dl-line',o.lines);fillDatalist('sv2-dl-depport',o.dep_ports);fillDatalist('sv2-dl-country',o.countries);
@@ -958,10 +961,16 @@ function createInstance(host,O){
     '</div>';
   }
   /* ---- potato lines: main row = what's scanned; detail = the rest of the 21 sheet fields ---- */
+  /* 2026-11-26 (Tarek): Other crops varieties are stored in English (varieties.name) with the Arabic in raw_names; the form shows
+     the Arabic like the other Other crops lists, and the line is saved with the English name. Unknown text is kept as typed. */
+  function ocVarFind(t){t=String(t==null?'':t).trim();if(!t)return null;var lt=t.toLowerCase();
+    return REF.vars.filter(function(v){return v.ar===t||String(v.name).toLowerCase()===lt;})[0]||null;}
+  function ocVarShow(t){var v=OC?ocVarFind(t):null;return v?(v.ar||v.name):(t==null?'':t);}
+  function ocVarStore(t){var v=OC?ocVarFind(t):null;return v?v.name:t;}
   function varNames(){var vs=REF.vars;
     if(OC){var o=REF.oc.byCode[val('crop')],cid=o&&o.label_en?REF.ocCats[String(o.label_en).trim().toLowerCase()]:null;
       if(cid)vs=vs.filter(function(v){return !v.category_id||v.category_id===cid;});}
-    return vs.map(function(v){return v.name;});}
+    return vs.map(function(v){return OC?(v.ar||v.name):v.name;});}
   function ptHeadHTML(){return '<tr><th></th><th>#</th><th>Variety</th><th>Pivot</th><th>Farm</th><th>Grade</th><th>Packaging</th><th class="num">Pallets</th><th class="num">Jumbo #</th><th class="num">Sack #</th><th class="num">Std wt t</th><th class="num">Pascol t</th><th></th></tr>';}
   function dl(lab,inner){return '<div><div class="sv2-dlab">'+lab+'</div>'+inner+'</div>';}
   function ptDetail(d,L){
@@ -1366,6 +1375,7 @@ function createInstance(host,O){
     }
     SEASON_OK=false;
     var lines=LINES.map(function(d){var c=Object.assign({},d);Object.keys(c).forEach(function(k){if(k.charAt(0)==='_')delete c[k];});Object.keys(NUMKEYS).forEach(function(k){if(c[k]!=null&&c[k]!=='')c[k]=asciiDigits(c[k]);});delete c.carton_gross_weight_raw;
+      if(OC&&c.variety)c.variety=ocVarStore(c.variety);   /* 2026-11-26: Arabic shown, English name saved */
       /* "Packed at" left as "Same as loaded at" on a NEW line takes the header pack house (stored lines are never changed this way) */
       if(!PT&&!c.id&&!String(c.pack_house||'').trim()&&hdr.pack_house_departure)c.pack_house=hdr.pack_house_departure;
       return c;});
@@ -1477,7 +1487,7 @@ function createInstance(host,O){
         setv('client',h.client);setv('country',h.receiving_country);setv('country2',h.country2);setv('port',h.receiving_port);
         setv('invoice',h.invoice_no);setv('permit',h.permit_no);setv('workorder',h.work_order);
         fillHeaderSelects({station:h.station,sector:h.sector,season:h.season,crop:h.crop,vessel:h.vessel,client:h.client,receiving_port:h.receiving_port});deriveDate();
-        LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;return d;});
+        LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;if(OC)d.variety=ocVarShow(d.variety);return d;});
         if(!LINES.length)LINES=[blankLine()];
         openRows={};renderLines();setDirty(false);
         el('ftitle').textContent='Edit shipment';el('ctxref').textContent=h.container_number||container;setSeasonChip();return;
