@@ -5,11 +5,15 @@
  * spelling as an alias of an existing value; Reject. None of them renames values already saved on shipments.
  * Layout follows the mockup's "New values typed in intake" panel. createElement + textContent only.
  *  v0.2: optional "Approve as…" edited value (sent as p_value; typed spelling kept as a spelling match); 23505 message for conflicting spellings.
+ *  2026-11-25 (Vera, notinlist): Potatoes + Other crops rows. Their lists are ref_options: merge targets are the active options
+ *    (label), approve is admin only and lands in the list through ref_option_add on the server (no spelling match is kept).
+ *    Opened from the Potatoes / Other crops form, the queue shows that product's rows only (args.product).
  */
 (function(){
 'use strict';
 if(!window.SV2Lists||typeof window.SV2Lists.registerScreen!=='function')return;
-var PNAME={citrus:'Citrus',grapes:'Grapes',mango:'Mango',pomegranate:'Pomegranate',potatoes:'Potatoes'};
+var PNAME={citrus:'Citrus',grapes:'Grapes',mango:'Mango',pomegranate:'Pomegranate',potatoes:'Potatoes',other_crops:'Other crops'};
+var REFP={potatoes:1,other_crops:1};   /* lists in ref_options (shared keys of potato-lists A) */
 var CSS=[
 '.sv2q{display:grid;gap:12px}',
 '.sv2q-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}',
@@ -29,8 +33,9 @@ var cssDone=false;
 function css(){if(cssDone)return;cssDone=true;var st=document.createElement('style');st.id='sv2q-css';st.textContent=CSS;document.head.appendChild(st);}
 function fmt(ts){if(!ts)return '';var d=new Date(ts);if(isNaN(d))return '';
   try{return d.toLocaleString('en-GB',{timeZone:'Africa/Cairo',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' Cairo';}catch(_e){return d.toISOString();}}
-function errText(e){
+function errText(e,it){
   if(!e)return 'Something went wrong. Try again.';
+  if(e.code==='42501'&&it&&REFP[it.product_id])return /admin/i.test(e.message||'')?'Only an admin can add values to the Potatoes and Other crops lists.':'You can’t review these suggestions.';
   if(e.code==='42501')return 'Only admins and power users can review suggestions.';
   if(e.code==='55000')return 'Someone already reviewed this one. Refreshing.';
   if(e.code==='22023')return e.message||'Check the value and try again.';
@@ -55,12 +60,16 @@ function mount(body,ctx){
 
   function load(){
     clear(list);list.appendChild(mk('div','sv2q-empty','Loading…'));
-    Promise.resolve(sb.from('shipment_list_queue').select('id,list_key,product_id,value,container_number,status,submit_count,resolved_value,resolution_note,created_at,last_submitted_at')
-      .eq('status',st.status).order(st.status==='pending'?'created_at':'resolved_at',{ascending:st.status==='pending'}).limit(500)).then(function(r){
+    var qq=sb.from('shipment_list_queue').select('id,list_key,product_id,value,container_number,status,submit_count,resolved_value,resolution_note,created_at,last_submitted_at')
+      .eq('status',st.status);
+    if(ctx.args&&ctx.args.product)qq=qq.eq('product_id',ctx.args.product);
+    Promise.resolve(qq.order(st.status==='pending'?'created_at':'resolved_at',{ascending:st.status==='pending'}).limit(500)).then(function(r){
       if(r.error)throw r.error;st.items=r.data||[];
       var need={};st.items.forEach(function(i){need[i.list_key+'|'+i.product_id]=i;});
       var keys=Object.keys(need).filter(function(k){return !st.lists[k];});
       return Promise.all(keys.map(function(k){var i=need[k];
+        if(REFP[i.product_id])return Promise.resolve(sb.from('ref_options').select('code,label_ar,label_en').eq('product_id',i.product_id).eq('list_key',i.list_key).eq('active',true).order('sort_order'))
+          .then(function(x){st.lists[k]=(x&&!x.error&&x.data)?x.data.map(function(v){return v.label_ar;}):[];});
         return Promise.resolve(sb.from('shipment_list_values').select('value').eq('list_key',i.list_key).eq('product_id',i.product_id).eq('active',true).order('value'))
           .then(function(x){st.lists[k]=(x&&!x.error&&x.data)?x.data.map(function(v){return v.value;}):[];});
       }));
@@ -84,7 +93,8 @@ function mount(body,ctx){
         list.appendChild(card);return;
       }
       var acts=mk('div','sv2q-acts');
-      var ap=mk('button','sv2-btn sm','Approve into list');ap.type='button';
+      var ap=mk('button','sv2-btn sm',REFP[it.product_id]?'Add to the list (admin)':'Approve into list');ap.type='button';
+      if(REFP[it.product_id])ap.title='Admins only: adds it to this product’s list in Configurations';
       var ed=mk('input');ed.placeholder='Approve as… (optional)';ed.maxLength=120;ed.setAttribute('aria-label','Approve as edited value');ed.setAttribute('dir','auto');
       ap.addEventListener('click',function(){act(it,'approve',ed.value.trim()||null,null,ap);});
       var opts=st.lists[it.list_key+'|'+it.product_id]||[];
@@ -103,11 +113,12 @@ function mount(body,ctx){
   function act(it,action,value,noteText,btn){
     if(btn)btn.disabled=true;
     Promise.resolve(sb.rpc('resolve_shipment_list_suggestion',{p_id:it.id,p_action:action,p_value:value,p_note:(noteText||'').trim()||null})).then(function(r){
-      if(r&&r.error){st.msg={ok:false,text:errText(r.error)};if(r.error.code==='55000')load();else draw();return;}
+      if(r&&r.error){st.msg={ok:false,text:errText(r.error,it)};if(r.error.code==='55000')load();else draw();return;}
       dirty=true;delete st.lists[it.list_key+'|'+it.product_id];
+      if(action==='approve'&&REFP[it.product_id]){st.msg={ok:true,text:'Added to the '+(PNAME[it.product_id]||it.product_id)+' list'+(r&&r.data&&r.data.value?' as “'+r.data.value+'”':'')+'.'};load();return;}
       st.msg={ok:true,text:action==='approve'?(value?'Added to the list as “'+value+'”. The typed spelling is kept as a spelling match.':'Added to the list.'):action==='merge'?'Merged as another spelling.':'Rejected.'};load();
       if(action==='approve')jdeNote(it,value||it.value);
-    },function(e){st.msg={ok:false,text:errText(e)};draw();});
+    },function(e){st.msg={ok:false,text:errText(e,it)};draw();});
   }
   /* JDE (citrus): a newly approved brand / caliber / client class / packing has no JDE code until an admin adds one */
   var JDE_PART={brand:'brand',caliber:'caliber',client_class:'client_class',packing_type:'packaging_type'};

@@ -21,7 +21,10 @@
 var LIST_LABELS={brand:'Brands',packing_type:'Packing types',count_size:'Counts/Sizes',caliber:'Calibers',source_type:'Source types',
   raw_source:'Raw sources',departure_port:'Departure ports',agent:'Agents',shipping_line:'Shipping lines',client_class:'Client classes',
   shipping_status:'Shipping statuses',receiving_country:'Countries',daltex_class:'Daltex classes',
-  receiving_port:'Receiving ports',shipper:'Shippers'};
+  receiving_port:'Receiving ports',shipper:'Shippers',
+  /* Potatoes + Other crops (ref_options, shared keys of potato-lists A; 'brand' above is shared): queue labels only */
+  sector:'Sectors',crop_season:'Crop seasons',pivot:'Pivots',grade:'Grades',size:'Sizes (Size 2)',crop_type:'Crop types',
+  bag_colour:'Jumbo / sack colours',operation:'Operations',condition:'Conditions'};
 var FARM_KEYS={raw_source:1};   /* list comes from public.farms, not shipment_list_values */
 var QUEUE_KEYS={brand:1,packing_type:1,count_size:1,caliber:1,source_type:1,raw_source:1,departure_port:1,agent:1,shipping_line:1,client_class:1,shipping_status:1,receiving_port:1,shipper:1};
 /* intake field -> list. hdr = header input id (without sv2-), k = line data-k */
@@ -329,5 +332,7 @@ function attach(host,opts){
 
 function registerScreen(name,def){if(name&&def&&typeof def.mount==='function')SCREENS[name]=def;}
 
-window.SV2Lists={attach:attach,registerScreen:registerScreen,enabled:enabled,labels:LIST_LABELS,version:'2026-11-15-draft-v0.2'};
+/* 2026-11-25 (Vera, notinlist): the Potatoes / Other crops form (shipments_pt_suggest.js) opens the review queue screen itself */
+function screen(name){return Object.prototype.hasOwnProperty.call(SCREENS,name)?SCREENS[name]:null;}
+window.SV2Lists={attach:attach,registerScreen:registerScreen,screen:screen,enabled:enabled,labels:LIST_LABELS,version:'2026-11-15-draft-v0.2'};
 })();

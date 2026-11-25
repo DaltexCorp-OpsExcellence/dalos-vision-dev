@@ -664,6 +664,13 @@ function createInstance(host,O){
     if(PT||dead||LISTS||!window.SV2Lists||typeof window.SV2Lists.attach!=='function')return;
     try{LISTS=window.SV2Lists.attach(host,{sb:sb,product:PRODUCT,productName:PRODUCT_NAME,container:function(){return val('container');}});}catch(_e){LISTS=null;}
   }
+  /* "Not in list?" for the Potatoes + Other crops lists (shipments_pt_suggest.js, Vera 2026-11-25): staging only (its own switch +
+     VISION_IS_DEV), Potatoes only with the managed lists on (PTM); fails closed, never blocks the form */
+  var PTS=null;
+  function attachPtSuggest(){
+    if(!PT||dead||PTS||(!OC&&!PTM)||!window.SV2PtSuggest||typeof window.SV2PtSuggest.attach!=='function')return;
+    try{PTS=window.SV2PtSuggest.attach(host,{sb:sb,product:PRODUCT,productName:PRODUCT_NAME,container:function(){return val('container');}});}catch(_e){PTS=null;}
+  }
   /* Other crops: option rows by list and by code; labels come from the code, never stored */
   function ocSetRefs(rows){var bl={},bc={};PACK_BULK={};
     (rows||[]).forEach(function(o){(bl[o.list_key]=bl[o.list_key]||[]).push(o);bc[o.code]=o;if(o.list_key==='packing_type')PACK_BULK[o.code]=!!o.is_bulk;});
@@ -1747,8 +1754,8 @@ function createInstance(host,O){
   if(!sb){setListBanner('Not connected. Reload the page and sign in to DalOS.');}
   else{
     loadList();
-    loadRefs().then(function(){if(dead)return;fillHeaderSelects({status:''});renderLines();attachLists();if(OC&&DATA.length){deriveAll();rebuildFacetVals();renderList();}},
-      function(){if(dead)return;showFormError('Lists for this form didn’t load (clients, varieties). Reload to try again.');fillHeaderSelects({status:''});attachLists();});
+    loadRefs().then(function(){if(dead)return;fillHeaderSelects({status:''});renderLines();attachLists();attachPtSuggest();if(OC&&DATA.length){deriveAll();rebuildFacetVals();renderList();}},
+      function(){if(dead)return;showFormError('Lists for this form didn’t load (clients, varieties). Reload to try again.');fillHeaderSelects({status:''});attachLists();attachPtSuggest();});
   }
 
   var api={
@@ -1764,6 +1771,7 @@ function createInstance(host,O){
       host.removeEventListener('change',onChange);host.removeEventListener('input',onInput);host.removeEventListener('focusout',onBlur);
       clearTimeout(searchT);clearTimeout(toastT);clearTimeout(undoT);closeModal();if(toastEl){toastEl.remove();toastEl=null;}if(undoEl){undoEl.remove();undoEl=null;}
       if(LISTS&&LISTS.detach){try{LISTS.detach();}catch(_e){}}LISTS=null;
+      if(PTS&&PTS.detach){try{PTS.detach();}catch(_e){}}PTS=null;
       host.innerHTML='';if(CUR&&CUR.api===api)CUR=null;
     }
   };
