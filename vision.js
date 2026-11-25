@@ -8551,6 +8551,7 @@ function AdminCenter(props){
   var sPrefixErr=useState(''); var prefixErr=sPrefixErr[0]; var setPrefixErr=sPrefixErr[1];
   var sNewVal2=useState('#2b5c3f'); var newVal2=sNewVal2[0]; var setNewVal2=sNewVal2[1];
   var sNewVal2Arr=useState([]); var newVal2Arr=sNewVal2Arr[0]; var setNewVal2Arr=sNewVal2Arr[1];
+  var sNewValAr=useState(''); var newValAr=sNewValAr[0]; var setNewValAr=sNewValAr[1];   /* 2026-11-26: Other crops variety Arabic name */
   var sNewSecAr=useState(''); var newSecAr=sNewSecAr[0]; var setNewSecAr=sNewSecAr[1];
   var sSelProd=useState(''); var selProd=sSelProd[0]; var setSelProd=sSelProd[1];
   /* Set selProd to first product once config loads */
@@ -8627,6 +8628,7 @@ function AdminCenter(props){
     return (typeof otherCropsOn==='function'&&otherCropsOn()&&!ps.some(function(p){return p.id==='other_crops';}))?ps.concat([OC_PRODUCT]):ps;}
   function addVariety(){
     if(!newVal.trim()) return;
+    var arName=selProd==='other_crops'?newValAr.trim():'';setNewValAr('');
     var categoryId=newVal2Arr[0]||null;
     var n=Object.assign({},config);
     n.varieties=Object.assign({},n.varieties);
@@ -8638,6 +8640,7 @@ function AdminCenter(props){
     supabase.auth.getUser().then(function(ur){
       var row={name:newVal.trim(),product_id:prodId,active:true};
       if(categoryId) row.category_id=categoryId;
+      if(prodId==='other_crops'&&arName) row.raw_names=[arName];   /* the Other crops form shows this Arabic name */
       if(ur.data&&ur.data.user) row.created_by=ur.data.user.id;
       return supabase.from('varieties').insert([row]);
     })
@@ -9301,6 +9304,7 @@ function AdminCenter(props){
               )
             ),
             ce('input',{className:'form-input',value:newVal,onChange:function(e){setNewVal(e.target.value);},placeholder:'Variety name e.g. Navel, Valencia…',style:{flex:1},onKeyDown:function(e){if(e.key==='Enter')addVariety();}}),
+            selProd==='other_crops'&&ce('input',{className:'form-input',value:newValAr,dir:'rtl',lang:'ar',onChange:function(e){setNewValAr(e.target.value);},placeholder:'الاسم بالعربي (shown in the Other crops form)',style:{flex:1},onKeyDown:function(e){if(e.key==='Enter')addVariety();}}),
             ce('button',{className:'btn btn-primary btn-sm',onClick:addVariety},'+ Add')
           )
         ),
