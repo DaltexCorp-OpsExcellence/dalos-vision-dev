@@ -165,6 +165,7 @@ var CSS=[
 '.sv2-submit{position:sticky;bottom:var(--sv2-bottom,8px);z-index:6;box-shadow:0 -2px 18px rgba(26,26,23,.10);display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;background:var(--card);border:1px solid var(--border2);border-radius:var(--r2);padding:10px 14px}',
 '.sv2-tot{display:grid}.sv2-tot .k{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text2)}.sv2-tot .v{font:500 18px var(--font-mono);font-variant-numeric:tabular-nums}',
 '.sv2-ferr .sv2-banner{align-items:center}',
+'.sv2-lstat{display:grid;gap:6px;margin:0 0 8px}.sv2-lstat:empty{display:none}.sv2-lstat .sv2-banner{align-items:center}',
 '.sv2-overlay{position:absolute;inset:0;background:color-mix(in srgb,var(--card) 80%,transparent);display:none;align-items:center;justify-content:center;gap:10px;z-index:3;border-radius:var(--r2);font-size:13px;color:var(--text2)}',
 '.sv2-overlay.on{display:flex}',
 '.sv2-spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--border2);border-top-color:var(--accent);animation:sv2spin .8s linear infinite}',
@@ -494,6 +495,7 @@ function createInstance(host,O){
      (PT?'':'<span class="sv2-pill green" id="sv2-ctxstatus">Delivered</span>')+
     '</div>'+
     '<div id="sv2-ferr" class="sv2-ferr"></div>'+
+    '<div id="sv2-lstat" class="sv2-lstat" aria-live="polite"></div>'+   /* 2026-11-25: list loading / "Couldn’t load list" + Retry (never cleared by form errors) */
     '<div class="sv2-box">'+
      '<div class="sv2-overlay" id="sv2-overlay"><span class="sv2-spin"></span>Loading container…</div>'+
      (OC?ocHeaderHTML():PT?ptHeaderHTML():orHeaderHTML())+
@@ -702,10 +704,11 @@ function createInstance(host,O){
   function ocSel(list,v,k){return '<select class="csel" dir="auto" data-k="'+k+'">'+ocOpts(list,v)+'</select>';}
   function fillOc(id,list,cur){var e=el(id);if(e)e.innerHTML=ocOpts(list,cur||'');}
   function loadRefs(){
+    REF.part=false;   /* 2026-11-25: a list read that failed but did not stop the form (varieties, ref options) -> Retry state */
     if(OC){
       return Promise.all([
         window.SV2Ref?window.SV2Ref.load(sb):Promise.resolve(sb.from('ref_options').select('code,list_key,label_ar,label_en,active,is_bulk,sort_order').eq('product_id','other_crops').order('sort_order')).then(function(r){if(r.error)throw r.error;return {rows:r.data||[]};}),
-        Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','other_crops').order('name')).then(function(r){return r&&!r.error?r.data||[]:[];},function(){return [];})
+        Promise.resolve(sb.from('varieties').select('name,active').eq('active',true).eq('product_id','other_crops').order('name')).then(function(r){if(r&&!r.error)return r.data||[];REF.part=true;return [];},function(){REF.part=true;return [];})
       ]).then(function(r){ocSetRefs(r[0].rows);REF.ocSeed=!!r[0].seed;REF.vars=r[1].map(function(v){return {name:v.name};});ptFillDatalists();});
     }
     if(PT){ /* varieties from the shared registry (same list as potato inspections); the rest from the entry sheet,
@@ -730,8 +733,8 @@ function createInstance(host,O){
       REF.packs=(r[4].data||[]).filter(function(p){return (p.product_ids||[]).indexOf(PRODUCT)>=0;}).map(function(p){return p.name;});
       REF.cartonTypes=(r[5].data||[]).map(function(c){return c.name;});
       return Promise.all([sb.rpc('get_shipment_v2_ref_options').then(function(rr){
-        if(rr&&!rr.error&&rr.data){REF.ref=rr.data;fillAllDatalists();}
-      },function(){}),loadJde()]);
+        if(rr&&!rr.error&&rr.data){REF.ref=rr.data;fillAllDatalists();}else REF.part=true;
+      },function(){REF.part=true;}),loadJde()]);
     });
   }
   /* Potatoes managed lists (PTM). Never rejects: a failed read just leaves that list on PT_LISTS. */
@@ -1665,6 +1668,7 @@ function createInstance(host,O){
       case 'goProblem':goProblem();break;
       case 'delShip':askDelete();break;
       case 'retry':if(EDIT.container)loadForEdit(EDIT.container,EDIT.loaded);break;
+      case 'refsRetry':bootRefs(true);break;
       case 'reload':if(EDIT.container){if(DIRTY&&!window.confirm('Reload the latest version? Your changes on this form will be lost.'))break;setDirty(false);loadForEdit(EDIT.container,EDIT.loaded);}break;
       case 'openExisting':if(EXISTING_IDX>=0&&confirmLeave()){var ix=EXISTING_IDX;setDirty(false);clearFormError();openContainer(ix);}break;
       case 'reloadList':loadList();break;
@@ -1750,12 +1754,35 @@ function createInstance(host,O){
   if(phoneMQ){if(phoneMQ.addEventListener)phoneMQ.addEventListener('change',onMQ);else if(phoneMQ.addListener)phoneMQ.addListener(onMQ);}
   if(formMQ){if(formMQ.addEventListener)formMQ.addEventListener('change',onMQ);else if(formMQ.addListener)formMQ.addListener(onMQ);}
 
+  /* ---------------------------------------------------------- form lists: loading / failed + Retry (2026-11-25)
+     A list read that hangs (ERR_TIMED_OUT) or fails no longer leaves blank lists with no message: after 0.7 s a
+     'Loading lists…' note shows; after 20 s, or on an error, 'Couldn’t load list' with a Retry button. Retry keeps what is typed. */
+  var REFS_TIMEOUT_MS=20000,refsSeq=0,refsLoadT=0;
+  function withTimeout(p,ms){return new Promise(function(res,rej){var t=setTimeout(function(){rej(new Error('timeout'));},ms);
+    Promise.resolve(p).then(function(v){clearTimeout(t);res(v);},function(e){clearTimeout(t);rej(e);});});}
+  function refStatus(state){
+    var box=el('lstat');if(!box)return;var s=box.querySelector('[data-src="refs"]');
+    if(!state){if(s)s.remove();return;}
+    if(!s){s=document.createElement('div');s.setAttribute('data-src','refs');box.appendChild(s);}
+    s.innerHTML=state==='loading'
+      ?'<div class="sv2-banner info" role="status"><span aria-hidden="true">i</span><span style="flex:1">Loading lists… · <bdi lang="ar" dir="rtl">جارٍ تحميل القوائم</bdi></span></div>'
+      :'<div class="sv2-banner err" role="alert"><span aria-hidden="true">!</span><span style="flex:1">Couldn’t load list · <bdi lang="ar" dir="rtl">تعذر تحميل القائمة</bdi></span><button type="button" class="sv2-btn sec sm" data-act="refsRetry">Retry · <bdi lang="ar" dir="rtl">إعادة المحاولة</bdi></button></div>';
+  }
+  function headerNow(){return {crop:val('crop'),station:val('station'),vessel:val('vessel'),client:val('client'),receiving_port:val('port'),sector:val('sector'),
+    season:val('pseason'),status:val('status'),subclient:val('subclient'),pack_house_departure:val('packdep')};}
+  function bootRefs(retry){
+    var seq=++refsSeq;clearTimeout(refsLoadT);refsLoadT=setTimeout(function(){if(!dead&&seq===refsSeq)refStatus('loading');},700);
+    var cur=retry?headerNow():{status:''};if(retry)syncLines();
+    withTimeout(loadRefs(),REFS_TIMEOUT_MS).then(function(){if(dead||seq!==refsSeq)return;clearTimeout(refsLoadT);refStatus(REF.part?'failed':null);
+      fillHeaderSelects(cur);renderLines();attachLists();attachPtSuggest();if(OC&&DATA.length){deriveAll();rebuildFacetVals();renderList();}},
+      function(){if(dead||seq!==refsSeq)return;clearTimeout(refsLoadT);refStatus('failed');fillHeaderSelects(cur);if(retry)renderLines();attachLists();attachPtSuggest();});
+  }
+
   /* ---------------------------------------------------------- boot */
   if(!sb){setListBanner('Not connected. Reload the page and sign in to DalOS.');}
   else{
     loadList();
-    loadRefs().then(function(){if(dead)return;fillHeaderSelects({status:''});renderLines();attachLists();attachPtSuggest();if(OC&&DATA.length){deriveAll();rebuildFacetVals();renderList();}},
-      function(){if(dead)return;showFormError('Lists for this form didn’t load (clients, varieties). Reload to try again.');fillHeaderSelects({status:''});attachLists();attachPtSuggest();});
+    bootRefs(false);
   }
 
   var api={

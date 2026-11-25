@@ -79,8 +79,12 @@ function chevronCss(){
 function injectCss(){if(cssDone)return;cssDone=true;var st=document.createElement('style');st.id='sv2l-css';st.textContent=CSS+'\n'+chevronCss();document.head.appendChild(st);}
 
 /* ---------------------------------------------------------------- data */
+/* 2026-11-25: a read that hangs counts as failed after LIST_TIMEOUT_MS (the browser's own ERR_TIMED_OUT can take a minute) */
+var LIST_TIMEOUT_MS=15000;
+function withTimeout(p,ms){return new Promise(function(res,rej){var t=setTimeout(function(){rej(new Error('timeout'));},ms);
+  Promise.resolve(p).then(function(v){clearTimeout(t);res(v);},function(e){clearTimeout(t);rej(e);});});}
 function loadAll(sb,product){
-  function q(p){return Promise.resolve(p).then(function(r){if(!r||r.error)throw (r&&r.error)||new Error('read failed');return r.data;});}
+  function q(p){return withTimeout(p,LIST_TIMEOUT_MS).then(function(r){if(!r||r.error)throw (r&&r.error)||new Error('read failed');return r.data;});}
   /* 2026-11-25: only the list values are required. Any other read that fails counts as empty (no rights, no spelling
      matches, no countries / classes / farms) instead of switching every list off. */
   function soft(p){try{return q(p).then(function(d){return d;},function(){return null;});}catch(_e){return Promise.resolve(null);}}
@@ -302,19 +306,43 @@ function attach(host,opts){
   host.addEventListener('change',onChangeMark);host.addEventListener('focusout',onChangeMark);
   window.addEventListener('scroll',onScroll,true);window.addEventListener('resize',onScroll);
 
-  var ready=loadAll(sb,product).then(function(d){
-    if(dead)return;D=d;loadedAt=Date.now();buildPop();addToolbar();markHost();marks();
-    /* 2026-11-25: a list field that got focus while the lists were loading opens its dropdown now */
-    var a=document.activeElement,af=a&&host.contains(a)?fieldFor(a):null;if(af)open(a,af);
-  },function(err){
-    D=null;   /* fail closed: tables/RPC missing or no access -> today's form, untouched */
-    try{console.info('[SV2Lists] managed lists unavailable; form keeps text fields',err&&err.code?err.code:'');}catch(_e){}
-  });
+  /* 2026-11-25: loading / 'Couldn’t load list' + Retry in the form's #sv2-lstat (shipments_v2.js), instead of blank lists with no message */
+  var booted=false,startSeq=0,loadNoteT=0;
+  function lstat(state){
+    var box=host.querySelector('#sv2-lstat');if(!box)return;var s=box.querySelector('[data-src="lists"]');
+    if(!state){if(s)s.remove();return;}
+    if(!s){s=mk('div');s.setAttribute('data-src','lists');box.appendChild(s);}
+    clear(s);
+    var b=mk('div','sv2-banner '+(state==='loading'?'info':'err')),ic=mk('span',null,state==='loading'?'i':'!'),tx=mk('span');ic.setAttribute('aria-hidden','true');tx.style.flex='1';
+    b.setAttribute('role',state==='loading'?'status':'alert');
+    tx.appendChild(document.createTextNode(state==='loading'?'Loading lists… · ':'Couldn’t load list · '));
+    var ar=mk('bdi',null,state==='loading'?'جارٍ تحميل القوائم':'تعذر تحميل القائمة');ar.setAttribute('lang','ar');ar.setAttribute('dir','rtl');tx.appendChild(ar);
+    b.appendChild(ic);b.appendChild(tx);
+    if(state==='failed'){var r=mk('button','sv2-btn sec sm','Retry · ');r.type='button';var ra=mk('bdi',null,'إعادة المحاولة');ra.setAttribute('lang','ar');ra.setAttribute('dir','rtl');r.appendChild(ra);
+      r.setAttribute('data-sv2l-retry','1');r.addEventListener('click',function(){start();});b.appendChild(r);}
+    s.appendChild(b);
+  }
+  function start(){
+    var seq=++startSeq;clearTimeout(loadNoteT);loadNoteT=setTimeout(function(){if(!dead&&seq===startSeq&&!D)lstat('loading');},700);
+    return loadAll(sb,product).then(function(d){
+      if(dead||seq!==startSeq)return;clearTimeout(loadNoteT);lstat(null);D=d;loadedAt=Date.now();
+      if(!booted){booted=true;buildPop();addToolbar();}
+      markHost();marks();
+      /* 2026-11-25: a list field that got focus while the lists were loading opens its dropdown now */
+      var a=document.activeElement,af=a&&host.contains(a)?fieldFor(a):null;if(af)open(a,af);
+    },function(err){
+      if(dead||seq!==startSeq)return;clearTimeout(loadNoteT);
+      D=null;   /* fail closed: tables/RPC missing, no access or timeout -> text fields, plus 'Couldn’t load list' + Retry */
+      lstat('failed');
+      try{console.info('[SV2Lists] managed lists unavailable; form keeps text fields',err&&err.code?err.code:(err&&err.message)||'');}catch(_e){}
+    });
+  }
+  var ready=start();
 
   return {
-    active:true,ready:ready,reload:reload,openScreen:openScreen,marks:marks,
+    active:true,ready:ready,reload:reload,retry:start,openScreen:openScreen,marks:marks,
     detach:function(){
-      dead=true;close();closeScreen();
+      dead=true;close();closeScreen();clearTimeout(loadNoteT);lstat(null);
       host.removeEventListener('focusin',onFocusIn);host.removeEventListener('focusout',onFocusOut);
       host.removeEventListener('input',onInput);host.removeEventListener('keydown',onKey,true);
       host.removeEventListener('change',onChangeMark);host.removeEventListener('focusout',onChangeMark);
@@ -334,5 +362,5 @@ function registerScreen(name,def){if(name&&def&&typeof def.mount==='function')SC
 
 /* 2026-11-25 (Vera, notinlist): the Potatoes / Other crops form (shipments_pt_suggest.js) opens the review queue screen itself */
 function screen(name){return Object.prototype.hasOwnProperty.call(SCREENS,name)?SCREENS[name]:null;}
-window.SV2Lists={attach:attach,registerScreen:registerScreen,screen:screen,enabled:enabled,labels:LIST_LABELS,version:'2026-11-15-draft-v0.2'};
+window.SV2Lists={attach:attach,registerScreen:registerScreen,screen:screen,enabled:enabled,labels:LIST_LABELS,version:'2026-11-25-retry-v0.3'};
 })();

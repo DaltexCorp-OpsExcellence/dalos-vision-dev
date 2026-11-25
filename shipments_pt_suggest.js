@@ -21,12 +21,18 @@ var HDR={sector:'sector',pseason:'crop_season'};   /* header select id (without 
 var LINE={grade:'grade',size2:'size',crop_type:'crop_type',brand:'brand',jumbo_colour:'bag_colour',sack_colour:'bag_colour',op_type:'operation',condition:'condition',pivot:'pivot'};
 var PRODUCTS={potatoes:1,other_crops:1};
 var NIL='__sv2_nil__',MAXLEN=120,cssDone=false;
+/* 2026-11-25 (Pixel P2-1): Arabic next to the English, same words as the form's own labels */
+var LABELS_AR={sector:'القطاع',crop_season:'الموسم',pivot:'البيفوت',grade:'التصنيف',size:'الحجم2',crop_type:'محصول',brand:'براند',bag_colour:'لون الجامب / الشكاره',operation:'نوع تشغيل',condition:'الحاله'};
+var AR_NIL='غير موجود في القائمة',AR_KEEP='احتفظ وأرسل للمراجعة',AR_CANCEL='إلغاء',
+    NOTE_EN='We’ll save this on this shipment. An admin can add it to the list.',NOTE_AR='سنحفظ هذه القيمة في هذه الشحنة، ويمكن للمسؤول إضافتها إلى القائمة.';
 var LABELS={sector:'Sector',crop_season:'Crop season',pivot:'Pivot',grade:'Grade',size:'Size 2',crop_type:'Crop type',brand:'Brand',bag_colour:'Jumbo / sack colour',operation:'Operation',condition:'Condition'};
 var CSS=[
 '.sv2n-pop{position:fixed;z-index:2147482000;background:#fff;border:1px solid var(--border2,#ccd);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:10px;display:grid;gap:8px;width:min(320px,calc(100vw - 16px));font:13px var(--font-body,inherit);color:var(--text,#222)}',
 '.sv2n-pop label{font-weight:600;font-size:12.5px}',
 '.sv2n-pop input{border:1px solid var(--border2,#ccd);border-radius:6px;padding:7px 9px;font:14px var(--font-body,inherit);min-height:36px}',
 '.sv2n-row{display:flex;flex-wrap:wrap;gap:6px}',
+'.sv2n-row .sv2-btn{min-height:36px}',   /* P3: was 25px tall on desktop */
+'.sv2n-pop bdi{unicode-bidi:isolate}',
 '.sv2n-hint{font-size:11.5px;color:var(--text3,#777);line-height:1.4}',
 '.sv2n-msg{font-size:12px}.sv2n-msg.ok{color:var(--green,#1c7c3c)}.sv2n-msg.err{color:var(--red,#b42318)}',
 '.sv2n-act{font:500 12.5px var(--font-body,inherit);text-align:left;background:none;border:none;color:var(--accent,#1c5c3c);cursor:pointer;padding:5px 4px;border-radius:6px;min-height:32px}',
@@ -45,6 +51,8 @@ function norm(s){return String(s==null?'':s).replace(/\s+/g,' ').trim();}
 function fold(s){return norm(s).toLowerCase();}
 function mk(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=String(text);return e;}
 function clear(n){while(n&&n.firstChild)n.removeChild(n.firstChild);}
+/* 'English · عربي' as text + an isolated Arabic part (createElement / textContent only) */
+function bi(el,en,ar){el.appendChild(document.createTextNode(en+' · '));var b=document.createElement('bdi');b.setAttribute('lang','ar');b.setAttribute('dir','rtl');b.textContent=ar;el.appendChild(b);return el;}
 /* same checks as the server (submit_shipment_list_suggestion): 1-120 characters, no control or invisible formatting characters */
 function textProblem(v){
   if(!v)return 'Type a value first.';
@@ -81,7 +89,7 @@ function attach(host,opts){
     if(dead||!isSuggest())return;
     Array.prototype.forEach.call(host.querySelectorAll('#sv2-vform select'),function(s){
       if(!keyOf(s)||s.querySelector('option[value="'+NIL+'"]'))return;
-      var o=mk('option',null,'＋ Not in list…');o.value=NIL;o.setAttribute('data-sv2n','1');s.appendChild(o);
+      var o=mk('option',null,'＋ Not in list… · '+AR_NIL);o.value=NIL;o.setAttribute('data-sv2n','1');s.appendChild(o);
     });
   }
   function schedule(){if(timer)return;timer=setTimeout(function(){timer=0;decorate();},0);}
@@ -122,11 +130,11 @@ function attach(host,opts){
     },function(e){if(!dead)show(m,false,errText(e));});
   }
   function askFor(s,key){
-    var p=openPop(s),lab=mk('label',null,'Not in list? '+(LABELS[key]||key));
+    var p=openPop(s),lab=bi(mk('label'),'Not in list? '+(LABELS[key]||key),AR_NIL+(LABELS_AR[key]?'؟ '+LABELS_AR[key]:'؟'));
     var inp=mk('input');inp.type='text';inp.maxLength=MAXLEN;inp.setAttribute('dir','auto');inp.setAttribute('autocomplete','off');
     var id='sv2n-in-'+Date.now();inp.id=id;lab.setAttribute('for',id);
-    var row=mk('div','sv2n-row'),ok=mk('button','sv2-btn sm','Keep and send for review'),no=mk('button','sv2-btn sec sm','Cancel');ok.type='button';no.type='button';
-    var hint=mk('div','sv2n-hint','It is saved on this shipment as you type it. An admin adds it to the list for next time.'),m=msgEl();
+    var row=mk('div','sv2n-row'),ok=bi(mk('button','sv2-btn sm'),'Keep and send for review',AR_KEEP),no=bi(mk('button','sv2-btn sec sm'),'Cancel',AR_CANCEL);ok.type='button';no.type='button';
+    var hint=bi(mk('div','sv2n-hint'),NOTE_EN,NOTE_AR),m=msgEl();
     row.appendChild(ok);row.appendChild(no);p.appendChild(lab);p.appendChild(inp);p.appendChild(row);p.appendChild(hint);p.appendChild(m);
     place(s);inp.focus();
     function go(){
@@ -144,7 +152,7 @@ function attach(host,opts){
     if(dl&&dl.options)Array.prototype.forEach.call(dl.options,function(o){if(fold(o.value)===f)known=true;});
     if(known)return;
     var p=openPop(inp),b=mk('button','sv2n-act'),m=msgEl();b.type='button';
-    b.appendChild(document.createTextNode('＋ Not in list? Keep “'));var bd=mk('bdi',null,v);b.appendChild(bd);b.appendChild(document.createTextNode('” and send for review'));
+    b.appendChild(document.createTextNode('＋ Not in list? Keep “'));var bd=mk('bdi',null,v);b.appendChild(bd);b.appendChild(document.createTextNode('” and send for review · '));var ba=mk('bdi',null,AR_NIL+'؟ '+AR_KEEP);ba.setAttribute('lang','ar');ba.setAttribute('dir','rtl');b.appendChild(ba);
     p.appendChild(b);p.appendChild(m);place(inp);
     b.addEventListener('click',function(){b.disabled=true;send(key,v,m,function(){setTimeout(function(){if(popFor===inp)closePop();},2500);});});
   }
@@ -205,5 +213,5 @@ function attach(host,opts){
       if(tbBtn){tbBtn.remove();tbBtn=null;}undecorate();
     }};
 }
-window.SV2PtSuggest={attach:attach,enabled:enabled,keys:{header:HDR,line:LINE},NIL:NIL,textProblem:textProblem,version:'2026-11-25-notinlist-v0.1'};
+window.SV2PtSuggest={attach:attach,enabled:enabled,keys:{header:HDR,line:LINE},NIL:NIL,textProblem:textProblem,version:'2026-11-25-notinlist-v0.2'};
 })();
