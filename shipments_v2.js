@@ -900,7 +900,7 @@ function createInstance(host,O){
   function ptRowHTML(d,i){
     var L=ptLists();
     return '<tr data-line="'+i+'">'+
-      '<td><button type="button" class="sv2-ib'+(openRows[i]?' open':'')+'" data-act="toggleLine" data-i="'+i+'" aria-label="Lot, sizing, packaging and handling">⌄</button></td>'+
+      '<td><button type="button" class="sv2-ib'+(openRows[i]?' open':'')+'" data-act="toggleLine" data-i="'+i+'" title="More: size, brand, colours · المزيد" aria-label="More: size, brand, colours">⌄</button></td>'+
       '<td class="idx">'+(i+1)+'</td>'+
       '<td>'+csel(varNames(),d.variety,'variety')+'</td>'+
       '<td>'+cin(d.pivot,'pivot','','sv2-dl-pivot')+'</td><td>'+cin(d.farm,'farm','','sv2-dl-farm')+'</td>'+
@@ -936,7 +936,7 @@ function createInstance(host,O){
   function ocRowHTML(d,i){
     var L=ocLists();
     return '<tr data-line="'+i+'">'+
-      '<td><button type="button" class="sv2-ib'+(openRows[i]?' open':'')+'" data-act="toggleLine" data-i="'+i+'" aria-label="Lot, sizing, packaging and handling">⌄</button></td>'+
+      '<td><button type="button" class="sv2-ib'+(openRows[i]?' open':'')+'" data-act="toggleLine" data-i="'+i+'" title="More: size, brand, colours · المزيد" aria-label="More: size, brand, colours">⌄</button></td>'+
       '<td class="idx">'+(i+1)+'</td>'+
       '<td class="oc-var">'+cin(d.variety,'variety','','sv2-dl-variety')+'</td>'+
       '<td>'+cin(d.pivot,'pivot','','sv2-dl-pivot')+'</td><td>'+ocSel('farm',d.farm,'farm')+'</td>'+
@@ -1275,7 +1275,7 @@ function createInstance(host,O){
     /* drop new lines nobody touched (the form starts with one blank line) */
     var before=LINES.length;LINES=LINES.filter(function(d){return !isUntouched(d);});
     if(LINES.length!==before){openRows={};renderLines();}
-    if(!LINES.length){LINES=[blankLine()];openRows={0:PT?isNarrow():true};renderLines();showFormError(PT?'Add at least one line with a variety, pallets and weight.':'Add at least one line with a variety, pallets, cartons and carton net.');return;}
+    if(!LINES.length){LINES=[blankLine()];openRows={0:true};renderLines();showFormError(PT?'Add at least one line with a variety, pallets and weight.':'Add at least one line with a variety, pallets, cartons and carton net.');return;}
     var problems=checkLines();
     if(problems.length){showFormError('Fix these before saving:\n'+problems.join('\n'));qa('.invalid[data-k]').forEach(openFor);paintProblems();var f=host.querySelector('.invalid[data-k]');if(f)f.focus();return;}
     var hdr=readHeader();
@@ -1443,7 +1443,7 @@ function createInstance(host,O){
   function openCreate(){
     formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;LOADED_IDS=[];ROW_VERSION='';syncDelBtn();
     blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();if(LISTS&&LISTS.marks)LISTS.marks();
-    PAS_LIVE=true;TRIED=false;LINES=[blankLine()];RAWCGW={};openRows={0:PT?isNarrow():true};renderLines();
+    PAS_LIVE=true;TRIED=false;LINES=[blankLine()];RAWCGW={};openRows={0:true};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);
     el('ftitle').textContent='New shipment';el('ctxref').textContent='New';setSeasonChip();
     showView('form');var c=el('container');if(c&&!isNarrow()&&!(OC&&isTouch()))c.focus();   /* v0.2 P3: no keyboard pop-up on touch devices */
