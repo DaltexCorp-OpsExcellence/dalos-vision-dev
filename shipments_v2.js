@@ -171,8 +171,8 @@ var CSS=[
 /* 2026-11-17 layout (mock-up): line panel = Classification / Weight inputs / Results */
 '.sv2-pv2 table.sv2-lines>tbody>tr>td{vertical-align:top}.sv2-pv2 [data-pecho]{min-height:14px}',
 '.sv2c-w{position:relative;display:block;min-width:0}.sv2c-w>select{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none}',
-'.sv2c-in,.sv2c-dl{background-image:url(\"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 12 12%27%3E%3Cpath d=%27M2.5 4.5 6 8l3.5-3.5%27 fill=%27none%27 stroke=%27%23667%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 8px center;background-size:12px 12px;padding-right:26px!important;text-overflow:ellipsis}',
-'.sv2c-in{cursor:text;width:100%}.sv2c-in:disabled,.sv2c-dl:disabled{background-image:none}',
+'.sv2c-in,.sv2c-dl{background-image:url(\"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 12 12%27%3E%3Cpath d=%27M2.5 4.5 6 8l3.5-3.5%27 fill=%27none%27 stroke=%27%23667%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E\")!important;background-repeat:no-repeat!important;background-position:right 8px center!important;background-size:12px 12px!important;padding-right:26px!important;text-overflow:ellipsis}',
+'.sv2c-in{cursor:text;width:100%}.sv2c-in:disabled,.sv2c-dl:disabled{background-image:none!important}',
 '.sv2c-pop{position:fixed;z-index:2147482000;background:#fff;border:1px solid var(--border2,#ccd);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);display:none;flex-direction:column;max-height:320px;min-width:220px;font:13px var(--font-body,inherit);color:var(--text,#222)}',
 '.sv2c-pop.on{display:flex}.sv2c-opts{overflow:auto;padding:4px 0;flex:1 1 auto;min-height:0}',
 '.sv2c-opt{padding:7px 12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sv2c-opt[aria-selected="true"],.sv2c-opt:hover{background:var(--green-bg,#e9f3ec)}.sv2c-opt.cur{font-weight:600}',
