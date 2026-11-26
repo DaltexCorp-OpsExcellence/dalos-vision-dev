@@ -1244,7 +1244,8 @@ function createInstance(host,O){
   function cbMouse(e){var t=e.target;if(!PV2)return;
     if(cbIsBox(t)){if(!CB.cur||CB.cur.inp!==t)cbOpen(t);return;}
     var o=t.closest&&t.closest('.sv2c-opt');if(o&&CB.cur){cbPick(CB.shown[+o.getAttribute('data-i')]);return;}
-    var b=t.closest&&t.closest('[data-cb="nil"]');if(b&&CB.cur&&CB.cur.sel){var sel=CB.cur.sel;cbClose();sel.value=CB_NIL;sel.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(function(){pv2Combos();},0);}}
+    var b=t.closest&&t.closest('[data-cb="nil"]');if(b&&CB.cur&&CB.cur.sel){var sel=CB.cur.sel;cbClose();sel.dispatchEvent(new FocusEvent('focusin',{bubbles:true}));   /* lets 'Not in list?' remember the current value, so Cancel puts it back */
+      sel.value=CB_NIL;sel.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(function(){pv2Combos();},0);}}
   function cbInput(e){if(!PV2||!cbIsBox(e.target))return;if(!CB.cur||CB.cur.inp!==e.target)cbOpen(e.target);if(CB.cur){CB.cur.typed=true;CB.act=-1;cbRender();}}
   function cbKey(e){if(!PV2||!CB.cur||e.target!==CB.cur.inp)return;var n=CB.shown.length;
     if(e.key==='ArrowDown'){e.preventDefault();CB.act=n?(CB.act+1)%n:-1;cbRender();}
@@ -1252,6 +1253,7 @@ function createInstance(host,O){
     else if(e.key==='Enter'){if(CB.act>=0&&CB.shown[CB.act]){e.preventDefault();cbPick(CB.shown[CB.act]);}}
     else if(e.key==='Escape'){var c=CB.cur;if(c.sel)c.inp.value=cbText(c.sel);cbClose();}}
   function cbBlur(e){if(!PV2||!CB.cur||e.target!==CB.cur.inp)return;var c=CB.cur;cbClose();cbCommit(c);}
+  function cbSync(){if(PV2)setTimeout(pv2Combos,0);}   /* a value set by 'Not in list?' / Cancel shows in its box */
   function cbScroll(e){var t=e&&e.target;if(CB.cur&&!(CB.pop&&t&&t.nodeType===1&&CB.pop.contains(t)))cbPlace();}   /* scroll target can be the document / window */
   function lockRO(){if(!RO)return;qa('#sv2-vform input,#sv2-vform select,#sv2-vform textarea').forEach(function(f){f.disabled=true;});var t=el('ftitle');if(t)t.textContent='View shipment';}
   function renderLines(){
@@ -2165,7 +2167,7 @@ function createInstance(host,O){
   }
   host.addEventListener('click',onClick);host.addEventListener('keydown',onKey);
   host.addEventListener('change',onChange);host.addEventListener('input',onInput);host.addEventListener('focusout',onBlur);
-  if(PV2){host.addEventListener('focusin',cbFocus);host.addEventListener('mousedown',cbMouse);host.addEventListener('input',cbInput);host.addEventListener('keydown',cbKey);host.addEventListener('focusout',cbBlur);window.addEventListener('scroll',cbScroll,true);window.addEventListener('resize',cbScroll);}
+  if(PV2){host.addEventListener('focusin',cbFocus);host.addEventListener('mousedown',cbMouse);host.addEventListener('input',cbInput);host.addEventListener('keydown',cbKey);host.addEventListener('focusout',cbBlur);host.addEventListener('change',cbSync);window.addEventListener('scroll',cbScroll,true);window.addEventListener('resize',cbScroll);}
 
   /* the sticky Save bar sits above Vision's phone bottom nav when that nav is showing */
   function placeBar(){var n=document.querySelector('.mobile-nav'),h=0;
@@ -2271,7 +2273,7 @@ function createInstance(host,O){
       if(formMQ){if(formMQ.removeEventListener)formMQ.removeEventListener('change',onMQ);else if(formMQ.removeListener)formMQ.removeListener(onMQ);}
       if(footRO)footRO.disconnect();
       host.removeEventListener('click',onClick);host.removeEventListener('keydown',onKey);
-      if(PV2){host.removeEventListener('focusin',cbFocus);host.removeEventListener('mousedown',cbMouse);host.removeEventListener('input',cbInput);host.removeEventListener('keydown',cbKey);host.removeEventListener('focusout',cbBlur);window.removeEventListener('scroll',cbScroll,true);window.removeEventListener('resize',cbScroll);if(CB.pop&&CB.pop.parentNode)CB.pop.parentNode.removeChild(CB.pop);}
+      if(PV2){host.removeEventListener('focusin',cbFocus);host.removeEventListener('mousedown',cbMouse);host.removeEventListener('input',cbInput);host.removeEventListener('keydown',cbKey);host.removeEventListener('focusout',cbBlur);host.removeEventListener('change',cbSync);window.removeEventListener('scroll',cbScroll,true);window.removeEventListener('resize',cbScroll);if(CB.pop&&CB.pop.parentNode)CB.pop.parentNode.removeChild(CB.pop);}
       host.removeEventListener('change',onChange);host.removeEventListener('input',onInput);host.removeEventListener('focusout',onBlur);host.removeEventListener('focusin',onFormFocus);
       clearTimeout(searchT);clearTimeout(toastT);clearTimeout(undoT);closeModal();if(toastEl){toastEl.remove();toastEl=null;}if(undoEl){undoEl.remove();undoEl=null;}
       if(LISTS&&LISTS.detach){try{LISTS.detach();}catch(_e){}}LISTS=null;
