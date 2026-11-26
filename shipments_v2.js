@@ -1150,8 +1150,7 @@ function createInstance(host,O){
     return dl(ar('Lot No','رقم اللوط'),cin(d.lot,'lot','mono'))+dl(ar('Size 1 (mm)','الحجم1'),cin(d.size1,'size1','num'))+
       dl(ar('Size category','الحجم2'),csel(L.size2,d.size2,'size2'))+dl(ar('Crop type','محصول'),csel(L.cropTypes,d.crop_type,'crop_type'))+
       dl(ar('Brand','براند'),csel(L.brands,d.brand,'brand'))+dl(ar('Operation','نوع تشغيل'),csel(L.ops,d.op_type,'op_type'))+
-      dl(ar('Jumbo colour','لون الجامب')+' <small>· type to search</small>',cin(d.jumbo_colour,'jumbo_colour','','sv2-dl-colour'))+
-      dl(ar('Sack colour','لون الشيكاره'),csel(L.colours,d.sack_colour,'sack_colour'));
+      dl(ar('Packaging colour','لون العبوة'),csel(L.colours,d.sack_colour,'sack_colour'));   /* 2026-11-26 (Tarek): one colour field for jumbo bags and sacks (same list), stored as before under Sack Colour */
   }
   function pv2HeadHTML(){return '<tr><th></th><th>#</th><th'+(OC?' class="oc-var"':'')+'>Variety</th><th>Farm type</th><th>Farm name</th><th>Pivot</th><th>Grade</th><th>Packaging type</th>'+
     '<th class="num">No. of packages <span class="sv2-ar" lang="ar">عدد</span></th><th class="num">Package wt t</th><th class="num">Std wt t</th><th></th></tr>';}
@@ -1712,7 +1711,9 @@ function createInstance(host,O){
         setv('invoice',h.invoice_no);setv('permit',h.permit_no);setv('workorder',h.work_order);
         if(PV2){setv('truck',h.truck_no);setv('ppascol',h.pascol_total!=null&&String(h.pascol_total).trim()!==''?tidyNum(h.pascol_total):'');setTmode(h.transport_mode==='vessel'?'vessel':'container');}
         fillHeaderSelects({station:h.station,sector:h.sector,season:h.season,crop:h.crop,vessel:h.vessel,client:h.client,receiving_port:h.receiving_port});deriveDate();
-        LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;if(OC)d.variety=ocVarShow(d.variety);return d;});
+        LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;if(OC)d.variety=ocVarShow(d.variety);
+          if(PV2&&!String(d.sack_colour||'').trim()&&String(d.jumbo_colour||'').trim()){d.sack_colour=d.jumbo_colour;d.jumbo_colour='';}   /* one Packaging colour field */
+          return d;});
         if(!LINES.length)LINES=[blankLine()];
         openRows={};renderLines();setDirty(false);pv2Lock(true);lockRO();
         el('ftitle').textContent='Edit shipment';el('ctxref').textContent=h.container_number||container;setSeasonChip();return;
