@@ -14410,14 +14410,34 @@ function CqcPreviewModal(props){
 /* Other crops (Vera 2026-11-23): flag-gated Shipments product. ON only when index.html sets SV2_OTHER_CROPS_ENABLED=true AND this is
    the staging host (VISION_IS_DEV); the prod address resolves OFF. Same check as shipments_v2.js.
    The products row is inactive (active=false) until a separate yes, so config.products never lists it: it is added here. */
-var OC_PRODUCT={id:'other_crops',name:'(Pivot) Other Crops',color:'#b5651d',active:true};
+var OC_PRODUCT={id:'other_crops',name:'(Pivot) Other Crops',color:'#2e7d46',active:true};
+/* 2026-11-27 (Tarek): Shipments shows Other crops as one entry per crop (Configurations > Crop list, ref_options
+   other_crops/crop, active). Entry id 'oc:<CROP_CODE>'; the data stays product other_crops and the Manage list is
+   filtered to that crop (shipments_v2.js opts.cropCode, crop set + locked on new shipments). Green accent. */
+var OC_CROP_COLOR='#2e7d46',OC_CROPS_CACHE=null,OC_CROPS_FLIGHT=null;
+function isOcCrop(id){return typeof id==='string'&&id.indexOf('oc:')===0;}
+function ocCropCode(id){return isOcCrop(id)?id.slice(3):'';}
+function ocBaseProduct(id){return isOcCrop(id)?'other_crops':id;}
+function ocLoadCrops(){
+  if(OC_CROPS_CACHE)return Promise.resolve(OC_CROPS_CACHE);if(OC_CROPS_FLIGHT)return OC_CROPS_FLIGHT;
+  OC_CROPS_FLIGHT=Promise.resolve(supabase.from('ref_options').select('code,label_ar,label_en,sort_order').eq('product_id','other_crops').eq('list_key','crop').eq('active',true).order('sort_order'))
+    .then(function(r){OC_CROPS_FLIGHT=null;
+      if(r&&!r.error&&r.data&&r.data.length)OC_CROPS_CACHE=r.data.map(function(o){return {id:'oc:'+o.code,code:o.code,name:o.label_en||o.label_ar||o.code,ar:o.label_ar||'',color:OC_CROP_COLOR,active:true,crop:o.code};});
+      return OC_CROPS_CACHE;},function(){OC_CROPS_FLIGHT=null;return null;});
+  return OC_CROPS_FLIGHT;}
+function useOcCrops(){var st=useState(OC_CROPS_CACHE);
+  React.useEffect(function(){if(!otherCropsOn()||OC_CROPS_CACHE)return;var alive=true;ocLoadCrops().then(function(c){if(alive&&c)st[1](c);});return function(){alive=false;};},[]);
+  return st[0];}
+/* product list for Shipments: the single Other crops entry becomes one entry per crop once the crop list has loaded */
+function ocWithCrops(prods,crops){if(!otherCropsOn())return prods;var p=prods.filter(function(x){return x.id!=='other_crops';});return p.concat(crops&&crops.length?crops:[OC_PRODUCT]);}
+function ocProductObj(id){return (OC_CROPS_CACHE||[]).find(function(c){return c.id===id;})||null;}
 function otherCropsOn(){return window.SV2_OTHER_CROPS_ENABLED===true;}   /* 2026-11-26 (Tarek): index.html decides; staging = VISION_IS_DEV, prod sets it explicitly */
 var _shipV2Load=null;
 function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?v=9107ba94e8';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
+    s.src='shipments_v2.js?v=1231fce09f';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});
@@ -14431,7 +14451,7 @@ function ShipV2Host(props){
     var alive=true;setErr('');
     loadShipV2().then(function(SV){
       if(!alive||!ref.current)return;
-      api.current=SV.mount(ref.current,{sb:supabase,product:props.product,productName:props.productName,productColor:props.productColor,
+      api.current=SV.mount(ref.current,{sb:supabase,product:props.product,productName:props.productName,productColor:props.productColor,cropCode:props.cropCode||'',
         seasonId:props.seasonId,seasonName:props.seasonName,trueActiveSeasonId:props.trueActiveSeasonId,trueActiveSeasonName:props.trueActiveSeasonName,
         canConfigure:!!props.canConfigure,readOnly:!!props.readOnly});
       if(props.apiRef)props.apiRef.current=api.current;
@@ -14439,7 +14459,7 @@ function ShipV2Host(props){
     var g=function(){return !api.current||api.current.confirmLeave();};visionCrumbGuard=g;
     return function(){alive=false;if(visionCrumbGuard===g)visionCrumbGuard=null;
       if(api.current){api.current.unmount();api.current=null;}if(props.apiRef)props.apiRef.current=null;};
-  },[props.product,props.seasonId,props.readOnly,tick]);
+  },[props.product,props.cropCode,props.seasonId,props.readOnly,tick]);
   if(err)return ce(VisionLoadError,{title:'Manage didn\u2019t load',detail:err,pad:40,onRetry:function(){setTick(function(t){return t+1;});}});
   return ce('div',{ref:ref});
 }
@@ -14453,7 +14473,7 @@ function shipLandingOn(){return window.SV2_SHIP_LANDING_ENABLED===true||window.V
 var SV2L_ORDER=['citrus','grapes','pomegranate','mango','berries','potatoes','other_crops'];
 var SV2L_AR={citrus:'موالح',grapes:'عنب',pomegranate:'رمان',mango:'مانجو',berries:'توت',potatoes:'بطاطس',other_crops:'محاصيل أخرى',olives:'زيتون'};
 /* products whose records page is Manage (same list as ShipmentsMgmt.manageProduct); only these have the overview read */
-function sv2lHasOverview(id){return ['citrus','grapes','mango','pomegranate','potatoes'].indexOf(id)>=0||(id==='other_crops'&&otherCropsOn());}
+function sv2lHasOverview(id){return ['citrus','grapes','mango','pomegranate','potatoes'].indexOf(id)>=0||((id==='other_crops'||isOcCrop(id))&&otherCropsOn());}
 /* static fruit art (no data inside) — inline SVG from the mockup */
 var SV2L_FRUIT={
  citrus:'<circle cx="50" cy="54" r="38" fill="#f59a1f"/><circle cx="50" cy="54" r="31" fill="#ffc25c"/><g stroke="#fff3d6" stroke-width="3"><line x1="50" y1="23" x2="50" y2="85"/><line x1="50" y1="23" x2="50" y2="85" transform="rotate(45 50 54)"/><line x1="50" y1="23" x2="50" y2="85" transform="rotate(90 50 54)"/><line x1="50" y1="23" x2="50" y2="85" transform="rotate(135 50 54)"/></g><circle cx="50" cy="54" r="5" fill="#fff3d6"/><path d="M58 14c10-8 22-6 26 0-8 8-20 8-26 0z" fill="#3c8a4f"/>',
@@ -14462,9 +14482,17 @@ var SV2L_FRUIT={
  pomegranate:'<circle cx="50" cy="56" r="36" fill="#c63a4f"/><path d="M40 24l4-12 6 8 6-8 4 12z" fill="#9e2337"/><circle cx="38" cy="46" r="8" fill="#fff" opacity=".25"/><g fill="#ff8fa0" opacity=".7"><circle cx="52" cy="60" r="3"/><circle cx="60" cy="68" r="3"/><circle cx="44" cy="70" r="3"/><circle cx="62" cy="52" r="3"/></g>',
  berries:'<path d="M50 90C24 70 18 44 30 34c8-6 14-4 20 0 6-4 12-6 20 0 12 10 6 36-20 56z" fill="#d6304f"/><path d="M34 30l16 6 16-6-8-10-8 6-8-6z" fill="#3c8a4f"/><g fill="#ffe08a"><ellipse cx="40" cy="48" rx="1.6" ry="2.6"/><ellipse cx="56" cy="46" rx="1.6" ry="2.6"/><ellipse cx="48" cy="58" rx="1.6" ry="2.6"/><ellipse cx="38" cy="64" rx="1.6" ry="2.6"/><ellipse cx="60" cy="62" rx="1.6" ry="2.6"/><ellipse cx="50" cy="74" rx="1.6" ry="2.6"/></g>',
  potatoes:'<ellipse cx="40" cy="58" rx="28" ry="22" fill="#c49a5e" transform="rotate(-12 40 58)"/><ellipse cx="64" cy="50" rx="22" ry="17" fill="#b0844a" transform="rotate(18 64 50)"/><g fill="#7a5528"><circle cx="30" cy="54" r="2"/><circle cx="44" cy="66" r="2"/><circle cx="38" cy="48" r="2"/><circle cx="66" cy="46" r="2"/><circle cx="70" cy="56" r="2"/></g>',
- other_crops:'<path d="M50 90V44" stroke="#2f6b45" stroke-width="5"/><path d="M50 56C28 56 18 40 20 24c18 0 30 12 30 32z" fill="#4fae74"/><path d="M50 48c0-22 12-34 32-34 2 18-10 34-32 34z" fill="#3f9a6a"/><path d="M50 72c-14 0-22-8-24-18 12-2 22 4 24 18z" fill="#6cc48f"/>'
+ sweet_potato:'<path d="M12 62C14 46 34 34 56 32c18-2 30 6 32 16 2 12-12 24-32 28-22 4-46 2-44-14z" fill="#b5523b"/><path d="M84 44l10-6" stroke="#8a3b29" stroke-width="3" stroke-linecap="round"/><path d="M14 64l-8 4" stroke="#8a3b29" stroke-width="3" stroke-linecap="round"/><ellipse cx="44" cy="44" rx="14" ry="5" fill="#fff" opacity=".25" transform="rotate(-10 44 44)"/><g fill="#7e3424"><circle cx="34" cy="58" r="1.8"/><circle cx="52" cy="54" r="1.8"/><circle cx="66" cy="48" r="1.8"/><circle cx="58" cy="64" r="1.8"/></g>',
+ butternut:'<rect x="46" y="6" width="8" height="10" rx="2" fill="#6b4a22"/><path d="M42 16h16c0 12 4 18 10 26 8 10 12 18 12 28 0 14-13 22-30 22S20 84 20 70c0-10 4-18 12-28 6-8 10-14 10-26z" fill="#e8b25e"/><ellipse cx="50" cy="72" rx="14" ry="10" fill="#d99a42"/><ellipse cx="40" cy="38" rx="4" ry="12" fill="#fff" opacity=".3"/>',
+ onion:'<path d="M50 10c3 12 32 22 32 48 0 18-14 30-32 30S18 76 18 58c0-26 29-36 32-48z" fill="#c9823a"/><path d="M50 18c-6 14-18 24-18 42M50 18c6 14 18 24 18 42M50 18v68" stroke="#a5652a" stroke-width="2" fill="none"/><path d="M44 88l-4 6M50 88v7M56 88l4 6" stroke="#e9d3b0" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="36" cy="54" rx="5" ry="12" fill="#fff" opacity=".25"/>',
+ carrot:'<path d="M38 30l24 0-10 62c-1 4-3 4-4 0z" fill="#f27a1a"/><g stroke="#c95f10" stroke-width="2" stroke-linecap="round"><path d="M44 44h8M46 58h6M48 72h4"/></g><path d="M50 30c-6-10-14-18-22-20 2 10 10 18 22 20zM50 30c0-12 4-20 10-24 2 10-2 18-10 24zM50 30c6-8 16-12 24-10-4 8-14 12-24 10z" fill="#3c8a4f"/>',
+ broccoli:'<path d="M44 58h12l4 34H40z" fill="#8fc46a"/><g fill="#3f8f4e"><circle cx="32" cy="46" r="14"/><circle cx="50" cy="34" r="16"/><circle cx="68" cy="46" r="14"/><circle cx="42" cy="56" r="11"/><circle cx="58" cy="56" r="11"/></g><g fill="#2f7340"><circle cx="46" cy="30" r="3"/><circle cx="58" cy="38" r="3"/><circle cx="30" cy="44" r="3"/><circle cx="70" cy="48" r="3"/></g>',
+ garlic:'<path d="M50 10c2 6 6 10 8 14 14 6 24 18 24 34 0 18-14 30-32 30S18 76 18 58c0-16 10-28 24-34 2-4 6-8 8-14z" fill="#f4efe6" stroke="#d8cfc0" stroke-width="2"/><path d="M50 26v60M36 34c-6 14-6 34 4 50M64 34c6 14 6 34-4 50" stroke="#d8cfc0" stroke-width="2" fill="none"/><path d="M42 88l-2 5M50 88v6M58 88l2 5" stroke="#c9b9a0" stroke-width="2" stroke-linecap="round"/>',
+ radish:'<path d="M50 38c-4-10-12-20-22-24 0 12 10 22 22 24zM50 38c0-12 4-24 14-30 2 12-4 24-14 30z" fill="#3c8a4f"/><circle cx="50" cy="60" r="24" fill="#d9324c"/><path d="M50 84v12" stroke="#f3e6e8" stroke-width="3" stroke-linecap="round"/><ellipse cx="42" cy="52" rx="6" ry="9" fill="#fff" opacity=".3"/><path d="M40 76c6 6 14 6 20 0" stroke="#f3e6e8" stroke-width="3" fill="none"/>',
+ other_crops:'<path d="M50 90V44\" stroke="#2f6b45" stroke-width="5"/><path d="M50 56C28 56 18 40 20 24c18 0 30 12 30 32z" fill="#4fae74"/><path d="M50 48c0-22 12-34 32-34 2 18-10 34-32 34z" fill="#3f9a6a"/><path d="M50 72c-14 0-22-8-24-18 12-2 22 4 24 18z" fill="#6cc48f"/>'
 };
-function sv2lFruit(id){return '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">'+(SV2L_FRUIT[id]||SV2L_FRUIT.other_crops)+'</svg>';}
+var OC_ICON={CROP_SWEET_POTATO:'sweet_potato',CROP_BUTTERNUT:'butternut',CROP_ONION:'onion',CROP_CARROT:'carrot',CROP_BROCCOLI:'broccoli',CROP_GARLIC:'garlic',CROP_RADISH:'radish'};
+function sv2lFruit(id){var k=isOcCrop(id)?(OC_ICON[ocCropCode(id)]||'other_crops'):id;return '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">'+(SV2L_FRUIT[k]||SV2L_FRUIT.other_crops)+'</svg>';}
 /* Cairo calendar date (YYYY-MM-DD) and HH:MM */
 function sv2lCairoDate(d){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}catch(e){return d.toISOString().slice(0,10);}}
 function sv2lCairoTime(d){try{return new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',minute:'2-digit',hour12:false}).format(d);}catch(e){return '';}}
@@ -14492,12 +14520,22 @@ function sv2lSummarise(containers){
   var latest=containers.slice(0,4).map(function(c){var h=c.hdr||{};return {ref:c.ref||'',loaded:h.loaded||'',region:h.region||'',status:h.status||''};});
   return {n:containers.length,wk:wk,net:net,weeks:weeks,top:top,latest:latest};
 }
+/* raw containers of one base product + season, shared by the crop entries (one edge-function call for all crops) */
+var SV2L_RAW={};
+function sv2lFetch(seasonId,base,force){
+  var key=seasonId+'|'+base;if(!force&&SV2L_RAW[key])return SV2L_RAW[key];
+  var path='citrus-shipments?product='+encodeURIComponent(base)+(seasonId?'&season='+encodeURIComponent(seasonId):'');
+  var p=Promise.resolve(supabase.functions.invoke(path,{method:'GET'}));
+  p.then(function(res){if(res&&res.error)delete SV2L_RAW[key];},function(){delete SV2L_RAW[key];});
+  SV2L_RAW[key]=p;return p;
+}
 function sv2lLoad(seasonId,prodId,force){
   var key=seasonId+'|'+prodId;
   if(!force&&SV2L_CACHE[key])return Promise.resolve(SV2L_CACHE[key]);
   if(SV2L_FLIGHT[key])return SV2L_FLIGHT[key];
-  var path='citrus-shipments?product='+encodeURIComponent(prodId)+(seasonId?'&season='+encodeURIComponent(seasonId):'');
-  var p=Promise.resolve(supabase.functions.invoke(path,{method:'GET'})).then(function(res){
+  var crop=ocCropCode(prodId);
+  var p=sv2lFetch(seasonId,ocBaseProduct(prodId),force).then(function(res){
+    if(crop&&res&&!res.error&&res.data)res={data:{containers:(res.data.containers||[]).filter(function(c){return (c.hdr||{}).crop===crop;})}};
     var out;
     if(res&&res.error){var st=res.error.context&&res.error.context.status;
       /* 403 = this account can't read this product's shipments: hide the overview, don't show an error */
@@ -14614,11 +14652,13 @@ function sv2lBars(sum,narrow,c,d,name){
   return ce('svg',{viewBox:'0 0 '+W+' '+H,role:'img','aria-label':name+' shipments per week, last 13 weeks: '+ws.map(function(w){return w.label+' '+w.n;}).join(', ')},kids);
 }
 function ShipLanding(props){
+  var ocCrops=useOcCrops();
   var config=props.config||{},counts=props.prodCounts||{},seasonId=config.activeSeasonId;
   var seasonName=((config.seasons||[]).find(function(x){return x.id===seasonId;})||{}).name||'';
   var prods=(config.products||[]).filter(function(p){return p.active!==false;});
-  if(otherCropsOn()&&!prods.some(function(p){return p.id==='other_crops';}))prods=prods.concat([OC_PRODUCT]);   /* same visibility as the old cards */
-  prods=prods.slice().sort(function(a,b){var ia=SV2L_ORDER.indexOf(a.id),ib=SV2L_ORDER.indexOf(b.id);return (ia<0?99:ia)-(ib<0?99:ib);});
+  prods=ocWithCrops(prods,ocCrops);   /* Other crops = one bubble per crop (same visibility as the old cards) */
+  var ocIx=SV2L_ORDER.indexOf('other_crops');function ordKey(p,i){if(isOcCrop(p.id))return ocIx+(i+1)/1000;var k=SV2L_ORDER.indexOf(p.id);return k<0?99:k;}
+  prods=prods.map(function(p,i){return {p:p,k:ordKey(p,i)};}).sort(function(a,b){return a.k-b.k;}).map(function(x){return x.p;});
   var sSel=useState(function(){try{return localStorage.getItem('sv2_landing_product')||null;}catch(e){return null;}}),sel=sSel[0],setSel=sSel[1];
   var sFocus=useState(null),focusId=sFocus[0],setFocusId=sFocus[1];
   var sData=useState(null),data=sData[0],setData=sData[1];
@@ -14672,7 +14712,7 @@ function ShipLanding(props){
     ce('div',{className:'sv2l-strip',role:'tablist','aria-label':'Products',ref:stripRef,onKeyDown:onKey,onScroll:moreHint,
         onBlur:function(e){if(!stripRef.current||!stripRef.current.contains(e.relatedTarget))setFocusId(null);}},   /* Tab back in lands on the selected bubble */
       prods.map(function(p){
-        var n=counts[p.id],has=+n>0,on=p.id===cur,ar=SV2L_AR[p.id]||'';
+        var n=counts[p.id],has=+n>0,on=p.id===cur,ar=SV2L_AR[p.id]||p.ar||'';
         return ce('button',{key:p.id,id:'sv2l-tab-'+p.id,type:'button',role:'tab','aria-selected':on?'true':'false','aria-controls':'sv2l-panel',tabIndex:p.id===tabStop?0:-1,
             className:'sv2l-chip'+(n===0?' empty':''),style:colors(p),onClick:function(){setFocusId(p.id);pick(p.id);},onFocus:function(){setFocusId(p.id);},
             'aria-label':(p.name||p.id)+(n===undefined?', loading':n===null?', count not loaded':has?', '+n+' shipment'+(n===1?'':'s')+' this season':', no shipments yet')},
@@ -14690,7 +14730,7 @@ function ShipLanding(props){
   if(!curP){
     panel=ce('div',{className:'sv2l-card',style:{gridColumn:'1/-1'}},skel(30,'40%'),ce('div',{style:{height:14}}),skel(160));
   } else {
-    var ar=SV2L_AR[curP.id]||'',d=data&&data.key===seasonId+'|'+cur?data:null,sum=d&&d.sum;
+    var ar=SV2L_AR[curP.id]||curP.ar||'',d=data&&data.key===seasonId+'|'+cur?data:null,sum=d&&d.sum;
     var title=ce('div',{className:'sv2l-ttl'},ce('h2',null,curP.name||curP.id),ar&&ce('span',{className:'sv2l-ar',lang:'ar',dir:'rtl'},ar),
       ce('span',{className:'sv2l-live'},'Season '+(seasonName||'—')+(d&&d.at?' · updated '+sv2lCairoTime(d.at):'')));
     if(curN===0||(sum&&sum.n===0)){
@@ -14773,10 +14813,10 @@ function ShipmentsMgmt(props){
   var sAggMode=useState(true); var aggMode=sAggMode[0]; var setAggMode=sAggMode[1];
   /* Manage = shipment entry sandbox (shipments_v2.js), editors only; never writes public.shipments */
   /* only products the entry tool supports (orchards + potatoes); Berries/Olives have no form yet */
-  var shipPT=selProd==='potatoes'||selProd==='other_crops';   /* Other crops shows the Pivots columns */
+  var shipPT=selProd==='potatoes'||selProd==='other_crops'||isOcCrop(selProd);   /* Other crops shows the Pivots columns */
   /* 2026-11-26 step 2 (Tarek): every product that has Manage shows ONLY Manage (old record views retired there);
      people without edit rights get it read-only. Berries / Olives (no Manage) keep the old view. */
-  var manageProduct=(['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0||(selProd==='other_crops'&&otherCropsOn()));
+  var manageProduct=(['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0||((selProd==='other_crops'||isOcCrop(selProd))&&otherCropsOn()));
   var canManage=!!(props.perms&&props.perms.editShipments)&&manageProduct;
   /* 2026-11-26 (Tarek): Manage is the main page of each product for people who can edit shipments (others keep All rows) */
   /* 2026-11-26 step 1 (Tarek): editors always see Manage (no tab row); people without edit rights keep All rows / By container
@@ -14800,6 +14840,7 @@ function ShipmentsMgmt(props){
   var sClaimCur=useState('USD'); var claimCur=sClaimCur[0]; var setClaimCur=sClaimCur[1];
   /* product container counts for hero */
   var sProdCounts=useState({}); var prodCounts=sProdCounts[0]; var setProdCounts=sProdCounts[1];
+  var ocCrops=useOcCrops();   /* Other crops entries, one per crop */
 
   /* Reset product selection when season changes */
   React.useEffect(function(){
@@ -14827,6 +14868,14 @@ function ShipmentsMgmt(props){
       if(r&&!r.error&&r.data&&typeof r.data==='object'){
         var d=r.data;setProdCounts(function(prev){var o=Object.assign({},prev);prods.forEach(function(p){o[p.id]=+d[p.id]||0;});
           if(otherCropsOn())o.other_crops=+d.other_crops||0;return o;});
+        /* per-crop counts (container + loading date) from the same list the crop pages show */
+        if(otherCropsOn())ocLoadCrops().then(function(crops){if(!crops)return;
+          sv2lFetch(seasonAtCall,'other_crops').then(function(res){if(seasonAtCall!==config.activeSeasonId)return;
+            var cs=(res&&!res.error&&res.data&&res.data.containers)||null,c={};
+            crops.forEach(function(cp){c[cp.id]=cs?0:null;});
+            (cs||[]).forEach(function(k){var id='oc:'+((k.hdr||{}).crop||'');if(c[id]!==undefined)c[id]++;});
+            setProdCounts(function(prev){return Object.assign({},prev,c);});
+          },function(){});});
       } else oldCounts();
     },oldCounts);
     function oldCounts(){
@@ -15071,7 +15120,7 @@ function ShipmentsMgmt(props){
       onOpen:function(id){setSelProd(id);},   /* exactly what a product card does */
       onOpenRow:function(id,ref,loaded){setSelProd(id);if(sv2lHasOverview(id))sv2lOpenRowWhenListed(ref,loaded);}});
     var prodList=(config.products||[]).filter(function(p){return p.active!==false;});
-    if(otherCropsOn()&&!prodList.some(function(p){return p.id==='other_crops';}))prodList=prodList.concat([OC_PRODUCT]);   /* Shipments only */
+    prodList=ocWithCrops(prodList,ocCrops);   /* Shipments only: Other crops = one card per crop */
     var greeting=(function(){var h=new Date().getHours();return h<12?'Good morning':h<18?'Good afternoon':'Good evening';})();
     var firstName=currentUser.name?currentUser.name.split(' ')[0]:'';
     return ce('div',{className:'landing',style:{paddingTop:0}},
@@ -15209,7 +15258,7 @@ function ShipmentsMgmt(props){
   var filteredRows=shipments.filter(matchesFilters);
   var filteredContainers=containers.filter(containerMatchesFilters);
 
-  var selProdObj=(config.products||[]).find(function(p){return p.id===selProd;})||(selProd==='other_crops'?OC_PRODUCT:{name:selProd,color:'var(--accent)'});
+  var selProdObj=(config.products||[]).find(function(p){return p.id===selProd;})||(isOcCrop(selProd)?(ocProductObj(selProd)||{name:'Other crops',color:OC_CROP_COLOR}):selProd==='other_crops'?OC_PRODUCT:{name:selProd,color:'var(--accent)'});
   var totalClaims=grades.filter(function(g){return g.has_claim;}).length;
   var totalGraded=grades.filter(function(g){return g.grade;}).length;
 
@@ -15503,7 +15552,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       /* Table content */
       ce('div',{style:{padding:'12px 16px 16px'}},
       /* Table — or the Manage sandbox */
-      manage?ce(ShipV2Host,{apiRef:shipV2Api,product:selProd,productName:selProdObj.name,productColor:selProdObj.color,
+      manage?ce(ShipV2Host,{apiRef:shipV2Api,product:ocBaseProduct(selProd),cropCode:ocCropCode(selProd),productName:selProdObj.name,productColor:selProdObj.color,
         seasonId:config.activeSeasonId,seasonName:((config.seasons||[]).find(function(x){return x.id===config.activeSeasonId;})||{}).name||'',
         trueActiveSeasonId:config.trueActiveSeasonId,trueActiveSeasonName:((config.seasons||[]).find(function(x){return x.id===config.trueActiveSeasonId;})||{}).name||'',
         canConfigure:currentUser.role==='admin',readOnly:!canManage}):

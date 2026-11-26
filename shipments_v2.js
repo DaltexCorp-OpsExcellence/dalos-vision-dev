@@ -499,7 +499,10 @@ function createInstance(host,O){
   function regionOn(){return isCitrus()&&salesRegionFlag();}
   function regionLive(){return regionOn()&&REF.sregions.length>0;}   /* the DB step is applied: the list has values */
   function hasLot(){return PRODUCT!=='grapes';}   /* Tarek 2026-10-13: Lot # everywhere except Grapes */
-  var OC=(PRODUCT==='other_crops');        /* Other crops: the Pivots form + Crop, Cartons #, Benz #; lists are ref_options codes */
+  var OC=(PRODUCT==='other_crops');
+  /* 2026-11-27: Vision opens Other crops one crop at a time (opts.cropCode): list filtered to that crop, no Crop column,
+     crop set + locked on the form. Empty = the old all-crops page. */
+  var CROP=OC?String(O.cropCode||''):'';        /* Other crops: the Pivots form + Crop, Cartons #, Benz #; lists are ref_options codes */
   var PT=(PRODUCT==='potatoes')||OC;       /* Pivots line: own fields, totals and RPCs; everything else shared */
   var PTM=PT&&!OC&&ptListsEnabled();
   var PV2=PT&&pivotFormV2();             /* Potatoes + Other crops form v2 (staging switch) */      /* Potatoes managed lists (staging only); off = PT_LISTS as before */
@@ -919,7 +922,7 @@ function createInstance(host,O){
   }
   function fillHeaderSelects(cur){cur=cur||{};
     if(!('status' in cur))cur.status='';
-    if(OC){fillOc('crop','crop',cur.crop);fillOc('station','packing_station',cur.station);fillOc('vessel','transport',cur.vessel);
+    if(OC){fillOc('crop','crop',CROP||cur.crop);var ce_=el('crop');if(ce_&&CROP){ce_.value=CROP;ce_.disabled=true;ce_.title='Set by the crop you opened';}fillOc('station','packing_station',cur.station);fillOc('vessel','transport',cur.vessel);
       fillOc('client','client',cur.client);fillOc('port','port',cur.receiving_port);
       var OL=ocLists();fillSelect('sector',OL.sectors,cur.sector||'');fillSelect('pseason',OL.cropSeasons,cur.season||'');return;}
     if(PT){var PL=ptLists();fillSelect('station',PL.stations,cur.station||'');fillSelect('sector',PL.sectors,cur.sector||'');fillSelect('pseason',PL.cropSeasons,cur.season||'');return;}
@@ -1763,6 +1766,7 @@ function createInstance(host,O){
     if(RO)return;
     formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;LOADED_IDS=[];ROW_VERSION='';syncDelBtn();
     blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();if(LISTS&&LISTS.marks)LISTS.marks();
+    if(CROP){ptFillDatalists();ocVarHint();}
     PAS_LIVE=true;TRIED=false;LINES=[blankLine()];RAWCGW={};openRows={0:true};renderLines();
     setVoyageLock(false);showOverlay(false);clearFormError();syncCtxStatus();setDirty(false);
     el('ftitle').textContent='New shipment';el('ctxref').textContent='New';setSeasonChip();
@@ -1793,7 +1797,7 @@ function createInstance(host,O){
   ST.f=emptyF();
   function HEADS(){
     /* 2026-11-26 form v2: Packages / Std wt / Pascol / Variance instead of Pallets / Packs */
-    if(PV2)return [{t:'Shipment',s:'ref'}].concat(OC?[{t:'Crop',s:'crop'}]:[]).concat([{t:'Station',s:'station'},{t:'Client',s:'client'},{t:'Country',s:'region'},{t:'Loaded',s:'loaded'},
+    if(PV2)return [{t:'Shipment',s:'ref'}].concat(OC&&!CROP?[{t:'Crop',s:'crop'}]:[]).concat([{t:'Station',s:'station'},{t:'Client',s:'client'},{t:'Country',s:'region'},{t:'Loaded',s:'loaded'},
       {t:'Lines',s:'lines',n:1},{t:'Packages',s:'pkg',n:1,tip:'No. of packages (عدد)'},{t:'Std wt t',s:'net',n:1,tip:'No. of packages × Package wt'},{t:'Pascol t',s:'pas',n:1,tip:'Pascol Wt for the whole shipment'},
       {t:'Variance',s:'pvar',tip:'Pascol − Std wt. Green = within ±0.5 t, amber = over, grey = no Pascol yet.'},{t:'Grade'}]);
     if(OC)return [{t:'Container',s:'ref'},{t:'Crop',s:'crop'},{t:'Station',s:'station'},{t:'Client',s:'client'},{t:'Country',s:'region'},{t:'Loaded',s:'loaded'},
@@ -1922,7 +1926,7 @@ function createInstance(host,O){
     if(PV2){var vs=c.hdr.tmode==='vessel',sub=vs?'Vessel shipment':[(OC?c.hdr.vesselL:c.hdr.vessel)||'',c.hdr.carta||'',c.hdr.truck?'Truck '+c.hdr.truck:''].filter(Boolean).join(' · ');
       return '<tr tabindex="0" data-act="open" data-i="'+i+'">'+
       '<td><span class="sv2-ref">'+hl(c.ref)+'</span><span class="sv2-sub">'+hl(sub)+'</span></td>'+
-      (OC?'<td>'+hl(c.hdr.cropL||'—')+'</td>':'')+
+      (OC&&!CROP?'<td>'+hl(c.hdr.cropL||'—')+'</td>':'')+
       '<td>'+hl((OC?c.hdr.stationL:c.hdr.station)||'—')+'<span class="sv2-sub">'+hl(c.hdr.sector||'')+(c.hdr.season?' · '+hl(c.hdr.season):'')+'</span></td>'+
       '<td>'+hl((OC?c.hdr.clientL:c.hdr.client)||'—')+'</td><td>'+hl(c.hdr.region||'—')+'<span class="sv2-sub">'+hl((OC?c.hdr.portL:c.hdr.port)||'')+'</span></td>'+
       '<td>'+fmtDate(c.hdr.loaded)+'</td><td class="num">'+c.lines.length+'</td><td class="num">'+c._ctn.toLocaleString()+'</td><td class="num">'+fmtT(c._net)+'</td>'+
@@ -2041,16 +2045,17 @@ function createInstance(host,O){
     var path='citrus-shipments?product='+encodeURIComponent(PRODUCT)+(SEASON?'&season='+encodeURIComponent(SEASON):'');
     return Promise.resolve(sb.functions.invoke(path,{method:'GET'})).then(function(res){
       if(dead||my!==listSeq)return;
-      if(res.error&&OC){DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='No Other crops shipments yet. '+OC_PENDING+'.';return;}   /* neutral, from OC_PENDING */
+      if(res.error&&OC){DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='No '+(CROP?PRODUCT_NAME.toLowerCase():'Other crops')+' shipments yet. '+OC_PENDING+'.';return;}   /* neutral, from OC_PENDING */
       if(res.error){
         var st=res.error.context&&res.error.context.status;
         var msg=st===401?'Your session expired. Reload the page and sign in to DalOS.':st===403?'You don’t have access to '+PRODUCT_NAME.toLowerCase()+' shipments.':'Shipments didn’t load. Check the connection and try again.';
         setListBanner(msg);DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='';return;
       }
       var d=res.data||{};DATA=(d.containers||[]).slice();
+      if(CROP)DATA=DATA.filter(function(c){return (c.hdr||{}).crop===CROP;});
       deriveAll();if(QCM.loaded)applyQc();rebuildFacetVals();renderList();if(PT)ptFillDatalists();
       if(!QCM.loaded)loadQc();
-    },function(){if(dead||my!==listSeq)return;if(OC){DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='No Other crops shipments yet. '+OC_PENDING+'.';return;}setListBanner('Shipments didn’t load. Check the connection and try again.');el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='';});
+    },function(){if(dead||my!==listSeq)return;if(OC){DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='No '+(CROP?PRODUCT_NAME.toLowerCase():'Other crops')+' shipments yet. '+OC_PENDING+'.';return;}setListBanner('Shipments didn’t load. Check the connection and try again.');el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='';});
   }
 
   /* ---------------------------------------------------------- CSV export (Other crops): the shown shipments, one row per line */
@@ -2067,7 +2072,7 @@ function createInstance(host,O){
       l.v,l.pivot,l.farmL,l.grade,l.ptL,l.pal,l.jumboN,l.sackN,l.cartonsN,l.benzN,l.net]);});});
     return rows;}
   function ocCsv(){var txt=csvText(ocCsvRows());
-    var name='other-crops-shipments-'+(SEASON_NAME||'season').replace(/[^0-9A-Za-z]+/g,'-')+'.csv';
+    var name=(CROP?PRODUCT_NAME.toLowerCase().replace(/[^0-9a-z]+/g,'-'):'other-crops')+'-shipments-'+(SEASON_NAME||'season').replace(/[^0-9A-Za-z]+/g,'-')+'.csv';
     try{var b=new Blob([txt],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
       setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);toast('CSV downloaded');}catch(e){showFormError('The CSV could not be made in this browser.');}}
   function ocConfig(){if(!window.SV2Ref)return;window.SV2Ref.openPanel({sb:sb,onClose:function(){if(dead)return;
