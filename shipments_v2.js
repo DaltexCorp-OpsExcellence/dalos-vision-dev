@@ -1839,7 +1839,7 @@ function createInstance(host,O){
     return '<span class="sv2-w '+(ok?'ok':'off')+'">'+(c._pvar>0?'+':'')+fmtT(c._pvar)+' t'+(pc===null?'':' · '+(pc>0?'+':'')+pc.toFixed(1)+' %')+'</span>';}
   function rowHTML(c){
     var i=DATA.indexOf(c);
-    if(PV2){var vs=c.hdr.tmode==='vessel',sub=vs?'Vessel shipment':((OC?c.hdr.vesselL:c.hdr.vessel)||'')+(c.hdr.carta?' · '+c.hdr.carta:'')+(c.hdr.truck?' · Truck '+c.hdr.truck:'');
+    if(PV2){var vs=c.hdr.tmode==='vessel',sub=vs?'Vessel shipment':[(OC?c.hdr.vesselL:c.hdr.vessel)||'',c.hdr.carta||'',c.hdr.truck?'Truck '+c.hdr.truck:''].filter(Boolean).join(' · ');
       return '<tr tabindex="0" data-act="open" data-i="'+i+'">'+
       '<td><span class="sv2-ref">'+hl(c.ref)+'</span><span class="sv2-sub">'+hl(sub)+'</span></td>'+
       (OC?'<td>'+hl(c.hdr.cropL||'—')+'</td>':'')+
