@@ -14417,7 +14417,7 @@ function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?v=5105c7a0eb';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
+    s.src='shipments_v2.js?v=e9c409474a';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});
@@ -14442,6 +14442,302 @@ function ShipV2Host(props){
   },[props.product,props.seasonId,props.readOnly,tick]);
   if(err)return ce(VisionLoadError,{title:'Manage didn\u2019t load',detail:err,pad:40,onRetry:function(){setTick(function(t){return t+1;});}});
   return ce('div',{ref:ref});
+}
+/* ── Shipments landing "Command strip" (Pixel concept B, 2026-11-26) — STAGING ONLY ──
+   One round bubble per product + a season overview of the picked product. Read-only: counts come from the
+   parent's get_shipment_v2_container_counts call (prodCounts, no extra query); the overview uses the SAME
+   edge function the Manage list reads (citrus-shipments?product&season), once per product per season, cached.
+   "Open" = setSelProd (exactly what the old product card did); a Latest row opens through the Manage list's own row.
+   Guard: VISION_IS_DEV only, so the prod address keeps the old product cards (below, unchanged) until approved. */
+function shipLandingOn(){return window.VISION_IS_DEV===true;}
+var SV2L_ORDER=['citrus','grapes','pomegranate','mango','berries','potatoes','other_crops'];
+var SV2L_AR={citrus:'موالح',grapes:'عنب',pomegranate:'رمان',mango:'مانجو',berries:'توت',potatoes:'بطاطس',other_crops:'محاصيل أخرى',olives:'زيتون'};
+/* products whose records page is Manage (same list as ShipmentsMgmt.manageProduct); only these have the overview read */
+function sv2lHasOverview(id){return ['citrus','grapes','mango','pomegranate','potatoes'].indexOf(id)>=0||(id==='other_crops'&&otherCropsOn());}
+/* static fruit art (no data inside) — inline SVG from the mockup */
+var SV2L_FRUIT={
+ citrus:'<circle cx="50" cy="54" r="38" fill="#f59a1f"/><circle cx="50" cy="54" r="31" fill="#ffc25c"/><g stroke="#fff3d6" stroke-width="3"><line x1="50" y1="23" x2="50" y2="85"/><line x1="50" y1="23" x2="50" y2="85" transform="rotate(45 50 54)"/><line x1="50" y1="23" x2="50" y2="85" transform="rotate(90 50 54)"/><line x1="50" y1="23" x2="50" y2="85" transform="rotate(135 50 54)"/></g><circle cx="50" cy="54" r="5" fill="#fff3d6"/><path d="M58 14c10-8 22-6 26 0-8 8-20 8-26 0z" fill="#3c8a4f"/>',
+ grapes:'<path d="M50 8v14" stroke="#5b3a1a" stroke-width="4"/><path d="M52 14c10-8 22-4 24 4-10 4-18 2-24-4z" fill="#4c9a52"/>'+[[38,30],[52,30],[66,30],[31,44],[45,44],[59,44],[73,44],[38,58],[52,58],[66,58],[45,72],[59,72],[52,86]].map(function(p){return '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="9" fill="#7b4fc4"/><circle cx="'+(p[0]-3)+'" cy="'+(p[1]-3)+'" r="2.5" fill="#c9b2f0"/>';}).join(''),
+ mango:'<defs><linearGradient id="sv2l-mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd23f"/><stop offset=".6" stop-color="#f59a1f"/><stop offset="1" stop-color="#d9452b"/></linearGradient></defs><ellipse cx="50" cy="56" rx="30" ry="38" fill="url(#sv2l-mg)" transform="rotate(-28 50 56)"/><path d="M58 18c8-10 24-10 30-2-10 8-22 8-30 2z" fill="#3c8a4f"/><ellipse cx="40" cy="44" rx="6" ry="12" fill="#fff" opacity=".35" transform="rotate(-28 40 44)"/>',
+ pomegranate:'<circle cx="50" cy="56" r="36" fill="#c63a4f"/><path d="M40 24l4-12 6 8 6-8 4 12z" fill="#9e2337"/><circle cx="38" cy="46" r="8" fill="#fff" opacity=".25"/><g fill="#ff8fa0" opacity=".7"><circle cx="52" cy="60" r="3"/><circle cx="60" cy="68" r="3"/><circle cx="44" cy="70" r="3"/><circle cx="62" cy="52" r="3"/></g>',
+ berries:'<path d="M50 90C24 70 18 44 30 34c8-6 14-4 20 0 6-4 12-6 20 0 12 10 6 36-20 56z" fill="#d6304f"/><path d="M34 30l16 6 16-6-8-10-8 6-8-6z" fill="#3c8a4f"/><g fill="#ffe08a"><ellipse cx="40" cy="48" rx="1.6" ry="2.6"/><ellipse cx="56" cy="46" rx="1.6" ry="2.6"/><ellipse cx="48" cy="58" rx="1.6" ry="2.6"/><ellipse cx="38" cy="64" rx="1.6" ry="2.6"/><ellipse cx="60" cy="62" rx="1.6" ry="2.6"/><ellipse cx="50" cy="74" rx="1.6" ry="2.6"/></g>',
+ potatoes:'<ellipse cx="40" cy="58" rx="28" ry="22" fill="#c49a5e" transform="rotate(-12 40 58)"/><ellipse cx="64" cy="50" rx="22" ry="17" fill="#b0844a" transform="rotate(18 64 50)"/><g fill="#7a5528"><circle cx="30" cy="54" r="2"/><circle cx="44" cy="66" r="2"/><circle cx="38" cy="48" r="2"/><circle cx="66" cy="46" r="2"/><circle cx="70" cy="56" r="2"/></g>',
+ other_crops:'<path d="M50 90V44" stroke="#2f6b45" stroke-width="5"/><path d="M50 56C28 56 18 40 20 24c18 0 30 12 30 32z" fill="#4fae74"/><path d="M50 48c0-22 12-34 32-34 2 18-10 34-32 34z" fill="#3f9a6a"/><path d="M50 72c-14 0-22-8-24-18 12-2 22 4 24 18z" fill="#6cc48f"/>'
+};
+function sv2lFruit(id){return '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">'+(SV2L_FRUIT[id]||SV2L_FRUIT.other_crops)+'</svg>';}
+/* Cairo calendar date (YYYY-MM-DD) and HH:MM */
+function sv2lCairoDate(d){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}catch(e){return d.toISOString().slice(0,10);}}
+function sv2lCairoTime(d){try{return new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',minute:'2-digit',hour12:false}).format(d);}catch(e){return '';}}
+/* week = Monday-start, same rule as the inspections weekly trend (wkKey); label = ISO week number of that Monday */
+function sv2lWeekStart(ds){var d=new Date(ds+'T12:00:00Z');if(isNaN(d))return null;var dow=d.getUTCDay()||7;d.setUTCDate(d.getUTCDate()-(dow-1));return d.toISOString().slice(0,10);}
+function sv2lIsoWeek(mon){var d=new Date(mon+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+3);var y=new Date(Date.UTC(d.getUTCFullYear(),0,4));return 1+Math.round(((d-y)/86400000-3+((y.getUTCDay()+6)%7))/7);}
+function sv2lFmtDate(iso){if(!iso)return '—';var d=new Date(iso+'T00:00');if(isNaN(d))return String(iso);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear();}
+/* season|product -> {at, sum} | {err}; in-flight promises de-duplicated. Only the small summary is kept, not the payload. */
+var SV2L_CACHE={},SV2L_FLIGHT={};
+function sv2lSummarise(containers){
+  var today=sv2lCairoDate(new Date()),thisMon=sv2lWeekStart(today);
+  var weeks=[],i,m=new Date(thisMon+'T12:00:00Z');
+  for(i=12;i>=0;i--){var w=new Date(m);w.setUTCDate(m.getUTCDate()-7*i);var k=w.toISOString().slice(0,10);weeks.push({k:k,label:'W'+sv2lIsoWeek(k),n:0});}
+  var wIdx={};weeks.forEach(function(w,j){wIdx[w.k]=j;});
+  var net=0,wk=0,dest={};
+  containers.forEach(function(c){
+    var h=c.hdr||{};(c.lines||[]).forEach(function(l){net+=(+l.net||0);});
+    var ws=h.loaded?sv2lWeekStart(h.loaded):null;
+    if(ws&&wIdx[ws]!=null)weeks[wIdx[ws]].n++;
+    if(ws&&ws===thisMon)wk++;
+    var r=String(h.region||'').trim();if(r)dest[r]=(dest[r]||0)+1;
+  });
+  var top=Object.keys(dest).map(function(k){return {k:k,n:dest[k]};}).sort(function(a,b){return b.n-a.n||a.k.localeCompare(b.k);}).slice(0,5);
+  /* the function already returns newest loading date first (same order as the Manage list) */
+  var latest=containers.slice(0,4).map(function(c){var h=c.hdr||{};return {ref:c.ref||'',loaded:h.loaded||'',region:h.region||'',status:h.status||''};});
+  return {n:containers.length,wk:wk,net:net,weeks:weeks,top:top,latest:latest};
+}
+function sv2lLoad(seasonId,prodId,force){
+  var key=seasonId+'|'+prodId;
+  if(!force&&SV2L_CACHE[key])return Promise.resolve(SV2L_CACHE[key]);
+  if(SV2L_FLIGHT[key])return SV2L_FLIGHT[key];
+  var path='citrus-shipments?product='+encodeURIComponent(prodId)+(seasonId?'&season='+encodeURIComponent(seasonId):'');
+  var p=Promise.resolve(supabase.functions.invoke(path,{method:'GET'})).then(function(res){
+    var out;
+    if(res&&res.error){var st=res.error.context&&res.error.context.status;
+      /* 403 = this account can't read this product's shipments: hide the overview, don't show an error */
+      /* 400 = the function doesn't serve this product (e.g. Other crops before its DB step): same, overview hidden */
+      out=st===403||st===400?{noAccess:true}:{err:st===401?'Your session expired. Reload the page and sign in to DalOS.':'Shipments didn’t load. Check the connection and try again.'};}
+    else out={at:new Date(),sum:sv2lSummarise(((res&&res.data)||{}).containers||[])};
+    delete SV2L_FLIGHT[key];if(!out.err)SV2L_CACHE[key]=out;return out;
+  },function(){delete SV2L_FLIGHT[key];return {err:'Shipments didn’t load. Check the connection and try again.'};});
+  SV2L_FLIGHT[key]=p;return p;
+}
+/* The Manage list mounts after Open; then its own row for this shipment is clicked, so the shipment opens exactly
+   as a tap in the list does (read-only for people without edit rights). Gives up after 20 s or on the next user tap. */
+function sv2lOpenRowWhenListed(ref,loaded){
+  var done=false,obs=null,t=0,want=sv2lFmtDate(loaded);
+  function stop(){done=true;if(obs)obs.disconnect();clearTimeout(t);document.removeEventListener('pointerdown',stop,true);document.removeEventListener('keydown',stop,true);}
+  function tryOpen(){if(done)return;
+    var list=document.querySelector('#sv2-vlist.on');if(!list)return;
+    var hit=Array.prototype.slice.call(list.querySelectorAll('[data-act="open"]')).filter(function(e){var r=e.querySelector('.sv2-ref');return r&&r.textContent===ref&&(!loaded||e.textContent.indexOf(want)>=0);})[0];
+    if(hit){stop();hit.click();}}
+  if(window.MutationObserver){obs=new MutationObserver(tryOpen);obs.observe(document.body,{childList:true,subtree:true});}
+  t=setTimeout(stop,20000);
+  setTimeout(function(){if(done)return;document.addEventListener('pointerdown',stop,true);document.addEventListener('keydown',stop,true);},0);
+  tryOpen();
+}
+function sv2lEnsureCss(){
+  if(document.getElementById('sv2l-css'))return;
+  var s=document.createElement('style');s.id='sv2l-css';
+  s.textContent=[
+'.sv2l{--sv2l-ink:var(--text,#1a1a17);padding:20px 28px calc(var(--sv2l-pad,0px) + 40px);max-width:1360px;margin:0 auto;color:var(--sv2l-ink)}',
+'.sv2l :focus-visible{outline:3px solid #1b6ef3;outline-offset:3px}',
+'.sv2l-hd{display:flex;align-items:baseline;gap:6px 14px;flex-wrap:wrap;margin:0 0 14px}',
+'.sv2l-hd h1{font-family:var(--font-display);font-weight:400;font-size:30px;margin:0;line-height:1.15}',
+'.sv2l-hd p{margin:0;color:var(--text2);font-size:14px}',
+'.sv2l-stripw{position:relative;margin:0 0 8px}',
+'.sv2l-strip{display:flex;gap:14px;padding:6px 4px 14px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}',
+'.sv2l-strip::-webkit-scrollbar{display:none}',
+'.sv2l-chip{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;padding:4px;cursor:pointer;width:108px;min-height:44px;border-radius:14px;color:var(--sv2l-ink);font-family:inherit;scroll-snap-align:start}',
+'.sv2l-ring{--p:0;width:88px;height:88px;border-radius:50%;padding:5px;background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(0,0,0,.09) 0);display:grid;place-items:center;transition:transform .2s,padding .2s;position:relative;box-sizing:border-box}',
+'.sv2l-in{width:100%;height:100%;border-radius:50%;border:3px solid #fbf6ec;background:radial-gradient(circle at 35% 30%,#fff,color-mix(in srgb,var(--c) 22%,#fff));display:grid;place-items:center;box-sizing:border-box}',
+'.sv2l-in svg{width:62%;height:62%}',
+'.sv2l-cnt{position:absolute;bottom:-4px;right:-2px;background:var(--d);color:#fff;font-size:12px;font-weight:800;border-radius:999px;padding:2px 7px;border:2px solid #fbf6ec;font-variant-numeric:tabular-nums}',
+'.sv2l-cnt.sk{width:26px;height:14px;padding:0;background:#e2dccf;animation:dalos-pulse 1.4s ease-in-out infinite}',
+'.sv2l-chip b{font-size:13.5px;font-weight:600}.sv2l-ar{font-family:"Noto Naskh Arabic","Amiri","Cairo",serif;color:var(--text2)}',
+'.sv2l-chip .sv2l-ar{font-size:13px;line-height:1.1}',
+'.sv2l-chip:hover .sv2l-ring{transform:scale(1.04)}',
+'.sv2l-chip[aria-selected=true] .sv2l-ring{transform:scale(1.08);padding:7px;box-shadow:0 10px 22px -10px var(--d)}',
+'.sv2l-chip[aria-selected=true] b{font-weight:800}',
+'.sv2l-chip::after{content:"";width:28px;height:4px;border-radius:2px;background:transparent}',
+'.sv2l-chip[aria-selected=true]::after{background:var(--d)}',
+'.sv2l-chip.empty .sv2l-ring{background:repeating-conic-gradient(#b9ad98 0 6deg,transparent 6deg 14deg)}',
+'.sv2l-chip.empty svg{filter:grayscale(.9) opacity(.55)}',
+'.sv2l-chip.empty b{color:var(--text2)}',
+'.sv2l-more{display:none;position:absolute;right:0;top:0;bottom:14px;width:44px;align-items:center;justify-content:flex-end;padding-right:2px;font-size:26px;color:var(--text2);pointer-events:none;background:linear-gradient(90deg,rgba(240,237,230,0),var(--bg,#f0ede6) 70%)}',
+'.sv2l-stripw.more .sv2l-more{display:flex}',
+'.sv2l-panel{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px;align-items:start}',
+'.sv2l-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px 20px;box-shadow:0 2px 10px rgba(60,50,20,.06);min-width:0}',
+'.sv2l-ov{position:relative;overflow:hidden;border-top:6px solid var(--c)}',
+'.sv2l-ttl{display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap}',
+'.sv2l-ttl h2{font-family:var(--font-display);font-weight:400;font-size:30px;margin:0;line-height:1.15}',
+'.sv2l-ttl .sv2l-ar{font-size:20px}',
+'.sv2l-live{margin-left:auto;font-size:12px;color:#1f6a45;font-weight:700;display:flex;align-items:center;gap:6px}',
+'.sv2l-live::before{content:"";width:8px;height:8px;border-radius:50%;background:#2fae6d;box-shadow:0 0 0 4px rgba(47,174,109,.2)}',
+'.sv2l-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0 10px}',
+'.sv2l-kpi{background:color-mix(in srgb,var(--c) 9%,#fff);border-radius:12px;padding:10px 12px;min-width:0}',
+'.sv2l-kpi span{display:block;font-size:11.5px;color:var(--text2);font-weight:600;letter-spacing:.3px;text-transform:uppercase}',
+'.sv2l-kpi b{display:block;font-family:var(--font-display);font-weight:400;font-size:28px;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}',
+'.sv2l-kpi small{display:block;font-size:12px;color:var(--text2)}',
+'.sv2l h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin:6px 0 6px;font-weight:700}',
+'.sv2l-chart svg{width:100%;height:auto;display:block}',
+'.sv2l-cta{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:12px;background:var(--d);color:#fff;border:0;font-family:inherit;font-weight:700;font-size:15px;margin-top:10px;cursor:pointer}',
+'.sv2l-cta:hover{filter:brightness(1.08)}',
+'.sv2l-side{display:flex;flex-direction:column;gap:16px;min-width:0}',
+'.sv2l-rec{list-style:none;margin:0;padding:0}',
+'.sv2l-rec button{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;border:0;border-bottom:1px solid #f0e8d8;background:none;padding:4px 2px;text-align:left;font-family:inherit;font-size:13.5px;color:inherit;cursor:pointer}',
+'.sv2l-rec button:hover{background:#faf7f0}',
+'.sv2l-rec .id{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}',
+'.sv2l-rec .ds{color:var(--text2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+'.sv2l-st{margin-left:auto;flex-shrink:0;font-size:12px;font-weight:700;border-radius:6px;padding:2px 8px;background:#efeae0;color:#4a4840;white-space:nowrap}',
+'.sv2l-st.green{background:#e3f3ea;color:#1e6a43}.sv2l-st.blue{background:#e4eefb;color:#1d4f91}.sv2l-st.amber{background:#fbefdc;color:#7a4a10}',
+'.sv2l-dest .row{display:grid;grid-template-columns:minmax(60px,110px) 1fr 34px;align-items:center;gap:8px;font-size:13px;margin:7px 0}',
+'.sv2l-dest .row>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+'.sv2l-dest .bar{height:10px;border-radius:5px;background:#efe6d5;overflow:hidden}.sv2l-dest .bar i{display:block;height:100%;background:var(--c)}',
+'.sv2l-dest .row b{text-align:right;font-variant-numeric:tabular-nums}',
+'.sv2l-emptyov{display:grid;place-items:center;text-align:center;padding:26px 10px;color:var(--text2)}',
+'.sv2l-emptyov .art{width:110px;height:110px;filter:grayscale(.6) opacity(.7)}.sv2l-emptyov .art svg{width:100%;height:100%}',
+'.sv2l-emptyov h2{font-family:var(--font-display);font-weight:400;font-size:24px;margin:8px 0 4px;color:var(--sv2l-ink)}',
+'.sv2l-note{font-size:12.5px;color:var(--text2);margin:6px 0 0}',
+'.sv2l-sk{display:block;border-radius:10px;background:#ece6da;animation:dalos-pulse 1.4s ease-in-out infinite}',
+/* same look as shipments_v2.js .sv2-banner.err + Retry (that CSS is only injected once Manage loads) */
+'.sv2l-banner{display:flex;gap:10px;align-items:center;border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.5;background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);margin:12px 0}',
+'.sv2l-banner button{margin-left:auto;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--border2);background:#fff;color:var(--text);font-family:inherit;font-weight:600;cursor:pointer}',
+'@media(max-width:900px){.sv2l-panel{grid-template-columns:minmax(0,1fr)}}',
+'@media(max-width:760px){.sv2l{padding:14px 12px calc(var(--sv2l-pad,0px) + 32px)}',
+' .sv2l-hd h1{font-size:24px}.sv2l-hd p{font-size:12.5px;flex-basis:100%}',
+' .sv2l-strip{gap:4px;margin:0 -12px;padding:6px 12px 12px}',
+' .sv2l-chip{width:80px}.sv2l-ring{width:66px;height:66px;padding:4px}.sv2l-chip[aria-selected=true] .sv2l-ring{padding:5px}.sv2l-chip b{font-size:12px}.sv2l-chip .sv2l-ar{font-size:12px}',
+' .sv2l-card{padding:14px;border-radius:16px}',
+' .sv2l-ttl h2{font-size:24px}.sv2l-ttl .sv2l-ar{font-size:16px}.sv2l-live{margin-left:0;flex-basis:100%}',
+' .sv2l-kpis{grid-template-columns:1fr 1fr;gap:8px}.sv2l-kpi b{font-size:22px}',
+' .sv2l-cta{width:100%}}',
+'@media(prefers-reduced-motion:reduce){.sv2l-ring{transition:none}.sv2l-sk,.sv2l-cnt.sk{animation:none}}'
+  ].join('\n');
+  document.head.appendChild(s);
+}
+function sv2lBars(sum,narrow,c,d,name){
+  var W=narrow?330:640,H=narrow?150:170,ws=sum.weeks,mx=Math.max.apply(null,ws.map(function(w){return w.n;}).concat([1])),bw=W/ws.length;
+  var kids=[0.25,0.5,0.75].map(function(f){return ce('line',{key:'g'+f,x1:0,x2:W,y1:(H-22)*f,y2:(H-22)*f,stroke:'#eee3cf'});});
+  ws.forEach(function(w,i){
+    var h=w.n/mx*(H-40),last=i===ws.length-1,x=i*bw;
+    kids.push(ce('rect',{key:'r'+i,x:x+bw*.18,y:H-22-h,width:bw*.64,height:Math.max(h,0),rx:5,fill:c,opacity:last?1:.55},ce('title',null,w.label+': '+w.n)));
+    if(last)kids.push(ce('text',{key:'v',x:x+bw/2,y:H-28-h,textAnchor:'middle',fontSize:13,fontWeight:700,style:{fill:d}},String(w.n)));
+    kids.push(ce('text',{key:'l'+i,x:x+bw/2,y:H-6,textAnchor:'middle',fontSize:narrow?9.5:11,style:{fill:last?d:'#5f5c52'},fontWeight:last?700:400},narrow?w.label.slice(1):w.label));
+  });
+  return ce('svg',{viewBox:'0 0 '+W+' '+H,role:'img','aria-label':name+' shipments per week, last 13 weeks: '+ws.map(function(w){return w.label+' '+w.n;}).join(', ')},kids);
+}
+function ShipLanding(props){
+  var config=props.config||{},counts=props.prodCounts||{},seasonId=config.activeSeasonId;
+  var seasonName=((config.seasons||[]).find(function(x){return x.id===seasonId;})||{}).name||'';
+  var prods=(config.products||[]).filter(function(p){return p.active!==false;});
+  if(otherCropsOn()&&!prods.some(function(p){return p.id==='other_crops';}))prods=prods.concat([OC_PRODUCT]);   /* same visibility as the old cards */
+  prods=prods.slice().sort(function(a,b){var ia=SV2L_ORDER.indexOf(a.id),ib=SV2L_ORDER.indexOf(b.id);return (ia<0?99:ia)-(ib<0?99:ib);});
+  var sSel=useState(function(){try{return localStorage.getItem('sv2_landing_product')||null;}catch(e){return null;}}),sel=sSel[0],setSel=sSel[1];
+  var sFocus=useState(null),focusId=sFocus[0],setFocusId=sFocus[1];
+  var sData=useState(null),data=sData[0],setData=sData[1];
+  var sTick=useState(0),tick=sTick[0],setTick=sTick[1];
+  var sNarrow=useState(function(){return !!(window.matchMedia&&window.matchMedia('(max-width:700px)').matches);}),narrow=sNarrow[0],setNarrow=sNarrow[1];
+  var sMore=useState(false),more=sMore[0],setMore=sMore[1];
+  var stripRef=React.useRef(null),rootRef=React.useRef(null);
+  React.useEffect(function(){sv2lEnsureCss();},[]);
+  /* phone layout switch + room under the content for the floating "View Vision as…" pill and the phone bottom nav */
+  React.useEffect(function(){
+    var mq=window.matchMedia?window.matchMedia('(max-width:700px)'):null;
+    function onMq(){setNarrow(!!(mq&&mq.matches));}
+    function place(){var r=rootRef.current;if(!r)return;var pad=0,pill=document.querySelector('.vas-bar'),nav=document.querySelector('.mobile-nav');
+      if(pill&&pill.offsetHeight)pad+=pill.offsetHeight+14;
+      if(nav){var cs=getComputedStyle(nav);if(cs.display!=='none'&&cs.position==='fixed')pad+=nav.getBoundingClientRect().height;}
+      r.style.setProperty('--sv2l-pad',pad+'px');moreHint();}
+    if(mq){if(mq.addEventListener)mq.addEventListener('change',onMq);else if(mq.addListener)mq.addListener(onMq);}
+    window.addEventListener('resize',place);place();var t=setTimeout(place,800);   /* the pill can mount a moment later */
+    return function(){clearTimeout(t);window.removeEventListener('resize',place);if(mq){if(mq.removeEventListener)mq.removeEventListener('change',onMq);else if(mq.removeListener)mq.removeListener(onMq);}};
+  },[]);
+  function moreHint(){var s=stripRef.current;if(!s)return;var m=s.scrollWidth-s.clientWidth;setMore(m>2&&s.scrollLeft<m-2);}
+  React.useEffect(moreHint,[prods.length,narrow]);
+  /* selection: the user's pick (also remembered) if still listed, else the product with most shipments once counted */
+  var ids=prods.map(function(p){return p.id;});
+  var allCounted=prods.every(function(p){return counts[p.id]!==undefined;});
+  var mx=Math.max.apply(null,prods.map(function(p){return +counts[p.id]||0;}).concat([0]));
+  var cur=ids.indexOf(sel)>=0?sel:(allCounted&&prods.length?(prods.filter(function(p){return (+counts[p.id]||0)===mx;})[0]||prods[0]).id:null);
+  var curP=prods.find(function(p){return p.id===cur;})||null;
+  var curN=cur?counts[cur]:undefined;
+  var wantData=!!(cur&&seasonId&&sv2lHasOverview(cur)&&curN!==0);
+  React.useEffect(function(){
+    if(!wantData){setData(null);return;}
+    var alive=true,key=seasonId+'|'+cur;
+    setData(SV2L_CACHE[key]?Object.assign({key:key},SV2L_CACHE[key]):{key:key,loading:true});
+    if(SV2L_CACHE[key]&&!tick)return;
+    sv2lLoad(seasonId,cur,!!tick).then(function(r){if(alive)setData(Object.assign({key:key},r));});
+    return function(){alive=false;};
+  },[seasonId,cur,wantData,tick]);
+  function pick(id){setSel(id);setTick(0);try{localStorage.setItem('sv2_landing_product',id);}catch(e){}}
+  function onKey(e){
+    var i=ids.indexOf(focusId||cur);if(i<0)i=0;var n=i;
+    if(e.key==='ArrowRight')n=(i+1)%ids.length;else if(e.key==='ArrowLeft')n=(i-1+ids.length)%ids.length;
+    else if(e.key==='Home')n=0;else if(e.key==='End')n=ids.length-1;else return;
+    e.preventDefault();setFocusId(ids[n]);
+    var b=stripRef.current&&stripRef.current.querySelector('#sv2l-tab-'+ids[n]);if(b){b.focus();if(b.scrollIntoView)b.scrollIntoView({block:'nearest',inline:'nearest'});}
+  }
+  var tabStop=ids.indexOf(focusId)>=0?focusId:(cur||ids[0]);
+  function colors(p){var c=(p&&p.color)||'#2b5c3f';return {'--c':c,'--d':'color-mix(in srgb,'+c+' 62%,#000)'};}
+
+  var strip=ce('div',{className:'sv2l-stripw'+(more?' more':'')},
+    ce('div',{className:'sv2l-strip',role:'tablist','aria-label':'Products',ref:stripRef,onKeyDown:onKey,onScroll:moreHint,
+        onBlur:function(e){if(!stripRef.current||!stripRef.current.contains(e.relatedTarget))setFocusId(null);}},   /* Tab back in lands on the selected bubble */
+      prods.map(function(p){
+        var n=counts[p.id],has=+n>0,on=p.id===cur,ar=SV2L_AR[p.id]||'';
+        return ce('button',{key:p.id,id:'sv2l-tab-'+p.id,type:'button',role:'tab','aria-selected':on?'true':'false','aria-controls':'sv2l-panel',tabIndex:p.id===tabStop?0:-1,
+            className:'sv2l-chip'+(n===0?' empty':''),style:colors(p),onClick:function(){setFocusId(p.id);pick(p.id);},onFocus:function(){setFocusId(p.id);},
+            'aria-label':(p.name||p.id)+(n===undefined?', loading':n===null?', count not loaded':has?', '+n+' shipment'+(n===1?'':'s')+' this season':', no shipments yet')},
+          ce('span',{className:'sv2l-ring',style:{'--p':has&&mx?Math.max(4,Math.round(n/mx*100)):0}},
+            ce('span',{className:'sv2l-in',dangerouslySetInnerHTML:{__html:sv2lFruit(p.id)}}),
+            n===undefined?ce('span',{className:'sv2l-cnt sk','aria-hidden':'true'}):has?ce('span',{className:'sv2l-cnt','aria-hidden':'true'},String(n)):null),
+          ce('b',null,p.name||p.id),
+          ar&&ce('span',{className:'sv2l-ar',lang:'ar',dir:'rtl','aria-hidden':'true'},ar));
+      })),
+    ce('span',{className:'sv2l-more','aria-hidden':'true'},'›'));
+
+  function openBtn(p){return ce('button',{type:'button',className:'sv2l-cta',onClick:function(){props.onOpen(p.id);}},'Open '+(p.name||p.id)+' shipments →');}
+  function skel(h,w){return ce('span',{className:'sv2l-sk',style:{height:h,width:w||'100%'}});}
+  var panel=null;
+  if(!curP){
+    panel=ce('div',{className:'sv2l-card',style:{gridColumn:'1/-1'}},skel(30,'40%'),ce('div',{style:{height:14}}),skel(160));
+  } else {
+    var ar=SV2L_AR[curP.id]||'',d=data&&data.key===seasonId+'|'+cur?data:null,sum=d&&d.sum;
+    var title=ce('div',{className:'sv2l-ttl'},ce('h2',null,curP.name||curP.id),ar&&ce('span',{className:'sv2l-ar',lang:'ar',dir:'rtl'},ar),
+      ce('span',{className:'sv2l-live'},'Season '+(seasonName||'—')+(d&&d.at?' · updated '+sv2lCairoTime(d.at):'')));
+    if(curN===0||(sum&&sum.n===0)){
+      panel=ce('div',{className:'sv2l-card sv2l-ov',style:{gridColumn:'1/-1'}},
+        ce('div',{className:'sv2l-emptyov'},ce('div',{className:'art',dangerouslySetInnerHTML:{__html:sv2lFruit(curP.id)}}),
+          ce('h2',null,'No shipments yet this season'),
+          ce('p',{style:{margin:'0 0 6px'}},ce('span',{lang:'ar',dir:'rtl',className:'sv2l-ar'},'لا توجد شحنات بعد هذا الموسم'),seasonName?' · Season '+seasonName:''),
+          openBtn(curP)));
+    } else if(!wantData||(d&&d.noAccess)){
+      /* no season overview for this product (no Manage read) or this account can't read it: count + Open only */
+      panel=ce('div',{className:'sv2l-card sv2l-ov',style:{gridColumn:'1/-1'}},title,
+        ce('div',{className:'sv2l-kpis'},ce('div',{className:'sv2l-kpi'},ce('span',null,'Shipments'),ce('b',null,curN==null?'—':String(curN)),ce('small',null,'this season'))),
+        ce('p',{className:'sv2l-note'},'The season overview isn’t available for this product here yet.'),openBtn(curP));
+    } else if(d&&d.err){
+      panel=ce('div',{className:'sv2l-card sv2l-ov',style:{gridColumn:'1/-1'}},title,
+        ce('div',{className:'sv2l-banner',role:'alert'},ce('span',{'aria-hidden':'true'},'!'),ce('span',null,'Couldn’t load · ',d.err),
+          ce('button',{type:'button',onClick:function(){setTick(function(t){return t+1;});}},'Retry')),
+        openBtn(curP));
+    } else if(!sum){
+      panel=[ce('div',{key:'a',className:'sv2l-card sv2l-ov','aria-busy':'true'},title,
+          ce('div',{className:'sv2l-kpis'},skel(64),skel(64)),skel(150),ce('div',{style:{height:10}}),openBtn(curP)),
+        ce('div',{key:'b',className:'sv2l-side','aria-hidden':'true'},ce('div',{className:'sv2l-card'},skel(14,'50%'),ce('div',{style:{height:10}}),skel(150)),
+          ce('div',{className:'sv2l-card'},skel(14,'50%'),ce('div',{style:{height:10}}),skel(110)))];
+    } else {
+      var dm=sum.top.length?sum.top[0].n:1;
+      panel=[ce('div',{key:'a',className:'sv2l-card sv2l-ov'},title,
+          ce('div',{className:'sv2l-kpis'},
+            ce('div',{className:'sv2l-kpi'},ce('span',null,'Shipments'),ce('b',null,sum.n.toLocaleString()),ce('small',null,sum.wk?'+'+sum.wk+' this week':'none this week')),
+            ce('div',{className:'sv2l-kpi'},ce('span',null,'Tonnage'),ce('b',null,Math.round(sum.net).toLocaleString()),ce('small',null,'t net'))),
+          ce('div',{className:'sv2l-chart'},ce('h3',null,'Shipments per week'),sv2lBars(sum,narrow,(curP.color||'#2b5c3f'),colors(curP)['--d'],curP.name||curP.id)),
+          openBtn(curP)),
+        ce('div',{key:'b',className:'sv2l-side'},
+          ce('div',{className:'sv2l-card'},ce('h3',null,'Latest shipments'),
+            ce('ul',{className:'sv2l-rec'},sum.latest.map(function(r,i){
+              return ce('li',{key:i},ce('button',{type:'button',title:'Open '+r.ref+' (loaded '+sv2lFmtDate(r.loaded)+')',onClick:function(){props.onOpenRow(curP.id,r.ref,r.loaded);}},
+                ce('span',{className:'id'},r.ref||'—'),ce('span',{className:'ds'},r.region||'—'),
+                ce('span',{className:'sv2l-st '+(function(s){s=s.toLowerCase();return s.indexOf('deliver')>=0?'green':s.indexOf('ship')>=0||s.indexOf('water')>=0?'blue':s.indexOf('return')>=0?'amber':'';})(r.status)},r.status||'—')));
+            }))),
+          sum.top.length?ce('div',{className:'sv2l-card sv2l-dest'},ce('h3',null,'Top destinations'),
+            sum.top.map(function(t){return ce('div',{key:t.k,className:'row'},ce('span',{title:t.k},t.k),
+              ce('span',{className:'bar','aria-hidden':'true'},ce('i',{style:{width:Math.max(3,t.n/dm*100)+'%'}})),ce('b',null,String(t.n)));})):null)];
+    }
+  }
+  return ce('div',{className:'sv2l',ref:rootRef},
+    ce('div',{className:'sv2l-hd'},ce('h1',null,'Shipments'),ce('p',null,'Tap a product for its season at a glance, then open its records.')),
+    strip,
+    ce('section',{className:'sv2l-panel',id:'sv2l-panel',role:'tabpanel','aria-labelledby':cur?'sv2l-tab-'+cur:undefined,style:curP?colors(curP):undefined},panel));
 }
 function ShipmentsMgmt(props){
 
@@ -14770,6 +15066,10 @@ function ShipmentsMgmt(props){
 
   /* ── Hero product selector ── */
   if(!selProd){
+    /* staging: the new Command-strip landing (ShipLanding above); prod keeps the cards below */
+    if(shipLandingOn())return ce(ShipLanding,{config:config,prodCounts:prodCounts,
+      onOpen:function(id){setSelProd(id);},   /* exactly what a product card does */
+      onOpenRow:function(id,ref,loaded){setSelProd(id);if(sv2lHasOverview(id))sv2lOpenRowWhenListed(ref,loaded);}});
     var prodList=(config.products||[]).filter(function(p){return p.active!==false;});
     if(otherCropsOn()&&!prodList.some(function(p){return p.id==='other_crops';}))prodList=prodList.concat([OC_PRODUCT]);   /* Shipments only */
     var greeting=(function(){var h=new Date().getHours();return h<12?'Good morning':h<18?'Good afternoon':'Good evening';})();
