@@ -1066,7 +1066,7 @@ function createInstance(host,O){
       '</div>'+
     '</div>';
   }
-  function lockRO(){if(!RO)return;qa('#sv2-vform input,#sv2-vform select,#sv2-vform textarea').forEach(function(f){f.disabled=true;});}
+  function lockRO(){if(!RO)return;qa('#sv2-vform input,#sv2-vform select,#sv2-vform textarea').forEach(function(f){f.disabled=true;});var t=el('ftitle');if(t)t.textContent='View shipment';}
   function renderLines(){
     setTimeout(lockRO,0);
     if(PT){
