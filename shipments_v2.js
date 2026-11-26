@@ -65,6 +65,7 @@ var CSS=[
 '.sv2-search{position:relative;flex:1 1 220px;max-width:340px}',
 '.sv2-search input{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:7px 30px 7px 10px;font:13px var(--font-body);color:var(--text);outline:none}',
 '.sv2-search input:focus{border-color:var(--accent)}',
+'.sv2-search input::-webkit-search-cancel-button{-webkit-appearance:none;display:none}',   /* only the custom ✕ shows */
 '.sv2-clr{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--text3);cursor:pointer;font-size:13px;display:none;padding:2px 4px}',
 '.sv2-search.has .sv2-clr{display:block}',
 '.sv2-btn{font:500 13px var(--font-body);border-radius:var(--r);padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;white-space:nowrap}',
