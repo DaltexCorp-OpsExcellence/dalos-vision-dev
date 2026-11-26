@@ -922,7 +922,7 @@ input[type=date],input[type=time]{min-width:0;max-width:100%;box-sizing:border-b
 <script src="shipments_lists.js?v=f0765b5414"></script>
 <script src="shipments_lists_config.js?v=5f9f715025"></script>
 <script src="shipments_lists_queue.js?v=00da840f13"></script>
-<script src="shipments_pt_suggest.js?v=08b8bc5b8b"></script>
+<script src="shipments_pt_suggest.js?v=0003177043"></script>
 <script src="shipments_ref_options.js?v=ced4fd185a"></script>
 
 <script>
@@ -940,22 +940,24 @@ var SV2_LISTS_ENABLED=VISION_IS_DEV;
 /* New Shipments intake layout (Container group, Total cartons, Pascol, planned/actual loading date) in shipments_v2.js.
    Staging: ON through VISION_IS_DEV. Prod sets this to true when the Shipments work is promoted. */
 var SV2_INTAKE_ENABLED=VISION_IS_DEV;
-/* Other crops in Shipments (product other_crops, shipments_v2.js + shipments_ref_options.js). ON on the staging host only
-   (VISION_IS_DEV); vision.js and shipments_v2.js also require VISION_IS_DEV, so the prod address resolves OFF. The OC DB
+/* Other crops in Shipments (product other_crops, shipments_v2.js + shipments_ref_options.js). This flag alone decides
+   (2026-11-26: vision.js / shipments_v2.js no longer re-check VISION_IS_DEV; prod sets it explicitly). The OC DB
    package is applied; saving is ON on staging (shipments_v2.js OC_WRITES=true, Tarek 2026-11-23 21:30). */
 var SV2_OTHER_CROPS_ENABLED=VISION_IS_DEV;
+/* Shipments landing "Command strip" (d64b386). Staging ON via VISION_IS_DEV; prod sets SV2_SHIP_LANDING_ENABLED=true (2026-11-26). */
+var SV2_SHIP_LANDING_ENABLED=VISION_IS_DEV;
 /* Potatoes Shipments dropdowns from managed lists (ref_options + the linked masters), each falling back to the built-in list
    (Vera 2026-11-25). ON on the staging host only; shipments_v2.js checks VISION_IS_DEV again. */
 var SV2_PT_LISTS_ENABLED=VISION_IS_DEV;
 /* "Not in list?" on the Potatoes + Other crops lists (shipments_pt_suggest.js, Vera 2026-11-25). Needs DB package nil v0.1 (Ash,
-   then Tarek's yes) before suggestions can be sent. ON on the staging host only; shipments_pt_suggest.js checks VISION_IS_DEV again. */
+   then Tarek's yes) before suggestions can be sent. This flag alone decides (2026-11-26); Potatoes only use it when SV2_PT_LISTS_ENABLED is on. */
 var SV2_PT_SUGGEST_ENABLED=VISION_IS_DEV;
 /* Citrus sales Region on the Shipments header (shipments_v2.js + the 'sales_region' managed list, Tarek 2026-11-26). ON on the
    staging host only; shipments_v2.js checks VISION_IS_DEV again and keeps the field hidden until DB step B01 adds the list values. */
 var SV2_SALES_REGION_ENABLED=VISION_IS_DEV;
 </script>
 <script src="viewas.js?v=a7b9e342df"></script><!-- staging-only View Vision as… (inert unless VISION_IS_DEV); must load before vision.js -->
-<script src="vision.js?v=44f758d030"></script>
+<script src="vision.js?v=111640eaf4"></script>
 <script>
 /* Fade the entry splash once the app shell first paints (React commits to #root),
    with a hard fallback so it can never stick. */

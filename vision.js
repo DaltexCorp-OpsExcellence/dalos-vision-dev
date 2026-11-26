@@ -14411,13 +14411,13 @@ function CqcPreviewModal(props){
    the staging host (VISION_IS_DEV); the prod address resolves OFF. Same check as shipments_v2.js.
    The products row is inactive (active=false) until a separate yes, so config.products never lists it: it is added here. */
 var OC_PRODUCT={id:'other_crops',name:'Other crops',color:'#b5651d',active:true};
-function otherCropsOn(){return window.SV2_OTHER_CROPS_ENABLED===true&&window.VISION_IS_DEV===true;}
+function otherCropsOn(){return window.SV2_OTHER_CROPS_ENABLED===true;}   /* 2026-11-26 (Tarek): index.html decides; staging = VISION_IS_DEV, prod sets it explicitly */
 var _shipV2Load=null;
 function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?v=e9c409474a';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
+    s.src='shipments_v2.js?v=f3faa8b9d3';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});
@@ -14449,7 +14449,7 @@ function ShipV2Host(props){
    edge function the Manage list reads (citrus-shipments?product&season), once per product per season, cached.
    "Open" = setSelProd (exactly what the old product card did); a Latest row opens through the Manage list's own row.
    Guard: VISION_IS_DEV only, so the prod address keeps the old product cards (below, unchanged) until approved. */
-function shipLandingOn(){return window.VISION_IS_DEV===true;}
+function shipLandingOn(){return window.SV2_SHIP_LANDING_ENABLED===true||window.VISION_IS_DEV===true;}   /* 2026-11-26 (Tarek): prod turns it on with index.html SV2_SHIP_LANDING_ENABLED=true */
 var SV2L_ORDER=['citrus','grapes','pomegranate','mango','berries','potatoes','other_crops'];
 var SV2L_AR={citrus:'موالح',grapes:'عنب',pomegranate:'رمان',mango:'مانجو',berries:'توت',potatoes:'بطاطس',other_crops:'محاصيل أخرى',olives:'زيتون'};
 /* products whose records page is Manage (same list as ShipmentsMgmt.manageProduct); only these have the overview read */

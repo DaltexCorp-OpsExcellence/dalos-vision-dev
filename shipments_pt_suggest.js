@@ -46,7 +46,7 @@ var CSS=[
 '@media (max-width:700px){.sv2n-scr{padding:0}.sv2n-panel{border-radius:0;max-height:100vh;min-height:100vh}}'
 ].join('\n');
 function css(){if(cssDone)return;cssDone=true;var st=document.createElement('style');st.id='sv2n-css';st.textContent=CSS;document.head.appendChild(st);}
-function enabled(){try{return window.SV2_PT_SUGGEST_ENABLED===true&&window.VISION_IS_DEV===true;}catch(_e){return false;}}
+function enabled(){try{return window.SV2_PT_SUGGEST_ENABLED===true;}catch(_e){return false;}}   /* 2026-11-26 (Tarek): index.html decides */
 function norm(s){return String(s==null?'':s).replace(/\s+/g,' ').trim();}
 function fold(s){return norm(s).toLowerCase();}
 function mk(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=String(text);return e;}

@@ -41,7 +41,7 @@ var OC_PENDING='Preview: saving turns on after the database step';   /* v0.2 P3 
 function otherCropsEnabled(){
   /* v0.2 (Ash): ON only when index.html's config says so AND this is the staging host (VISION_IS_DEV, set in index.html from
      the address: path /dalos-vision-dev/ or localhost). The prod address always resolves OFF, whatever its config says. */
-  return window.SV2_OTHER_CROPS_ENABLED===true&&window.VISION_IS_DEV===true;
+  return window.SV2_OTHER_CROPS_ENABLED===true;   /* 2026-11-26 (Tarek): index.html decides (staging VISION_IS_DEV, prod explicit) */
 }
 function intakeFieldsEnabled(){
   if(SV2_INTAKE_FIELDS_ENABLED)return true;
