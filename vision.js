@@ -14480,7 +14480,9 @@ function ShipmentsMgmt(props){
   var shipPT=selProd==='potatoes'||selProd==='other_crops';   /* Other crops shows the Pivots columns */
   var canManage=!!(props.perms&&props.perms.editShipments)&&(['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0||(selProd==='other_crops'&&otherCropsOn()));
   /* 2026-11-26 (Tarek): Manage is the main page of each product for people who can edit shipments (others keep All rows) */
-  var sManage=useState(true); var manage=sManage[0]&&canManage; var setManage=sManage[1];
+  /* 2026-11-26 step 1 (Tarek): editors always see Manage (no tab row); people without edit rights keep All rows / By container
+     until read-only Manage lands (step 2). setManage stays for the existing callers. */
+  var sManage=useState(true); var manage=canManage; var setManage=sManage[1];
   var shipV2Api=React.useRef(null);
   function leaveManageOk(){var a=shipV2Api.current;return !manage||!a||a.confirmLeave();}
   var sSelShip=useState(null); var selShip=sSelShip[0]; var setSelShip=sSelShip[1];
@@ -15096,9 +15098,9 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){if(!leaveManageOk())return;setManage(true);setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);setCqcShipFilter('all');setInspShipFilter('all');}},'\u2190 Products'),
         ce('div',{style:{width:10,height:10,borderRadius:'50%',background:selProdObj.color||'var(--accent)',flexShrink:0}}),
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:16}},selProdObj.name,' Shipments'),
-        totalGraded>0&&ce('span',{className:'badge badge-pass',style:{fontSize:11}},totalGraded+' graded'),
-        /* Toggle */
-        ce('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'3px'}},
+        totalGraded>0&&!manage&&ce('span',{className:'badge badge-pass',style:{fontSize:11}},totalGraded+' graded'),   /* old-table count: not on Manage */
+        /* Toggle: old record views, only for people without edit rights (editors always get Manage, 2026-11-26) */
+        !canManage&&ce('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'3px'}},
           ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:!aggMode&&!manage?'var(--card)':'transparent',color:!aggMode&&!manage?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:!aggMode&&!manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){if(!leaveManageOk())return;setManage(false);setAggMode(false);}},'All rows'),
           ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:aggMode&&!manage?'var(--card)':'transparent',color:aggMode&&!manage?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:aggMode&&!manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){if(!leaveManageOk())return;setManage(false);setAggMode(true);}},'By container'),
           canManage&&ce('button',{title:'Enter and edit shipments','aria-pressed':manage?'true':'false',style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:manage?600:500,background:manage?'var(--card)':'transparent',color:manage?'var(--accent)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){setSelContainer(null);setManage(true);}},'Manage')
