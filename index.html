@@ -948,8 +948,8 @@ var SV2_OTHER_CROPS_ENABLED=VISION_IS_DEV;
 var SV2_SHIP_LANDING_ENABLED=VISION_IS_DEV;
 /* Potatoes + Other crops form v2 (shipments_v2.js, Tarek 2026-11-26): Shipment type Container/Vessel + Truck No., header Pascol Wt t,
    Invoice No. required, Farm type / No. of packages / Package wt t, Std wt auto, Pascol vs Std variance. Needs DB sv2_pivot_form_v2_20261126.
-   Until that is applied: staging browsers that opted in only (localStorage dalos_pv2 = '1'). Prod: off. */
-var SV2_PIVOT_FORM_V2=VISION_IS_DEV&&(function(){try{return localStorage.getItem('dalos_pv2')==='1';}catch(e){return false;}})();
+   DB applied 2026-11-26 (v20261126134233): ON for everyone on staging. Prod: off until promoted. */
+var SV2_PIVOT_FORM_V2=VISION_IS_DEV;
 /* Potatoes Shipments dropdowns from managed lists (ref_options + the linked masters), each falling back to the built-in list
    (Vera 2026-11-25). ON on the staging host only; shipments_v2.js checks VISION_IS_DEV again. */
 var SV2_PT_LISTS_ENABLED=VISION_IS_DEV;
