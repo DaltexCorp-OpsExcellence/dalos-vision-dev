@@ -1600,7 +1600,7 @@ function createInstance(host,O){
   }
   var GET={ref:function(c){return c.ref;},client:function(c){return c.hdr.client||'';},region:function(c){return c.hdr.region||'';},
     loaded:function(c){return c._t;},lines:function(c){return c.lines.length;},pal:function(c){return c._pal;},ctn:function(c){return c._ctn;},
-    net:function(c){return c._net;},grs:function(c){return c._grs;},vr:function(c){return c._pending?-Infinity:c._vr;},status:function(c){return c.hdr.status||'';},
+    net:function(c){return c._net;},grs:function(c){return c._grs;},vr:function(c){return c._pending||c._vr===null?-Infinity:c._vr;},status:function(c){return c.hdr.status||'';},
     station:function(c){return OC?c.hdr.stationL||'':c.hdr.station||'';},pkg:function(c){return c._ctn;},crop:function(c){return c.hdr.cropL||'';}};
   if(OC)GET.client=function(c){return c.hdr.clientL||'';};
   var TEXTSORT={ref:1,client:1,region:1,status:1,station:1,crop:1};
@@ -1608,7 +1608,10 @@ function createInstance(host,O){
     c._pal=sum(c.lines,'pal');c._ctn=sum(c.lines,'ctn');c._net=sum(c.lines,'net');c._grs=sum(c.lines,'grs');
     c._cls=uniq(c.lines.map(function(l){return l.cc;}));c._pack=uniq(c.lines.map(function(l){return packShort(l.pk);}));
     c._t=+new Date(c.hdr.loaded+'T00:00');
-    c._pending=c.lines.every(function(l){return l.pas==='—'||l.pas==null||l.pas==='';});c._vr=sum(c.lines,'vr');
+    c._pending=c.lines.every(function(l){return l.pas==='—'||l.pas==null||l.pas==='';});
+    /* 2026-11-26: stored line variance, else line Pascol net − Net; a line with neither = not stored (null → '—', never a green 0.00) */
+    var lvr=c.lines.map(function(l){var has=function(x){return x!=null&&String(x).trim()!==''&&isFinite(+x);};return has(l.vr)?+l.vr:has(l.pasnet)&&has(l.net)?(+l.pasnet)-(+l.net):null;});
+    c._vr=lvr.some(function(x){return x===null;})?null:lvr.reduce(function(t,x){return t+x;},0);
     if(OC){c.hdr.cropL=ocLabel(c.hdr.crop,'crop');c.hdr.stationL=ocLabel(c.hdr.station,'packing_station');c.hdr.clientL=ocLabel(c.hdr.client,'client');
       c.hdr.portL=ocLabel(c.hdr.port,'port');c.hdr.vesselL=ocLabel(c.hdr.vessel,'transport');
       c.lines.forEach(function(l){l.farmL=ocLabel(l.farm,'farm');l.ptL=ocLabel(l.pt,'packing_type');});}
@@ -1694,7 +1697,7 @@ function createInstance(host,O){
       '<div><b>'+hl(l.v||'—')+'</b> · '+hl(PT?(l.grade||''):(l.cc||''))+'</div>'+
       '<div class="sv2-sub">'+(l.pal==null?'—':l.pal)+' plt · '+(l.ctn==null?'—':Number(l.ctn).toLocaleString())+(PT?' packs':' ctn')+' · '+fmtT(l.net)+' t</div></div>';
   }
-  function weighChip(c){if(c._pending)return '<span class="sv2-w pend">Pending</span>';var ok=Math.abs(c._vr)<=0.5;return '<span class="sv2-w '+(ok?'ok':'off')+'">'+(c._vr>0?'+':'')+fmtT(c._vr)+' t</span>';}
+  function weighChip(c){if(c._pending)return '<span class="sv2-w pend">Pending</span>';if(c._vr===null)return '<span class="sv2-w pend" title="Variance not stored for this shipment">—</span>';var ok=Math.abs(c._vr)<=0.5;return '<span class="sv2-w '+(ok?'ok':'off')+'">'+(c._vr>0?'+':'')+fmtT(c._vr)+' t</span>';}
   function rowHTML(c){
     var i=DATA.indexOf(c);
     if(OC)return '<tr tabindex="0" data-act="open" data-i="'+i+'">'+
