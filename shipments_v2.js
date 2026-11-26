@@ -356,7 +356,7 @@ function newLinePT(){return {id:null,variety:'',pivot:'',farm:'',lot:'',size1:''
    Saved value = the option's text, as before (no codes, no data change). */
 var PT_MASTER_KEYS={stations:'packing_station',clients:'client',countries:'country',ports:'port',farms:'farm',packs:'packing_type'};
 var PT_MASTER_EN={clients:1,countries:1};   /* English in the sheet: master name first, then name_ar */
-function ptListsEnabled(){return window.SV2_PT_LISTS_ENABLED===true&&window.VISION_IS_DEV===true;}
+function ptListsEnabled(){return window.SV2_PT_LISTS_ENABLED===true;}   /* 2026-11-26 (Tarek): index.html decides (staging VISION_IS_DEV, prod explicit) */
 /* refRows = ref_options rows (null = read failed); refKeys = {PT_LISTS name: list_key}; masters = {PT_LISTS name: config_list_values
    result, or null}. Returns {lists:{name:[active labels by sort_order]}, src:{name:'ref'|'master'}}; a list left out falls back. */
 function ptBuildLists(refRows,refKeys,masters){

@@ -14417,7 +14417,7 @@ function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?v=f3faa8b9d3';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
+    s.src='shipments_v2.js?v=9736cdfdf3';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});
