@@ -24,7 +24,7 @@ var STATUS_OPTS=['Loading','Shipped','On Water','Delivered','Returned'];   /* th
 var SNAPSHOT_NOTE='Copied from the live shipment records on 17 Sep 2026.';
 var SNAPSHOT_PRODUCTS={citrus:1,grapes:1,mango:1,pomegranate:1};   /* products whose rows were copied in — Potatoes start empty */
 var SV2_SEND_DEPARTURE_DATE=false; // enable only after the DB column + RPC mapping are applied (pending Anna/Ash/Tarek)
-var SV2_INTAKE_FIELDS_ENABLED=!!window.VISION_IS_DEV;
+var SV2_INTAKE_FIELDS_ENABLED=window.SV2_INTAKE_ENABLED===true||!!window.VISION_IS_DEV;   /* prod turns it on with index.html SV2_INTAKE_ENABLED=true */
 /* 2026-11-26 (Tarek): Citrus sales Region (sheet column U, the 1st 'Region'; e.g. Daltex LLC, RU & LA, Western Europe, UK) on the
    header. Staging only: index.html SV2_SALES_REGION_ENABLED=VISION_IS_DEV, checked again here. The field stays hidden until the
    managed list 'sales_region' has citrus values (DB step B01 in ~/dalos-script-backups/variety-region-config), so nothing is
