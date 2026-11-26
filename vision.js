@@ -14417,7 +14417,7 @@ function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?v=bf839ead5e';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
+    s.src='shipments_v2.js?v=494b9540b4';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});
@@ -14433,13 +14433,13 @@ function ShipV2Host(props){
       if(!alive||!ref.current)return;
       api.current=SV.mount(ref.current,{sb:supabase,product:props.product,productName:props.productName,productColor:props.productColor,
         seasonId:props.seasonId,seasonName:props.seasonName,trueActiveSeasonId:props.trueActiveSeasonId,trueActiveSeasonName:props.trueActiveSeasonName,
-        canConfigure:!!props.canConfigure});
+        canConfigure:!!props.canConfigure,readOnly:!!props.readOnly});
       if(props.apiRef)props.apiRef.current=api.current;
     },function(e){if(alive)setErr((e&&e.message)||'Could not load the Manage tool.');});
     var g=function(){return !api.current||api.current.confirmLeave();};visionCrumbGuard=g;
     return function(){alive=false;if(visionCrumbGuard===g)visionCrumbGuard=null;
       if(api.current){api.current.unmount();api.current=null;}if(props.apiRef)props.apiRef.current=null;};
-  },[props.product,props.seasonId,tick]);
+  },[props.product,props.seasonId,props.readOnly,tick]);
   if(err)return ce(VisionLoadError,{title:'Manage didn\u2019t load',detail:err,pad:40,onRetry:function(){setTick(function(t){return t+1;});}});
   return ce('div',{ref:ref});
 }
@@ -14478,11 +14478,14 @@ function ShipmentsMgmt(props){
   /* Manage = shipment entry sandbox (shipments_v2.js), editors only; never writes public.shipments */
   /* only products the entry tool supports (orchards + potatoes); Berries/Olives have no form yet */
   var shipPT=selProd==='potatoes'||selProd==='other_crops';   /* Other crops shows the Pivots columns */
-  var canManage=!!(props.perms&&props.perms.editShipments)&&(['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0||(selProd==='other_crops'&&otherCropsOn()));
+  /* 2026-11-26 step 2 (Tarek): every product that has Manage shows ONLY Manage (old record views retired there);
+     people without edit rights get it read-only. Berries / Olives (no Manage) keep the old view. */
+  var manageProduct=(['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0||(selProd==='other_crops'&&otherCropsOn()));
+  var canManage=!!(props.perms&&props.perms.editShipments)&&manageProduct;
   /* 2026-11-26 (Tarek): Manage is the main page of each product for people who can edit shipments (others keep All rows) */
   /* 2026-11-26 step 1 (Tarek): editors always see Manage (no tab row); people without edit rights keep All rows / By container
      until read-only Manage lands (step 2). setManage stays for the existing callers. */
-  var sManage=useState(true); var manage=canManage; var setManage=sManage[1];
+  var sManage=useState(true); var manage=manageProduct; var setManage=sManage[1];
   var shipV2Api=React.useRef(null);
   function leaveManageOk(){var a=shipV2Api.current;return !manage||!a||a.confirmLeave();}
   var sSelShip=useState(null); var selShip=sSelShip[0]; var setSelShip=sSelShip[1];
@@ -14561,6 +14564,8 @@ function ShipmentsMgmt(props){
   /* Load shipments + grades + CQC matches */
   React.useEffect(function(){
     if(!selProd) return;
+    /* 2026-11-26 step 2: products shown in Manage never read the old table here (Manage loads its own data) */
+    if(manageProduct){setLoading(false);setShipErr('');setCqcEnriching(false);return;}
     /* Reset data when product or season changes */
     setShipments([]);
     setGrades([]);
@@ -15100,7 +15105,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:16}},selProdObj.name,' Shipments'),
         totalGraded>0&&!manage&&ce('span',{className:'badge badge-pass',style:{fontSize:11}},totalGraded+' graded'),   /* old-table count: not on Manage */
         /* Toggle: old record views, only for people without edit rights (editors always get Manage, 2026-11-26) */
-        !canManage&&ce('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'3px'}},
+        !manage&&ce('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'3px'}},
           ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:!aggMode&&!manage?'var(--card)':'transparent',color:!aggMode&&!manage?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:!aggMode&&!manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){if(!leaveManageOk())return;setManage(false);setAggMode(false);}},'All rows'),
           ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:aggMode&&!manage?'var(--card)':'transparent',color:aggMode&&!manage?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:aggMode&&!manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){if(!leaveManageOk())return;setManage(false);setAggMode(true);}},'By container'),
           canManage&&ce('button',{title:'Enter and edit shipments','aria-pressed':manage?'true':'false',style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:manage?600:500,background:manage?'var(--card)':'transparent',color:manage?'var(--accent)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){setSelContainer(null);setManage(true);}},'Manage')
@@ -15201,7 +15206,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       manage?ce(ShipV2Host,{apiRef:shipV2Api,product:selProd,productName:selProdObj.name,productColor:selProdObj.color,
         seasonId:config.activeSeasonId,seasonName:((config.seasons||[]).find(function(x){return x.id===config.activeSeasonId;})||{}).name||'',
         trueActiveSeasonId:config.trueActiveSeasonId,trueActiveSeasonName:((config.seasons||[]).find(function(x){return x.id===config.trueActiveSeasonId;})||{}).name||'',
-        canConfigure:currentUser.role==='admin'}):
+        canConfigure:currentUser.role==='admin',readOnly:!canManage}):
       shipErr&&!loading?ce(VisionLoadError,{title:'Shipments didn\u2019t load',detail:shipErr,pad:60,onRetry:function(){setShipTick(function(t){return t+1;});}}):
       loading?ce(VisionLoader,{pad:60}):
       aggMode

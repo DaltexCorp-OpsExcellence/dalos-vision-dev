@@ -170,6 +170,9 @@ var CSS=[
 '.sv2-lcard.open .lb{display:grid}',
 '.sv2-lcard .lb .full{grid-column:1/-1}',
 '.sv2-oc .sv2-lcard .lb>div:not(.full){display:flex;flex-direction:column;justify-content:flex-end}',   /* v0.2 P3 (Pixel): line-card inputs line up when a label wraps to 2 lines */
+'.sv2.sv2-ro [data-act="openCreate"],.sv2.sv2-ro [data-act="save"],.sv2.sv2-ro [data-act="saveNew"],.sv2.sv2-ro [data-act="delShip"],.sv2.sv2-ro [data-act="addLine"],.sv2.sv2-ro [data-act="dupLast"],.sv2.sv2-ro [data-act="rmLine"],.sv2.sv2-ro [data-act="ocConfig"],.sv2.sv2-ro .sv2-submit,.sv2.sv2-ro .sv2-dirty{display:none!important}',
+'.sv2-qc{display:inline-flex;gap:4px;flex-wrap:wrap}.sv2-qc span{font:600 10.5px var(--font-body);border-radius:10px;padding:2px 7px;white-space:nowrap}',
+'.sv2-qc .q-c{background:#e6eef6;color:#2f5f8a}.sv2-qc .q-i{background:#e6f1e8;color:#2e7d46}.sv2-qc .q-n{background:var(--bg2,#f2f2f2);color:var(--text3,#888)}',
 '.sv2-submit{position:sticky;bottom:var(--sv2-bottom,8px);z-index:6;box-shadow:0 -2px 18px rgba(26,26,23,.10);display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;background:var(--card);border:1px solid var(--border2);border-radius:var(--r2);padding:10px 14px}',
 '.sv2-tot{display:grid}.sv2-tot .k{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text2)}.sv2-tot .v{font:500 18px var(--font-mono);font-variant-numeric:tabular-nums}',
 '.sv2-ferr .sv2-banner{align-items:center}',
@@ -467,6 +470,8 @@ function createInstance(host,O){
   var SEASON=O.seasonId||null;                 /* the sidebar (viewed) season */
   var SEASON_NAME=O.seasonName||'';
   var dead=false;
+  /* 2026-11-26 step 2 (Tarek): people without edit rights get Manage read-only (list + open a shipment to view; no New/Save/Delete) */
+  var RO=!!O.readOnly;
   function isCitrus(){return PRODUCT==='citrus';}
   function regionOn(){return isCitrus()&&salesRegionFlag();}
   function regionLive(){return regionOn()&&REF.sregions.length>0;}   /* the DB step is applied: the list has values */
@@ -486,6 +491,7 @@ function createInstance(host,O){
   function bannerInner(){
     if(OC&&!OC_WRITES)return '<span aria-hidden="true">✎</span><span>'+OC_PENDING+'.</span>';
     /* 2026-11-26: Manage is the main page now (no longer a test sandbox) */
+    if(RO)return '<span aria-hidden="true">👁</span><span><b>View only.</b> You can open and read shipments here. Ask an admin for edit rights to add or change them.</span>';
     return '<span aria-hidden="true">✎</span><span><b>Shipments are entered here.</b> Reports and Analytics still read the old shipment records until they are switched over.</span>';}
   function q(sel){return host.querySelector(sel);}
   function qa(sel){return Array.prototype.slice.call(host.querySelectorAll(sel));}
@@ -525,7 +531,7 @@ function createInstance(host,O){
 
   /* ---------------------------------------------------------- markup */
   host.innerHTML=
-  '<div class="sv2'+(OC?' sv2-oc':'')+'">'+
+  '<div class="sv2'+(OC?' sv2-oc':'')+(RO?' sv2-ro':'')+'">'+
    '<div class="sv2-view on" id="sv2-vlist">'+
     '<div class="sv2-banner" id="sv2-banner">'+bannerInner()+'</div>'+
     '<div class="sv2-toolbar">'+
@@ -1060,7 +1066,9 @@ function createInstance(host,O){
       '</div>'+
     '</div>';
   }
+  function lockRO(){if(!RO)return;qa('#sv2-vform input,#sv2-vform select,#sv2-vform textarea').forEach(function(f){f.disabled=true;});}
   function renderLines(){
+    setTimeout(lockRO,0);
     if(PT){
       el('lfoot').innerHTML='';
       if(isNarrow()){el('lhead').innerHTML='';el('lbody').innerHTML='';el('lcards').innerHTML=LINES.map(OC?ocCardHTML:ptCardHTML).join('');}
@@ -1355,6 +1363,7 @@ function createInstance(host,O){
   function restoreHeader(k){fillHeaderSelects({status:k.status,client:k.client,subclient:k.subclient,pack_house_departure:k.pack_house_departure});
     KEEP_TEXT.forEach(function(id){var e=el(id);if(e)e.value=k[id]||'';});syncCtxStatus();setDirty(false);}
   function submitShip(){
+    if(RO)return;
     if(SAVING)return;
     clearFormError();TRIED=true;
     var okR=!OC||validateField('crop'),okC=validateField('container'),okL=validateField('ldate'),okS=PT||validateField('status');
@@ -1498,7 +1507,7 @@ function createInstance(host,O){
         fillHeaderSelects({station:h.station,sector:h.sector,season:h.season,crop:h.crop,vessel:h.vessel,client:h.client,receiving_port:h.receiving_port});deriveDate();
         LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;if(OC)d.variety=ocVarShow(d.variety);return d;});
         if(!LINES.length)LINES=[blankLine()];
-        openRows={};renderLines();setDirty(false);
+        openRows={};renderLines();setDirty(false);lockRO();
         el('ftitle').textContent='Edit shipment';el('ctxref').textContent=h.container_number||container;setSeasonChip();return;
       }
       setv('container',h.container_number);setv('carta',h.carta);setv('ldate',h.loading_date);
@@ -1527,7 +1536,7 @@ function createInstance(host,O){
       LINES=lines.map(function(l){var d=blankLine();Object.keys(d).forEach(function(k){if(l[k]!=null)d[k]=NUMKEYS[k]?tidyNum(l[k]):String(l[k]);});d.id=l.id||null;
         if(!PT&&l.jde_code){d._jdeSaved=String(l.jde_code);d._jdeKey=jdeKey(d);}return d;});
       if(!LINES.length)LINES=[blankLine()];
-      openRows={};renderLines();setDirty(false);
+      openRows={};renderLines();setDirty(false);lockRO();
       el('ftitle').textContent='Edit shipment';el('ctxref').textContent=h.container_number||container;setSeasonChip();
     },function(e){if(dead||my!==formSeq)return;showOverlay(false);showFormError('Could not load '+container+' — '+friendlyErr(e),'retry');});
   }
@@ -1543,6 +1552,7 @@ function createInstance(host,O){
     showView('form');loadForEdit(c.ref,c.hdr.loaded);
   }
   function openCreate(){
+    if(RO)return;
     formSeq++;MODE='create';EDIT={container:null,loaded:null,deletedIds:[]};SEASON_OK=false;LOADED_IDS=[];ROW_VERSION='';syncDelBtn();
     blankHeader();setDep(false);fillHeaderSelects({status:''});deriveDate();if(LISTS&&LISTS.marks)LISTS.marks();
     PAS_LIVE=true;TRIED=false;LINES=[blankLine()];RAWCGW={};openRows={0:true};renderLines();
@@ -1567,7 +1577,9 @@ function createInstance(host,O){
     {key:'cls',label:'Client class',vals:[],match:function(c,v){return c._cls.indexOf(v)>=0;}},
     {key:'region',label:'Destination',vals:[],match:function(c,v){return c.hdr.region===v;}},
     {key:'client',label:'Client',vals:[],match:function(c,v){return c.hdr.client===v;}},
-    {key:'status',label:'Status',vals:[],match:function(c,v){return c.hdr.status===v;}}
+    {key:'status',label:'Status',vals:[],match:function(c,v){return c.hdr.status===v;}},
+    /* 2026-11-26 step 2: CQC / inspection links (were only on the old record views) */
+    {key:'qc',label:'QC',vals:[],match:function(c,v){return v==='With CQC'?c._cqc>0:v==='No CQC'?!c._cqc:v==='With inspection'?c._insp>0:v==='No inspection'?!c._insp:true;}}
   ];
   function emptyF(){var f={};FACETS.forEach(function(x){f[x.key]=[];});return f;}
   ST.f=emptyF();
@@ -1579,7 +1591,7 @@ function createInstance(host,O){
     var h=[{t:'Container',s:'ref'},{t:'Client',s:'client'},{t:'Destination',s:'region'},{t:'Packing / class'},
       {t:'Loaded',s:'loaded'},{t:'Lines',s:'lines',n:1},{t:'Pallets',s:'pal',n:1},{t:'Cartons',s:'ctn',n:1},{t:'Net t',s:'net',n:1},{t:'Gross t',s:'grs',n:1}];
     if(isCitrus())h.push({t:'Weighbridge',s:'vr',tip:'Pascol weighbridge net vs packing weight. Green = within ±0.5 t, amber = over, grey = not weighed yet.'});
-    h.push({t:'Status',s:'status'});return h;
+    h.push({t:'Status',s:'status'});h.push({t:'QC',tip:'Client QC reports (CQC) and export inspections with this container number in this season'});return h;
   }
   var GET={ref:function(c){return c.ref;},client:function(c){return c.hdr.client||'';},region:function(c){return c.hdr.region||'';},
     loaded:function(c){return c._t;},lines:function(c){return c.lines.length;},pal:function(c){return c._pal;},ctn:function(c){return c._ctn;},
@@ -1616,6 +1628,7 @@ function createInstance(host,O){
     FACETS[1].vals=uniq(DATA.map(function(c){return c.hdr.region;}));
     FACETS[2].vals=uniq(DATA.map(function(c){return c.hdr.client;}));
     FACETS[3].vals=uniq(DATA.map(function(c){return c.hdr.status;}));
+    FACETS[4].vals=QCM.loaded?['With CQC','No CQC','With inspection','No inspection']:[];
   }
   function passSearch(c){return !ST.q||c._search.indexOf(ST.q)>=0;}
   function passFacets(c,except){return FACETS.every(function(f){if(f.key===except)return true;var a=ST.f[f.key];return !a.length||a.some(function(v){return f.match(c,v);});});}
@@ -1626,7 +1639,7 @@ function createInstance(host,O){
   function hl(s){s=String(s==null?'':s);var t=(ST.q||'').trim();if(!t)return esc(s);var i=s.toLowerCase().indexOf(t);if(i<0)return esc(s);
     return esc(s.slice(0,i))+'<span class="sv2-hl">'+esc(s.slice(i,i+t.length))+'</span>'+esc(s.slice(i+t.length));}
   var ALL_LABEL=OC?{crop:'All crops',station:'All stations',region:'All countries',grade:'All grades'}:PT?{station:'All stations',sector:'All sectors',region:'All countries',grade:'All grades'}
-                 :{cls:'All client classes',region:'All destinations',client:'All clients',status:'All statuses'};
+                 :{cls:'All client classes',region:'All destinations',client:'All clients',status:'All statuses',qc:'All QC'};
   function renderFacets(){
     el('facets').innerHTML=FACETS.filter(function(f){return f.vals.length>1;}).map(function(f){
       var cur=ST.f[f.key][0]||'';
@@ -1704,7 +1717,7 @@ function createInstance(host,O){
       '<td class="num">'+c.lines.length+'</td><td class="num">'+c._pal+'</td><td class="num">'+c._ctn.toLocaleString()+'</td>'+
       '<td class="num">'+fmtT(c._net)+'</td><td class="num">'+fmtT(c._grs)+'</td>'+
       (isCitrus()?'<td>'+weighChip(c)+'</td>':'')+
-      '<td><span class="sv2-pill '+statusClass(c.hdr.status)+'">'+esc(c.hdr.status||'—')+'</span></td></tr>';
+      '<td><span class="sv2-pill '+statusClass(c.hdr.status)+'">'+esc(c.hdr.status||'—')+'</span></td><td>'+qcChips(c)+'</td></tr>';
   }
   function cardHTML(c){
     var i=DATA.indexOf(c);
@@ -1758,6 +1771,29 @@ function createInstance(host,O){
     b.className='sv2-banner err';b.setAttribute('role','alert');
     b.innerHTML='<span aria-hidden="true">!</span><span style="flex:1">'+esc(err)+'</span><button type="button" class="sv2-btn sec sm" data-act="reloadList">Retry</button>';
   }
+  /* 2026-11-26 step 2: CQC reports + inspections per container (same tables the old record view read), paged past 1,000 rows */
+  var QCM={loaded:false,cqc:{},insp:{}};
+  function normQC(cn){return String(cn||'').replace(/\s+/g,'').toUpperCase();}
+  function pageAll(mk){var out=[];function step(from){return Promise.resolve(mk().range(from,from+999)).then(function(r){
+      if(r.error)throw r.error;out=out.concat(r.data||[]);return (r.data||[]).length===1000?step(from+1000):out;});}return step(0);}
+  function loadQc(){
+    if(PT||!SEASON)return;var seq=listSeq;
+    Promise.all([
+      pageAll(function(){return sb.from('client_qc_reports').select('container_number,score').eq('product_id',PRODUCT).eq('season_id',SEASON).order('id');}),
+      pageAll(function(){return sb.from('inspections_with_aggregates').select('container_number,decision').eq('product_id',PRODUCT).eq('season_id',SEASON).order('id');})
+    ]).then(function(r){
+      if(dead||seq!==listSeq)return;var cq={},ins={};
+      r[0].forEach(function(x){var k=normQC(x.container_number);if(!k)return;(cq[k]=cq[k]||[]).push(x.score);});
+      r[1].forEach(function(x){var k=normQC(x.container_number);if(!k)return;(ins[k]=ins[k]||[]).push(x.decision);});
+      QCM={loaded:true,cqc:cq,insp:ins};applyQc();rebuildFacetVals();renderList();
+    },function(){/* QC links are extra: a failed read leaves the column showing '…' and the list usable */});
+  }
+  function applyQc(){if(PT)return;DATA.forEach(function(c){var k=normQC(c.ref);c._cqcS=QCM.cqc[k]||[];c._inspD=QCM.insp[k]||[];c._cqc=c._cqcS.length;c._insp=c._inspD.length;});}
+  function qcChips(c){
+    if(!QCM.loaded)return '<span class="sv2-sub">…</span>';
+    var h='';if(c._cqc)h+='<span class="q-c" title="Client QC report(s)'+(c._cqcS.filter(Boolean).length?': '+esc(c._cqcS.filter(Boolean).join(', ')):'')+'">CQC '+c._cqc+'</span>';
+    if(c._insp)h+='<span class="q-i" title="Export inspection(s)'+(c._inspD.filter(Boolean).length?': '+esc(c._inspD.filter(Boolean).join(', ')):'')+'">INSP '+c._insp+'</span>';
+    return '<span class="sv2-qc">'+(h||'<span class="q-n">none</span>')+'</span>';}
   function loadList(){
     var my=++listSeq;
     paintSkeleton();setListBanner(null);
@@ -1771,7 +1807,8 @@ function createInstance(host,O){
         setListBanner(msg);DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='';return;
       }
       var d=res.data||{};DATA=(d.containers||[]).slice();
-      deriveAll();rebuildFacetVals();renderList();if(PT)ptFillDatalists();
+      deriveAll();if(QCM.loaded)applyQc();rebuildFacetVals();renderList();if(PT)ptFillDatalists();
+      if(!QCM.loaded)loadQc();
     },function(){if(dead||my!==listSeq)return;if(OC){DATA=[];el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='No Other crops shipments yet. '+OC_PENDING+'.';return;}setListBanner('Shipments didn’t load. Check the connection and try again.');el('listbody').innerHTML='';el('cards').innerHTML='';el('countnote').textContent='';});
   }
 
@@ -1803,7 +1840,7 @@ function createInstance(host,O){
       case 'save':SAVE_NEW=false;submitShip();break;
       case 'saveNew':SAVE_NEW=true;submitShip();break;
       case 'goProblem':goProblem();break;
-      case 'delShip':askDelete();break;
+      case 'delShip':if(!RO)askDelete();break;
       case 'retry':if(EDIT.container)loadForEdit(EDIT.container,EDIT.loaded);break;
       case 'refsRetry':retryLists();break;
       case 'reload':if(EDIT.container){if(DIRTY&&!window.confirm('Reload the latest version? Your changes on this form will be lost.'))break;setDirty(false);loadForEdit(EDIT.container,EDIT.loaded);}break;
