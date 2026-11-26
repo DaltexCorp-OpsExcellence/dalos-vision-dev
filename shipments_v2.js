@@ -1252,7 +1252,7 @@ function createInstance(host,O){
     else if(e.key==='Enter'){if(CB.act>=0&&CB.shown[CB.act]){e.preventDefault();cbPick(CB.shown[CB.act]);}}
     else if(e.key==='Escape'){var c=CB.cur;if(c.sel)c.inp.value=cbText(c.sel);cbClose();}}
   function cbBlur(e){if(!PV2||!CB.cur||e.target!==CB.cur.inp)return;var c=CB.cur;cbClose();cbCommit(c);}
-  function cbScroll(e){if(CB.cur&&!(CB.pop&&CB.pop.contains(e.target)))cbPlace();}
+  function cbScroll(e){var t=e&&e.target;if(CB.cur&&!(CB.pop&&t&&t.nodeType===1&&CB.pop.contains(t)))cbPlace();}   /* scroll target can be the document / window */
   function lockRO(){if(!RO)return;qa('#sv2-vform input,#sv2-vform select,#sv2-vform textarea').forEach(function(f){f.disabled=true;});var t=el('ftitle');if(t)t.textContent='View shipment';}
   function renderLines(){
     setTimeout(lockRO,0);
