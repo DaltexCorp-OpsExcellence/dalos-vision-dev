@@ -37,7 +37,7 @@ function fmt(ts){if(!ts)return '';var d=new Date(ts);if(isNaN(d))return '';
   try{return d.toLocaleString('en-GB',{timeZone:'Africa/Cairo',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' Cairo';}catch(_e){return d.toISOString();}}
 function errText(e,it){
   if(!e)return 'Something went wrong. Try again.';
-  if(e.code==='42501'&&it&&REFP[it.product_id])return /admin/i.test(e.message||'')?'Only an admin can add values to the Potatoes and Other crops lists.':'You can’t review these suggestions.';
+  if(e.code==='42501'&&it&&REFP[it.product_id])return /admin/i.test(e.message||'')?'Only an admin or this product’s list editor can add values to the Potatoes and Other crops lists.':'You can’t review these suggestions.';
   if(e.code==='42501')return 'Only admins and power users can review suggestions.';
   if(e.code==='55000')return 'Someone already reviewed this one. Refreshing.';
   if(e.code==='22023')return e.message||'Check the value and try again.';
@@ -95,8 +95,8 @@ function mount(body,ctx){
         list.appendChild(card);return;
       }
       var acts=mk('div','sv2q-acts');
-      var ap=mk('button','sv2-btn sm',REFP[it.product_id]?'Add to the list (admin)':'Approve into list');ap.type='button';
-      if(REFP[it.product_id])ap.title='Admins only: adds it to this product’s list in Configurations';
+      var ap=mk('button','sv2-btn sm',REFP[it.product_id]?'Add to the list':'Approve into list');ap.type='button';
+      if(REFP[it.product_id])ap.title='Admins and this product’s list editors: adds it to this product’s list';
       var ed=mk('input');ed.placeholder='Approve as… (optional)';ed.maxLength=120;ed.setAttribute('aria-label','Approve as edited value');ed.setAttribute('dir','auto');
       ap.addEventListener('click',function(){act(it,'approve',ed.value.trim()||null,null,ap);});
       var opts=st.lists[it.list_key+'|'+it.product_id]||[];

@@ -197,7 +197,9 @@ function attach(host,opts){
 
   var ready=Promise.resolve(sb.rpc('get_shipment_list_rights')).then(function(r){
     if(dead)return;if(!r||r.error||!r.data)throw (r&&r.error)||new Error('rights');
-    rights={can_suggest:r.data.can_suggest===true,can_manage:r.data.can_manage===true};
+    /* 2026-11-26 shipment_list_editors_v1b: a Potatoes / Other crops list editor (manage_products) also gets the review queue */
+    var mp=Array.isArray(r.data.manage_products)?r.data.manage_products:[];
+    rights={can_suggest:r.data.can_suggest===true,can_manage:r.data.can_manage===true||mp.indexOf(product)>=0};
     if(!rights.can_suggest&&!rights.can_manage)return;
     host.addEventListener('focusin',onFocus,true);host.addEventListener('mousedown',onFocus,true);host.addEventListener('change',onChange,true);
     window.addEventListener('scroll',onScroll,true);window.addEventListener('resize',onScroll);
