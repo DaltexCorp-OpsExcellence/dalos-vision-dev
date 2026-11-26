@@ -151,6 +151,8 @@ var CSS=[
 '.sv2-wgh small{font-size:12px;text-transform:none;letter-spacing:0;font-weight:400}',
 '.sv2-ctnwarn,.sv2-kgwarn{display:none;font-size:12px;color:#7a4a10;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:8px;padding:6px 10px;flex-basis:100%}',
 '.sv2-ctnwarn.on,.sv2-kgwarn.on{display:block}',
+'.sv2-ctnwarn.ok,.sv2-pend.ok{color:var(--green);background:var(--green-bg);border-color:var(--green-border)}',   /* 2026-11-26: carton match = green ok state, no layout jump */
+'@media (max-width:700px){.sv2-submit .sv2-ctnwarn.ok{display:none!important}}',   /* phones: the ok line would grow the Save bar */
 /* r2 P1: plain inline message under a flagged carton weight (warn-only, never blocks save) */
 '.sv2-wmsg{font-size:12px;line-height:1.35;color:#7a4a10;margin-top:3px}.sv2-wmsg[hidden]{display:none}',
 '.sv2-lines .idx{font-family:var(--font-mono);color:var(--text3)}',
@@ -1124,13 +1126,13 @@ function createInstance(host,O){
       var he=el('hpecho');if(he&&!(el('hpascol')&&el('hpascol').classList.contains('invalid'))){he.className='sv2-echo';he.textContent=kgText(val('hpascol'));}
       LINES.forEach(function(d,i){var s=intakeShareRaw(d.carton_count,tc),v=s===null?'':(Math.round(s*1000)/10).toFixed(1)+' %';qa('[data-cpct="'+i+'"]').forEach(function(f){f.value=v;});
         /* Pascol share / net / variance only firm up once the lines cover every carton */
-        qa('[data-pend="'+i+'"]').forEach(function(pe){pe.hidden=match;pe.textContent=match?'':(tcN?'Pending: lines cover '+ctn.toLocaleString()+' of '+tcN.toLocaleString()+' cartons. These firm up when they match.':'Pending: enter Total cartons to split the Pascol weight.');});
+        qa('[data-pend="'+i+'"]').forEach(function(pe){pe.hidden=false;pe.classList.toggle('ok',match);pe.textContent=match?'All '+tcN.toLocaleString()+' cartons covered.':(tcN?'Pending: lines cover '+ctn.toLocaleString()+' of '+tcN.toLocaleString()+' cartons. These firm up when they match.':'Pending: enter Total cartons to split the Pascol weight.');});
         qa('[data-rgrid="'+i+'"]').forEach(function(rg){rg.classList.toggle('pending',!match);});});
       if(isCitrus()){var hp=intakeNum(val('hpascol')),pk=0;LINES.forEach(function(d){pk+=numOf(d.packing_weight);});
         html('spas',(hp===null?'—':hp.toFixed(3))+' <small>· '+pk.toFixed(3)+'</small>');
         var vr=hp!==null&&match?hp-pk-net:null;
         html('svar',vr===null?'<small>Pending</small>':(vr>=0?'+':'')+vr.toFixed(3)+(hp>0?' <small>'+(vr/hp*100).toFixed(1)+' %</small>':''));}
-      var fw=el('ctnwarn');if(fw){var r=intakeCartonFooter(ctn,tc),show=r.kind!=='ok'&&!(r.kind==='missing'&&ctn===0&&!TRIED);fw.classList.toggle('on',show);fw.textContent=show?r.message:'';fw.title=fw.textContent;}
+      var fw=el('ctnwarn');if(fw){var r=intakeCartonFooter(ctn,tc),ok=r.kind==='ok',show=ok||!(r.kind==='missing'&&ctn===0&&!TRIED);fw.classList.toggle('on',show);fw.classList.toggle('ok',ok);fw.textContent=ok?'Line cartons match Total cartons ('+ctn.toLocaleString()+')':show?r.message:'';fw.title=fw.textContent;}   /* 2026-11-26: stays visible (green) once they match, so the bar does not jump */
     }
     else {html('sctn',ctn.toLocaleString());
       LINES.forEach(function(d,i){var n=numOf(d.net_weight),v=net>0&&String(d.net_weight||'').trim()?(Math.round(n/net*1000)/10).toFixed(1)+' %':'';qa('[data-cpct="'+i+'"]').forEach(function(f){f.value=v;});});}
