@@ -73,6 +73,9 @@ var CSS=[
 '.sv2-btn.sm{padding:4px 10px;font-size:12px}',
 '.sv2-btn:disabled{opacity:.55;cursor:not-allowed}',
 '.sv2-btn:focus-visible,.sv2 [data-act]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
+'.sv2-vsw{display:inline-flex;background:var(--bg2,#eee);border-radius:8px;padding:2px;gap:2px}',
+'.sv2-vsw button{font:500 12px var(--font-body);border:none;background:transparent;color:var(--text3);border-radius:6px;padding:5px 11px;cursor:pointer;min-height:30px}',
+'.sv2-vsw button[aria-pressed="true"]{background:var(--card,#fff);color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}',
 '.sv2-reset{font:500 12px var(--font-body);border:1px solid var(--border2);background:var(--card);color:var(--text2);border-radius:20px;padding:4px 11px;cursor:pointer;display:none}.sv2-reset.show{display:inline-block}',
 '.sv2-fsels{display:flex;flex-wrap:wrap;gap:8px}',
 '.sv2 .sv2-fsel{width:172px;padding:7px 8px 7px 10px;border-radius:8px;text-overflow:ellipsis}',
@@ -482,7 +485,8 @@ function createInstance(host,O){
   function snapNote(){return SNAPSHOT_PRODUCTS[PRODUCT]?SNAPSHOT_NOTE:'';}
   function bannerInner(){
     if(OC&&!OC_WRITES)return '<span aria-hidden="true">✎</span><span>'+OC_PENDING+'.</span>';
-    return '<span aria-hidden="true">✎</span><span><b>Entry sandbox.</b> Changes here are saved to the new shipments table for testing. They don’t change the shipment records or any report. '+snapNote()+'</span>';}
+    /* 2026-11-26: Manage is the main page now (no longer a test sandbox) */
+    return '<span aria-hidden="true">✎</span><span><b>Shipments are entered here.</b> Reports and Analytics still read the old shipment records until they are switched over.</span>';}
   function q(sel){return host.querySelector(sel);}
   function qa(sel){return Array.prototype.slice.call(host.querySelectorAll(sel));}
   function el(id){return host.querySelector('#sv2-'+id);}
@@ -508,6 +512,9 @@ function createInstance(host,O){
   var DATA=[],DIRTY=false,SAVING=false,SEASON_OK=false,listSeq=0,formSeq=0;
   var LISTS=null;
   var ST={q:'',sortKey:'loaded',dir:'desc',limit:200,f:{cls:[],region:[],client:[],status:[],qc:[]}};
+  /* 2026-11-26 (Tarek): Manage list has two views, By container (default) and All rows (one row per line); remembered per browser */
+  ST.view='container';try{if(window.localStorage&&localStorage.getItem('dalos_sv2_view')==='rows')ST.view='rows';}catch(_e){}
+
   var RENDER_STEP=200;
   var phoneMQ=window.matchMedia?window.matchMedia('(max-width:700px)'):null;
   function isPhone(){return !!(phoneMQ&&phoneMQ.matches);}
@@ -528,6 +535,8 @@ function createInstance(host,O){
      '<span class="sv2-sp"></span>'+
      (OC?'<button type="button" class="sv2-btn sec" data-act="ocCsv" title="Download the shown shipments as a CSV file (UTF-8, opens in Excel)">Export CSV</button>':'')+
      (OC&&O.canConfigure&&window.SV2Ref?'<button type="button" class="sv2-btn sec" data-act="ocConfig">Configurations</button>':'')+
+     '<span class="sv2-vsw" role="group" aria-label="List view"><button type="button" data-act="view" data-v="container" id="sv2-vcont">By container</button>'+
+     '<button type="button" data-act="view" data-v="rows" id="sv2-vrows">All rows</button></span>'+
      '<button type="button" class="sv2-btn" data-act="openCreate">+ New shipment</button>'+
     '</div>'+
     '<div class="sv2-tw sv2-desk"><table class="sv2-tbl"><thead><tr id="sv2-thead"></tr></thead><tbody id="sv2-listbody"></tbody></table></div>'+
@@ -1629,10 +1638,43 @@ function createInstance(host,O){
     }).join('');
   }
   function renderHead(){
+    if(ST.view==='rows'){el('thead').innerHTML=ROWHEADS().map(function(h){return '<th class="'+(h.n?'num':'')+'">'+h.t+'</th>';}).join('');return;}
     el('thead').innerHTML=HEADS().map(function(h){
       var act=h.s&&ST.sortKey===h.s;var ar=h.s?'<span class="ar">'+(act?(ST.dir==='asc'?'▲':'▼'):'⇅')+'</span>':'';
       return '<th class="'+(h.n?'num ':'')+(h.s?'srt':'')+(act?' act':'')+'"'+(h.s?' data-act="sort" data-sk="'+h.s+'" tabindex="0"':'')+(h.tip?' title="'+esc(h.tip)+'"':'')+'>'+h.t+ar+'</th>';
     }).join('');
+  }
+  /* All rows view: one table row per shipment line; a click opens its container */
+  function ROWHEADS(){
+    if(PT)return [{t:'Container'},{t:'Loaded'},{t:'Client'},{t:'Variety'},{t:'Pivot / farm'},{t:'Grade'},{t:'Packaging'},
+      {t:'Pallets',n:1},{t:OC?'Packs':'Packages',n:1},{t:'Standard t',n:1}];
+    return [{t:'Container'},{t:'Loaded'},{t:'Client'},{t:'Destination'},{t:'Variety'},{t:'Class'},{t:'Packing'},
+      {t:'Pallets',n:1},{t:'Cartons',n:1},{t:'Net t',n:1},{t:'Gross t',n:1},{t:'Status'}];
+  }
+  function lineRows(rows){var out=[];rows.forEach(function(c){c.lines.forEach(function(l){out.push({c:c,l:l});});});return out;}
+  function lineRowHTML(x){
+    var c=x.c,l=x.l,i=DATA.indexOf(c);
+    if(PT)return '<tr tabindex="0" data-act="open" data-i="'+i+'">'+
+      '<td><span class="sv2-ref">'+hl(c.ref)+'</span></td><td>'+fmtDate(c.hdr.loaded)+'</td>'+
+      '<td>'+hl(OC?(c.hdr.clientL||'—'):(c.hdr.client||'—'))+'</td><td>'+hl(l.v||'—')+(OC&&c.hdr.cropL?'<span class="sv2-sub">'+hl(c.hdr.cropL)+'</span>':'')+'</td>'+
+      '<td>'+hl(l.pivot||'—')+'<span class="sv2-sub">'+hl(OC?(l.farmL||''):(l.farm||''))+'</span></td><td>'+hl(l.grade||'—')+'</td>'+
+      '<td>'+hl(OC?(l.ptL||'—'):(l.ct||'—'))+'</td><td class="num">'+(l.pal==null?'—':l.pal)+'</td><td class="num">'+(l.ctn==null?'—':Number(l.ctn).toLocaleString())+'</td>'+
+      '<td class="num">'+fmtT(l.net)+'</td></tr>';
+    return '<tr tabindex="0" data-act="open" data-i="'+i+'">'+
+      '<td><span class="sv2-ref">'+hl(c.ref)+'</span></td><td>'+fmtDate(c.hdr.loaded)+'</td>'+
+      '<td>'+hl(c.hdr.client||'—')+'</td><td>'+hl(c.hdr.region||'—')+'</td>'+
+      '<td>'+hl(l.v||'—')+(l.cat?'<span class="sv2-sub">'+hl(l.cat)+'</span>':'')+'</td>'+
+      '<td>'+hl(l.cc||'—')+(l.dc?'<span class="sv2-sub">'+hl(l.dc)+'</span>':'')+'</td><td>'+hl(packShort(l.pk)||'—')+'</td>'+
+      '<td class="num">'+(l.pal==null?'—':l.pal)+'</td><td class="num">'+(l.ctn==null?'—':Number(l.ctn).toLocaleString())+'</td>'+
+      '<td class="num">'+fmtT(l.net)+'</td><td class="num">'+fmtT(l.grs)+'</td>'+
+      '<td><span class="sv2-pill '+statusClass(c.hdr.status)+'">'+esc(c.hdr.status||'—')+'</span></td></tr>';
+  }
+  function lineCardHTML(x){
+    var c=x.c,l=x.l,i=DATA.indexOf(c);
+    return '<div class="sv2-card" tabindex="0" role="button" data-act="open" data-i="'+i+'">'+
+      '<div class="t"><span class="sv2-ref">'+hl(c.ref)+'</span><span class="sv2-sub">'+fmtDate(c.hdr.loaded)+'</span></div>'+
+      '<div><b>'+hl(l.v||'—')+'</b> · '+hl(PT?(l.grade||''):(l.cc||''))+'</div>'+
+      '<div class="sv2-sub">'+(l.pal==null?'—':l.pal)+' plt · '+(l.ctn==null?'—':Number(l.ctn).toLocaleString())+(PT?' packs':' ctn')+' · '+fmtT(l.net)+' t</div></div>';
   }
   function weighChip(c){if(c._pending)return '<span class="sv2-w pend">Pending</span>';var ok=Math.abs(c._vr)<=0.5;return '<span class="sv2-w '+(ok?'ok':'off')+'">'+(c._vr>0?'+':'')+fmtT(c._vr)+' t</span>';}
   function rowHTML(c){
@@ -1685,6 +1727,17 @@ function createInstance(host,O){
     var lbl=PRODUCT_NAME.toLowerCase(),phone=isPhone();
     var emptyMsg=DATA.length?'No '+esc(lbl)+' shipments match <b>'+esc(ST.q||'these filters')+'</b>. <button type="button" class="sv2-reset show" data-act="resetAll">Reset filters</button>'
       :'No '+esc(lbl)+' shipments in '+esc(SEASON_NAME||'this season')+' yet. Use <b>+ New shipment</b> to add the first one.';
+    var vc=el('vcont'),vr=el('vrows');if(vc)vc.setAttribute('aria-pressed',ST.view==='rows'?'false':'true');if(vr)vr.setAttribute('aria-pressed',ST.view==='rows'?'true':'false');
+    if(ST.view==='rows'){
+      var lr=lineRows(rows),lshown=lr.length>ST.limit?lr.slice(0,ST.limit):lr;
+      el('listbody').innerHTML=(!lr.length&&!phone)?'<tr><td colspan="'+ROWHEADS().length+'"><div class="sv2-empty">'+emptyMsg+'</div></td></tr>':(phone?'':lshown.map(lineRowHTML).join(''));
+      el('cards').innerHTML=phone?(!lr.length?'<div class="sv2-empty">'+emptyMsg+'</div>':lshown.map(lineCardHTML).join('')):'';
+      var lmore=lr.length-lshown.length;
+      el('showmore').innerHTML=lmore>0?'<button type="button" class="sv2-reset show" data-act="showMore">Show '+lmore.toLocaleString()+' more</button>':'';
+      el('countnote').textContent='Showing '+lr.length.toLocaleString()+' lines in '+rows.length.toLocaleString()+' '+lbl+' shipments in '+(SEASON_NAME||'this season')+(anyFilter()?' (filtered)':'');
+      el('resetbtn').classList.toggle('show',anyFilter());
+      return;
+    }
     el('listbody').innerHTML=(!rows.length&&!phone)?'<tr><td colspan="'+HEADS().length+'"><div class="sv2-empty">'+emptyMsg+'</div></td></tr>':(phone?'':shown.map(rowHTML).join(''));
     el('cards').innerHTML=phone?(!rows.length?'<div class="sv2-empty">'+emptyMsg+'</div>':shown.map(cardHTML).join('')):'';
     var more=rows.length-shown.length;
@@ -1759,6 +1812,7 @@ function createInstance(host,O){
       case 'clearQ':clearTimeout(searchT);el('q').value='';ST.q='';ST.limit=RENDER_STEP;el('searchwrap').classList.remove('has');renderList();el('q').focus();break;
       case 'resetAll':ST.q='';ST.f=emptyF();ST.limit=RENDER_STEP;el('q').value='';el('searchwrap').classList.remove('has');renderList();break;
       case 'showMore':ST.limit+=RENDER_STEP;renderList();break;
+      case 'view':{var nv=t.getAttribute('data-v')==='rows'?'rows':'container';if(nv!==ST.view){ST.view=nv;ST.limit=RENDER_STEP;try{localStorage.setItem('dalos_sv2_view',nv);}catch(_e){}renderList();}break;}
       case 'sort':{var sk=t.getAttribute('data-sk');if(ST.sortKey===sk)ST.dir=ST.dir==='asc'?'desc':'asc';else{ST.sortKey=sk;ST.dir=TEXTSORT[sk]?'asc':'desc';}renderList();break;}
       case 'toggleLine':syncLines();if(OC&&isNarrow()&&!openRows[i])openRows={};openRows[i]=!openRows[i];renderLines();break;
       case 'rmLine':{syncLines();var d=LINES[i];if(!d)break;

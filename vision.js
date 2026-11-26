@@ -8326,7 +8326,7 @@ var PERM_LABELS = {
   viewFG:'View inspections',createFG:'Create inspections',editFG:'Edit inspections',
   approveFG:'Approve / reject',viewClientQC:'View client reports',createClientQC:'Submit client reports',
   viewExport:'Export data',viewAnalytics:'Analytics dashboard',viewAdmin:'User management',viewConfig:'System configuration',
-  viewEscalation:'Board review / escalation queue',escalate:'Escalate batches',allPackhouses:'All packhouses',viewShipments:'View shipments',editShipments:'Shipments — enter & edit (Manage sandbox)',viewCRM:'CRM — claims & regions (view)',
+  viewEscalation:'Board review / escalation queue',escalate:'Escalate batches',allPackhouses:'All packhouses',viewShipments:'View shipments',editShipments:'Shipments — enter & edit (Manage)',viewCRM:'CRM — claims & regions (view)',
   editCRM:'CRM — raise/edit claims, grade, redirect',viewLeads:'Leads — view',editLeadStatus:'Leads — change status & add notes',manageLeads:'Leads — full management (create, import, assign, campaigns)'
 };
 var INITIAL_USERS = []; /* Demo users removed — users load from Supabase */
@@ -14417,7 +14417,7 @@ function loadShipV2(){
   if(window.ShipV2)return Promise.resolve(window.ShipV2);
   if(_shipV2Load)return _shipV2Load;
   _shipV2Load=new Promise(function(res,rej){var s=document.createElement('script');
-    s.src='shipments_v2.js?v=fffa8808e3';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
+    s.src='shipments_v2.js?v=bf839ead5e';   /* ?v= = content hash, stamped by tools/stamp-assets.py */
     s.onload=function(){if(window.ShipV2)res(window.ShipV2);else{_shipV2Load=null;rej(new Error('The Manage tool did not start.'));}};
     s.onerror=function(){_shipV2Load=null;rej(new Error('Could not load the Manage tool. Check the connection.'));};
     document.head.appendChild(s);});
@@ -14479,7 +14479,8 @@ function ShipmentsMgmt(props){
   /* only products the entry tool supports (orchards + potatoes); Berries/Olives have no form yet */
   var shipPT=selProd==='potatoes'||selProd==='other_crops';   /* Other crops shows the Pivots columns */
   var canManage=!!(props.perms&&props.perms.editShipments)&&(['citrus','grapes','mango','pomegranate','potatoes'].indexOf(selProd)>=0||(selProd==='other_crops'&&otherCropsOn()));
-  var sManage=useState(false); var manage=sManage[0]&&canManage; var setManage=sManage[1];
+  /* 2026-11-26 (Tarek): Manage is the main page of each product for people who can edit shipments (others keep All rows) */
+  var sManage=useState(true); var manage=sManage[0]&&canManage; var setManage=sManage[1];
   var shipV2Api=React.useRef(null);
   function leaveManageOk(){var a=shipV2Api.current;return !manage||!a||a.confirmLeave();}
   var sSelShip=useState(null); var selShip=sSelShip[0]; var setSelShip=sSelShip[1];
@@ -14518,6 +14519,16 @@ function ShipmentsMgmt(props){
     /* v0.2 P3 (Pixel): Other crops (staging only) has no rows before the DB step: show 'no data', not 'loading…' forever */
     if(otherCropsOn()&&!prods.some(function(p){return p.id==='other_crops';}))setProdCounts(function(prev){return Object.assign({},prev,{other_crops:0});});
     if(!prods.length) return;
+    /* 2026-11-26 (Tarek): counts come from the new shipments table (shipments_v2, what Manage shows), one RPC for all products;
+       key = container + loading date. If the RPC fails, fall back to the old per-product count from public.shipments. */
+    var seasonAtCall=config.activeSeasonId;
+    Promise.resolve(supabase.rpc('get_shipment_v2_container_counts',{p_season:seasonAtCall})).then(function(r){
+      if(r&&!r.error&&r.data&&typeof r.data==='object'){
+        var d=r.data;setProdCounts(function(prev){var o=Object.assign({},prev);prods.forEach(function(p){o[p.id]=+d[p.id]||0;});
+          if(otherCropsOn())o.other_crops=+d.other_crops||0;return o;});
+      } else oldCounts();
+    },oldCounts);
+    function oldCounts(){
     prods.forEach(function(p){
       /* Fetch container_number+carta to count unique voyages (matches By Container aggregation key) */
       var allKeys=new Set();
@@ -14542,6 +14553,7 @@ function ShipmentsMgmt(props){
       function countFailed(){setProdCounts(function(prev){return Object.assign({},prev,{[p.id]:null});});}
       fetchCountPage(0);
     });
+    }
   },[config.activeSeasonId]);
 
   /* Load shipments + grades + CQC matches */
@@ -15081,7 +15093,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
       ce('div',{style:{position:'sticky',top:0,zIndex:20,background:'var(--bg)',borderBottom:'1px solid var(--border)',padding:'16px 16px 12px',marginBottom:0}},
       /* Topbar */
       ce('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}},
-        ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){if(!leaveManageOk())return;setManage(false);setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);setCqcShipFilter('all');setInspShipFilter('all');}},'\u2190 Products'),
+        ce('button',{className:'btn btn-secondary btn-sm',onClick:function(){if(!leaveManageOk())return;setManage(true);setSelProd(null);setSelShip(null);setSelContainer(null);setSearch('');setStatusFilter('');setCountryFilter([]);setCqcShipFilter('all');setInspShipFilter('all');}},'\u2190 Products'),
         ce('div',{style:{width:10,height:10,borderRadius:'50%',background:selProdObj.color||'var(--accent)',flexShrink:0}}),
         ce('span',{style:{fontFamily:'var(--font-display)',fontSize:16}},selProdObj.name,' Shipments'),
         totalGraded>0&&ce('span',{className:'badge badge-pass',style:{fontSize:11}},totalGraded+' graded'),
@@ -15089,7 +15101,7 @@ inspCount>0&&ce('div',{style:{marginBottom:16}},
         ce('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'3px'}},
           ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:!aggMode&&!manage?'var(--card)':'transparent',color:!aggMode&&!manage?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:!aggMode&&!manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){if(!leaveManageOk())return;setManage(false);setAggMode(false);}},'All rows'),
           ce('button',{style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:500,background:aggMode&&!manage?'var(--card)':'transparent',color:aggMode&&!manage?'var(--text)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:aggMode&&!manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){if(!leaveManageOk())return;setManage(false);setAggMode(true);}},'By container'),
-          canManage&&ce('button',{title:'Enter and edit shipments (sandbox)','aria-pressed':manage?'true':'false',style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:manage?600:500,background:manage?'var(--card)':'transparent',color:manage?'var(--accent)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){setSelContainer(null);setManage(true);}},'Manage')
+          canManage&&ce('button',{title:'Enter and edit shipments','aria-pressed':manage?'true':'false',style:{padding:'5px 12px',borderRadius:6,fontSize:12,fontWeight:manage?600:500,background:manage?'var(--card)':'transparent',color:manage?'var(--accent)':'var(--text3)',border:'none',cursor:'pointer',boxShadow:manage?'0 1px 3px rgba(0,0,0,.1)':'none'},onClick:function(){setSelContainer(null);setManage(true);}},'Manage')
         )
       ),
       /* Filters */
