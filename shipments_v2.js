@@ -174,7 +174,8 @@ var CSS=[
 '.sv2.sv2-ro [data-act="openCreate"],.sv2.sv2-ro [data-act="save"],.sv2.sv2-ro [data-act="saveNew"],.sv2.sv2-ro [data-act="delShip"],.sv2.sv2-ro [data-act="addLine"],.sv2.sv2-ro [data-act="dupLast"],.sv2.sv2-ro [data-act="rmLine"],.sv2.sv2-ro [data-act="ocConfig"],.sv2.sv2-ro .sv2-submit,.sv2.sv2-ro .sv2-dirty{display:none!important}',
 '.sv2-qc{display:inline-flex;gap:4px;flex-wrap:wrap}.sv2-qc span{font:600 10.5px var(--font-body);border-radius:10px;padding:2px 7px;white-space:nowrap}',
 '.sv2-qc .q-c{background:#e6eef6;color:#2f5f8a}.sv2-qc .q-i{background:#e6f1e8;color:#2e7d46}.sv2-qc .q-n{background:var(--bg2,#f2f2f2);color:var(--text3,#888)}',
-'.sv2-submit{position:sticky;bottom:var(--sv2-bottom,8px);z-index:6;box-shadow:0 -2px 18px rgba(26,26,23,.10);display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;background:var(--card);border:1px solid var(--border2);border-radius:var(--r2);padding:10px 14px}',
+'.sv2-submit{position:sticky;bottom:var(--sv2-bottom,8px);z-index:6;box-shadow:0 -2px 18px rgba(26,26,23,.10);display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;background:#fff;border:1px solid var(--border2);border-radius:var(--r2);padding:10px 14px}',   /* solid: form text never shows through */
+'@media (min-width:701px){.sv2-submit .sv2-jdewarn{order:20;flex-basis:100%}}',   /* desktop: JDE warning on its own row, Save shipment no longer wraps */
 '.sv2-tot{display:grid}.sv2-tot .k{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text2)}.sv2-tot .v{font:500 18px var(--font-mono);font-variant-numeric:tabular-nums}',
 '.sv2-ferr .sv2-banner{align-items:center}',
 '.sv2-lstat{display:grid;gap:6px;margin:0 0 8px}.sv2-lstat:empty{display:none}.sv2-lstat .sv2-banner{align-items:center}',
@@ -263,9 +264,10 @@ var CSS=[
 '  #sv2-vform .sv2-desk{display:none!important}#sv2-vform .sv2-lcards{display:grid}',
 '  .sv2-lcard .sv2-wgroup{grid-template-columns:repeat(2,minmax(0,1fr))}',
 '  .sv2-wgroup .sv2-dlab{white-space:normal;overflow-wrap:anywhere}',
-'  #sv2-vform.on{padding-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 8px)}',   /* 2026-11-25 P3 (Pixel): room for the whole Save bar, incl. its offset above the phone nav */
-'  #sv2-vform input,#sv2-vform select{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 8px)}',
 '}',
+/* 2026-11-25 P3 (Pixel): room for the whole Save bar, incl. its offset above the phone nav. 2026-11-26: every width (was <=768px), so the sticky bar never covers the last heading/fields on desktop */
+'#sv2-vform.on{padding-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 8px)}',
+'#sv2-vform input,#sv2-vform select{scroll-margin-bottom:calc(var(--sv2-footh,0px) + var(--sv2-bottom,8px) + 8px)}',
 /* r2 P2: touch layouts — tap targets >= 44px, inputs >= 16px (no iOS zoom-on-focus); this form only */
 '@media (max-width:768px),(pointer:coarse){',
 '  #sv2-vform .sv2-in,#sv2-vform .cin,#sv2-vform .csel{font-size:16px!important;min-height:44px}',   /* !important: index.html sets 14px!important at >=768px */
