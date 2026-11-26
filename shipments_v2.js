@@ -1363,7 +1363,7 @@ function createInstance(host,O){
   if(PV2)HDR_IDS=HDR_IDS.concat(['truck','ppascol']);
   function blankHeader(){HDR_IDS.forEach(function(id){var e=el(id);if(e){e.value='';e.classList.remove('invalid');}});qa('#sv2-vform [data-touched]').forEach(function(e){e.removeAttribute('data-touched');e.classList.remove('invalid');});if(PV2){setTmode('container');pv2Lock(false);}}
   /* form v2: version tag + Shipment type, Truck No., Pascol Wt t (whole shipment); a container shipment sends no vessel */
-  function pv2Hdr(h){if(!PV2)return h;var m=pv2Mode();h.form_v='2';h.transport_mode=m;h.truck_no=asciiDigits(val('truck'));h.pascol_total=asciiDigits(val('ppascol'));if(m==='container')h.vessel='';return h;}
+  function pv2Hdr(h){if(!PV2)return h;var m=pv2Mode();h.form_v='2';h.transport_mode=m;h.truck_no=asciiDigits(val('truck'));h.pascol_total=asciiDigits(val('ppascol'));if(m==='container')h.vessel=null;return h;}
   function readHeader(){
     if(OC)return pv2Hdr({container_number:asciiDigits(val('container')),carta:asciiDigits(val('carta')),loading_date:val('ldate'),crop:val('crop'),station:val('station'),sector:val('sector'),
       season:val('pseason'),container_count:val('ccount'),client:val('client'),receiving_country:val('country'),country2:val('country2'),
