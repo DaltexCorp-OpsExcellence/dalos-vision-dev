@@ -148,7 +148,7 @@ function attach(host,opts){
   }
   function offerFor(inp,key){
     var v=norm(inp.value);if(!v||textProblem(v))return;
-    var dl=inp.list,f=fold(v),known=false;
+    var dlId=inp.getAttribute&&inp.getAttribute('data-sv2c-list'),dl=inp.list||(dlId?document.getElementById(dlId):null),f=fold(v),known=false;   /* 2026-11-26: form v2 moves list= to data-sv2c-list (citrus-style pop-up) */
     if(dl&&dl.options)Array.prototype.forEach.call(dl.options,function(o){if(fold(o.value)===f)known=true;});
     if(known)return;
     var p=openPop(inp),b=mk('button','sv2n-act'),m=msgEl();b.type='button';
