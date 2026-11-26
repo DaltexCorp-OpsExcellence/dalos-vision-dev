@@ -65,10 +65,13 @@ function errText(e){
 function mount(body,ctx){
   css();
   var mk=ctx.mk,clear=ctx.clear,sb=ctx.sb,L=ctx.labels,dirty=false;
-  var st={key:(ctx.args.listKey&&ctx.queueKeys[ctx.args.listKey])?ctx.args.listKey:'brand',prod:ctx.product||'',q:'',rows:[],aliases:[],editing:null,msg:null};
+  /* 2026-11-26 shipment_list_editors_v1: scoped editors see only their products, no JDE / Other crops / all-products matches */
+  var R=ctx.rights||{},MP=R.full?null:(R.manage_products||[]);
+  function prodOk(p){return !MP||MP.indexOf(p)>=0;}
+  var st={key:(ctx.args.listKey&&ctx.queueKeys[ctx.args.listKey])?ctx.args.listKey:'brand',prod:(MP&&!prodOk(ctx.product))?(MP[0]||''):(ctx.product||''),q:'',rows:[],aliases:[],editing:null,msg:null};
   var root=mk('div','sv2c');body.appendChild(root);
   var note=mk('div','sv2c-note');
-  note.appendChild(mk('b',null,'Admins and power users add, rename or turn off values. '));
+  note.appendChild(mk('b',null,MP?('You can add, rename or turn off values for '+MP.map(function(p){return PNAME[p]||p;}).join(', ')+'. JDE codes stay with admins; a rename carries its JDE code over. '):'Admins and power users add, rename or turn off values. '));
   note.appendChild(document.createTextNode('Intake editors pick values only. Renaming or turning off a value never changes shipments that already have it saved.'));
   root.appendChild(note);
   var groups=mk('div','sv2c-groups');root.appendChild(groups);
@@ -76,7 +79,7 @@ function mount(body,ctx){
 
   function drawGroups(){
     clear(groups);
-    GROUPS.forEach(function(g){
+    GROUPS.filter(function(g){return !(g.keys[0]==='@jde'&&!R.can_manage_jde)&&!(g.keys[0]==='@oc'&&!R.full);}).forEach(function(g){
       var box=mk('div');box.appendChild(mk('div','sv2c-gt',g.t));var chips=mk('div','sv2c-chips');
       g.keys.forEach(function(k){
         var c=mk('button','sv2c-chip',k==='@aliases'?'Spelling matches':k==='@jde'?'JDE codes (citrus)':k==='@oc'?'Other crops lists':(L[k]||k));c.type='button';
@@ -89,8 +92,9 @@ function mount(body,ctx){
   }
   function productSelect(val,withAll,label){
     var s=mk('select');s.setAttribute('aria-label',label||'Product');
-    if(withAll){var o=mk('option',null,'All products');o.value='';s.appendChild(o);}
-    PRODUCTS.forEach(function(p){var o=mk('option',null,p[1]);o.value=p[0];s.appendChild(o);});
+    if(withAll&&!MP){var o=mk('option',null,'All products');o.value='';s.appendChild(o);}
+    PRODUCTS.forEach(function(p){if(!prodOk(p[0]))return;var o=mk('option',null,p[1]);o.value=p[0];s.appendChild(o);});
+    if(MP&&val&&!prodOk(val)){var x=mk('option',null,PNAME[val]||val);x.value=val;s.appendChild(x);}   /* read-only row of another product */
     s.value=val||'';return s;
   }
   function load(){
@@ -252,6 +256,8 @@ function mount(body,ctx){
           if(r.label){var lb=mk('div','sv2c-lbl');var lbd=mk('bdi',null,r.label);lbd.setAttribute('dir','auto');lb.appendChild(lbd);v.appendChild(lb);}
           row.appendChild(v);}
         var pt=mk('td');pt.appendChild(mk('span','sv2c-pill',r.product_id?(PNAME[r.product_id]||r.product_id):'All products'));row.appendChild(pt);
+        /* scoped editor: another product's row or an all-products match is shown read-only (the DB refuses the write anyway) */
+        if(MP&&!(r.product_id&&prodOk(r.product_id))){row.appendChild(mk('td',null,r.active?'Active':'Off'));row.appendChild(mk('td','sv2c-count','Admins'));tb.appendChild(row);return;}
         var at=mk('td'),lab=mk('label','sv2c-sw'),cb=mk('input');cb.type='checkbox';cb.checked=!!r.active;
         cb.setAttribute('aria-label',(r.active?'Turn off ':'Turn on ')+(isA?r.alias:r.value));
         cb.addEventListener('change',function(){save(isA?'shipment_list_aliases':'shipment_list_values',r.id,{active:cb.checked});});
@@ -268,7 +274,7 @@ function mount(body,ctx){
       var lin=mk('input');lin.maxLength=120;lin.value=r&&r.label?r.label:'';lin.placeholder='Label (optional)';lin.setAttribute('aria-label','Label');lin.setAttribute('dir','auto');
       var w1=mk('div'),w2=mk('div');w2.style.marginTop='4px';w1.appendChild(inp);w2.appendChild(lin);
       td1.appendChild(w1);td1.appendChild(w2);row.appendChild(td1);
-      var td2=mk('td');var ps2=productSelect(r?r.product_id:(st.prod||ctx.product||'citrus'),false,'Product');if(r)ps2.disabled=true;td2.appendChild(ps2);row.appendChild(td2);
+      var td2=mk('td');var ps2=productSelect(r?r.product_id:(st.prod||(prodOk(ctx.product)?ctx.product:'')||(MP?MP[0]:'')||'citrus'),false,'Product');if(r)ps2.disabled=true;td2.appendChild(ps2);row.appendChild(td2);
       row.appendChild(mk('td',null,r?(r.active?'Active':'Off'):'Active'));
       var td4=mk('td'),ok=mk('button','sv2-btn sm',r?'Save':'Add');ok.type='button';var cx=mk('button','sv2c-link','Cancel');cx.type='button';
       ok.addEventListener('click',function(){var v=inp.value.trim();if(!v){st.msg={ok:false,text:'Enter a value.'};drawTable();return;}
@@ -285,7 +291,7 @@ function mount(body,ctx){
       td0.appendChild(ks);row.appendChild(td0);
       var td1=mk('td'),a=mk('input');a.maxLength=120;a.value=r?r.alias:'';a.setAttribute('aria-label','Sheet spelling');td1.appendChild(a);row.appendChild(td1);
       var td2=mk('td'),c=mk('input');c.maxLength=120;c.value=r?r.canonical:'';c.setAttribute('aria-label','DalOS name');td2.appendChild(c);row.appendChild(td2);
-      var td3=mk('td'),ps3=productSelect(r?(r.product_id||''):'',true,'Product');if(r)ps3.disabled=true;td3.appendChild(ps3);row.appendChild(td3);
+      var td3=mk('td'),ps3=productSelect(r?(r.product_id||''):(MP?(st.prod||MP[0]||''):''),true,'Product');if(r)ps3.disabled=true;td3.appendChild(ps3);row.appendChild(td3);
       row.appendChild(mk('td',null,r?(r.active?'Active':'Off'):'Active'));
       var td5=mk('td'),ok=mk('button','sv2-btn sm',r?'Save':'Add');ok.type='button';var cx=mk('button','sv2c-link','Cancel');cx.type='button';
       ok.addEventListener('click',function(){var av=a.value.trim(),cv=c.value.trim();

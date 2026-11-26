@@ -112,7 +112,11 @@ function loadAll(sb,product){
       .sort(function(a,b){return a.localeCompare(b);});
     farms.forEach(function(f){(f.raw_names||[]).forEach(function(x){var k=low(x);if(!k||fseen[k]||fal[k])return;fal[k]=norm(f.name);});});
     aliases.raw_source=fal;   /* farm spellings replace any raw_source rows in shipment_list_aliases */
-    return {rights:{can_suggest:rights.can_suggest===true,can_manage:rights.can_manage===true},lists:lists,aliases:aliases,labels:labels};
+    /* 2026-11-26 shipment_list_editors_v1: can_manage = full list admin (admin / power user) OR a scoped list editor for THIS
+       product (manage_products). full / can_manage_jde stay admin-only. Older DB (no manage_products) = unchanged behaviour. */
+    var full=rights.can_manage===true,mp=Array.isArray(rights.manage_products)?rights.manage_products.filter(function(x){return typeof x==='string';}):[];
+    return {rights:{can_suggest:rights.can_suggest===true,can_manage:full||mp.indexOf(product)>=0,full:full,
+      can_manage_jde:full&&rights.can_manage_jde!==false,manage_products:full?['citrus','grapes','mango','pomegranate']:mp},lists:lists,aliases:aliases,labels:labels};
   });
 }
 
