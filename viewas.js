@@ -55,10 +55,14 @@ window.fetch=function(input,init){
 };
 
 /* ---- rights, same rules as the DB (get_shipment_list_rights / _shipments_v2_can_edit / is_power_user_or_admin) ---- */
-function rightsFor(u,editor){
-  var on=!!u.active;
-  return {can_suggest:on&&u.role!=='client_qc'&&(u.role==='admin'||editor),
-          can_manage:on&&(u.role==='admin'||u.role==='power_user')};
+/* 2026-11-26: mirrors sv2_edit_read_rules_20261126 (_shipments_v2_can_edit: admin / power_user / commercial or an
+   editor row, never client_qc) and shipment_list_editors v1 + v1b (manage_products / can_manage_jde). */
+function rightsFor(u,editor,listProducts){
+  var on=!!u.active,full=on&&(u.role==='admin'||u.role==='power_user');
+  var mp=!on?[]:u.role==='admin'?['citrus','grapes','mango','pomegranate','potatoes','other_crops']
+        :u.role==='power_user'?['citrus','grapes','mango','pomegranate']:(listProducts||[]).slice().sort();
+  return {can_suggest:on&&u.role!=='client_qc'&&(u.role==='admin'||u.role==='power_user'||u.role==='commercial'||editor),
+          can_manage:full,can_manage_jde:full,manage_products:mp};
 }
 var ALL_ACCESS={admin:1,qc_manager:1,board:1,commercial:1,executive:1};   /* as vision.js sign-in */
 var VIEW_PERM={fg:'viewFG',clientqc:'viewClientQC',shipments:'viewShipments',analytics:'viewAnalytics',escalation:'viewEscalation',admin:'viewAdmin',export:'viewExport'};
@@ -71,13 +75,14 @@ function start(uid){
   return Promise.all([
     q(c.from('users').select('id,full_name,email,role,active').eq('id',uid).single()),
     q(c.from('user_packhouse_access').select('packhouse_id').eq('user_id',uid)).catch(function(){return null;}),
-    q(c.from('shipments_v2_editors').select('user_id,revoked_at').eq('user_id',uid)).catch(function(){return null;})
+    q(c.from('shipments_v2_editors').select('user_id,revoked_at').eq('user_id',uid)).catch(function(){return null;}),
+    q(c.from('shipment_list_editors').select('product_id').eq('user_id',uid)).catch(function(){return null;})
   ]).then(function(r){
     var p=r[0];
     var ph=ALL_ACCESS[p.role]?['All']:((r[1]||[]).map(function(x){return x.packhouse_id;}));
     var editor=!!(r[2]||[]).some(function(x){return !x.revoked_at;});
     var user={id:p.id,name:p.full_name,email:p.email,role:p.role,active:p.active,packhouses:ph};
-    var s={by:real.id,byName:real.name,user:user,editor:editor,editorKnown:r[2]!==null,rights:rightsFor(p,editor),at:Date.now()};
+    var s={by:real.id,byName:real.name,user:user,editor:editor,editorKnown:r[2]!==null,rights:rightsFor(p,editor,(r[3]||[]).map(function(x){return x.product_id;})),at:Date.now()};
     save(s);
     /* stay on the current page only if this user can open it */
     var v=(location.hash||'').slice(1)||'home',perm=VIEW_PERM[v],R=window.ROLES&&window.ROLES[p.role];
@@ -137,7 +142,7 @@ function drawBar(){
   if(active()){
     var u=state.user,r=state.rights||{};
     var manage=u.role==='admin'||(window.ROLES&&window.ROLES[u.role]&&window.ROLES[u.role].perms&&window.ROLES[u.role].perms.editShipments);
-    var sub=roleLabel(u.role)+(manage?' · Manage: '+(r.can_suggest?'editor':'no save rights'):'')+' · saving is off';
+    var sub=roleLabel(u.role)+(manage?' · Manage: '+(r.can_suggest?'editor':'no save rights'):'')+(!r.can_manage&&r.manage_products&&r.manage_products.length?' · Lists: '+r.manage_products.join(', '):'')+' · saving is off';
     bar.className='vas-bar';
     bar.innerHTML='<span class="vas-txt">Viewing as <b>'+esc(u.name)+'</b> <span class="vas-sub">'+esc(sub)+'</span></span>'+
       '<button type="button" class="vas-btn ghost" data-vas="pick">Switch…</button><button type="button" class="vas-btn" data-vas="exit">Exit</button>';
