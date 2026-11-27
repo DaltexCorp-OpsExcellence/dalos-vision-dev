@@ -14568,7 +14568,7 @@ function sv2lEnsureCss(){
   if(document.getElementById('sv2l-css'))return;
   var s=document.createElement('style');s.id='sv2l-css';
   s.textContent=[
-'.sv2l{--sv2l-ink:var(--text,#1a1a17);padding:6px 28px calc(var(--sv2l-pad,0px) + 40px);max-width:1360px;margin:0 auto;color:var(--sv2l-ink)}',
+'.sv2l{--sv2l-ink:var(--text,#1a1a17);padding:6px 28px 16px;max-width:1360px;margin:0 auto;color:var(--sv2l-ink)}',
 '.sv2l :focus-visible{outline:3px solid #1b6ef3;outline-offset:3px}',
 '.sv2l-hd{display:flex;align-items:baseline;gap:6px 14px;flex-wrap:wrap;margin:0 0 8px}',
 '.sv2l-hd h1{font-family:var(--font-display);font-weight:400;font-size:30px;margin:0;line-height:1.15}',
