@@ -14472,8 +14472,8 @@ function ShipV2Host(props){
 function shipLandingOn(){return window.SV2_SHIP_LANDING_ENABLED===true||window.VISION_IS_DEV===true;}   /* 2026-11-26 (Tarek): prod turns it on with index.html SV2_SHIP_LANDING_ENABLED=true */
 var SV2L_ORDER=['citrus','grapes','pomegranate','mango','berries','potatoes','other_crops'];
 var SV2L_LINES=[
-  {id:'orchards',en:'Orchards',ar:'بساتين',icon:'<svg viewBox="0 0 40 40" width="44" height="44"><circle cx="20" cy="15" r="10" fill="currentColor" opacity=".18"/><circle cx="14" cy="17" r="6" fill="currentColor" opacity=".35"/><circle cx="25" cy="13" r="6" fill="currentColor" opacity=".35"/><rect x="18.5" y="22" width="3" height="12" rx="1.5" fill="currentColor"/><path d="M8 34h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'},
-  {id:'pivots',en:'Pivots',ar:'ري محوري',icon:'<svg viewBox="0 0 40 40" width="44" height="44"><circle cx="20" cy="20" r="15" fill="currentColor" opacity=".16"/><circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3" opacity=".6"/><path d="M20 20L31 11" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="20" cy="20" r="3" fill="currentColor"/></svg>'}];
+  {id:'orchards',en:'Orchards',ar:'بساتين',icon:'<svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="15" r="10" fill="currentColor" opacity=".18"/><circle cx="14" cy="17" r="6" fill="currentColor" opacity=".35"/><circle cx="25" cy="13" r="6" fill="currentColor" opacity=".35"/><rect x="18.5" y="22" width="3" height="12" rx="1.5" fill="currentColor"/><path d="M8 34h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'},
+  {id:'pivots',en:'Pivots',ar:'ري محوري',icon:'<svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="20" r="15" fill="currentColor" opacity=".16"/><circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3" opacity=".6"/><path d="M20 20L31 11" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="20" cy="20" r="3" fill="currentColor"/></svg>'}];
 var SV2L_AR={citrus:'موالح',grapes:'عنب',pomegranate:'رمان',mango:'مانجو',berries:'توت',potatoes:'بطاطس',other_crops:'محاصيل أخرى',olives:'زيتون'};
 /* products whose records page is Manage (same list as ShipmentsMgmt.manageProduct); only these have the overview read */
 function sv2lHasOverview(id){return ['citrus','grapes','mango','pomegranate','potatoes'].indexOf(id)>=0||((id==='other_crops'||isOcCrop(id))&&otherCropsOn());}
@@ -14574,16 +14574,21 @@ function sv2lEnsureCss(){
 '.sv2l-hd h1{font-family:var(--font-display);font-weight:400;font-size:30px;margin:0;line-height:1.15}',
 '.sv2l-hd p{margin:0;color:var(--text2);font-size:14px}',
 '.sv2l-stripw{position:relative;margin:0 0 8px}',
-'.sv2l-lines{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:6px 0 0}',
-'.sv2l-line{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px;padding:26px;border-radius:20px;text-align:left;cursor:pointer;font-family:inherit;color:var(--sv2l-ink);background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.85);box-shadow:0 8px 30px rgba(30,40,30,.08);transition:box-shadow .15s,transform .15s}',
-'.sv2l-line:hover{box-shadow:0 10px 34px rgba(30,40,30,.15);transform:translateY(-1px)}',
-'.sv2l-line .ic{width:68px;height:68px;border-radius:18px;display:flex;align-items:center;justify-content:center}',
-'.sv2l-line-orchards .ic{background:#fdf1df;color:#b5651d}.sv2l-line-pivots .ic{background:#e6f1e8;color:#2e7d46}',
-'.sv2l-line .nm{display:block;font-family:var(--font-display);font-size:24px;line-height:1.15}.sv2l-line .ar{font-family:inherit;font-size:16px;color:var(--text2)}',
-'.sv2l-line .pr{display:block;font-size:12.5px;color:var(--text2);margin-top:4px}',
-'.sv2l-line .st{display:grid;grid-template-columns:auto auto;gap:2px 8px;align-items:baseline;text-align:right}.sv2l-line .st b{font-size:22px}.sv2l-line .st small{font-size:11.5px;color:var(--text2);text-align:left}',
-'.sv2l-crumb button{background:none;border:0;padding:0;font:inherit;color:#1c5c3c;text-decoration:underline;cursor:pointer}.sv2l-crumb b{color:var(--sv2l-ink);font-weight:600}',
-'.sv2l-backline{min-height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--border2,#c9cfc8);background:#fff;font:inherit;font-size:13px;color:var(--sv2l-ink);cursor:pointer;margin:0 0 6px}',
+'.sv2l-pick{max-width:640px;margin:4vh auto 0;display:flex;flex-direction:column;gap:14px}',
+'.sv2l-pickhd{text-align:center}.sv2l-pickhd h1{font-family:var(--font-display);font-weight:400;font-size:30px;margin:0;line-height:1.15}.sv2l-pickhd p{margin:4px 0 0;color:var(--text2);font-size:14px}',
+'.sv2l-stp{grid-template-columns:repeat(2,minmax(0,1fr))}',
+'.sv2l-stepw{max-width:640px;margin:0 0 12px}',
+'.sv2l-lines{display:flex;flex-direction:column;gap:12px}',
+'.sv2l-lcard{width:100%;padding:20px 22px;animation:sv2lIn .35s cubic-bezier(.2,.7,.2,1) both}',
+'.sv2l-lcard .lg-hint{margin-top:2px}',
+'.sv2l-go{font-size:20px;color:var(--lc);opacity:0;transform:translateX(-6px);transition:opacity .2s,transform .2s}',
+'.sv2l-lcard:hover .sv2l-go,.sv2l-lcard:focus-visible .sv2l-go,.sv2l-lcard.picked .sv2l-go{opacity:1;transform:none}',
+'.sv2l-lcard.picked{transform:scale(1.02);box-shadow:0 0 0 2px var(--lc),0 14px 34px rgba(30,45,34,.18);transition:transform .25s,box-shadow .25s}',
+'.sv2l-lcard.away{opacity:0;transform:translateY(8px) scale(.98);transition:opacity .22s,transform .22s}',
+'.sv2l-lcard:disabled{cursor:default}',
+'.sv2l-enter{animation:sv2lStep .38s cubic-bezier(.2,.7,.2,1) both}',
+'@keyframes sv2lIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}',
+'@keyframes sv2lStep{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}',
 '.sv2l-strip.rows{display:flex;flex-direction:column;gap:2px;overflow:visible;scroll-snap-type:none;padding:6px 4px 10px}',
 '.sv2l-prow{display:flex;align-items:center;gap:10px}',
 '.sv2l-prow+.sv2l-prow{border-top:1px dashed var(--border2,rgba(0,0,0,.14));padding-top:6px}',
@@ -14653,7 +14658,7 @@ function sv2lEnsureCss(){
 '@media(max-width:760px){.sv2l{padding:14px 12px calc(var(--sv2l-pad,0px) + 32px)}',
 ' .sv2l-hd h1{font-size:24px}.sv2l-hd p{font-size:12.5px;flex-basis:100%}',
 ' .sv2l-strip{gap:4px;margin:0 -12px;padding:6px 12px 12px}',
- ' .sv2l-lines{grid-template-columns:1fr;gap:12px}.sv2l-line{padding:18px;gap:12px}.sv2l-line .ic{width:52px;height:52px}.sv2l-line .nm{font-size:20px}',
+ ' .sv2l-pick{margin-top:8px}.sv2l-lcard{padding:16px}.sv2l-go{display:none}',
  ' .sv2l-prow{flex-direction:column;align-items:stretch;gap:2px}.sv2l-rowlab{flex:none;flex-direction:row;align-items:baseline;gap:8px;padding:0 2px}.sv2l-rowlab b{font-size:16px}',
  ' .sv2l-bubs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:4px}.sv2l-bubs::-webkit-scrollbar{display:none}.sv2l-bubs .sv2l-chip{width:80px}',
 ' .sv2l-chip{width:80px}.sv2l-ring{width:66px;height:66px;padding:4px}.sv2l-chip[aria-selected=true] .sv2l-ring{padding:5px}.sv2l-chip b{font-size:12px}.sv2l-chip .sv2l-ar{font-size:12px}',
@@ -14661,7 +14666,7 @@ function sv2lEnsureCss(){
 ' .sv2l-ttl h2{font-size:24px}.sv2l-ttl .sv2l-ar{font-size:16px}.sv2l-live{margin-left:0;flex-basis:100%}',
 ' .sv2l-kpis{grid-template-columns:1fr 1fr;gap:8px}.sv2l-kpi b{font-size:22px}',
 ' .sv2l-cta{width:100%}}',
-'@media(prefers-reduced-motion:reduce){.sv2l-ring{transition:none}.sv2l-sk,.sv2l-cnt.sk{animation:none}}'
+'@media(prefers-reduced-motion:reduce){.sv2l-lcard,.sv2l-enter{animation:none}.sv2l-ring{transition:none}.sv2l-sk,.sv2l-cnt.sk{animation:none}}'
   ].join('\n');
   document.head.appendChild(s);
 }
@@ -14692,6 +14697,12 @@ function ShipLanding(props){
   var line=lineRaw&&allProds.some(function(p){return lineOfProd(p.id)===lineRaw;})?lineRaw:null;
   function setLine(v){setLineRaw(v);try{if(v)localStorage.setItem('sv2_landing_line',v);else localStorage.removeItem('sv2_landing_line');}catch(e){}}
   prods=line?allProds.filter(function(p){return lineOfProd(p.id)===line;}):[];
+  /* picking a line: the chosen card lifts while the other fades, then step 2 slides in (skipped with reduced motion) */
+  var sGo=useState(null),going=sGo[0],setGoing=sGo[1];
+  function chooseLine(id){
+    var calm=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(calm){setLine(id);return;}
+    setGoing(id);setTimeout(function(){setGoing(null);setLine(id);},260);}
   var sFocus=useState(null),focusId=sFocus[0],setFocusId=sFocus[1];
   var sData=useState(null),data=sData[0],setData=sData[1];
   var sTick=useState(0),tick=sTick[0],setTick=sTick[1];
@@ -14814,26 +14825,40 @@ function ShipLanding(props){
     }
   }
   var lineObj=SV2L_LINES.find(function(L){return L.id===line;});
+  /* same step tabs as the Export Inspection start page (index.html .lg-* styles): Line › Product */
+  var stepTabs=ce('ol',{className:'lg-stp sv2l-stp','aria-label':'Progress'},
+    [{n:1,l:'Line',st:line?'done':'cur',v:lineObj?lineObj.en+' · '+lineObj.ar:''},{n:2,l:'Product',st:line?'cur':'todo',v:''}].map(function(t){
+      var inner=[ce('span',{key:'n',className:'lg-sn'},t.st==='done'?'✓':t.n),
+        ce('span',{key:'l',className:'lg-sl'},t.l,t.st==='done'&&t.v?ce('small',null,t.v):null),
+        t.st==='done'?ce('span',{key:'c',className:'lg-chg'},'Change'):null];
+      return ce('li',{key:t.l,className:t.st},t.st==='done'?ce('button',{type:'button',onClick:function(){setLine(null);}},inner):ce('span',null,inner));
+    }));
   if(!line){
-    /* step 1: line cards (same icons as the Export Inspection start page) */
+    /* step 1: line cards, centred and stacked, styled like the Export Inspection line step */
     return ce('div',{className:'sv2l',ref:rootRef},
-      ce('div',{className:'sv2l-hd'},ce('h1',null,'Shipments'),ce('p',null,'Pick a line of business'+(seasonName?' · Season '+seasonName:'')+'.')),
-      ce('div',{className:'sv2l-lines'},SV2L_LINES.map(function(L){
-        var ps=allProds.filter(function(p){return lineOfProd(p.id)===L.id;});if(!ps.length)return null;
-        var known=ps.filter(function(p){return counts[p.id]!=null;}),n=known.reduce(function(t,p){return t+(+counts[p.id]||0);},0);
-        return ce('button',{key:L.id,type:'button',className:'sv2l-line sv2l-line-'+L.id,onClick:function(){setLine(L.id);}},
-          ce('span',{className:'ic','aria-hidden':'true',dangerouslySetInnerHTML:{__html:L.icon}}),
-          ce('span',{className:'t'},ce('span',{className:'nm'},L.en,' ',ce('span',{className:'ar',lang:'ar',dir:'rtl'},L.ar)),
-            ce('span',{className:'pr'},ps.map(function(p){return p.name||p.id;}).join(' · '))),
-          ce('span',{className:'st'},ce('b',null,known.length?n.toLocaleString():'—'),ce('small',null,'shipments'),ce('b',null,String(ps.length)),ce('small',null,'products')));
-      })));
+      ce('div',{className:'sv2l-pick'},
+        ce('div',{className:'sv2l-pickhd'},ce('h1',null,'Shipments'),ce('p',null,'Pick a line of business'+(seasonName?' · Season '+seasonName:''))),
+        stepTabs,
+        ce('div',{className:'sv2l-lines'+(going?' going':'')},SV2L_LINES.map(function(L,i){
+          var ps=allProds.filter(function(p){return lineOfProd(p.id)===L.id;});if(!ps.length)return null;
+          var known=ps.filter(function(p){return counts[p.id]!=null;}),n=known.reduce(function(t,p){return t+(+counts[p.id]||0);},0);
+          return ce('button',{key:L.id,type:'button',disabled:!!going,
+              className:'lg-line lg-panel lg-'+L.id+' sv2l-lcard'+(going===L.id?' picked':going?' away':''),style:{animationDelay:(i*70)+'ms'},
+              onClick:function(){chooseLine(L.id);}},
+            ce('span',{className:'lg-ic','aria-hidden':'true',dangerouslySetInnerHTML:{__html:L.icon}}),
+            ce('span',{className:'lg-lt'},
+              ce('span',{className:'lg-nm'},L.en,' ',ce('span',{className:'lg-ar'},L.ar)),
+              ce('span',{className:'lg-hint'},ps.map(function(p){return p.name||p.id;}).join(' · '))),
+            ce('span',{className:'lg-ls'},ce('b',null,known.length?n.toLocaleString():'—'),ce('small',null,'shipments'),ce('b',null,String(ps.length)),ce('small',null,'products')),
+            ce('span',{className:'sv2l-go','aria-hidden':'true'},'→'));
+        }))));
   }
   return ce('div',{className:'sv2l',ref:rootRef},
-    ce('div',{className:'sv2l-hd'},ce('h1',null,'Shipments'),
-      ce('p',{className:'sv2l-crumb'},ce('button',{type:'button',onClick:function(){setLine(null);}},'Line'),' › ',ce('b',null,lineObj.en+' · ',ce('span',{lang:'ar',dir:'rtl'},lineObj.ar)),' › Product')),
-    ce('button',{type:'button',className:'sv2l-backline',onClick:function(){setLine(null);}},'← Back to line'),
+    ce('div',{className:'sv2l-hd'},ce('h1',null,'Shipments'),ce('p',null,'Tap a product for its season at a glance, then open its records.')),
+    ce('div',{className:'sv2l-stepw'},stepTabs),
+    ce('div',{key:'in-'+line,className:'sv2l-enter'},
     strip,
-    ce('section',{className:'sv2l-panel',id:'sv2l-panel',role:'tabpanel','aria-labelledby':cur?'sv2l-tab-'+cur:undefined,style:curP?colors(curP):undefined},panel));
+    ce('section',{className:'sv2l-panel',id:'sv2l-panel',role:'tabpanel','aria-labelledby':cur?'sv2l-tab-'+cur:undefined,style:curP?colors(curP):undefined},panel)));
 }
 function ShipmentsMgmt(props){
 
