@@ -14854,7 +14854,7 @@ function ShipLanding(props){
         }))));
   }
   return ce('div',{className:'sv2l',ref:rootRef},
-    ce('div',{className:'sv2l-hd'},ce('h1',null,'Shipments'),ce('p',null,'Tap a product for its season at a glance, then open its records.')),
+    ce('div',{className:'sv2l-hd'},ce('p',null,'Tap a product for its season at a glance, then open its records.')),   /* no second 'Shipments' title: the top bar has it */
     ce('div',{className:'sv2l-stepw'},stepTabs),
     ce('div',{key:'in-'+line,className:'sv2l-enter'},
     strip,
